@@ -51,6 +51,7 @@ Full detail: [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ## Documentation
 
+- [DEBRIEF.md](DEBRIEF.md) — narrative project debrief (what Lucidex is, the cockpit metaphor, the north star)
 - [ARCHITECTURE.md](ARCHITECTURE.md) — architecture layers in detail
 - [docs/mcp.md](docs/mcp.md) — MCP layer and mcp-store
 - [docs/backend.md](docs/backend.md) — backend API and SSE
