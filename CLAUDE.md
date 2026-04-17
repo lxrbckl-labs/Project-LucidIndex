@@ -18,6 +18,7 @@ See [README.md](README.md) for the full pitch. See [ARCHITECTURE.md](ARCHITECTUR
 
 | What | Where |
 |---|---|
+| Narrative debrief | [DEBRIEF.md](DEBRIEF.md) |
 | Project overview and north star | [README.md](README.md) |
 | Architecture (all 5 layers) | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | MCP layer and mcp-store | [docs/mcp.md](docs/mcp.md) |
