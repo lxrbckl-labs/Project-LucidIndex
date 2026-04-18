@@ -1,67 +1,107 @@
 # Claude Code Integration
 
-Lucidex exposes slash commands for triggering and interacting with the platform from Claude Code sessions. See [ARCHITECTURE.md](../ARCHITECTURE.md) for context.
+LucidIndex exposes slash commands for driving the platform from Claude Code sessions. See [ARCHITECTURE.md](../ARCHITECTURE.md) for context.
 
 ---
 
 ## Overview
 
-Four slash commands cover the primary interactions: triggering sweeps, adding topics, generating digests, and checking status. These commands are the manual trigger surface for the platform — see [docs/triggers.md](triggers.md) for the full trigger system including cron and webhooks.
+Three slash commands, no more:
+
+- `/lucidindex run` — drain the queue once right now, regardless of cadence.
+- `/lucidindex add-target` — add a new target to the user's queue.
+- `/lucidindex status` — show queue state, last-run per target, agent activity.
+
+These are the **manual** trigger surface. Scheduled and event-driven triggers live in [docs/triggers.md](triggers.md).
+
+All slash commands operate on the authenticated user's data. The Claude Code session is tied to the user's LucidIndex session via a locally-stored token (see *Implementation Notes* below). Users never see each other's queues or findings.
 
 ---
 
-## `/lucidex run`
+## `/lucidindex run`
 
-Trigger a sweep — tells agents to go do their work now.
+Drain the queue once right now — tell agents to pick up any ready targets without waiting for the next cadence tick.
 
-> TODO: Define the behavior spec:
-> - What exactly happens when this command runs?
-> - Does it trigger all agents or a specific topic/agent?
-> - Can you pass arguments (e.g., `/lucidex run --topic "AI news"`)?
-> - What feedback does the user get? Immediate status, or check back with `/lucidex status`?
-> - How does it interact with the trigger system (see [triggers.md](triggers.md))?
+**Behavior:**
 
----
+- Marks the user's currently ready queue items as available for immediate pull (if not already).
+- Optionally: force-re-enqueues *all* of the user's active targets so the agent drains everything on demand, regardless of when each target was last checked.
+- Agents (connected to `mcp-store`) pull from the queue as usual.
+- Command prints immediate acknowledgement + queue size; user can re-run `/lucidindex status` for progress.
 
-## `/lucidex add-topic`
+**Arguments:**
 
-Add a new topic to the watch list.
+```
+/lucidindex run                    # drain ready items only
+/lucidindex run --all              # force-re-enqueue every active target, then drain
+/lucidindex run --target <id|label>   # drain (or force-re-enqueue) one specific target
+```
 
-> TODO: Define the behavior spec:
-> - What arguments does it take? (topic name, keywords, source types, author list?)
-> - Is it interactive (prompts the user) or does it take arguments inline?
-> - Where does it write the config? (via backend API → SQLite → picked up by mcp-store)
-> - Does it immediately run a sweep for the new topic, or wait for the next scheduled run?
+**Interaction with the trigger system:** this is the **manual** trigger. Cron still ticks on its own cadence; webhook callers still fire independently. See [docs/triggers.md](triggers.md).
 
 ---
 
-## `/lucidex digest`
+## `/lucidindex add-target`
 
-Generate a digest summary of recent findings.
+Add a new target to the user's queue.
 
-> TODO: Define the behavior spec:
-> - What time window does the digest cover? (last 24h? configurable?)
-> - What format is the output? (markdown summary per topic? single narrative?)
-> - Does it render in the Claude Code terminal, push to the dashboard, or both?
-> - Can you scope it? (e.g., `/lucidex digest --topic "AI news"`)
+**Behavior:**
+
+- Creates a new target for the authenticated user via the backend's `POST /targets`.
+- Does not run the agent immediately. The next cron tick (or an explicit `/lucidindex run`) will pick it up.
+- The user does **not** specify a genre — the agent picks a genre per finding at write-back time.
+
+**Arguments:**
+
+```
+/lucidindex add-target <url-or-handle> [--label "MKBHD"] [--cadence hourly|daily|<cron>] [--instruction "..."]
+```
+
+- `<url-or-handle>` — required. A URL (e.g. `https://example.com/blog`) or a handle (e.g. `@mkbhd` on YouTube, a specific profile URL for Instagram/X).
+- `--label` — required. Human-friendly, display-only (what shows up in the Queue UI and card bylines).
+- `--cadence` — default `hourly`. Named preset or a cron expression.
+- `--instruction` — optional, freeform. What to look for, how to summarize. Filled into the per-target instruction template.
+
+Interactive mode (prompts for each field) is TBD — v0.1 takes inline flags.
 
 ---
 
-## `/lucidex status`
+## `/lucidindex status`
 
-Show current run status and agent activity.
+Show queue state, last-run per target, and agent activity.
 
-> TODO: Define the behavior spec:
-> - What does it output? (last run time, next scheduled run, active agents, recent finding count?)
-> - Does it pull from the backend API or check some local state?
-> - Useful for: "did the overnight sweep run? did it find anything?"
+**Behavior:**
+
+- Calls the backend `/status` endpoint.
+- Output covers:
+  - Queue state — counts of ready / locked / completed-today items.
+  - Per-target last-run — label, target id, last run time, last run status (`succeeded-with-findings` / `succeeded-nothing-new` / `failed` with reason), next scheduled run.
+  - Recent agent activity — last N acks, with findings-counts.
+
+**Arguments:**
+
+```
+/lucidindex status                 # overview
+/lucidindex status --target <id|label>  # zoom in on one target
+```
+
+Useful for: "did the last run pick up anything?", "why isn't @foo firing?", "what's queued right now?".
+
+---
+
+## Commands explicitly removed
+
+Historic commands that have been cut from the v0.1 surface and are **not** implemented:
+
+- **`add-topic`** — replaced by `/lucidindex add-target`. The model is targets (URLs and handles), not topics/keywords.
+- **`digest`** — removed entirely. The dashboard columns *are* the forum; there is no separate digest view.
 
 ---
 
 ## Implementation Notes
 
-> TODO: Notes on how these slash commands are implemented:
-> - Where do the command definitions live in the repo?
-> - How do they call the backend API?
-> - Auth/credentials — how does the CLI know where the backend is?
-> - Local dev setup for testing commands against a local backend instance.
+> TODO: Specifics of the slash-command implementation:
+> - Where command definitions live in the user's Claude Code setup.
+> - How the CLI authenticates to the backend — the passkey login itself is a browser flow, so the CLI likely stores a long-lived API token issued by the dashboard (e.g. a "Claude Code token" from the Settings page). Lock in the exact mechanism at implementation time.
+> - How the CLI discovers the backend URL (env var? config file? explicit flag?).
+> - Local dev flow — running slash commands against a local backend instance.
