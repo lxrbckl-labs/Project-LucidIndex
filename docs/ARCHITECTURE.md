@@ -1,6 +1,6 @@
 # Architecture
 
-LucidIndex is built in five layers on top of a **queue-based pull model** with **per-user scope**. Users add watch targets; external agents pull from the queue, summarize what's new, classify findings into genres, and write back; the backend stores and streams; the dashboard arranges everything into TweetDeck-shaped columns. See [README.md](README.md) for the project overview.
+LucidIndex is built in five layers on top of a **queue-based pull model** with **per-user scope**. Users add watch targets; external agents pull from the queue, summarize what's new, classify findings into genres, and write back; the backend stores and streams; the dashboard arranges everything into TweetDeck-shaped columns. See [README.md](../README.md) for the project overview.
 
 ---
 
@@ -21,7 +21,7 @@ The MCP server every external agent connects to.
 
 `mcp-store` operations are scoped to the authenticated user context — the queue item carries the owning user, and write-back is validated against that user's targets.
 
-See [docs/mcp.md](docs/mcp.md) for tool signatures, schemas, and implementation notes.
+See [mcp.md](./mcp.md) for tool signatures, schemas, and implementation notes.
 
 ---
 
@@ -35,7 +35,7 @@ TypeScript + **Fastify**. Lock-in: Fastify is the chosen framework — local/hom
 - **SQLite** persistence via `better-sqlite3`.
 - **Admin CLI** for the two out-of-band flows: `admin:invite` (generate an invite code for v0.1 signup) and `admin:reset` (reset a user's passkey; the only recovery path).
 
-See [docs/backend.md](docs/backend.md) for the full endpoint list, SSE event payloads, DB schema, and admin CLI details.
+See [backend.md](./backend.md) for the full endpoint list, SSE event payloads, DB schema, and admin CLI details.
 
 ---
 
@@ -59,7 +59,7 @@ thumbnail/icon, summary headline, source-handle byline (e.g. "MKBHD · YouTube �
 
 **Visual style:** clean white, neutral grays, generous padding. Linear/Notion feel.
 
-See [docs/dashboard.md](docs/dashboard.md) for UI brain-dump, component specs, and flows.
+See [dashboard.md](./dashboard.md) for UI brain-dump, component specs, and flows.
 
 ---
 
@@ -73,7 +73,7 @@ Slash commands for driving LucidIndex from Claude Code sessions without opening 
 | `/lucidindex add-target` | Add a new target to the user's queue (url/handle, label, cadence, instruction) |
 | `/lucidindex status` | Show queue state, last-run per target, agent activity |
 
-See [docs/claude-code.md](docs/claude-code.md) for argument shapes and behavior specs.
+See [claude-code.md](./claude-code.md) for argument shapes and behavior specs.
 
 ---
 
@@ -87,7 +87,7 @@ How targets become ready for agents to pull.
 | **Webhook** | External system POSTs to re-enqueue a specific target |
 | **Manual** | `/lucidindex run` slash command drains the queue once right now |
 
-A trigger does not directly invoke agents — it makes targets **ready** on the queue. Agents pull when they're available. See [docs/triggers.md](docs/triggers.md) for the full lifecycle walkthrough.
+A trigger does not directly invoke agents — it makes targets **ready** on the queue. Agents pull when they're available. See [triggers.md](./triggers.md) for the full lifecycle walkthrough.
 
 ---
 

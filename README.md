@@ -12,7 +12,7 @@ Think of it as a forum of your own making — one column per genre, one card per
 
 **North star:** Log in, open your dashboard to a forum of columns — each genre a column, each card a fresh finding your agents surfaced overnight from the handles and URLs you asked them to watch.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the full layer breakdown.
+See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full layer breakdown.
 
 ---
 
@@ -35,7 +35,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full layer breakdown.
 | **Claude Code integration** | Slash commands — `/lucidindex run`, `/lucidindex add-target`, `/lucidindex status` |
 | **Trigger system** | Cron re-enqueues targets due for a check, webhook re-enqueues a specific target, manual via slash command |
 
-Full detail: [ARCHITECTURE.md](ARCHITECTURE.md)
+Full detail: [ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
 ---
 
@@ -55,8 +55,8 @@ Full detail: [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ## Documentation
 
-- [DEBRIEF.md](DEBRIEF.md) — narrative project debrief (what LucidIndex is, the cockpit metaphor, the north star)
-- [ARCHITECTURE.md](ARCHITECTURE.md) — the five layers in detail
+- [DEBRIEF.md](docs/DEBRIEF.md) — narrative project debrief (what LucidIndex is, the cockpit metaphor, the north star)
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) — the five layers in detail
 - [docs/mcp.md](docs/mcp.md) — MCP layer and `mcp-store` (queue + write-back + genres + high-water marks)
 - [docs/backend.md](docs/backend.md) — backend API, passkey auth, SSE, DB schema, admin CLI
 - [docs/dashboard.md](docs/dashboard.md) — TweetDeck column layout, card anatomy, settings, UX (dump UI ideas here)

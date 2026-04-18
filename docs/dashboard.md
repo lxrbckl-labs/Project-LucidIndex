@@ -1,6 +1,6 @@
 # Dashboard
 
-The user-facing forum. Built with Next.js + Tailwind + shadcn/ui. This is where the intelligence surfaces. See [ARCHITECTURE.md](../ARCHITECTURE.md) for context.
+The user-facing forum. Built with Next.js + Tailwind + shadcn/ui. This is where the intelligence surfaces. See [ARCHITECTURE.md](./ARCHITECTURE.md) for context.
 
 **This file is your UI brain-dump space.** Drop wireframe sketches, color ideas, layout notes, component thoughts, inspiration links, and mockup images here as you think of them. The structure below gives you buckets to organize into — fill in as little or as much as you like.
 
