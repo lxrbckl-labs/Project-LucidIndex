@@ -1,6 +1,6 @@
 # Claude Code Integration
 
-LucidIndex exposes slash commands for driving the platform from Claude Code sessions. See [ARCHITECTURE.md](../ARCHITECTURE.md) for context.
+LucidIndex exposes slash commands for driving the platform from Claude Code sessions. See [ARCHITECTURE.md](./ARCHITECTURE.md) for context.
 
 ---
 

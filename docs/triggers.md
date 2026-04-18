@@ -1,6 +1,6 @@
 # Trigger System
 
-The trigger system controls how targets become **ready** on the queue. Three trigger types: scheduled (cron), event-driven (webhook), and manual (slash command). See [ARCHITECTURE.md](../ARCHITECTURE.md) for context.
+The trigger system controls how targets become **ready** on the queue. Three trigger types: scheduled (cron), event-driven (webhook), and manual (slash command). See [ARCHITECTURE.md](./ARCHITECTURE.md) for context.
 
 ---
 

@@ -12,7 +12,7 @@ LucidIndex is a multi-user personal intelligence forum. Each user logs in (passk
 
 LucidIndex is the infrastructure. It does not ship agents, scrapers, or summarization pipelines.
 
-See [README.md](README.md) for the full pitch. See [ARCHITECTURE.md](ARCHITECTURE.md) for the layer breakdown.
+See [README.md](README.md) for the full pitch. See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for the layer breakdown.
 
 ---
 
@@ -20,9 +20,9 @@ See [README.md](README.md) for the full pitch. See [ARCHITECTURE.md](ARCHITECTUR
 
 | What | Where |
 |---|---|
-| Narrative debrief | [DEBRIEF.md](DEBRIEF.md) |
+| Narrative debrief | [DEBRIEF.md](docs/DEBRIEF.md) |
 | Project overview and north star | [README.md](README.md) |
-| Architecture (all 5 layers) | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Architecture (all 5 layers) | [ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 | MCP layer and `mcp-store` (queue + write-back + genres) | [docs/mcp.md](docs/mcp.md) |
 | Backend API, passkey auth, SSE, DB schema, admin CLI | [docs/backend.md](docs/backend.md) |
 | Dashboard UI vision (TweetDeck columns, card anatomy) | [docs/dashboard.md](docs/dashboard.md) |

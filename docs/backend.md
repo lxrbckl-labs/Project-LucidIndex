@@ -1,6 +1,6 @@
 # Backend API
 
-The backend is a TypeScript + Fastify API server that sits between `mcp-store`, the dashboard, and the admin CLI. It handles passkey auth, persists everything to SQLite, serves the dashboard's data, and streams per-user SSE updates. See [ARCHITECTURE.md](../ARCHITECTURE.md) for context.
+The backend is a TypeScript + Fastify API server that sits between `mcp-store`, the dashboard, and the admin CLI. It handles passkey auth, persists everything to SQLite, serves the dashboard's data, and streams per-user SSE updates. See [ARCHITECTURE.md](./ARCHITECTURE.md) for context.
 
 ---
 

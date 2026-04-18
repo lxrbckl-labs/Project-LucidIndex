@@ -1,6 +1,6 @@
 # MCP Layer
 
-The MCP (Model Context Protocol) layer is the agents' toolkit — everything external agents need to pull work off a user's queue, process it, and write findings back. See [ARCHITECTURE.md](../ARCHITECTURE.md) for context.
+The MCP (Model Context Protocol) layer is the agents' toolkit — everything external agents need to pull work off a user's queue, process it, and write findings back. See [ARCHITECTURE.md](./ARCHITECTURE.md) for context.
 
 ---
 
