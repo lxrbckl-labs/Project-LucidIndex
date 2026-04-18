@@ -1,24 +1,27 @@
-# Project Lucidex
+# Project LucidIndex
 
-> AI agent-operated social media and web intelligence platform. Agents monitor the web; Lucidex surfaces the results.
+> A multi-user personal intelligence forum. You add the handles and URLs you want watched; your agents pull from the queue and file back findings; LucidIndex arranges them into a TweetDeck-shaped dashboard.
 
 ---
 
-## What Is Lucidex?
+## What Is LucidIndex?
 
-Lucidex is the infrastructure connecting autonomous AI agents to a clean intelligence dashboard. You configure what to watch — topics, authors, keywords, sources. Agents do the monitoring and summarization. Lucidex is the cockpit that gives them instruments and gives you a readout.
+LucidIndex is the infrastructure between you and your AI agents. You log in, add watch targets to your personal queue (a YouTube handle, an Instagram profile, an X account, a plain website URL), and let your agents do the rounds. Agents **pull** from the queue on their own cadence, check each target for new activity, summarize what they found, and write the findings back. LucidIndex stores the findings, classifies them into columns on your dashboard, and keeps the whole thing private per user.
 
-**North star:** Open your dashboard in the morning to a fully briefed readout of everything meaningful that happened online about the topics you care about — compiled, summarized, and organized overnight.
+Think of it as a forum of your own making — one column per genre, one card per finding, organized by agents that you brought and configured yourself.
+
+**North star:** Log in, open your dashboard to a forum of columns — each genre a column, each card a fresh finding your agents surfaced overnight from the handles and URLs you asked them to watch.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the full layer breakdown.
 
 ---
 
-## What Lucidex Is NOT Building
+## What LucidIndex Is NOT Building
 
-- The agents themselves (external, bring your own intelligence)
-- Social media API integrations (agents use web search)
-- An LLM or summarization pipeline (that's the agents' job)
+- **The agents themselves** — external, bring-your-own. You wire up your own Claude Code, your own workflow, your own prompts.
+- **Agent intelligence or scraping tools** — agents already have web traversal tools (Playwright, fetch, search). LucidIndex does not ship any of that.
+- **Social media API integrations** — no Twitter API keys, no YouTube Data API, no Instagram Graph. Agents use general web access.
+- **An LLM or summarization pipeline** — summarization is whatever the agent does. LucidIndex just stores what comes back.
 
 ---
 
@@ -26,11 +29,11 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full layer breakdown.
 
 | Layer | Description |
 |---|---|
-| **MCP Layer** | Agents' toolkit — mission config, write-back, deduplication |
-| **Backend** | TypeScript API server — receives summaries, persists, pushes SSE |
-| **Dashboard** | Next.js + Tailwind + shadcn/ui — live feed, filters, config editor |
-| **Claude Code integration** | Slash commands — `/lucidex run`, `/lucidex add-topic`, etc. |
-| **Trigger system** | Cron, webhooks, manual slash command triggers |
+| **MCP Layer** | `mcp-store` — pull/lock/ack queue, findings write-back, expose user genres for classification, track per-target high-water marks |
+| **Backend** | TypeScript + Fastify — passkey auth, REST API for targets/findings/genres, SSE per user, SQLite persistence |
+| **Dashboard** | Next.js + Tailwind + shadcn/ui — TweetDeck-shaped genre columns, right-drawer detail, star/read/search |
+| **Claude Code integration** | Slash commands — `/lucidindex run`, `/lucidindex add-target`, `/lucidindex status` |
+| **Trigger system** | Cron re-enqueues targets due for a check, webhook re-enqueues a specific target, manual via slash command |
 
 Full detail: [ARCHITECTURE.md](ARCHITECTURE.md)
 
@@ -41,26 +44,27 @@ Full detail: [ARCHITECTURE.md](ARCHITECTURE.md)
 | Layer | Tech |
 |---|---|
 | MCP servers | TypeScript |
-| Backend API | TypeScript (Hono or Fastify — TBD) |
+| Backend API | TypeScript + Fastify |
 | Database | SQLite via `better-sqlite3` |
 | Dashboard | Next.js + Tailwind + shadcn/ui |
-| Realtime | SSE (Server-Sent Events) |
+| Realtime | SSE (Server-Sent Events), auth'd per user |
 | Agent interface | Claude Code + MCP protocol |
+| Auth | Passkeys only (WebAuthn) |
 
 ---
 
 ## Documentation
 
-- [DEBRIEF.md](DEBRIEF.md) — narrative project debrief (what Lucidex is, the cockpit metaphor, the north star)
-- [ARCHITECTURE.md](ARCHITECTURE.md) — architecture layers in detail
-- [docs/mcp.md](docs/mcp.md) — MCP layer and mcp-store
-- [docs/backend.md](docs/backend.md) — backend API and SSE
-- [docs/dashboard.md](docs/dashboard.md) — dashboard UI (dump your UI ideas here)
-- [docs/claude-code.md](docs/claude-code.md) — slash commands
-- [docs/triggers.md](docs/triggers.md) — trigger system
+- [DEBRIEF.md](DEBRIEF.md) — narrative project debrief (what LucidIndex is, the cockpit metaphor, the north star)
+- [ARCHITECTURE.md](ARCHITECTURE.md) — the five layers in detail
+- [docs/mcp.md](docs/mcp.md) — MCP layer and `mcp-store` (queue + write-back + genres + high-water marks)
+- [docs/backend.md](docs/backend.md) — backend API, passkey auth, SSE, DB schema, admin CLI
+- [docs/dashboard.md](docs/dashboard.md) — TweetDeck column layout, card anatomy, settings, UX (dump UI ideas here)
+- [docs/claude-code.md](docs/claude-code.md) — `/lucidindex` slash commands
+- [docs/triggers.md](docs/triggers.md) — cron, webhook, manual triggers, lifecycle
 
 ---
 
 ## Setup
 
-> TODO: Fill in setup instructions once the project is initialized — repo structure, install steps, env vars, how to run locally.
+> TODO: Fill in setup instructions once the project is initialized — repo structure, install steps, env vars, admin CLI (`admin:invite`, `admin:reset`), how to run locally.

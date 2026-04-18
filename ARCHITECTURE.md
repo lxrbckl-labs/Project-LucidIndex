@@ -1,113 +1,132 @@
 # Architecture
 
-Lucidex is built in five layers. Agents write findings to the MCP layer; the backend ingests and serves them; the dashboard presents them. See [README.md](README.md) for the project overview.
+LucidIndex is built in five layers on top of a **queue-based pull model** with **per-user scope**. Users add watch targets; external agents pull from the queue, summarize what's new, classify findings into genres, and write back; the backend stores and streams; the dashboard arranges everything into TweetDeck-shaped columns. See [README.md](README.md) for the project overview.
 
 ---
 
 ## Layer 1: MCP Layer
 
-The agents' toolkit. All agent interactions with Lucidex flow through MCP servers.
+The agents' toolkit. All agent interactions with LucidIndex flow through `mcp-store`. Agents never talk to the backend or database directly.
 
 ### Core: `mcp-store`
 
-The central MCP server that all agents connect to.
+The MCP server every external agent connects to.
 
 **Responsibilities:**
 
-- **Mission config** — agents read what topics, authors, and keywords they are tasked to monitor
-- **Write-back** — agents POST summaries and findings after each sweep
-- **History queries** — agents query past findings to avoid redundant work
-- **Deduplication** — content deduplication across multiple agent runs
+- **Queue service** — expose `pull_queue_item` (claim-lock a ready target so no two agents work it concurrently) and `ack_queue_item` (release the lock and record run status).
+- **Findings write-back** — accept a findings list from an agent via `write_findings`. Each finding includes an agent-assigned genre.
+- **User genre list for classification** — `get_user_genres` returns the calling user's existing genres so the agent can prefer reusing over inventing. Agents are instructed to pick broad genres ("AI", "Astronomy") not narrow ones ("LLM evaluation", "JWST images").
+- **High-water marks** — `get_high_water_mark` returns the last-processed marker per target so agents only process new content.
 
-See [docs/mcp.md](docs/mcp.md) for schema detail and planned additional MCP servers.
+`mcp-store` operations are scoped to the authenticated user context — the queue item carries the owning user, and write-back is validated against that user's targets.
+
+See [docs/mcp.md](docs/mcp.md) for tool signatures, schemas, and implementation notes.
 
 ---
 
 ## Layer 2: Backend
 
-Lightweight API server sitting between the MCP layer and the dashboard.
+TypeScript + **Fastify**. Lock-in: Fastify is the chosen framework — local/homelab deploy target, no edge runtime needed, mature plugin ecosystem, good fit for SSE and SQLite-backed APIs.
 
-- Receives POSTed summaries from agents (via MCP or direct)
-- Persists findings to SQLite
-- Pushes realtime updates to the dashboard via SSE
-- Framework: Hono or Fastify (TBD — see [docs/backend.md](docs/backend.md))
-- Database: SQLite via `better-sqlite3`
+- **Passkey auth** via WebAuthn. Session cookies. No email/password, no magic link, no OAuth.
+- **REST API** for targets, findings, genres, favorites, search, and status — all user-scoped.
+- **SSE** stream per authenticated user, pushing `finding:new`, `run:completed`, `target:status`.
+- **SQLite** persistence via `better-sqlite3`.
+- **Admin CLI** for the two out-of-band flows: `admin:invite` (generate an invite code for v0.1 signup) and `admin:reset` (reset a user's passkey; the only recovery path).
 
-See [docs/backend.md](docs/backend.md) for endpoints, SSE event types, and DB schema.
+See [docs/backend.md](docs/backend.md) for the full endpoint list, SSE event payloads, DB schema, and admin CLI details.
 
 ---
 
 ## Layer 3: Dashboard
 
-The user-facing readout. Built with Next.js + Tailwind + shadcn/ui.
+Next.js + Tailwind + shadcn/ui. The user-facing forum.
 
-**Key views:**
+**Layout:**
 
-- Live feed of findings — filterable by topic, source, author
-- Search across history
-- Config editor — manage what agents are watching
-- Run history and activity log
-- Digest view — longer-form summaries
+- **Left sidebar:** app nav only — Dashboard, Queue, Settings. No genre list here; genres are the columns.
+- **Top nav:** global search across the user's findings, user/account menu.
+- **Main area:** a horizontal strip of **TweetDeck-style columns**, one column per genre. Columns scroll horizontally when they overflow the screen; each column scrolls vertically on its own.
+- **Right-side drawer:** click a card, a drawer slides in with the full summary, source link, and related findings. The column stays in view.
 
-See [docs/dashboard.md](docs/dashboard.md) for UI vision, layout notes, and component specs. **That file is the place to dump UI ideas.**
+**Card anatomy** (inspired by the Headway reference image, https://i.pinimg.com/1200x/f1/bd/56/f1bd56dc66da0753b4c0523855a57cc1.jpg):
+thumbnail/icon, summary headline, source-handle byline (e.g. "MKBHD · YouTube · 2h ago"), platform icon, importance accent (color or weight), timestamp, star toggle, read/unread state.
+
+**Finding-level state (per user):** star (bookmark), read/unread (new findings default to unread; visiting a card marks it read), search (title, summary, handle, genre). Archive is deferred.
+
+**Auth:** passkey login. **Settings page:** per-target cadence, instruction template editor, genre curation (rename/merge deferred, documented).
+
+**Visual style:** clean white, neutral grays, generous padding. Linear/Notion feel.
+
+See [docs/dashboard.md](docs/dashboard.md) for UI brain-dump, component specs, and flows.
 
 ---
 
 ## Layer 4: Claude Code Integration
 
-Slash commands for triggering and interacting with Lucidex from Claude Code sessions.
+Slash commands for driving LucidIndex from Claude Code sessions without opening the dashboard.
 
 | Command | Purpose |
 |---|---|
-| `/lucidex run` | Trigger a sweep |
-| `/lucidex add-topic` | Add a new topic to the watch list |
-| `/lucidex digest` | Generate a digest summary |
-| `/lucidex status` | Show current run status and agent activity |
+| `/lucidindex run` | Drain the queue once right now, regardless of cadence |
+| `/lucidindex add-target` | Add a new target to the user's queue (url/handle, label, cadence, instruction) |
+| `/lucidindex status` | Show queue state, last-run per target, agent activity |
 
-See [docs/claude-code.md](docs/claude-code.md) for behavior specs and implementation notes.
+See [docs/claude-code.md](docs/claude-code.md) for argument shapes and behavior specs.
 
 ---
 
 ## Layer 5: Trigger System
 
-How sweeps are initiated.
+How targets become ready for agents to pull.
 
 | Trigger type | Description |
 |---|---|
-| **Cron** | Scheduled — runs on a timer (e.g., nightly) |
-| **Manual** | Via Claude Code slash commands |
-| **Webhook** | Event-driven — external systems push a trigger |
+| **Cron** | Scheduler that re-enqueues targets whose cadence is due (default hourly, configurable per target) |
+| **Webhook** | External system POSTs to re-enqueue a specific target |
+| **Manual** | `/lucidindex run` slash command drains the queue once right now |
 
-See [docs/triggers.md](docs/triggers.md) for config formats, webhook endpoints, and trigger lifecycle.
+A trigger does not directly invoke agents — it makes targets **ready** on the queue. Agents pull when they're available. See [docs/triggers.md](docs/triggers.md) for the full lifecycle walkthrough.
 
 ---
 
 ## System Diagram
 
 ```
-External Agents (bring your own)
-        │
-        │  MCP protocol
-        ▼
-  ┌─────────────┐
-  │  MCP Layer  │  mcp-store: mission config, write-back, dedup, history
-  └──────┬──────┘
-         │
-         ▼
-  ┌─────────────┐
-  │   Backend   │  TypeScript API — ingest, persist, SSE push
-  └──────┬──────┘
-         │  SSE
-         ▼
-  ┌─────────────┐
-  │  Dashboard  │  Next.js + Tailwind + shadcn/ui
-  └─────────────┘
-
-  ┌──────────────────┐
-  │  Claude Code     │  /lucidex slash commands → triggers backend
-  └──────────────────┘
-
-  ┌──────────────────┐
-  │  Trigger System  │  cron / webhooks / manual
-  └──────────────────┘
+                  ┌─────────────────────────────────┐
+                  │   User (authenticated, passkey) │
+                  └────────────┬────────────────────┘
+                               │
+           ┌───────────────────┼───────────────────┐
+           │                   │                   │
+           ▼                   ▼                   ▼
+     ┌──────────┐        ┌──────────┐      ┌──────────────┐
+     │ Dashboard│        │ /lucidindex      │ Admin CLI    │
+     │ (Next.js)│        │  slash cmds       │ invite/reset │
+     └─────┬────┘        └─────┬────┘      └──────┬───────┘
+           │                   │                   │
+           └─────────┬─────────┴───────────────────┘
+                     │       REST + SSE (per-user auth)
+                     ▼
+              ┌─────────────────┐
+              │    Backend      │  Fastify + better-sqlite3
+              │  (per-user API) │  passkey sessions, SSE
+              └────┬───────┬────┘
+                   │       │
+                   │       │ re-enqueue (cron / webhook / manual)
+                   │       ▼
+                   │  ┌──────────────┐
+                   │  │ Queue (user- │
+                   │  │ scoped targets)
+                   │  └──────┬───────┘
+                   │         │ pull (claim-lock)
+                   │         ▼
+              ┌────┴──────────────┐
+              │    mcp-store      │ ← External agents (BYO)
+              │ pull / ack / write│   connect via MCP
+              │ genres / HWM       │
+              └───────────────────┘
 ```
+
+Data flow in short: user adds target → cron/webhook/manual re-enqueues → agent pulls (claim-lock) → agent checks target, summarizes, classifies into a genre → agent writes findings back via `mcp-store` → agent acks → backend persists → SSE pushes `finding:new` to that user's dashboard → a card lands in the matching column.
