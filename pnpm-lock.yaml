@@ -30,6 +30,9 @@ importers:
       '@lucidindex/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@lucidindex/templates':
+        specifier: workspace:*
+        version: link:../../packages/templates
       class-variance-authority:
         specifier: 0.7.1
         version: 0.7.1
@@ -113,6 +116,9 @@ importers:
 
   packages/db:
     dependencies:
+      '@lucidindex/templates':
+        specifier: workspace:*
+        version: link:../templates
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(postgres@3.4.9)
@@ -126,10 +132,21 @@ importers:
       drizzle-kit:
         specifier: 0.31.10
         version: 0.31.10
+      tsx:
+        specifier: 4.20.6
+        version: 4.20.6
 
   packages/shared: {}
 
-  packages/templates: {}
+  packages/templates:
+    dependencies:
+      liquidjs:
+        specifier: 10.21.1
+        version: 10.21.1
+    devDependencies:
+      '@types/node':
+        specifier: 25.6.0
+        version: 25.6.0
 
   tests:
     devDependencies:
@@ -1468,6 +1485,10 @@ packages:
     resolution: {integrity: sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==}
     engines: {node: '>=6'}
 
+  commander@10.0.1:
+    resolution: {integrity: sha512-y4Mg2tXshplEbSGzx7amzPwKKOCGuoSRP/CjEdwwk0FOGlUbq6lKuoyDZTNZkmxHdJtp54hdfY/JUrdL7Xfdug==}
+    engines: {node: '>=14'}
+
   commander@2.20.3:
     resolution: {integrity: sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ==}
 
@@ -1845,6 +1866,11 @@ packages:
     resolution: {integrity: sha512-NXYBzinNrblfraPGyrbPoD19C1h9lfI/1mzgWYvXUTe414Gz/X1FD2XBZSZM7rRTrMA8JL3OtAaGifrIKhQ5yQ==}
     engines: {node: '>= 12.0.0'}
 
+  liquidjs@10.21.1:
+    resolution: {integrity: sha512-NZXmCwv3RG5nire3fmIn9HsOyJX3vo+ptp0yaXUHAMzSNBhx74Hm+dAGJvscUA6lNqbLuYfXgNavRQ9UbUJhQQ==}
+    engines: {node: '>=14'}
+    hasBin: true
+
   loader-runner@4.3.2:
     resolution: {integrity: sha512-DFEqQ3ihfS9blba08cLfYf1NRAIEm+dDjic073DRDc3/JspI/8wYmtDsHwd3+4hwvdxSK7PGaElfTmm0awWJ4w==}
     engines: {node: '>=6.11.5'}
@@ -2093,6 +2119,11 @@ packages:
 
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
+
+  tsx@4.20.6:
+    resolution: {integrity: sha512-ytQKuwgmrrkDTFP4LjR0ToE2nqgy886GpvRSpU0JAnrdBYppuY5rLkRUYPU1yCryb24SsKBTL/hlDQAEFVwtZg==}
+    engines: {node: '>=18.0.0'}
+    hasBin: true
 
   tsx@4.21.0:
     resolution: {integrity: sha512-5C1sg4USs1lfG0GFb2RLXsdpXqBSEhAaA/0kPL01wxzpMqLILNxIxIOKiILz+cdg/pLnOUxFYOR5yhHU666wbw==}
@@ -3213,6 +3244,8 @@ snapshots:
 
   clsx@2.1.1: {}
 
+  commander@10.0.1: {}
+
   commander@2.20.3: {}
 
   cookie@0.7.2: {}
@@ -3495,6 +3528,10 @@ snapshots:
       lightningcss-win32-arm64-msvc: 1.32.0
       lightningcss-win32-x64-msvc: 1.32.0
 
+  liquidjs@10.21.1:
+    dependencies:
+      commander: 10.0.1
+
   loader-runner@4.3.2: {}
 
   loader-utils@2.0.4:
@@ -3745,6 +3782,13 @@ snapshots:
   tslib@1.14.1: {}
 
   tslib@2.8.1: {}
+
+  tsx@4.20.6:
+    dependencies:
+      esbuild: 0.25.12
+      get-tsconfig: 4.14.0
+    optionalDependencies:
+      fsevents: 2.3.3
 
   tsx@4.21.0:
     dependencies:

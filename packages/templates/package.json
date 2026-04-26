@@ -2,5 +2,19 @@
   "name": "@lucidindex/templates",
   "private": true,
   "version": "0.0.0",
-  "type": "module"
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./starters": "./src/starters.ts",
+    "./validate": "./src/validate.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "liquidjs": "10.21.1"
+  },
+  "devDependencies": {
+    "@types/node": "25.6.0"
+  }
 }

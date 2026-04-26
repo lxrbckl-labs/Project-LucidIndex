@@ -43,6 +43,8 @@ PLAYWRIGHT_HEADED=1 pnpm test:e2e
 - Spawns `next dev` on `127.0.0.1:3401` with throw-away env vars (founding token, iron-session secret, RP config). Killed on teardown.
 - Runs `pnpm db:migrate` against the throw-away DB to apply Phase 1 migrations.
 
+After `pnpm db:migrate` on a fresh deploy, run `pnpm db:seed` from the repo root to insert the 7 starter prompt templates (`youtube`, `blog`, `newsletter`, `news`, `instagram`, `x`, `website`). The seed is idempotent — re-running is a no-op. The Phase 4 cron sidecar will also call this on its first boot.
+
 Both port numbers can be overridden with `LUCIDINDEX_E2E_PG_PORT` and `LUCIDINDEX_E2E_WEB_PORT` env vars.
 
 ## What it does NOT do (yet)
