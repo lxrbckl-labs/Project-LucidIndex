@@ -148,11 +148,9 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
   if (!row) return null
 
   const publishedIso = row.sourcePublishedAt ? row.sourcePublishedAt.toISOString() : null
-  // Image-serve route lands in Phase 7 (#74); for now we surface a
-  // route-style URL the future handler will satisfy. The article page
-  // falls back to a placeholder when this is null OR when the image
-  // route is not yet wired (rendering tolerates a broken `<img>`).
-  const heroImageUrl = row.heroImageHash ? `/api/images/${row.heroImageHash}` : null
+  // Image-serve route at `/i/<hash>` (Phase 7 #74). Returns null when the
+  // article has no hero image; the article page falls back to a placeholder.
+  const heroImageUrl = row.heroImageHash ? `/i/${row.heroImageHash}` : null
 
   // jsonb decoded by drizzle is `unknown[]`; narrow defensively.
   const crossSourceRaw = Array.isArray(row.crossSource) ? row.crossSource : []

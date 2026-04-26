@@ -27,9 +27,9 @@
  * return a minimal compatible subset and fill in mock-only fields
  * (e.g. `readMinutes`) with computed values.
  *
- * TODO Phase 7 #74: once `/i/[hash]` lands, `heroImageUrl` is always
- * populated for real articles. Until then it falls back to null and the
- * card renders a muted placeholder.
+ * Hero images: `heroImageUrl` is the `/i/<hash>` route URL when the
+ * article has a hero, or '' when it doesn't (the masonry card falls
+ * through to a muted placeholder).
  */
 
 import { db } from '@lucidindex/db/client'
@@ -145,9 +145,9 @@ export async function loadCreatorArticles(targetId: string): Promise<MockArticle
     const publishedLabel = formatPublishLabel(publishedAt)
     const words = `${row.summary ?? ''} `.split(/\s+/).length
     const readMinutes = Math.max(1, Math.round(words / 250))
-    // Image-serve route lands in Phase 7 #74 — until then, hero images
-    // render as placeholder for real DB articles (no picsum fallback).
-    const heroImageUrl = row.heroImageHash ? `/api/images/${row.heroImageHash}` : ''
+    // Image-serve route at `/i/<hash>` (Phase 7 #74). Empty string falls
+    // through to the placeholder render in the masonry card.
+    const heroImageUrl = row.heroImageHash ? `/i/${row.heroImageHash}` : ''
 
     // crossSource: decode jsonb defensively.
     const crossSourceRaw = Array.isArray(row.crossSource) ? row.crossSource : []
