@@ -29,9 +29,10 @@
 // to the runner image. We chose simplicity.
 //
 // CHILD PROCESS: spawn (NOT exec) — args are passed as an array, no shell
-// involvement, no shell-injection risk. We pass DATABASE_URL via the
-// child's PROCESS env (not as a CLI flag) so it never appears in `ps` /
-// proc listings, and we do NOT log the URL anywhere.
+// involvement, no shell-injection risk. DATABASE_URL is parsed into libpq
+// env vars (PGHOST/PGPORT/PGUSER/PGPASSWORD/PGDATABASE) and forwarded via
+// the child's process env — never as a CLI arg — so credentials never appear
+// in `ps aux` / /proc listings. We do NOT log the parsed values anywhere.
 //
 // RETENTION: included here (not as a separate job) so a single tick is
 // self-contained and the dashboard sees one row per nightly run. The
@@ -60,6 +61,23 @@ function utcTimestamp(now: Date): string {
   const mi = pad(now.getUTCMinutes())
   const ss = pad(now.getUTCSeconds())
   return `${yyyy}-${mm}-${dd}-${hh}${mi}${ss}`
+}
+
+/**
+ * Parse a Postgres connection URL into individual libpq environment variables
+ * (PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE).  Passing these via the
+ * child's env — rather than putting the full URL on the command line — keeps
+ * credentials out of `ps aux` / /proc/<pid>/cmdline.
+ */
+function parseDatabaseUrl(url: string): Record<string, string> {
+  const u = new URL(url)
+  return {
+    PGHOST: u.hostname,
+    PGPORT: u.port || '5432',
+    PGUSER: decodeURIComponent(u.username),
+    PGPASSWORD: decodeURIComponent(u.password),
+    PGDATABASE: u.pathname.replace(/^\//, ''),
+  }
 }
 
 /**
@@ -115,18 +133,22 @@ export async function runLocalBackup(): Promise<void> {
 
     // ---- pg_dump --------------------------------------------------------
     const dumpPath = join(backupDir, `lucidindex-${ts}.dump`)
-    // Pass DATABASE_URL via env (PGURL-style positional CLI arg would also
-    // work, but env keeps it out of `ps`).
+    // DATABASE_URL is parsed into libpq env vars (PGHOST/PGPORT/PGUSER/
+    // PGPASSWORD/PGDATABASE) and passed via the child's env — never as a CLI
+    // arg.  This keeps credentials out of `ps aux` / /proc listings.
     // -Fc = custom format (compressed, restore-flexible).
     // -f  = output file.
-    // The DATABASE_URL is read from env at spawn time and never logged.
     if (!env.DATABASE_URL) {
       // env.ts asserts this at module load; this branch is here for the type-
       // checker and as a defense-in-depth guard.
       throw new Error('DATABASE_URL not set')
     }
-    await spawnExpectZero('pg_dump', ['-Fc', '-f', dumpPath, env.DATABASE_URL], {
-      env: { ...process.env, PGCONNECT_TIMEOUT: '30' },
+    // Parse DATABASE_URL into libpq env vars so pg_dump never receives the
+    // connection string (including password) as a positional CLI argument.
+    // Passing credentials via env keeps them out of `ps aux` / /proc listings.
+    const pgEnv = parseDatabaseUrl(env.DATABASE_URL)
+    await spawnExpectZero('pg_dump', ['-Fc', '-f', dumpPath], {
+      env: { ...process.env, ...pgEnv, PGCONNECT_TIMEOUT: '30' },
     })
     logger.info('local_backup_pg_dump_done', { path: dumpPath })
 
