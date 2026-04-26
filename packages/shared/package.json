@@ -4,9 +4,20 @@
   "version": "0.0.0",
   "type": "module",
   "exports": {
-    "./slug": "./src/slug.ts"
+    "./slug": {
+      "source": "./src/slug.ts",
+      "default": "./dist/slug.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "slug": [
+        "./dist/slug.d.ts"
+      ]
+    }
   },
   "scripts": {
+    "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

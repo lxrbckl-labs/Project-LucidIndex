@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "pnpm --filter @lucidindex/web dev",
-    "build": "pnpm -r build",
+    "build": "pnpm --filter @lucidindex/db build && pnpm --filter @lucidindex/shared build && pnpm -r --filter '!@lucidindex/db' --filter '!@lucidindex/shared' build",
     "typecheck": "pnpm tsc -b --noEmit && pnpm -r --if-present typecheck",
     "lint": "pnpm biome check",
     "format": "pnpm biome format --write",
