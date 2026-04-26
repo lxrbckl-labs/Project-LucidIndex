@@ -2,5 +2,33 @@
   "name": "@lucidindex/auth",
   "private": true,
   "version": "0.0.0",
-  "type": "module"
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./react": "./react/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@lucidindex/db": "workspace:*",
+    "@node-rs/argon2": "2.0.2",
+    "@simplewebauthn/browser": "13.3.0",
+    "@simplewebauthn/server": "13.3.0",
+    "drizzle-orm": "0.45.2",
+    "iron-session": "8.0.4"
+  },
+  "devDependencies": {
+    "@types/node": "25.6.0",
+    "@types/react": "19.2.14",
+    "next": "15.5.15",
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "vitest": "3.2.4"
+  },
+  "peerDependencies": {
+    "next": "^15.0.0",
+    "react": "^19.0.0"
+  }
 }
