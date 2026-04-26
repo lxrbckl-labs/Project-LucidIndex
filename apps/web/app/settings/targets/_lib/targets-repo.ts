@@ -216,8 +216,21 @@ export async function createTarget(input: TargetInput): Promise<{ id: string }> 
  * Update human-supplied fields on a target. Cron-managed fields
  * (`next_due_at`, `last_run_*`, `high_water_mark`) are NEVER touched here —
  * those belong to the Phase 4 cron sidecar / Phase 3 mcp-store.
+ *
+ * If the edit transitions `active = false → true` (i.e. resume via the form
+ * rather than the dedicated active-toggle endpoint), set
+ * `hwm_reset_pending = true` so the cron sidecar clears `high_water_mark` on
+ * its next sweep — see #51 / apps/cron/src/jobs/hwm-reset.ts.
  */
 export async function updateTarget(id: string, input: TargetInput): Promise<void> {
+  const previous = await db
+    .select({ active: targets.active })
+    .from(targets)
+    .where(eq(targets.id, id))
+    .limit(1)
+  const wasActive = previous[0]?.active === true
+  const isResuming = !wasActive && input.active === true
+
   await db
     .update(targets)
     .set({
@@ -227,11 +240,45 @@ export async function updateTarget(id: string, input: TargetInput): Promise<void
       promptTemplateId: input.promptTemplateId,
       active: input.active,
       updatedAt: sql`now()`,
+      ...(isResuming ? { hwmResetPending: true } : {}),
     })
     .where(eq(targets.id, id))
 }
 
-/** Pause/resume a target by flipping `active`. */
+/**
+ * Pause/resume a target by flipping `active`.
+ *
+ * Transitioning `active = false → true` (i.e. unpause/resume) sets
+ * `hwm_reset_pending = true` so the cron sidecar's `hwm_reset` job clears
+ * `high_water_mark` on its next sweep — see Round 6 in
+ * apps/cron/src/jobs/hwm-reset.ts and Project-LucidIndex #51. We only flip
+ * the flag when the previous state was `active = false`; resuming an
+ * already-active target is a no-op for the flag.
+ *
+ * Pausing (`active = true → false`) leaves `hwm_reset_pending` alone —
+ * agents stop running, but the saved high-water-mark stays put in case the
+ * pause is brief. The hard-reset only fires on the next unpause.
+ */
 export async function setTargetActive(id: string, active: boolean): Promise<void> {
-  await db.update(targets).set({ active, updatedAt: sql`now()` }).where(eq(targets.id, id))
+  // Read the previous `active` state inside the same logical operation so
+  // we can detect the false → true transition. There's a small TOCTOU
+  // window (a parallel toggle could race), but the column is a simple
+  // boolean — at worst we set hwm_reset_pending once redundantly, which
+  // the next cron sweep will consume idempotently.
+  const previous = await db
+    .select({ active: targets.active })
+    .from(targets)
+    .where(eq(targets.id, id))
+    .limit(1)
+  const wasActive = previous[0]?.active === true
+  const isResuming = !wasActive && active === true
+
+  await db
+    .update(targets)
+    .set({
+      active,
+      updatedAt: sql`now()`,
+      ...(isResuming ? { hwmResetPending: true } : {}),
+    })
+    .where(eq(targets.id, id))
 }

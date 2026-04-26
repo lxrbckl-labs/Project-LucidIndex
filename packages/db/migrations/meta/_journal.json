@@ -15,6 +15,13 @@
       "when": 1777208544217,
       "tag": "0001_true_spencer_smythe",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777219403088,
+      "tag": "0002_hwm_reset_pending",
+      "breakpoints": true
     }
   ]
 }

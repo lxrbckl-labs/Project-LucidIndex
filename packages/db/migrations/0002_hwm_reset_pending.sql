@@ -1,0 +1,1 @@
+ALTER TABLE "targets" ADD COLUMN "hwm_reset_pending" boolean DEFAULT false NOT NULL;
