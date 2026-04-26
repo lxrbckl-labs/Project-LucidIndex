@@ -40,6 +40,21 @@ export const targets = pgTable(
     lastRunAt: timestamp('last_run_at', { withTimezone: true }),
     lastRunFailureReason: text('last_run_failure_reason'),
     nextDueAt: timestamp('next_due_at', { withTimezone: true }).notNull(),
+    /**
+     * #51 — pause/unpause HWM hard-reset (Round 6).
+     *
+     * Set to `true` by the targets PATCH/active endpoint when `active`
+     * transitions from `false` → `true`. The cron sidecar's `hwm_reset` job
+     * then clears `high_water_mark` and resets this flag back to `false` on
+     * its next sweep, so the next agent run starts fresh from "now."
+     *
+     * Why a column flag instead of comparing `updated_at` to a remembered
+     * last-sweep time: this is idempotent + self-healing. If the cron tick
+     * is missed for any reason (sidecar restart, DB blip), the pending flag
+     * survives and the next tick still processes it — no clock state to
+     * reconcile.
+     */
+    hwmResetPending: boolean('hwm_reset_pending').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().default(sql`now()`),
   },
