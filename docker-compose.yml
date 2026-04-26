@@ -1,0 +1,84 @@
+# LucidIndex — local / production stack: Postgres 16 + Next.js web.
+#
+# Phase 1: postgres + web only.
+# Phase 3 (mcp-store) and Phase 4 (cron) sidecars are NOT included here —
+# see their respective tickets for service definitions and Dockerfiles.
+#
+# Ports are bound to 127.0.0.1 so that only the host Caddy reverse proxy
+# (outside this stack) can reach them. No service is exposed to the LAN.
+#
+# Usage:
+#   cp apps/web/.env.example .env   # fill in IRON_SESSION_PASSWORD at minimum
+#   docker compose up -d postgres   # bring up DB + verify healthy
+#   docker compose up -d --build web
+#   docker compose down -v          # tear down (removes pg_data volume)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lucidindex}
+      POSTGRES_USER: ${POSTGRES_USER:-lucidindex}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lucidindex_dev}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    # Bound to 127.0.0.1 so host-side `pnpm dev` (Next.js HMR) can connect
+    # without exposing the database to the LAN.
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lucidindex -d lucidindex"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    image: lxrbckl/lucidindex-web:main
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://lucidindex:${POSTGRES_PASSWORD:-lucidindex_dev}@postgres:5432/lucidindex
+      NODE_ENV: production
+      # iron-session cookie encryption — must be 32+ chars. No default; fails
+      # fast on startup if unset so operators never run with a blank secret.
+      IRON_SESSION_PASSWORD: ${IRON_SESSION_PASSWORD}
+      # WebAuthn relying-party config. Bare hostname (no scheme/port) for RP_ID.
+      # Defaults are valid for local dev; production overrides via .env.
+      WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:-localhost}
+      WEBAUTHN_ORIGIN: ${WEBAUTHN_ORIGIN:-http://localhost:3000}
+      # Founding-token guard (Phase 1, ticket #27) — empty default is intentional.
+      # Admin must set a value on first deploy; app logic (Phase 1 #27) enforces this.
+      LUCIDINDEX_FOUNDING_TOKEN: ${LUCIDINDEX_FOUNDING_TOKEN:-}
+      HOST: 0.0.0.0
+      PORT: "3000"
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  # ---------------------------------------------------------------------------
+  # Phase 3 — mcp-store (placeholder; not yet implemented)
+  # mcp-store:
+  #   image: lxrbckl/lucidindex-mcp-store:main
+  #   build:
+  #     context: .
+  #     dockerfile: apps/mcp-store/Dockerfile
+  #   ...
+  # ---------------------------------------------------------------------------
+
+  # ---------------------------------------------------------------------------
+  # Phase 4 — cron (placeholder; not yet implemented)
+  # cron:
+  #   image: lxrbckl/lucidindex-cron:main
+  #   build:
+  #     context: .
+  #     dockerfile: apps/cron/Dockerfile
+  #   ...
+  # ---------------------------------------------------------------------------
+
+volumes:
+  pg_data:
