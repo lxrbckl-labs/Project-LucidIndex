@@ -47,6 +47,67 @@ After `pnpm db:migrate` on a fresh deploy, run `pnpm db:seed` from the repo root
 
 Both port numbers can be overridden with `LUCIDINDEX_E2E_PG_PORT` and `LUCIDINDEX_E2E_WEB_PORT` env vars.
 
+## Production Docker stack smoke (manual)
+
+The Playwright suite runs against `next dev` (tsx, source imports) for speed. To verify the production Docker stack — including the fix that compiles `packages/db` to `dist/` so containers can boot — run the following manually from the repo root:
+
+### cron container
+
+```sh
+# Build the image (builder stage runs `pnpm --filter @lucidindex/db build` first)
+docker build -t li-cron-smoke:local -f apps/cron/Dockerfile .
+
+# Ephemeral Postgres
+docker network create li-smoke-net 2>/dev/null || true
+docker run -d --name li-smoke-pg --network li-smoke-net \
+  -e POSTGRES_USER=lucidindex \
+  -e POSTGRES_PASSWORD=lucidindex_dev \
+  -e POSTGRES_DB=lucidindex \
+  postgres:16-alpine
+# Wait for Postgres to be ready
+until docker exec li-smoke-pg pg_isready -U lucidindex -d lucidindex; do sleep 1; done
+
+# Boot the cron container (no port — it's headless)
+docker run --rm --network li-smoke-net \
+  -e DATABASE_URL=postgres://lucidindex:lucidindex_dev@li-smoke-pg:5432/lucidindex \
+  li-cron-smoke:local &
+CRON_PID=$!
+sleep 6
+docker logs $(docker ps --filter ancestor=li-cron-smoke:local -q) 2>/dev/null | head -20
+# Expected: "cron_sidecar_starting" and "cron_sidecar_listening" log lines.
+# Must NOT contain: ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING
+
+# Teardown
+kill $CRON_PID 2>/dev/null; docker stop li-smoke-pg; docker network rm li-smoke-net
+```
+
+### mcp-store container
+
+```sh
+docker build -t li-mcp-smoke:local -f apps/mcp-store/Dockerfile .
+docker network create li-smoke-net 2>/dev/null || true
+docker run -d --name li-smoke-pg --network li-smoke-net \
+  -e POSTGRES_USER=lucidindex \
+  -e POSTGRES_PASSWORD=lucidindex_dev \
+  -e POSTGRES_DB=lucidindex \
+  postgres:16-alpine
+until docker exec li-smoke-pg pg_isready -U lucidindex -d lucidindex; do sleep 1; done
+
+docker run --rm --network li-smoke-net -p 4000:4000 \
+  -e DATABASE_URL=postgres://lucidindex:lucidindex_dev@li-smoke-pg:5432/lucidindex \
+  -e MCP_TOKEN=smoke-token \
+  li-mcp-smoke:local &
+MCP_PID=$!
+sleep 6
+# Expected: "mcp-store listening on 4000" log line.
+# Must NOT contain: ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING
+
+# Teardown
+kill $MCP_PID 2>/dev/null; docker stop li-smoke-pg; docker network rm li-smoke-net
+```
+
+A full docker-compose smoke (Phase 8 deploy ticket) will automate this with a proper global setup fixture. For now, these manual steps are the canonical way to verify production container boot.
+
 ## What it does NOT do (yet)
 
 The suite runs against `next dev` for speed. Phase 8's deploy ticket will add a separate true-stack smoke that brings up the production `docker compose` services (`docker compose up -d --build`) and runs against the built image. That smoke verifies the production wiring; this one verifies the application logic.

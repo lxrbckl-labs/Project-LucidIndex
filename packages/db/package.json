@@ -4,12 +4,41 @@
   "version": "0.0.0",
   "type": "module",
   "exports": {
-    "./client": "./client.ts",
-    "./schema": "./schema/index.ts",
-    "./query": "./query.ts",
-    "./seed": "./seed.ts"
+    "./client": {
+      "source": "./client.ts",
+      "default": "./dist/client.js"
+    },
+    "./schema": {
+      "source": "./schema/index.ts",
+      "default": "./dist/schema/index.js"
+    },
+    "./query": {
+      "source": "./query.ts",
+      "default": "./dist/query.js"
+    },
+    "./seed": {
+      "source": "./seed.ts",
+      "default": "./dist/seed.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "client": [
+        "./dist/client.d.ts"
+      ],
+      "schema": [
+        "./dist/schema/index.d.ts"
+      ],
+      "query": [
+        "./dist/query.d.ts"
+      ],
+      "seed": [
+        "./dist/seed.d.ts"
+      ]
+    }
   },
   "scripts": {
+    "build": "tsc -p tsconfig.json",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx seed.ts",

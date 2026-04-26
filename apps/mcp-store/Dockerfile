@@ -23,6 +23,7 @@ COPY tsconfig.base.json tsconfig.json ./
 
 COPY apps/mcp-store/package.json ./apps/mcp-store/package.json
 COPY packages/db/package.json ./packages/db/package.json
+COPY packages/shared/package.json ./packages/shared/package.json
 COPY packages/templates/package.json ./packages/templates/package.json
 
 # --ignore-scripts skips the `prepare` hook (lefthook install) which requires
@@ -44,10 +45,17 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/mcp-store/node_modules ./apps/mcp-store/node_modules
 COPY --from=deps /app/packages/db/node_modules ./packages/db/node_modules
+COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
 COPY --from=deps /app/packages/templates/node_modules ./packages/templates/node_modules
 
 # Copy full source.
 COPY . .
+
+# Compile workspace packages first so their dist/ is ready for the mcp-store
+# consumer. Without this, compiled mcp-store resolves workspace imports via
+# Node's package exports (which point at dist/) but dist/ won't exist, causing
+# ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING at runtime.
+RUN pnpm --filter @lucidindex/db build && pnpm --filter @lucidindex/shared build
 
 # Compile the TypeScript sources to apps/mcp-store/dist/.
 RUN pnpm --filter @lucidindex/mcp-store build
@@ -67,8 +75,16 @@ WORKDIR /app
 # /app/deploy in the builder stage — node_modules with workspace deps
 # materialised as real files (no symlinks back into the monorepo), plus the
 # package manifest. Copy in the compiled output alongside it.
+#
+# packages/db/dist/ must be copied explicitly: `pnpm deploy` materialises the
+# workspace dep as source files (per the package.json `source` exports
+# condition), but production `node` resolves the `default` condition which
+# points at dist/. Without this COPY the runtime would throw
+# ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING on the raw .ts files.
 COPY --from=builder /app/deploy ./
 COPY --from=builder /app/apps/mcp-store/dist ./dist
+COPY --from=builder /app/packages/db/dist ./node_modules/@lucidindex/db/dist
+COPY --from=builder /app/packages/shared/dist ./node_modules/@lucidindex/shared/dist
 
 EXPOSE 4000
 

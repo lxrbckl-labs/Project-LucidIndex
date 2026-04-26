@@ -45,6 +45,12 @@ COPY --from=deps /app/packages/templates/node_modules ./packages/templates/node_
 # Copy full source.
 COPY . .
 
+# Compile packages/db first so its dist/ is ready for the cron consumer.
+# Without this, the compiled cron bundle resolves @lucidindex/db imports
+# via Node's package exports which point at dist/ — but dist/ won't exist,
+# causing ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING at runtime.
+RUN pnpm --filter @lucidindex/db build
+
 # Compile the TypeScript sources to apps/cron/dist/.
 RUN pnpm --filter @lucidindex/cron build
 
@@ -79,7 +85,14 @@ RUN apk add --no-cache postgresql-client rclone
 # /app/deploy in the builder stage — node_modules with workspace deps
 # materialised as real files (no symlinks back into the monorepo), plus the
 # package manifest. Copy in the compiled output alongside it.
+#
+# packages/db/dist/ must be copied explicitly: `pnpm deploy` materialises the
+# workspace dep as source files (per the package.json `source` exports
+# condition), but production `node` resolves the `default` condition which
+# points at dist/. Without this COPY the runtime would throw
+# ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING on the raw .ts files.
 COPY --from=builder /app/deploy ./
 COPY --from=builder /app/apps/cron/dist ./dist
+COPY --from=builder /app/packages/db/dist ./node_modules/@lucidindex/db/dist
 
 CMD ["node", "dist/server.js"]
