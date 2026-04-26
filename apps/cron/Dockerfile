@@ -59,6 +59,22 @@ FROM node:22-alpine AS runner
 ENV NODE_ENV=production
 WORKDIR /app
 
+# Phase 7 (#75 + #76) system tool dependencies:
+#   - postgresql-client : provides `pg_dump` for the local-backup job (#75).
+#                         Alpine's node:22 image does not bundle it. Adds
+#                         ~12 MB to the final runner; acceptable trade-off
+#                         vs. shelling into the Postgres container which
+#                         would require a Docker socket mount.
+#   - rclone            : drives the off-site-backup shipment (#76). The
+#                         admin's encrypted rclone config (stored in
+#                         settings.off_site_backup_credentials_encrypted) is
+#                         decrypted at job-time and written to a tmp file
+#                         that this binary reads via --config.
+#   - tar               : already provided by alpine's BusyBox; included
+#                         here as a comment for completeness — local-backup
+#                         tars the hero image dir into a single archive.
+RUN apk add --no-cache postgresql-client rclone
+
 # `pnpm deploy` already produced a self-contained, production-only tree at
 # /app/deploy in the builder stage — node_modules with workspace deps
 # materialised as real files (no symlinks back into the monorepo), plus the

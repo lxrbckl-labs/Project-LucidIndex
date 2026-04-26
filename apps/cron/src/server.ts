@@ -1,23 +1,42 @@
 // cron sidecar — entrypoint.
 //
-// Phase 4 (#48 scaffold + #49/#50/#51/#52). Boots node-cron and registers
-// every recurring job that keeps the system honest:
+// Phase 4 (#48 scaffold + #49/#50/#51/#52) shipped:
 //
 //   - heartbeat   → proves the sidecar is alive + DB-reachable (#48)
 //   - scheduler   → re-enqueue due `targets`, collapse missed ticks   (#49)
 //   - reaper      → release `queue` rows whose `locked_until` expired (#50)
 //   - hwm_reset   → clear `high_water_mark` for unpaused targets       (#51)
 //
-// All four follow the same envelope (insert in-flight cron_runs row →
+// Phase 7 (#72/#75/#76) adds:
+//
+//   - retention_purge → daily 03:00; roll articles off the dashboard at
+//                       14d, delete (except starred) at 6mo, drop hero
+//                       image files alongside the row delete.
+//   - local_backup    → nightly 02:00; pg_dump (custom format) + tar of
+//                       hero images into BACKUP_DIR. 14-day retention
+//                       sweep on BACKUP_DIR's own files.
+//   - off_site_backup → nightly 02:30 (after local_backup); rclone copy
+//                       the latest local backup to an admin-configured
+//                       remote, using credentials decrypted from the
+//                       settings singleton.
+//
+// All seven follow the same envelope (insert in-flight cron_runs row →
 // run job body → update with status/details), per #52. The shared
 // `runJob()` helper in src/lib/run-job.ts owns that envelope.
 //
-// Scheduling: every job runs on `* * * * *` (every minute). We don't stagger
-// the start seconds — each job opens its own connection from the postgres-js
-// pool (`max: 10` in @lucidindex/db/client) and the four queries are tiny
-// enough that hammering the same minute boundary is fine. If we ever ship
-// heavier jobs (e.g. backups, retention) we can stagger via separate cron
-// expressions then.
+// Scheduling: the four "heartbeat-style" jobs (heartbeat, scheduler,
+// reaper, hwm_reset) run on `* * * * *` (every minute). Each opens its own
+// connection from the postgres-js pool (`max: 10` in @lucidindex/db/client)
+// and the four queries are tiny enough that hammering the same minute
+// boundary is fine.
+//
+// The Phase 7 jobs run on explicit absolute schedules:
+//   - 02:00 local_backup
+//   - 02:30 off_site_backup  (timed to follow local_backup, not chained)
+//   - 03:00 retention_purge
+// They are scheduled via separate cron expressions (NOT chained
+// programmatically). If local_backup runs long, off_site_backup picks up
+// the most recent files it can find.
 //
 // Runs as a separate Node container from apps/web and apps/mcp-store;
 // shares Postgres via @lucidindex/db. No HTTP surface — cron is internal-
@@ -28,7 +47,10 @@ import { cronRuns } from '@lucidindex/db/schema'
 import cron, { type ScheduledTask } from 'node-cron'
 import env from './env.js'
 import { runHwmReset } from './jobs/hwm-reset.js'
+import { runLocalBackup } from './jobs/local-backup.js'
+import { runOffSiteBackup } from './jobs/off-site-backup.js'
 import { runReaper } from './jobs/reaper.js'
+import { runRetentionPurge } from './jobs/retention-purge.js'
 import { runScheduler } from './jobs/scheduler.js'
 import { logger } from './logger.js'
 
@@ -115,10 +137,61 @@ const hwmResetTask = cron.schedule(
   { timezone: env.CRON_TIMEZONE, name: 'hwm_reset' },
 )
 
-const allTasks: ScheduledTask[] = [heartbeatTask, schedulerTask, reaperTask, hwmResetTask]
+// ---------------------------------------------------------------------------
+// Retention purge (#72) — daily at 03:00. See jobs/retention-purge.ts.
+// ---------------------------------------------------------------------------
+const retentionPurgeTask = cron.schedule(
+  '0 3 * * *',
+  async () => {
+    await runRetentionPurge()
+  },
+  { timezone: env.CRON_TIMEZONE, name: 'retention_purge' },
+)
+
+// ---------------------------------------------------------------------------
+// Local backup (#75) — nightly at 02:00. See jobs/local-backup.ts.
+// ---------------------------------------------------------------------------
+const localBackupTask = cron.schedule(
+  '0 2 * * *',
+  async () => {
+    await runLocalBackup()
+  },
+  { timezone: env.CRON_TIMEZONE, name: 'local_backup' },
+)
+
+// ---------------------------------------------------------------------------
+// Off-site backup (#76) — nightly at 02:30, AFTER local_backup completes
+// at ~02:00 (independently scheduled, not chained). See jobs/off-site-
+// backup.ts.
+// ---------------------------------------------------------------------------
+const offSiteBackupTask = cron.schedule(
+  '30 2 * * *',
+  async () => {
+    await runOffSiteBackup()
+  },
+  { timezone: env.CRON_TIMEZONE, name: 'off_site_backup' },
+)
+
+const allTasks: ScheduledTask[] = [
+  heartbeatTask,
+  schedulerTask,
+  reaperTask,
+  hwmResetTask,
+  retentionPurgeTask,
+  localBackupTask,
+  offSiteBackupTask,
+]
 
 logger.info('cron_sidecar_listening', {
-  jobs: ['heartbeat', 'scheduler', 'reaper', 'hwm_reset'],
+  jobs: [
+    'heartbeat',
+    'scheduler',
+    'reaper',
+    'hwm_reset',
+    'retention_purge',
+    'local_backup',
+    'off_site_backup',
+  ],
 })
 
 let shuttingDown = false
