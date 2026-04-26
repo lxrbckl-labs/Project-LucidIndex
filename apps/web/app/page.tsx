@@ -49,7 +49,8 @@ import { LiveArticleStream } from '@/components/article/LiveArticleStream'
 import { TopicBadgeFilterRow } from '@/components/chrome/TopicBadgeFilterRow'
 import { TopNav } from '@/components/chrome/TopNav'
 import { Wordmark } from '@/components/chrome/Wordmark'
-import { loadDashboardArticles, loadDashboardBadges } from './_mock/articles'
+import { getNewBadgeHours, isNew } from '@/lib/new-badge'
+import { getMockCreatedAt, loadDashboardArticles, loadDashboardBadges } from './_mock/articles'
 
 const MOCK_MODE = process.env.LUCIDINDEX_MOCK === '1'
 
@@ -112,9 +113,10 @@ export default async function Page({
   // ---------------------------------------------------------------------
   // Authenticated admin — full Fyrre-style dashboard.
   // ---------------------------------------------------------------------
-  const [allArticles, badgeNames] = await Promise.all([
+  const [allArticles, badgeNames, newBadgeHours] = await Promise.all([
     loadDashboardArticles(),
     loadDashboardBadges(),
+    getNewBadgeHours(),
   ])
 
   // Server-side filter — when `?badge=…` is set, drop articles that
@@ -124,6 +126,13 @@ export default async function Page({
     : allArticles
 
   const badgeOptions = badgeNames.map((name) => ({ name }))
+
+  // Compute the "NEW" pill set once per render (#79). Mock-mode synthesizes
+  // `created_at` from the per-seed `insertedAtOffsetHours` field; a real-DB
+  // path will read `articles.created_at` directly when the loader lands.
+  const newArticleIds = new Set(
+    articles.filter((a) => isNew(getMockCreatedAt(a), newBadgeHours)).map((a) => a.id),
+  )
 
   return (
     <div className="min-h-screen bg-paper">
@@ -153,7 +162,7 @@ export default async function Page({
         {articles.length === 0 ? (
           <AuthenticatedEmptyState />
         ) : (
-          <ArticleMasonry articles={articles} />
+          <ArticleMasonry articles={articles} newArticleIds={newArticleIds} />
         )}
       </main>
     </div>

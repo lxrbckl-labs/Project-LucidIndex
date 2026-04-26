@@ -34,6 +34,7 @@
 
 import Link from 'next/link'
 import type { MockArticle } from '@/app/_mock/articles'
+import { NewBadge } from './NewBadge'
 import { TileCreatorLink } from './TileCreatorLink'
 import { TileShareButton } from './TileShareButton'
 
@@ -42,9 +43,11 @@ const BASE_URL =
 
 type Props = {
   article: MockArticle
+  /** When true, render the small "NEW" pill (#79). See ArticleCard for context. */
+  isNew?: boolean
 }
 
-export function LargeArticleCard({ article }: Props) {
+export function LargeArticleCard({ article, isNew = false }: Props) {
   const datePrefix = article.publishedEstimated ? '~ ' : ''
   const primaryBadge = article.topicBadges[0]
 
@@ -68,15 +71,19 @@ export function LargeArticleCard({ article }: Props) {
         />
 
         {/* Top corners — date + badge pills, on a translucent backdrop so
-          they read against any image. */}
+          they read against any image. The NEW pill (when shown) sits
+          next to the date so the two read as a single eyebrow group. */}
         <header className="relative z-10 flex items-start justify-between gap-3 p-5">
-          <span
-            className="inline-flex items-center border border-paper/80 bg-paper/90 px-3 py-1 text-[var(--text-meta)] text-ink"
-            style={{ borderRadius: 'var(--radius-pill)' }}
-          >
-            {datePrefix}
-            {article.publishedLabel}
-          </span>
+          <div className="flex items-center gap-2">
+            <span
+              className="inline-flex items-center border border-paper/80 bg-paper/90 px-3 py-1 text-[var(--text-meta)] text-ink"
+              style={{ borderRadius: 'var(--radius-pill)' }}
+            >
+              {datePrefix}
+              {article.publishedLabel}
+            </span>
+            {isNew ? <NewBadge variant="light" /> : null}
+          </div>
           {primaryBadge ? (
             <span
               className="inline-flex items-center justify-center border border-paper/80 bg-paper/90 px-3 py-1 text-[0.65rem] uppercase tracking-[0.08em] text-ink"

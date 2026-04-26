@@ -46,11 +46,14 @@ import { requireAdmin } from '@lucidindex/auth'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { CrossSourceList } from '@/components/article/CrossSourceList'
 import { HideArticleButton } from '@/components/article/HideArticleButton'
+import { NewBadge } from '@/components/article/NewBadge'
 import { ShareLinkButton } from '@/components/article/ShareLinkButton'
 import { StarButton } from '@/components/article/StarButton'
 import { TopNav } from '@/components/chrome/TopNav'
 import { Wordmark } from '@/components/chrome/Wordmark'
+import { getNewBadgeHours, isNew } from '@/lib/new-badge'
 import { markRead } from './actions'
 import { applyFairUseCap, estimateReadMinutes, loadArticleBySlug } from './loader'
 
@@ -167,7 +170,11 @@ export default async function ArticlePage({
 
   const datePrefix = article.publishedEstimated ? '~ ' : ''
   const showRating = article.reasonablenessRating !== null
-  const showCrossSource = article.crossSource.length > 0
+
+  // "NEW" pill (#79) — hours window read from settings (60s cache).
+  // The badge is measured from agent-insertion time, NOT source publish.
+  const newBadgeHours = await getNewBadgeHours()
+  const showNewBadge = isNew(article.createdAt, newBadgeHours)
 
   return (
     <div className="min-h-screen bg-paper">
@@ -186,7 +193,8 @@ export default async function ArticlePage({
 
         {/* Single-column reading width — 820px max, centered. */}
         <article className="mx-auto w-full max-w-[820px]">
-          {/* Header — date pill + every topic-badge pill. */}
+          {/* Header — date pill + NEW pill (when applicable) + every
+              topic-badge pill. */}
           <header className="flex flex-wrap items-center gap-3">
             {article.publishedLabel ? (
               <time
@@ -198,6 +206,7 @@ export default async function ArticlePage({
                 {article.publishedLabel}
               </time>
             ) : null}
+            {showNewBadge ? <NewBadge /> : null}
             {article.topicBadges.map((badge) => (
               <span
                 key={badge}
@@ -312,37 +321,9 @@ export default async function ArticlePage({
             </section>
           ) : null}
 
-          {/* Cross-source list — hidden when N=0. Hairline-bordered text
-              list, no thumbnails (Phase 7 #80 will polish the styling). */}
-          {showCrossSource ? (
-            <section
-              className="mt-12 border-t border-[var(--color-card-border)] pt-8"
-              data-testid="article-cross-source"
-            >
-              <h2 className="font-display text-[length:var(--text-display-md)] font-bold uppercase tracking-tight text-ink">
-                Other coverage
-              </h2>
-              <ul className="mt-6 divide-y divide-[var(--color-card-border)]">
-                {article.crossSource.map((entry) => (
-                  <li key={`${entry.source_url}-${entry.title}`} className="py-4">
-                    <Link
-                      href={entry.source_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block text-[length:var(--text-body)] text-ink no-underline hover:underline underline-offset-4"
-                    >
-                      <span className="block leading-snug">{entry.title}</span>
-                      {entry.publisher ? (
-                        <span className="mt-1 block text-[var(--text-meta)] uppercase tracking-[0.08em] text-[var(--color-muted-500)]">
-                          {entry.publisher}
-                        </span>
-                      ) : null}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
+          {/* Cross-source list — hairline-bordered text list under the
+              deep-dive (#80). Component renders nothing when N=0. */}
+          <CrossSourceList entries={article.crossSource} />
 
           {/* Bottom interaction row — star + share + hide (admin-only).
               The hide affordance is intentionally quiet — hairline text

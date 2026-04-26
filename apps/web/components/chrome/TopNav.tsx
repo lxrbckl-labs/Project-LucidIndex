@@ -26,6 +26,7 @@
  */
 
 import Link from 'next/link'
+import { SearchInput } from './SearchInput'
 
 export function TopNav() {
   return (
@@ -33,6 +34,8 @@ export function TopNav() {
       aria-label="Primary"
       className="flex items-center justify-end gap-8 border-b border-[var(--color-card-border)] px-6 py-3 md:px-18"
     >
+      {/* Search lives on the left of the right-aligned cluster (#73). */}
+      <SearchInput />
       <Link
         href="/settings"
         className="text-[var(--text-meta)] uppercase tracking-[0.12em] text-[var(--color-muted-700)] transition-colors hover:text-ink hover:underline underline-offset-4"

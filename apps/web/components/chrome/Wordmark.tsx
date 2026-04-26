@@ -21,10 +21,21 @@
  * empty state or the masonry renders below.
  */
 
-export function Wordmark() {
+type Props = {
+  /**
+   * Override the size class. The dashboard uses the default
+   * `--text-display-xl` scale; secondary pages (e.g. the search route
+   * #73) pass a smaller clamp so the wordmark reads as a return-anchor
+   * rather than the visual centerpiece.
+   */
+  className?: string
+}
+
+export function Wordmark({ className }: Props = {}) {
+  const sizeClass = className ?? 'text-[length:var(--text-display-xl)]'
   return (
     <h1
-      className="font-display text-[length:var(--text-display-xl)] font-black leading-none tracking-tight text-ink uppercase w-full text-center"
+      className={`font-display ${sizeClass} font-black leading-none tracking-tight text-ink uppercase w-full text-center`}
       style={{ letterSpacing: '-0.02em' }}
     >
       LUCIDINDEX
