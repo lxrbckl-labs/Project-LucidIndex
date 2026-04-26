@@ -44,6 +44,19 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    # Healthcheck doubles as a "web has finished migrations" signal — the
+    # entrypoint runs `drizzle-kit migrate` and seed before binding port 3000,
+    # so a TCP listener on 3000 means the schema is ready. mcp-store + cron
+    # use this via `service_healthy` so they don't try to query a half-
+    # migrated DB. We probe with `nc -z` (BusyBox built-in) rather than wget
+    # because we only care that the listener is up — HTTP status is irrelevant
+    # to "is the schema migrated".
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "3000"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
     environment:
       DATABASE_URL: postgres://lucidindex:${POSTGRES_PASSWORD:-lucidindex_dev}@postgres:5432/lucidindex
       NODE_ENV: production
@@ -57,7 +70,12 @@ services:
       # Founding-token guard (Phase 1, ticket #27) — empty default is intentional.
       # Admin must set a value on first deploy; app logic (Phase 1 #27) enforces this.
       LUCIDINDEX_FOUNDING_TOKEN: ${LUCIDINDEX_FOUNDING_TOKEN:-}
-      HOST: 0.0.0.0
+      # Next.js standalone reads HOSTNAME (not HOST) for the bind address.
+      # Default behaviour binds to the container's eth0 IP, which makes the
+      # in-container healthcheck (`localhost:3000`) fail even though the
+      # listener is up. Forcing 0.0.0.0 fixes that and is also required for
+      # the `wget` healthcheck below.
+      HOSTNAME: 0.0.0.0
       PORT: "3000"
     ports:
       - "127.0.0.1:3000:3000"
@@ -70,6 +88,9 @@ services:
     restart: unless-stopped
     depends_on:
       postgres:
+        condition: service_healthy
+      # Wait for web to apply migrations before consuming the schema.
+      web:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://lucidindex:${POSTGRES_PASSWORD:-lucidindex_dev}@postgres:5432/lucidindex
@@ -92,6 +113,10 @@ services:
     restart: unless-stopped
     depends_on:
       postgres:
+        condition: service_healthy
+      # Wait for web to apply migrations before scheduling jobs that read
+      # cron_runs / settings / targets.
+      web:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://lucidindex:${POSTGRES_PASSWORD:-lucidindex_dev}@postgres:5432/lucidindex

@@ -157,10 +157,13 @@ cp .env.example .env
 # edit .env — set LUCIDINDEX_FOUNDING_TOKEN, POSTGRES_PASSWORD, DATABASE_URL,
 #   PUBLIC_HOSTNAME, PUBLIC_ORIGIN, iron-session cookie key
 docker compose up --build
-pnpm db:migrate
 ```
 
 Then visit `/settings?token=<LUCIDINDEX_FOUNDING_TOKEN>` to claim founding-admin and register your first passkey.
+
+### Migrations on startup (production)
+
+The web container runs Drizzle migrations + the idempotent seed before binding port 3000. The runner image bundles `drizzle-kit`, the SQL files under `packages/db/migrations/`, and the compiled `packages/db/dist/seed.js`. On a fresh database this materialises the schema; on a populated database the migration journal makes it a no-op. The healthcheck on `web` doubles as a "schema is ready" signal — `mcp-store` and `cron` `depends_on: web → service_healthy` so they never query an unmigrated DB. There is no host-side `pnpm db:migrate` step in production.
 
 Concrete commands, env var list, and the admin CLI surface (`admin:reset`) get written into this section once the scaffold exists.
 
