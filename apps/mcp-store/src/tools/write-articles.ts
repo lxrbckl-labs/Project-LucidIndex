@@ -34,10 +34,17 @@
 //
 // If write_articles never runs (failed-pass scenario), ack_queue_item
 // inserts a fresh run_log row with articles_count=0 — same as before.
+//
+// #65 deterministic slugs: slug generation now lives in
+// `@lucidindex/shared/slug` so the article-page route and the write
+// path stay in sync. The primary slug is `YYYY-MM-DD-<kebab-title>`
+// from the source publish date; on a `slug` unique-violation we retry
+// once with a 6-char source-URL hash suffix. The earlier random-suffix
+// strategy has been removed.
 
-import { randomBytes } from 'node:crypto'
 import { db } from '@lucidindex/db/client'
 import { articles, queue, runLog, settings, topicBadges } from '@lucidindex/db/schema'
+import { disambiguate, generateSlug } from '@lucidindex/shared/slug'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { findExistingArticleId } from '../lib/dedup.js'
@@ -219,46 +226,71 @@ export async function writeArticles(args: WriteArticlesArgs): Promise<WriteArtic
         continue
       }
 
-      const slug = generateSlug(a.title)
+      // #65: slug is `YYYY-MM-DD-<kebab-title>` from the source publish
+      // date when present, otherwise the run's "now". On a slug-unique
+      // collision (different source URL, same title + date), retry once
+      // with the source-URL hash disambiguator suffix.
+      const slugDate = a.source_published_at ? new Date(a.source_published_at) : new Date()
+      const primarySlug = generateSlug(a.title, slugDate)
+      const insertValues = {
+        targetId: q.targetId,
+        agentTokenId: args.agentTokenId,
+        runLogId,
+        sourceUrl: a.source_url,
+        title: a.title,
+        summary: a.summary,
+        agentDeepDive: a.agent_deep_dive ?? null,
+        topicBadges: a.topic_badges,
+        significance: a.significance,
+        difficulty: a.difficulty,
+        reasonablenessRating: a.reasonableness_rating ?? null,
+        sourcePublishedAt: a.source_published_at ? new Date(a.source_published_at) : null,
+        sourcePublishedAtEstimated: a.source_published_at_estimated ?? false,
+        heroImageHash: heroHashes.get(i) ?? null,
+        // jsonb column — pass the array as-is; drizzle handles the cast.
+        // biome-ignore lint/suspicious/noExplicitAny: jsonb column
+        crossSource: (a.cross_source ?? []) as any,
+      } as const
       try {
         const inserted = await tx
           .insert(articles)
-          .values({
-            targetId: q.targetId,
-            agentTokenId: args.agentTokenId,
-            runLogId,
-            sourceUrl: a.source_url,
-            slug,
-            title: a.title,
-            summary: a.summary,
-            agentDeepDive: a.agent_deep_dive ?? null,
-            topicBadges: a.topic_badges,
-            significance: a.significance,
-            difficulty: a.difficulty,
-            reasonablenessRating: a.reasonableness_rating ?? null,
-            sourcePublishedAt: a.source_published_at ? new Date(a.source_published_at) : null,
-            sourcePublishedAtEstimated: a.source_published_at_estimated ?? false,
-            heroImageHash: heroHashes.get(i) ?? null,
-            // jsonb column — pass the array as-is; drizzle handles the cast.
-            // biome-ignore lint/suspicious/noExplicitAny: jsonb column
-            crossSource: (a.cross_source ?? []) as any,
-          })
+          .values({ ...insertValues, slug: primarySlug })
           .returning({ id: articles.id })
 
         // biome-ignore lint/style/noNonNullAssertion: just inserted one row
         const id = inserted[0]!.id
         results.push({ id, deduped: false })
       } catch (err) {
-        // 23505 means a concurrent writer beat us to (target_id,
-        // source_url). Re-resolve and treat as deduped — this is the
-        // exact same outcome the dedup lookup produces, just on a
-        // narrower race window.
         if (isUniqueViolation(err)) {
-          const id = await findExistingArticleId(q.targetId, a.source_url)
-          if (id) {
-            results.push({ id, deduped: true })
+          // 23505 has two flavors here:
+          //
+          //   (a) `(target_id, source_url)` collision — a concurrent writer
+          //       beat us to inserting this article. Re-resolve and treat
+          //       as deduped.
+          //   (b) `slug` collision — a different article ended up with the
+          //       same primary slug (same date + title, different source).
+          //       Retry once with `disambiguate(slug, source_url)`.
+          //
+          // We can't easily tell which constraint fired without inspecting
+          // the driver-specific error fields, so try the source-URL dedup
+          // first; if no existing row exists, fall through to a slug retry.
+          const existingId = await findExistingArticleId(q.targetId, a.source_url)
+          if (existingId) {
+            results.push({ id: existingId, deduped: true })
             continue
           }
+          // Slug collision path — retry with disambiguator. If THIS also
+          // 23505s we let it bubble up; in practice the 6-char hash makes
+          // a second collision astronomically unlikely.
+          const retrySlug = disambiguate(primarySlug, a.source_url)
+          const inserted = await tx
+            .insert(articles)
+            .values({ ...insertValues, slug: retrySlug })
+            .returning({ id: articles.id })
+          // biome-ignore lint/style/noNonNullAssertion: just inserted one row
+          const id = inserted[0]!.id
+          results.push({ id, deduped: false })
+          continue
         }
         throw err
       }
@@ -309,24 +341,6 @@ export async function writeArticles(args: WriteArticlesArgs): Promise<WriteArtic
   })
 
   return { accepted: results.length, results }
-}
-
-/**
- * Slug = lowercase-kebab(title) + ISO date + 4-char random suffix. Random
- * suffix keeps slug uniqueness even if two articles land on the same day
- * with the same title — a rare but possible cross-target case. Phase 6 #65
- * will replace this with a smarter disambiguator.
- */
-function generateSlug(title: string): string {
-  const base = title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .slice(0, 64)
-  const date = new Date().toISOString().slice(0, 10)
-  const suffix = randomBytes(3).toString('base64url').slice(0, 4)
-  return `${base || 'article'}-${date}-${suffix}`
 }
 
 function isUniqueViolation(err: unknown): boolean {
