@@ -46,6 +46,7 @@ import { requireAdmin } from '@lucidindex/auth'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { HideArticleButton } from '@/components/article/HideArticleButton'
 import { ShareLinkButton } from '@/components/article/ShareLinkButton'
 import { StarButton } from '@/components/article/StarButton'
 import { TopNav } from '@/components/chrome/TopNav'
@@ -246,8 +247,28 @@ export default async function ArticlePage({
             {article.summary}
           </p>
 
-          {/* Byline + read time — magazine-credit style label/value pairs. */}
+          {/* Byline + read time — magazine-credit style label/value pairs.
+              The "From" credit links to the creator page when a slug is
+              available. Click the creator's name to see all articles
+              from that source at `/c/<slug>`. */}
           <div className="mt-8 flex flex-wrap items-baseline gap-6 border-t border-[var(--color-card-border)] pt-6 text-[var(--text-meta)]">
+            {article.creatorLabel ? (
+              <span className="flex items-baseline gap-2">
+                <span className="uppercase tracking-[0.08em] text-[var(--color-muted-500)]">
+                  From
+                </span>
+                {article.creatorSlug ? (
+                  <Link
+                    href={`/c/${article.creatorSlug}`}
+                    className="text-ink underline-offset-4 hover:underline"
+                  >
+                    {article.creatorLabel}
+                  </Link>
+                ) : (
+                  <span className="text-ink">{article.creatorLabel}</span>
+                )}
+              </span>
+            ) : null}
             <span className="flex items-baseline gap-2">
               <span className="uppercase tracking-[0.08em] text-[var(--color-muted-500)]">
                 Analysis by
@@ -324,7 +345,10 @@ export default async function ArticlePage({
             </section>
           ) : null}
 
-          {/* Bottom interaction row — star + share. */}
+          {/* Bottom interaction row — star + share + hide (admin-only).
+              The hide affordance is intentionally quiet — hairline text
+              only, no destructive red coloring. It belongs at the end
+              of the row so it can't be accidentally tapped. */}
           <div className="mt-12 flex flex-wrap items-center gap-3 border-t border-[var(--color-card-border)] pt-8">
             <StarButton
               articleId={article.id}
@@ -333,6 +357,7 @@ export default async function ArticlePage({
               disabled={!canInteract}
             />
             <ShareLinkButton url={`${getBaseUrl()}/a/${slug}`} />
+            {canInteract ? <HideArticleButton articleId={article.id} slug={article.slug} /> : null}
           </div>
         </article>
       </main>

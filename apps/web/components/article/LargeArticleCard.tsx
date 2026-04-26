@@ -34,6 +34,7 @@
 
 import Link from 'next/link'
 import type { MockArticle } from '@/app/_mock/articles'
+import { TileCreatorLink } from './TileCreatorLink'
 import { TileShareButton } from './TileShareButton'
 
 const BASE_URL =
@@ -97,12 +98,25 @@ export function LargeArticleCard({ article }: Props) {
           >
             {article.title}
           </h2>
+          {/* Creator + duration + share. Creator links to `/c/<slug>` (#71).
+              TileCreatorLink guards against the outer <Link> tile nav. */}
           <div className="mt-4 flex items-baseline justify-between gap-6 text-[var(--text-meta)] text-paper/90">
-            <div className="flex items-baseline gap-6">
-              <span className="flex items-baseline gap-2">
-                <span className="uppercase tracking-[0.08em] text-paper/70">Text</span>
-                <span>{article.agentLabel}</span>
-              </span>
+            <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
+              {article.creatorLabel ? (
+                <span className="flex items-baseline gap-2">
+                  <span className="uppercase tracking-[0.08em] text-paper/70">From</span>
+                  <TileCreatorLink
+                    creatorLabel={article.creatorLabel}
+                    creatorSlug={article.creatorSlug}
+                    className="text-paper"
+                  />
+                </span>
+              ) : (
+                <span className="flex items-baseline gap-2">
+                  <span className="uppercase tracking-[0.08em] text-paper/70">Text</span>
+                  <span>{article.agentLabel}</span>
+                </span>
+              )}
               <span className="flex items-baseline gap-2">
                 <span className="uppercase tracking-[0.08em] text-paper/70">Duration</span>
                 <span>{article.readMinutes} Min</span>

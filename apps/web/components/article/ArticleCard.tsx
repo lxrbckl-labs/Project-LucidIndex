@@ -35,6 +35,7 @@
 
 import Link from 'next/link'
 import type { MockArticle } from '@/app/_mock/articles'
+import { TileCreatorLink } from './TileCreatorLink'
 import { TileShareButton } from './TileShareButton'
 
 const BASE_URL =
@@ -109,18 +110,31 @@ export function ArticleCard({ article }: Props) {
           {article.summary}
         </p>
 
-        {/* Footer — byline + duration, label-value pairs + share affordance.
-          Pushed to the bottom of the flex column. The share button sits
-          at the trailing edge and must NOT trigger the <Link> navigation —
-          TileShareButton calls stopPropagation + preventDefault on click. */}
+        {/* Footer — creator + duration + share. Pushed to the bottom of the
+          flex column. Creator name links to `/c/<slug>` (#71). Share and
+          creator buttons must NOT trigger the <Link> navigation — both
+          use client components that call stopPropagation + preventDefault. */}
         <footer className="mt-auto flex items-baseline justify-between gap-6 pt-6 text-[var(--text-meta)]">
-          <div className="flex items-baseline gap-6">
-            <span className="flex items-baseline gap-2">
-              <span className="uppercase tracking-[0.08em] text-[var(--color-muted-500)]">
-                Text
+          <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
+            {article.creatorLabel ? (
+              <span className="flex items-baseline gap-2">
+                <span className="uppercase tracking-[0.08em] text-[var(--color-muted-500)]">
+                  From
+                </span>
+                <TileCreatorLink
+                  creatorLabel={article.creatorLabel}
+                  creatorSlug={article.creatorSlug}
+                  className="text-ink"
+                />
               </span>
-              <span className="text-ink">{article.agentLabel}</span>
-            </span>
+            ) : (
+              <span className="flex items-baseline gap-2">
+                <span className="uppercase tracking-[0.08em] text-[var(--color-muted-500)]">
+                  Text
+                </span>
+                <span className="text-ink">{article.agentLabel}</span>
+              </span>
+            )}
             <span className="flex items-baseline gap-2">
               <span className="uppercase tracking-[0.08em] text-[var(--color-muted-500)]">
                 Duration

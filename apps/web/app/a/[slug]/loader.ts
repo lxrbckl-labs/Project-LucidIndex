@@ -24,7 +24,7 @@
 
 import { db } from '@lucidindex/db/client'
 import { and, eq } from '@lucidindex/db/query'
-import { agentTokens, articles } from '@lucidindex/db/schema'
+import { agentTokens, articles, targets } from '@lucidindex/db/schema'
 import { findMockArticleBySlug, mockArticles } from '@/app/_mock/articles'
 
 const MOCK_MODE = process.env.LUCIDINDEX_MOCK === '1'
@@ -55,6 +55,11 @@ export type ArticleViewModel = {
   publishedEstimated: boolean
   heroImageUrl: string | null
   agentLabel: string
+  /** Creator (target) label — the source being analysed (e.g. "MKBHD"). */
+  creatorLabel: string | null
+  /** Creator slug for `/c/<slug>` link. Null when the target has no slug yet
+   * (lazy backfill — will be populated on first creator-page visit). */
+  creatorSlug: string | null
   reasonablenessRating: number | null
   crossSource: ArticleCrossSource[]
   starred: boolean
@@ -100,6 +105,8 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
       publishedEstimated: mock.publishedEstimated,
       heroImageUrl: mock.heroImageUrl,
       agentLabel: mock.agentLabel,
+      creatorLabel: mock.creatorLabel ?? null,
+      creatorSlug: mock.creatorSlug ?? null,
       reasonablenessRating: mock.reasonablenessRating,
       crossSource: mock.crossSource,
       starred: mock.starred ?? false,
@@ -108,8 +115,8 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
     }
   }
 
-  // Real-DB path. Join `articles` to `agent_tokens` so the byline can
-  // render the agent's `label` without a second round-trip.
+  // Real-DB path. Join `articles` to `agent_tokens` (byline) and
+  // `targets` (creator label + slug for the creator page link).
   const rows = await db
     .select({
       id: articles.id,
@@ -122,6 +129,8 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
       sourcePublishedAtEstimated: articles.sourcePublishedAtEstimated,
       heroImageHash: articles.heroImageHash,
       agentLabel: agentTokens.label,
+      creatorLabel: targets.label,
+      creatorSlug: targets.slug,
       reasonablenessRating: articles.reasonablenessRating,
       crossSource: articles.crossSource,
       starred: articles.starred,
@@ -131,6 +140,7 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
     })
     .from(articles)
     .leftJoin(agentTokens, eq(articles.agentTokenId, agentTokens.id))
+    .leftJoin(targets, eq(articles.targetId, targets.id))
     .where(and(eq(articles.slug, slug), eq(articles.hidden, false)))
     .limit(1)
 
@@ -171,6 +181,8 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
     publishedEstimated: row.sourcePublishedAtEstimated,
     heroImageUrl,
     agentLabel: row.agentLabel ?? 'unknown',
+    creatorLabel: row.creatorLabel ?? null,
+    creatorSlug: row.creatorSlug ?? null,
     reasonablenessRating: row.reasonablenessRating ?? null,
     crossSource,
     starred: row.starred,
