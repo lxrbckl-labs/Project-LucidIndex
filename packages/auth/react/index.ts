@@ -8,3 +8,4 @@
 
 export { FoundingAdminForm, type FoundingAdminFormProps } from './FoundingAdminForm.js'
 export { LoginForm, type LoginFormProps } from './LoginForm.js'
+export { RegisterPasskeyForm, type RegisterPasskeyFormProps } from './RegisterPasskeyForm.js'
