@@ -1,25 +1,46 @@
 'use client'
 
 /**
- * ShareLinkButton — clipboard copy of the absolute article URL (#66).
+ * ShareLinkButton — polished clipboard copy of the absolute article URL (#68).
  *
- * This is a SKELETON for #66. The full UX polish (toast, success
- * feedback timing, fallback flow when `navigator.clipboard` is
- * unavailable) lands in #68. The skeleton is enough to:
- *
- *   - Render the button in the right place visually.
- *   - Copy `window.location.href` to clipboard on click.
- *   - Flip a transient "Copied" label for ~1.5s so the user has at
- *     least the minimum acknowledgment.
- *
- * Why a skeleton instead of waiting on #68: the article page is the
- * share-link target — it should ship with at least a working share
- * affordance even if the polish lands later.
+ * Replaces the #66 skeleton. Full UX:
+ *   - Hairline border, magazine vibe (not a colored CTA).
+ *   - "Copy link" → click → copies + shows "Copied!" affordance for ~1.5s.
+ *   - Textarea fallback for non-secure contexts / older browsers that
+ *     lack the Clipboard API.
+ *   - Accepts an optional `url` prop so the dashboard tile can pass
+ *     the article URL explicitly (tile renders server-side; it doesn't
+ *     have `window.location`). When omitted, falls back to
+ *     `window.location.href` (the article-page usage).
  */
 
 import { useEffect, useState } from 'react'
 
-export function ShareLinkButton() {
+type Props = {
+  /** Explicit URL to copy. Falls back to `window.location.href` when omitted. */
+  url?: string
+}
+
+/** execCommand fallback for environments without `navigator.clipboard`. */
+function copyViaTextarea(text: string): boolean {
+  try {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.position = 'fixed'
+    ta.style.top = '-9999px'
+    ta.style.left = '-9999px'
+    document.body.appendChild(ta)
+    ta.focus()
+    ta.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(ta)
+    return ok
+  } catch {
+    return false
+  }
+}
+
+export function ShareLinkButton({ url }: Props) {
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -30,15 +51,20 @@ export function ShareLinkButton() {
 
   const handleClick = async () => {
     if (typeof window === 'undefined') return
-    const url = window.location.href
-    try {
-      await navigator.clipboard.writeText(url)
-      setCopied(true)
-    } catch {
-      // Older browsers / non-secure contexts won't have the clipboard
-      // API. #68 will add a textarea-fallback; for now we just no-op
-      // visibly so the user knows the action didn't take.
+    const target = url ?? window.location.href
+    let ok = false
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(target)
+        ok = true
+      } catch {
+        // clipboard API blocked — try execCommand fallback
+        ok = copyViaTextarea(target)
+      }
+    } else {
+      ok = copyViaTextarea(target)
     }
+    if (ok) setCopied(true)
   }
 
   return (
@@ -49,7 +75,7 @@ export function ShareLinkButton() {
       style={{ borderRadius: 'var(--radius-pill)' }}
       data-testid="article-share"
     >
-      <span>{copied ? 'Copied' : 'Copy share link'}</span>
+      <span>{copied ? 'Copied!' : 'Copy link'}</span>
     </button>
   )
 }

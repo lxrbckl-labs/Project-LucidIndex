@@ -43,6 +43,7 @@
  */
 
 import { requireAdmin } from '@lucidindex/auth'
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ShareLinkButton } from '@/components/article/ShareLinkButton'
@@ -51,6 +52,78 @@ import { TopNav } from '@/components/chrome/TopNav'
 import { Wordmark } from '@/components/chrome/Wordmark'
 import { markRead } from './actions'
 import { applyFairUseCap, estimateReadMinutes, loadArticleBySlug } from './loader'
+
+/**
+ * Resolve the absolute base URL for OG meta tags (#67).
+ *
+ * Priority order:
+ *   1. WEBAUTHN_ORIGIN — already set in all envs, matches the actual
+ *      origin the app is served from (used for WebAuthn RP config).
+ *   2. LUCIDINDEX_BASE_URL — an explicit override if someone wants to
+ *      decouple OG base from the WebAuthn origin.
+ *   3. Hard fallback for local dev.
+ */
+function getBaseUrl(): string {
+  return process.env.WEBAUTHN_ORIGIN ?? process.env.LUCIDINDEX_BASE_URL ?? 'http://localhost:3000'
+}
+
+/**
+ * generateMetadata — per-article OG + Twitter card metadata (#67).
+ *
+ * Called by Next.js at request time (server component context) before
+ * rendering the page. Returns `Metadata` shaped for og:title,
+ * og:description, og:image (absolute URL), og:type=article, and
+ * Twitter large-image card.
+ *
+ * The image-serve route at `/i/[hash]` is Phase 7 (#74). For now the
+ * URL is emitted correctly; the route will satisfy it when it lands.
+ * Articles without a heroImageHash fall back to the static OG
+ * placeholder at `/og-placeholder.png`.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}): Promise<Metadata> {
+  const { slug } = await params
+  const article = await loadArticleBySlug(slug)
+  if (!article) {
+    return { title: 'Not found — LucidIndex' }
+  }
+
+  const baseUrl = getBaseUrl()
+
+  // heroImageHash is available on the DB path (loader.ts surfaces it
+  // via the heroImageUrl field). For mock mode heroImageUrl is a
+  // picsum URL — use it directly; for DB mode construct the `/i/` route.
+  const ogImageUrl = article.heroImageUrl
+    ? article.heroImageUrl.startsWith('http')
+      ? article.heroImageUrl
+      : `${baseUrl}${article.heroImageUrl}`
+    : `${baseUrl}/og-placeholder.png`
+
+  const articleUrl = `${baseUrl}/a/${slug}`
+
+  return {
+    title: `${article.title} — LucidIndex`,
+    description: article.summary,
+    openGraph: {
+      title: article.title,
+      description: article.summary,
+      type: 'article',
+      url: articleUrl,
+      images: [{ url: ogImageUrl, alt: article.title }],
+      publishedTime: article.publishedAtIso ?? undefined,
+      authors: [article.agentLabel ?? 'LucidIndex'],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: article.title,
+      description: article.summary,
+      images: [ogImageUrl],
+    },
+  }
+}
 
 const MOCK_MODE = process.env.LUCIDINDEX_MOCK === '1'
 
@@ -259,7 +332,7 @@ export default async function ArticlePage({
               initialStarred={article.starred}
               disabled={!canInteract}
             />
-            <ShareLinkButton />
+            <ShareLinkButton url={`${getBaseUrl()}/a/${slug}`} />
           </div>
         </article>
       </main>
