@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "pnpm --filter @lucidindex/web dev",
     "build": "pnpm -r build",
-    "typecheck": "pnpm tsc -b --noEmit",
+    "typecheck": "pnpm tsc -b --noEmit && pnpm -r --if-present typecheck",
     "lint": "pnpm biome check",
     "format": "pnpm biome format --write",
     "prepare": "lefthook install"

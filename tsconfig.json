@@ -3,7 +3,10 @@
   "compilerOptions": {
     "noEmit": true
   },
-  // TODO: add project references here as packages gain tsconfig.json files
+  "files": [],
+  // TODO: add project references here as packages gain composite tsconfigs
+  // (Next.js apps don't play well with composite mode — typecheck them via
+  // their own per-package script instead, e.g. `pnpm --filter @lucidindex/web typecheck`).
   // e.g. { "path": "./packages/db" }, { "path": "./packages/shared" }, etc.
   "references": []
 }
