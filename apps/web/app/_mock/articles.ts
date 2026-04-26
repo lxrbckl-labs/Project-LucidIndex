@@ -248,3 +248,34 @@ export async function loadDashboardArticles(): Promise<MockArticle[]> {
   // the empty-state design (#62) renders against an unflagged dev run.
   return []
 }
+
+/**
+ * Returns the curated topic-badge list for the filter pill row (#55,
+ * #61). In mock mode this is derived from the `mockArticles` set so
+ * the filter pills always reflect the badges actually present on the
+ * dashboard. Outside mock mode we'd hit the `topic_badges` table — the
+ * real-DB path lands alongside Phase 5 backend wiring (sibling ticket).
+ *
+ * Order: stable insertion order based on first appearance in the
+ * article queue, which gives a deterministic visual rhythm without
+ * forcing alphabetic.
+ */
+export async function loadDashboardBadges(): Promise<string[]> {
+  if (process.env.LUCIDINDEX_MOCK_EMPTY === '1') {
+    return []
+  }
+  if (process.env.LUCIDINDEX_MOCK === '1') {
+    const seen = new Set<string>()
+    const ordered: string[] = []
+    for (const article of mockArticles) {
+      for (const badge of article.topicBadges) {
+        if (!seen.has(badge)) {
+          seen.add(badge)
+          ordered.push(badge)
+        }
+      }
+    }
+    return ordered
+  }
+  return []
+}
