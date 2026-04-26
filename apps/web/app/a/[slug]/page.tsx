@@ -76,9 +76,8 @@ function getBaseUrl(): string {
  * og:description, og:image (absolute URL), og:type=article, and
  * Twitter large-image card.
  *
- * The image-serve route at `/i/[hash]` is Phase 7 (#74). For now the
- * URL is emitted correctly; the route will satisfy it when it lands.
- * Articles without a heroImageHash fall back to the static OG
+ * Articles with a `heroImageHash` use the `/i/<hash>` route (Phase 7 #74)
+ * for the og:image; articles without one fall back to the static OG
  * placeholder at `/og-placeholder.png`.
  */
 export async function generateMetadata({
