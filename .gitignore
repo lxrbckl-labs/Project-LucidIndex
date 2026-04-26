@@ -42,3 +42,8 @@ coverage/
 
 # lefthook local overrides (per-developer, not committed)
 lefthook-local.yml
+
+# Playwright e2e suite — runtime artifacts only, the suite source is committed.
+tests/screenshots/
+tests/test-results/
+tests/playwright-report/

@@ -17,7 +17,8 @@
     "db:migrate": "pnpm --filter @lucidindex/db db:migrate",
     "db:studio": "pnpm --filter @lucidindex/db db:studio",
     "compose:up": "docker compose up -d",
-    "compose:down": "docker compose down"
+    "compose:down": "docker compose down",
+    "test:e2e": "pnpm --filter @lucidindex/e2e test:e2e"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.13",
