@@ -7,9 +7,16 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "echo \"TODO: wired up in #18 (apps/web) and #20 (apps/cron) / #21 (apps/mcp-store)\"",
-    "build": "echo \"TODO: wired up in #18 (apps/web) and downstream package tickets\"",
-    "lint": "echo \"TODO: wired up in #29 (Biome)\"",
-    "typecheck": "echo \"TODO: wired up per-workspace as tsconfigs land in subsequent tickets\""
+    "dev": "pnpm --filter @lucidindex/web dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm tsc -b --noEmit",
+    "lint": "pnpm biome check",
+    "format": "pnpm biome format --write",
+    "prepare": "lefthook install"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.13",
+    "lefthook": "^2.1.6",
+    "typescript": "^6.0.3"
   }
 }
