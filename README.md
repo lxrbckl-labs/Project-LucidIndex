@@ -97,42 +97,51 @@ Single-admin enrollment is gated by an environment variable so the deploy window
 
 ---
 
-## Deploy shape — host Caddy + Let's Encrypt, no tunnel
+## Reverse-proxy with host Caddy
 
-LucidIndex deploys with the same binding pattern as Project-DS: Compose brings up the four services and binds them to `127.0.0.1:PORT`; the host's existing Caddy fronts the deployment, terminates TLS via automatic Let's Encrypt (ACME), and routes `/mcp/*` to `mcp-store` and everything else to `web`. There is **no tunnel daemon, no Cloudflare account, and no Tailscale account** in this picture.
+LucidIndex deploys behind the **homelab's existing Caddy** — we do not ship a Caddy container. The host Caddy terminates TLS via automatic Let's Encrypt (ACME) and routes incoming traffic: `/mcp/*` goes to `mcp-store` (port 4000), everything else goes to `web` (port 3000). There is **no tunnel daemon, no Cloudflare account, and no Tailscale account** in this picture — a public DNS A record, port 443 forwarded at the router, and Caddy's built-in ACME client are the entire public-reach stack.
 
 ### Caddyfile snippet
 
-Drop this into your existing Caddyfile, replacing `your-domain.com` with the hostname you own:
+Drop this block into your existing Caddyfile, replacing `your-domain.com` with the hostname you own:
 
 ```caddyfile
 your-domain.com {
-    handle /mcp* {
-        reverse_proxy <mcp-target>
+    handle /mcp/* {
+        reverse_proxy <mcp-target>:4000
     }
     handle {
-        reverse_proxy <web-target>
+        reverse_proxy <web-target>:3000
     }
 }
 ```
 
-Pick the right `<web-target>` / `<mcp-target>` based on how Caddy runs on the host:
+Caddy auto-issues and auto-renews the TLS cert via Let's Encrypt — no extra configuration needed.
 
-- **Caddy on the host directly** (native binary or systemd): `localhost:<web-port>` / `localhost:<mcp-port>`.
-- **Caddy in a Docker container on the same host** (most common self-hosted setup on macOS / Docker Desktop): `host.docker.internal:<web-port>` / `host.docker.internal:<mcp-port>` — `localhost` inside the Caddy container points at Caddy itself, not the host, and you'll get HTTP 502s.
-- **Caddy in the same Docker network as the LucidIndex stack**: use container names — `web:<port>` / `mcp-store:<port>`.
+Pick `<web-target>` and `<mcp-target>` based on how Caddy runs on your host:
+
+| Caddy deployment | `<web-target>` | `<mcp-target>` |
+|---|---|---|
+| **Native binary or systemd on the host** | `localhost` | `localhost` |
+| **Docker container on the same host** (macOS / Docker Desktop) | `host.docker.internal` | `host.docker.internal` |
+| **Docker container in the same network as this stack** | `web` | `mcp-store` |
+
+Details on each shape:
+
+- **Caddy on the host directly** (native binary or systemd): use `localhost:3000` / `localhost:4000`. The Compose stack binds both services to `127.0.0.1:<port>`, so Caddy running on the same host can reach them at `localhost`.
+- **Caddy in a Docker container on the same host** (most common self-hosted setup on macOS / Docker Desktop): use `host.docker.internal:3000` / `host.docker.internal:4000`. `localhost` inside the Caddy container points at the Caddy container itself, not the host — using `localhost` here will give you HTTP 502s.
+- **Caddy in the same Docker network as the LucidIndex stack**: use the container names `web:3000` / `mcp-store:4000`. This requires either attaching Caddy explicitly to this stack's Compose network, or adding `web` and `mcp-store` to Caddy's network in `docker-compose.yml`.
 
 ### Compose port-binding posture
 
-Tighten Compose port bindings to `127.0.0.1:<port>:<container-port>` for both `web` and `mcp-store` so only Caddy (on the same host) can reach the services directly; the public internet gets them only through the reverse proxy.
-
-### Public reach
-
-A public DNS A record points at the homelab IP (DDNS if the IP isn't static), the home router forwards port 443 to the host, and Caddy auto-issues + auto-renews the cert via Let's Encrypt. That's the entire public-reach picture — no third-party account required.
+The Compose file already binds `web` to `127.0.0.1:3000` and `mcp-store` to `127.0.0.1:4000`. This means only Caddy (running on the same host) can reach the services directly — the public internet sees them only through the reverse proxy. **Do not change these to `0.0.0.0:<port>` bindings** — that would expose the services directly on the public interface and defeat the security model.
 
 ### Reload Caddy after editing
 
-`caddy reload --config /etc/caddy/Caddyfile`, `sudo systemctl reload caddy`, or `docker restart caddy` for the containerized variant.
+After dropping the snippet into your Caddyfile, reload Caddy so the changes take effect:
+
+- **Native / systemd:** `caddy reload --config /etc/caddy/Caddyfile` or `sudo systemctl reload caddy`
+- **Containerized:** `docker exec caddy caddy reload --config /etc/caddy/Caddyfile` or `docker restart caddy`
 
 ---
 
