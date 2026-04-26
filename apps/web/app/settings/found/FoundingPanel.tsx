@@ -7,10 +7,17 @@
  *
  * Three round-trips, mirroring the package's three-step ceremony:
  *   1. start → server stashes the challenge, returns options + token
- *   2. finish → server verifies attestation, persists the admin row,
- *               returns the one-time recovery code (NO session yet)
+ *   2. finish → server verifies attestation + founding-token preCheck,
+ *               persists the admin row, returns the one-time recovery code
+ *               (NO session yet)
  *   3. finalize → server mints the iron-session cookie, called after
  *                 the user dismisses the recovery-code modal
+ *
+ * `foundingToken` is read from the URL search param by the parent server
+ * component (page.tsx) and passed down — the page only renders this panel
+ * when the token is already verified at the route level. The token is also
+ * forwarded to the `finish` endpoint for defense-in-depth (so a direct API
+ * call without going through the page is still rejected).
  */
 
 import { FoundingAdminForm, type FoundingAdminFormProps } from '@lucidindex/auth/react'
@@ -19,7 +26,12 @@ import { useRouter } from 'next/navigation'
 type StartOk = Extract<Awaited<ReturnType<FoundingAdminFormProps['startEnrollment']>>, { ok: true }>
 type StartOptions = StartOk['options']
 
-export function FoundingPanel() {
+type FoundingPanelProps = {
+  /** The validated founding token from the URL search param. */
+  foundingToken?: string
+}
+
+export function FoundingPanel({ foundingToken }: FoundingPanelProps) {
   const router = useRouter()
 
   const startEnrollment: FoundingAdminFormProps['startEnrollment'] = async ({ deviceLabel }) => {
@@ -45,6 +57,7 @@ export function FoundingPanel() {
         name: input.name,
         deviceLabel: input.deviceLabel,
         attestation: input.attestation,
+        foundingToken: foundingToken ?? '',
       }),
     })
     if (!res.ok) return { ok: false }
