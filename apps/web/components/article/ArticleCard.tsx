@@ -86,7 +86,7 @@ export function ArticleCard({ article }: Props) {
 
       {/* Title — bold display sans, 2-line clamp */}
       <h2
-        className="mt-5 line-clamp-2 text-[length:var(--text-display-md)] font-bold leading-tight tracking-tight text-ink"
+        className="font-display mt-5 line-clamp-2 text-[length:var(--text-display-md)] font-bold leading-tight tracking-tight text-ink"
         style={{ letterSpacing: '-0.01em' }}
       >
         {article.title}

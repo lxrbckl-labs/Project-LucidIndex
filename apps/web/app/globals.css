@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* =============================================================================
- * LucidIndex — Visual Identity tokens (Phase 5 / #56)
+ * LucidIndex — Visual Identity tokens (Phase 5 / #56 / #54)
  *
  * Binding spec: <vault>/Projects/Project-LucidIndex/Visual Identity.md
  * Reference image: <vault>/Projects/Project-LucidIndex/Design/main.jpg (Fyrre Magazine)
@@ -15,16 +15,32 @@
  *     stays B&W.
  *   - Dark mode is deferred. Light mode is canonical.
  *
- * Fonts are NOT picked here — that's #54. We stay on system fonts for
- * the Phase 5 foundation pass; the `--text-*` tokens below are sized
- * against the system stack and will continue to work once a condensed
- * display sans is wired in via `next/font`.
+ * Fonts (#54): final pick is Bebas Neue (display) + Inter (body), wired
+ * in via `next/font/google` from `app/layout.tsx`. The two CSS variables
+ * `--font-display` and `--font-body` are emitted there onto the `<html>`
+ * element; the `@theme` block below maps Tailwind's `font-display` and
+ * `font-body` utilities to those variables so every component inherits
+ * the chosen typography automatically.
  *
  * Border-radius is minimal: cards are rectangles (`--radius-card: 0`).
  * Pills (date, badge) are the only rounded element (`--radius-pill: 9999px`).
  * ============================================================================= */
 
 @theme {
+  /* -------------------------------------------------------------------------
+   * Type families — wired in via `next/font` from `app/layout.tsx`.
+   * Bebas Neue (display) + Inter (body) is the #54 final pick; see the
+   * layout header docblock for the rationale. The `font-display` and
+   * `font-body` Tailwind utilities are auto-generated from these tokens.
+   * Fallback stacks ensure the page is legible during the brief
+   * `display: 'swap'` window before the web fonts hydrate.
+   * ----------------------------------------------------------------------- */
+  --font-display:
+    var(--font-display-src), "Helvetica Neue Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body:
+    var(--font-body-src), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui,
+    sans-serif;
+
   /* -------------------------------------------------------------------------
    * Colors — B&W base + neutral scale for muted copy.
    * Hero images are the only color; chrome stays monochrome.
