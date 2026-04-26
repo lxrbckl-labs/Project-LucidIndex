@@ -8,11 +8,20 @@
  *     founding-admin e2e (`tests/e2e/founding-admin.spec.ts`) asserts
  *     this exact copy on the public landing.
  *
- *   - Authenticated admin → the Phase 5 Fyrre-style dashboard:
- *     wordmark + masonry of article cards. When the article list is
- *     empty, the admin-flavored empty state (#62) renders instead of
- *     the masonry — different copy from the public landing because
- *     the admin needs the "go configure a creator" pitch.
+ *   - Authenticated admin → the Phase 5 Fyrre-style dashboard, which
+ *     after #55 / #61 / #60 looks like:
+ *
+ *         <TopNav>            ← thin top bar, Settings + Account
+ *         <Wordmark>          ← page-spanning LUCIDINDEX
+ *         <TopicBadgeFilterRow>  ← single-select pill row, "All" first
+ *         <hairline rule>
+ *         <LiveArticleStream> ← SSE-driven new-arrival strip (client)
+ *         <ArticleMasonry>    ← static masonry, filtered by ?badge=…
+ *
+ *     When the article list is empty, the admin-flavored empty state
+ *     (#62) renders instead of the masonry — different copy from the
+ *     public landing because the admin needs the "go configure a
+ *     creator" pitch.
  *
  * Mock-article rendering for development and the Phase 5 visual gate
  * (#63): set `LUCIDINDEX_MOCK=1` in the environment when running
@@ -26,16 +35,45 @@
  * runs the dev server with no DB and no founding admin, so there is no
  * cookie to validate against. The bypass is gated to mock mode only;
  * production code paths still require a real authenticated session.
+ *
+ * Filter routing (#61): the active topic-badge filter is encoded in the
+ * URL as `?badge=<name>`. This page reads it from `searchParams` and
+ * filters the masonry server-side before rendering. The pill row (a
+ * client component) is the only thing that writes to the URL.
  */
 
 import { requireAdmin } from '@lucidindex/auth'
 import { ArticleMasonry } from '@/components/article/ArticleMasonry'
 import { AuthenticatedEmptyState } from '@/components/article/AuthenticatedEmptyState'
-import { loadDashboardArticles } from './_mock/articles'
+import { LiveArticleStream } from '@/components/article/LiveArticleStream'
+import { TopicBadgeFilterRow } from '@/components/chrome/TopicBadgeFilterRow'
+import { TopNav } from '@/components/chrome/TopNav'
+import { Wordmark } from '@/components/chrome/Wordmark'
+import { loadDashboardArticles, loadDashboardBadges } from './_mock/articles'
 
 const MOCK_MODE = process.env.LUCIDINDEX_MOCK === '1'
 
-export default async function Page() {
+type SearchParams = Record<string, string | string[] | undefined>
+
+function readBadgeParam(params: SearchParams): string | null {
+  const raw = params.badge
+  if (!raw) return null
+  const value = Array.isArray(raw) ? raw[0] : raw
+  if (!value) return null
+  const trimmed = value.trim()
+  return trimmed.length === 0 ? null : trimmed
+}
+
+export default async function Page({
+  searchParams,
+}: {
+  // Next 15 ships searchParams as a Promise — must be awaited before
+  // touching its keys.
+  searchParams: Promise<SearchParams>
+}) {
+  const params = await searchParams
+  const badgeFilter = readBadgeParam(params)
+
   // In mock mode, skip the session gate entirely — the visual gate runs
   // against a flag-driven dev server that has no admins table populated.
   // Outside mock mode, real session validation still applies.
@@ -73,23 +111,51 @@ export default async function Page() {
 
   // ---------------------------------------------------------------------
   // Authenticated admin — full Fyrre-style dashboard.
-  // Page chrome here is intentionally minimal: wordmark + hairline rule.
-  // The full nav row + filter pill row land in #55 / #61.
   // ---------------------------------------------------------------------
-  const articles = await loadDashboardArticles()
+  const [allArticles, badgeNames] = await Promise.all([
+    loadDashboardArticles(),
+    loadDashboardBadges(),
+  ])
+
+  // Server-side filter — when `?badge=…` is set, drop articles that
+  // don't carry that badge. The pill row's "All" state passes no param.
+  const articles = badgeFilter
+    ? allArticles.filter((a) => a.topicBadges.includes(badgeFilter))
+    : allArticles
+
+  const badgeOptions = badgeNames.map((name) => ({ name }))
 
   return (
-    <main className="min-h-screen bg-paper px-6 pt-16 pb-24 md:px-18">
-      <h1
-        className="text-[length:var(--text-display-xl)] font-black tracking-tight leading-none text-ink uppercase w-full"
-        style={{ fontStretch: 'condensed', letterSpacing: '-0.02em' }}
-      >
-        LUCIDINDEX
-      </h1>
+    <div className="min-h-screen bg-paper">
+      {/* Thin top nav — Settings + Account links, hairline bottom border. */}
+      <TopNav />
 
-      <div className="mt-8 mb-12 h-px w-full bg-[var(--color-card-border)]" />
+      <main className="px-6 pt-12 pb-24 md:px-18">
+        {/* Page-spanning wordmark — visual anchor + breathing room. */}
+        <div className="py-6 md:py-10">
+          <Wordmark />
+        </div>
 
-      {articles.length === 0 ? <AuthenticatedEmptyState /> : <ArticleMasonry articles={articles} />}
-    </main>
+        {/* Topic-badge filter pills — single-select, "All" first. */}
+        <div className="mt-6">
+          <TopicBadgeFilterRow badges={badgeOptions} />
+        </div>
+
+        {/* Hairline rule — editorial separator below the filter row. */}
+        <div className="mt-6 mb-12 h-px w-full bg-[var(--color-card-border)]" />
+
+        {/* Live arrivals strip — SSE-driven, fades in new tiles without
+            disturbing the static masonry below. */}
+        <div className="mb-6">
+          <LiveArticleStream badgeFilter={badgeFilter} />
+        </div>
+
+        {articles.length === 0 ? (
+          <AuthenticatedEmptyState />
+        ) : (
+          <ArticleMasonry articles={articles} />
+        )}
+      </main>
+    </div>
   )
 }
