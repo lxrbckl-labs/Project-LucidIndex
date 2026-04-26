@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     "./client": "./client.ts",
-    "./schema": "./schema/index.ts"
+    "./schema": "./schema/index.ts",
+    "./query": "./query.ts"
   },
   "scripts": {
     "db:generate": "drizzle-kit generate",
