@@ -5,6 +5,15 @@
 // process-local clients. Tool handlers gate behind the pre-admin guard so
 // the system can't be operated until the founding admin is enrolled.
 //
+// Transport lifecycle differs between modes:
+//   - stdio: one long-lived McpServer for the life of the process
+//     (process-local clients hold a single session for the duration).
+//   - HTTP: a fresh McpServer per request — see `transports/http.ts` for
+//     the full justification (the SDK's stateless transport rejects
+//     reuse, and the SDK's `Server.connect()` rejects an already-attached
+//     server, so per-request construction is the only correct pattern
+//     for stateless HTTP MCP).
+//
 // Deeper tool behavior lands in subsequent tickets — see TODO markers in
 // each tool file:
 //   TODO(#42): atomic claim-lock with FOR UPDATE SKIP LOCKED
@@ -19,23 +28,32 @@ import { registerTools } from './tools/index.js'
 import { startHttpTransport } from './transports/http.js'
 import { startStdioTransport } from './transports/stdio.js'
 
-async function main() {
-  // Build the MCP server and register all tools BEFORE binding a transport.
-  // The SDK locks the tool table when `connect()` runs the first time.
+/**
+ * Build a fully-configured `McpServer` (tools registered, capabilities
+ * advertised). Pure synchronous — no I/O — so it's cheap to call per
+ * request when the HTTP transport needs a fresh instance.
+ */
+function buildMcpServer(): McpServer {
   const server = new McpServer(
     { name: 'lucidindex-mcp-store', version: '0.1.0' },
     { capabilities: { tools: {} } },
   )
   registerTools(server)
+  return server
+}
 
+async function main() {
   let shutdown: () => Promise<void>
 
   if (env.MCP_TRANSPORT === 'stdio') {
+    // stdio holds one long-lived server for the life of the process.
+    const server = buildMcpServer()
     const handle = await startStdioTransport(server)
     shutdown = handle.shutdown
   } else {
     logger.info('mcp_store_starting', { port: env.MCP_PORT, node_env: env.NODE_ENV })
-    const handle = await startHttpTransport(server)
+    // HTTP builds a fresh server per request via the factory.
+    const handle = await startHttpTransport(buildMcpServer)
     shutdown = handle.shutdown
   }
 
