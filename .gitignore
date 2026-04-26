@@ -36,3 +36,6 @@ Thumbs.db
 # Coverage
 coverage/
 .nyc_output/
+
+# lefthook local overrides (per-developer, not committed)
+lefthook-local.yml
