@@ -74,6 +74,12 @@ services:
       DATABASE_URL: postgres://lucidindex:${POSTGRES_PASSWORD:-lucidindex_dev}@postgres:5432/lucidindex
       NODE_ENV: production
       MCP_PORT: "4000"
+      # Hero-image pipeline (#45) writes WebP+JPEG outputs here. Path is
+      # resolved relative to the workdir inside the container; the
+      # `mcp_images` named volume below persists the files across restarts.
+      MCP_IMAGE_DIR: /app/data/images
+    volumes:
+      - mcp_images:/app/data/images
     ports:
       - "127.0.0.1:4000:4000"
 
@@ -89,3 +95,4 @@ services:
 
 volumes:
   pg_data:
+  mcp_images:
