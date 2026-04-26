@@ -11,7 +11,10 @@
   },
   "dependencies": {
     "@lucidindex/db": "workspace:*",
-    "@modelcontextprotocol/sdk": "1.29.0"
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "@node-rs/argon2": "2.0.2",
+    "drizzle-orm": "0.45.2",
+    "zod": "4.3.6"
   },
   "devDependencies": {
     "@types/node": "25.6.0",
