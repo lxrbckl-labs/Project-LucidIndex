@@ -23,13 +23,6 @@
 import { startRegistration } from '@simplewebauthn/browser'
 import { type FormEvent, type ReactNode, useState } from 'react'
 
-// Minimal shape of the input element we read in onChange handlers. Spelled
-// out structurally so this file type-checks even in consumer projects whose
-// tsconfig doesn't pull in the DOM lib (e.g. apps/web — see #18). React's
-// own input typings are richer than this but they require DOM types to
-// resolve `HTMLInputElement.value`.
-type InputLike = { value: string }
-
 const GENERIC_FAILURE = "Couldn't claim founding admin — try again"
 
 type Stage = 'idle' | 'working' | 'recovery-modal' | 'finalizing'
@@ -168,7 +161,7 @@ export function FoundingAdminForm(props: FoundingAdminFormProps) {
             required
             maxLength={100}
             value={name}
-            onChange={(e) => setName((e.currentTarget as unknown as InputLike).value)}
+            onChange={(e) => setName(e.currentTarget.value)}
             disabled={stage !== 'idle'}
             data-testid="founding-name"
             placeholder="Alex"
@@ -183,7 +176,7 @@ export function FoundingAdminForm(props: FoundingAdminFormProps) {
             required
             maxLength={100}
             value={deviceLabel}
-            onChange={(e) => setDeviceLabel((e.currentTarget as unknown as InputLike).value)}
+            onChange={(e) => setDeviceLabel(e.currentTarget.value)}
             disabled={stage !== 'idle'}
             data-testid="founding-device"
             placeholder="MacBook TouchID"

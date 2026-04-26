@@ -6,8 +6,5 @@
  * into their server bundle (and vice versa for client bundles).
  */
 
-export {
-  FoundingAdminForm,
-  type FoundingAdminFormProps,
-} from './FoundingAdminForm.js'
+export { FoundingAdminForm, type FoundingAdminFormProps } from './FoundingAdminForm.js'
 export { LoginForm, type LoginFormProps } from './LoginForm.js'
