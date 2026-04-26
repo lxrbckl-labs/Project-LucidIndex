@@ -47,6 +47,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { CrossSourceList } from '@/components/article/CrossSourceList'
+import { EscapeToBack } from '@/components/article/EscapeToBack'
 import { HideArticleButton } from '@/components/article/HideArticleButton'
 import { NewBadge } from '@/components/article/NewBadge'
 import { ShareLinkButton } from '@/components/article/ShareLinkButton'
@@ -182,17 +183,31 @@ export default async function ArticlePage({
           magazine page within the same product. */}
       <TopNav />
 
-      <main className="px-6 pt-12 pb-24 md:px-18">
-        <div className="py-6 md:py-10">
+      {/* Phase 8 #84 — Esc returns the reader to the previous page
+          (typically the dashboard, /search, or /c/<slug>). */}
+      <EscapeToBack />
+
+      {/* Phase 8 #83 — mobile-polished article page.
+          The article page is the canonical share-link target — most
+          mobile traffic lands here, so polish matters. Px-4 on mobile
+          tightens up the page edges; px-6 / md:px-18 picks back up at
+          tablet+. */}
+      <main className="px-4 pt-8 pb-20 sm:px-6 sm:pt-12 sm:pb-24 md:px-18">
+        <div className="py-4 sm:py-6 md:py-10">
           <Wordmark />
         </div>
 
         {/* Hairline rule under the wordmark, page-width — matches the
             dashboard's editorial separator. */}
-        <div className="mt-6 mb-12 h-px w-full bg-[var(--color-card-border)]" />
+        <div className="mt-6 mb-10 h-px w-full bg-[var(--color-card-border)] sm:mb-12" />
 
-        {/* Single-column reading width — 820px max, centered. */}
-        <article className="mx-auto w-full max-w-[820px]">
+        {/* Reading column.
+            Phase 8 #83 — narrowed from 820px to 640px so the line-length
+            on a 13" laptop stays comfortable for long-form prose; the
+            previous 820px reads too wide for body type. The page padding
+            still scales down to px-4 on mobile so the column fills the
+            phone viewport. */}
+        <article className="mx-auto w-full max-w-[640px]">
           {/* Header — date pill + NEW pill (when applicable) + every
               topic-badge pill. */}
           <header className="flex flex-wrap items-center gap-3">

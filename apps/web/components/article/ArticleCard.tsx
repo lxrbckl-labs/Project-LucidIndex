@@ -28,9 +28,16 @@
  *   - Image clipped via `object-cover` to the per-significance aspect.
  *   - Estimated dates render with a `~` prefix.
  *
- * Server component — pure render, no client interactivity (the star
- * toggle, hover-to-fade-summary, and click-to-article behaviors land
- * in subsequent Phase 5 tickets).
+ * Phase 8 #84 / #85:
+ *   - Tile carries a `data-masonry-tile` attribute so the dashboard's
+ *     client-side keyboard handler (MasonryKeyboardNav) can enumerate
+ *     tiles via `document.querySelectorAll` and walk arrow keys across
+ *     them. The card itself stays a server component — no client JS.
+ *   - Focus state on the tile is a hairline ink ring (not the rounded
+ *     blue browser default). The global :focus-visible rule in
+ *     globals.css already lays down a 1px ink outline on every focusable
+ *     element; the per-tile class below adds the offset to clear the
+ *     hairline frame so the focus ring reads at a glance.
  */
 
 import Link from 'next/link'
@@ -67,11 +74,15 @@ export function ArticleCard({ article, isNew = false }: Props) {
       href={`/a/${article.slug}`}
       // The whole tile is the click target — the article page is the
       // per-article home, not just a "read more" affordance.
-      className="block h-full no-underline focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2"
+      // Focus ring (#85): a hairline 1.5px ink outline with offset to
+      // clear the frame border. Replaces the rounded-blue browser
+      // default; matches the magazine vibe.
+      className="block h-full no-underline focus:outline-none focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-ink"
       style={{ borderRadius: 'var(--radius-card)' }}
+      data-masonry-tile=""
     >
       <article
-        className="group flex h-full flex-col border border-[var(--color-card-border)] bg-paper p-5 transition-colors duration-150 hover:border-ink"
+        className="group flex h-full flex-col border border-[var(--color-card-border)] bg-paper p-4 transition-colors duration-150 hover:border-ink sm:p-5"
         style={{ borderRadius: 'var(--radius-card)' }}
       >
         {/* Top row — date pill (left) + badge pill (right). The NEW pill

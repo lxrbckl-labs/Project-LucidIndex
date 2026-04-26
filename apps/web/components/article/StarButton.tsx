@@ -55,7 +55,11 @@ export function StarButton({ articleId, slug, initialStarred, disabled = false }
       disabled={disabled || isPending}
       aria-pressed={starred}
       aria-label={starred ? 'Remove star' : 'Star this article'}
-      className={`inline-flex items-center gap-2 border border-[var(--color-card-border)] bg-paper px-4 py-2 text-[var(--text-meta)] uppercase tracking-[0.08em] transition-colors duration-150 ${
+      // Phase 8 #83 — tap-friendly: min-h-[44px] meets the 44×44 WCAG
+      // target-size recommendation on mobile. Phase 8 #85 — the global
+      // :focus-visible ring (1px ink outline + 2px offset) handles
+      // focus visibility; no rounded-blue browser default.
+      className={`inline-flex min-h-[44px] items-center gap-2 border border-[var(--color-card-border)] bg-paper px-4 py-2 text-[var(--text-meta)] uppercase tracking-[0.08em] transition-colors duration-150 ${
         disabled
           ? 'cursor-not-allowed text-[var(--color-muted-500)]'
           : 'cursor-pointer text-ink hover:border-ink'

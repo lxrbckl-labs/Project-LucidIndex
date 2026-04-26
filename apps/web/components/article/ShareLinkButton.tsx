@@ -71,7 +71,8 @@ export function ShareLinkButton({ url }: Props) {
     <button
       type="button"
       onClick={handleClick}
-      className="inline-flex items-center gap-2 border border-[var(--color-card-border)] bg-paper px-4 py-2 text-[var(--text-meta)] uppercase tracking-[0.08em] text-ink transition-colors duration-150 hover:border-ink"
+      // Phase 8 #83 — tap-friendly min height (44×44 WCAG target).
+      className="inline-flex min-h-[44px] items-center gap-2 border border-[var(--color-card-border)] bg-paper px-4 py-2 text-[var(--text-meta)] uppercase tracking-[0.08em] text-ink transition-colors duration-150 hover:border-ink"
       style={{ borderRadius: 'var(--radius-pill)' }}
       data-testid="article-share"
     >

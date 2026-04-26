@@ -30,6 +30,13 @@
  *     visible — it's a magazine credit, not noise.
  *   - The frame still uses a hairline border to keep the card
  *     anchored in the masonry grid; the spec's "no shadow" rule holds.
+ *
+ * Phase 8 #84 / #85 — keyboard nav + focus state:
+ *   - Tile carries a `data-masonry-tile` attribute so the dashboard's
+ *     client-side keyboard handler can enumerate it. See ArticleCard
+ *     for context.
+ *   - Focus ring is a hairline ink outline (replaces rounded-blue
+ *     browser default).
  */
 
 import Link from 'next/link'
@@ -54,8 +61,10 @@ export function LargeArticleCard({ article, isNew = false }: Props) {
   return (
     <Link
       href={`/a/${article.slug}`}
-      className="block h-full no-underline focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2"
+      // Hairline ink focus ring (#85) — replaces rounded-blue default.
+      className="block h-full no-underline focus:outline-none focus-visible:outline focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-ink"
       style={{ borderRadius: 'var(--radius-card)' }}
+      data-masonry-tile=""
     >
       <article
         className="group relative flex h-full flex-col overflow-hidden border border-[var(--color-card-border)] bg-ink transition-colors duration-150 hover:border-ink"
@@ -73,7 +82,7 @@ export function LargeArticleCard({ article, isNew = false }: Props) {
         {/* Top corners — date + badge pills, on a translucent backdrop so
           they read against any image. The NEW pill (when shown) sits
           next to the date so the two read as a single eyebrow group. */}
-        <header className="relative z-10 flex items-start justify-between gap-3 p-5">
+        <header className="relative z-10 flex items-start justify-between gap-3 p-4 sm:p-5">
           <div className="flex items-center gap-2">
             <span
               className="inline-flex items-center border border-paper/80 bg-paper/90 px-3 py-1 text-[var(--text-meta)] text-ink"
@@ -98,7 +107,7 @@ export function LargeArticleCard({ article, isNew = false }: Props) {
         <div className="flex-1" />
 
         {/* Bottom overlay — gradient + title + byline */}
-        <div className="relative z-10 bg-gradient-to-t from-ink/85 via-ink/50 to-transparent p-6 pt-24">
+        <div className="relative z-10 bg-gradient-to-t from-ink/85 via-ink/50 to-transparent p-5 pt-20 sm:p-6 sm:pt-24">
           <h2
             className="font-display text-[length:var(--text-display-lg)] font-black leading-[0.95] tracking-tight text-paper"
             style={{ letterSpacing: '-0.02em' }}
