@@ -28,6 +28,11 @@ import { redirect } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { SettingsSidebar } from './_components/SettingsSidebar'
 
+// The settings shell decides routing per-request based on the admins table
+// + iron-session cookie + the request URL header. Forcing dynamic here also
+// flows through to every child page that doesn't already declare it.
+export const dynamic = 'force-dynamic'
+
 const FOUND_PATH = '/settings/found'
 const LOGIN_PATH = '/settings/login'
 

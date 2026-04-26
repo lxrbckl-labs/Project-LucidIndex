@@ -13,6 +13,10 @@ import { finishLogin } from '@lucidindex/auth'
 import { NextResponse } from 'next/server'
 import { redeemChallenge } from '../../../../../../lib/challenge-store'
 
+// DB-backed (verifies + updates credential counter, mints session cookie) —
+// must execute per-request.
+export const dynamic = 'force-dynamic'
+
 export async function POST(req: Request) {
   let body: unknown
   try {

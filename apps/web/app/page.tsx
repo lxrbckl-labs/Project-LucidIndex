@@ -53,6 +53,10 @@ import { Wordmark } from '@/components/chrome/Wordmark'
 import { getNewBadgeHours, isNew } from '@/lib/new-badge'
 import { getMockCreatedAt, loadDashboardArticles, loadDashboardBadges } from './_mock/articles'
 
+// Reads the iron-session cookie via requireAdmin() and queries the DB for
+// articles / badges — never statically renderable.
+export const dynamic = 'force-dynamic'
+
 const MOCK_MODE = process.env.LUCIDINDEX_MOCK === '1'
 
 type SearchParams = Record<string, string | string[] | undefined>

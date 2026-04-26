@@ -49,6 +49,11 @@ import { TopNav } from '@/components/chrome/TopNav'
 import { Wordmark } from '@/components/chrome/Wordmark'
 import { loadCreatorArticles, loadCreatorBySlug } from './loader'
 
+// DB-backed (loadCreatorBySlug, loadCreatorArticles) — never statically
+// renderable. The lazy slug-backfill side-effect inside loadCreatorBySlug
+// also wants real request-time semantics, not build-time.
+export const dynamic = 'force-dynamic'
+
 const MOCK_MODE = process.env.LUCIDINDEX_MOCK === '1'
 
 export async function generateMetadata({

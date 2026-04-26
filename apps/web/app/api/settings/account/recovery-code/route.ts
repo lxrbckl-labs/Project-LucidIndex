@@ -14,6 +14,9 @@
 import { regenerateRecoveryCode, requireAdmin } from '@lucidindex/auth'
 import { NextResponse } from 'next/server'
 
+// Session-gated + DB-backed — must execute per-request.
+export const dynamic = 'force-dynamic'
+
 export async function POST() {
   const session = await requireAdmin()
   if (!session) {

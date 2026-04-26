@@ -24,6 +24,10 @@ import {
   validateOffSiteBackupInput,
 } from '../../../settings/off-site-backup/_lib/off-site-backup-repo'
 
+// Session-gated + DB-backed (encrypted credentials read/write) — must
+// execute per-request.
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   const session = await requireAdmin()
   if (!session) {

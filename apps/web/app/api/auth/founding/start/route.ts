@@ -13,6 +13,9 @@ import { startFoundingEnrollment } from '@lucidindex/auth'
 import { NextResponse } from 'next/server'
 import { stashChallenge } from '../../../../../lib/challenge-store'
 
+// DB-backed (checks admins table emptiness) — must execute per-request.
+export const dynamic = 'force-dynamic'
+
 export async function POST(req: Request) {
   let body: unknown
   try {

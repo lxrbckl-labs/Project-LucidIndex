@@ -14,6 +14,9 @@ import { startLogin } from '@lucidindex/auth'
 import { NextResponse } from 'next/server'
 import { stashChallenge } from '../../../../../../lib/challenge-store'
 
+// DB-backed (looks up registered credentials) — must execute per-request.
+export const dynamic = 'force-dynamic'
+
 export async function POST() {
   try {
     const result = await startLogin()

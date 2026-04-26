@@ -58,6 +58,10 @@ import { getNewBadgeHours, isNew } from '@/lib/new-badge'
 import { markRead } from './actions'
 import { applyFairUseCap, estimateReadMinutes, loadArticleBySlug } from './loader'
 
+// DB-backed (loadArticleBySlug, markRead) + session-aware (canInteract via
+// requireAdmin) — never statically renderable.
+export const dynamic = 'force-dynamic'
+
 /**
  * Resolve the absolute base URL for OG meta tags (#67).
  *

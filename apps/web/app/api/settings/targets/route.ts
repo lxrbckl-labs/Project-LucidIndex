@@ -21,6 +21,9 @@ import {
   validateTargetInput,
 } from '../../../settings/targets/_lib/targets-repo'
 
+// Session-gated + DB-backed — must execute per-request.
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   const session = await requireAdmin()
   if (!session) {
