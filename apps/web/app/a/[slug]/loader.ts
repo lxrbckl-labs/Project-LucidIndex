@@ -25,7 +25,7 @@
 import { db } from '@lucidindex/db/client'
 import { and, eq } from '@lucidindex/db/query'
 import { agentTokens, articles, targets } from '@lucidindex/db/schema'
-import { findMockArticleBySlug, mockArticles } from '@/app/_mock/articles'
+import { findMockArticleBySlug, getMockCreatedAt, mockArticles } from '@/app/_mock/articles'
 
 const MOCK_MODE = process.env.LUCIDINDEX_MOCK === '1'
 
@@ -65,6 +65,12 @@ export type ArticleViewModel = {
   starred: boolean
   read: boolean
   sourceUrl: string
+  /**
+   * Agent-insertion timestamp — drives the "NEW" badge (#79). Always
+   * populated: real-DB rows surface `articles.created_at`; mock rows
+   * synthesize one from `insertedAtOffsetHours`.
+   */
+  createdAt: Date
 }
 
 /**
@@ -112,6 +118,7 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
       starred: mock.starred ?? false,
       read: mock.read ?? false,
       sourceUrl: mock.sourceUrl,
+      createdAt: getMockCreatedAt(mock),
     }
   }
 
@@ -137,6 +144,7 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
       read: articles.read,
       hidden: articles.hidden,
       sourceUrl: articles.sourceUrl,
+      createdAt: articles.createdAt,
     })
     .from(articles)
     .leftJoin(agentTokens, eq(articles.agentTokenId, agentTokens.id))
@@ -186,6 +194,7 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
     starred: row.starred,
     read: row.read,
     sourceUrl: row.sourceUrl,
+    createdAt: row.createdAt,
   }
 }
 

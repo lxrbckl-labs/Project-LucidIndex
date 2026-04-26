@@ -276,9 +276,15 @@ function buildPanels(articles: MockArticle[]): Array<{
 
 type Props = {
   articles: MockArticle[]
+  /**
+   * Set of article ids that should render the "NEW" pill (#79). Computed
+   * upstream by the dashboard route — the masonry stays stateless and
+   * just forwards the flag to each card.
+   */
+  newArticleIds?: ReadonlySet<string>
 }
 
-export function ArticleMasonry({ articles }: Props) {
+export function ArticleMasonry({ articles, newArticleIds }: Props) {
   const panels = buildPanels(articles)
 
   return (
@@ -303,15 +309,18 @@ export function ArticleMasonry({ articles }: Props) {
               gridAutoRows: 'minmax(180px, auto)',
             }}
           >
-            {panel.filled.map(({ slot, article }) => (
-              <div key={article.id} style={{ gridArea: slot.area }} className="min-h-0">
-                {slot.significance === 'large' ? (
-                  <LargeArticleCard article={article} />
-                ) : (
-                  <ArticleCard article={article} />
-                )}
-              </div>
-            ))}
+            {panel.filled.map(({ slot, article }) => {
+              const isNew = newArticleIds?.has(article.id) ?? false
+              return (
+                <div key={article.id} style={{ gridArea: slot.area }} className="min-h-0">
+                  {slot.significance === 'large' ? (
+                    <LargeArticleCard article={article} isNew={isNew} />
+                  ) : (
+                    <ArticleCard article={article} isNew={isNew} />
+                  )}
+                </div>
+              )
+            })}
           </div>
         )
       })}

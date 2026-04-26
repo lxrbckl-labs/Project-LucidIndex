@@ -35,6 +35,7 @@
 
 import Link from 'next/link'
 import type { MockArticle } from '@/app/_mock/articles'
+import { NewBadge } from './NewBadge'
 import { TileCreatorLink } from './TileCreatorLink'
 import { TileShareButton } from './TileShareButton'
 
@@ -43,9 +44,16 @@ const BASE_URL =
 
 type Props = {
   article: MockArticle
+  /**
+   * When true, render the small "NEW" pill (#79). Computed in the parent
+   * (the dashboard) by comparing `article.created_at` to the configured
+   * `settings.new_article_badge_hours` window — keeps this component
+   * pure and avoids hammering the DB once per card.
+   */
+  isNew?: boolean
 }
 
-export function ArticleCard({ article }: Props) {
+export function ArticleCard({ article, isNew = false }: Props) {
   const datePrefix = article.publishedEstimated ? '~ ' : ''
   // First badge wins on the card; the article page shows the full set.
   const primaryBadge = article.topicBadges[0]
@@ -66,12 +74,17 @@ export function ArticleCard({ article }: Props) {
         className="group flex h-full flex-col border border-[var(--color-card-border)] bg-paper p-5 transition-colors duration-150 hover:border-ink"
         style={{ borderRadius: 'var(--radius-card)' }}
       >
-        {/* Top row — date pill (left) + badge pill (right) */}
+        {/* Top row — date pill (left) + badge pill (right). The NEW pill
+          (when shown) sits between the date and the topic badge so the
+          two-pill rhythm reads cleanly. */}
         <header className="flex items-center justify-between gap-3">
-          <time className="text-[var(--text-meta)] text-[var(--color-muted-700)] tracking-tight">
-            {datePrefix}
-            {article.publishedLabel}
-          </time>
+          <div className="flex items-center gap-2">
+            <time className="text-[var(--text-meta)] text-[var(--color-muted-700)] tracking-tight">
+              {datePrefix}
+              {article.publishedLabel}
+            </time>
+            {isNew ? <NewBadge /> : null}
+          </div>
           {primaryBadge ? (
             <span
               className="inline-flex items-center justify-center border border-ink px-3 py-1 text-[0.65rem] uppercase tracking-[0.08em] text-ink"

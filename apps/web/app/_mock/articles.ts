@@ -83,6 +83,20 @@ export type MockArticle = {
   sourceUrl: string
   /** True when the article should 404 — e2e/visual smoke for #69 hide. */
   hidden?: boolean
+  /**
+   * Mirrors `articles.dashboard_visible`. False means the article has
+   * been rolled off the dashboard by the retention purge (#72) but is
+   * still reachable via share-link and surfaced under "Include archived"
+   * in the search UI (#73). Defaults to true for unflagged mocks.
+   */
+  dashboardVisible?: boolean
+  /**
+   * Hours-before-now to use as the synthetic agent-insertion timestamp
+   * (`createdAt`) for the "NEW" badge (#79). Defaults to a large value
+   * so the article reads as "old" — opt in by setting a small value
+   * (< default 24h) on a couple of mocks to demo the badge.
+   */
+  insertedAtOffsetHours?: number
   /** Mock-mode runtime state (mutated by server actions in mock mode). */
   starred?: boolean
   read?: boolean
@@ -189,6 +203,8 @@ const seeds: MockSeed[] = [
       },
     ],
     sourceUrl: 'https://example.com/computewatch/webgpu-comes-of-age',
+    // Demo the "NEW" badge (#79) — synthetic agent-insertion 2h ago.
+    insertedAtOffsetHours: 2,
   },
   {
     id: 'm-002',
@@ -235,6 +251,8 @@ const seeds: MockSeed[] = [
     reasonablenessRating: null,
     crossSource: [],
     sourceUrl: 'https://example.com/tonaldrift/baroque-counterpoint',
+    // Demo the "NEW" badge (#79) — synthetic agent-insertion 8h ago.
+    insertedAtOffsetHours: 8,
   },
   {
     id: 'm-004',
@@ -449,6 +467,10 @@ const seeds: MockSeed[] = [
     reasonablenessRating: null,
     crossSource: [],
     sourceUrl: 'https://example.com/tonaldrift/modular-quiet',
+    // Demo the "Include archived" search toggle (#73) — this article is
+    // off the dashboard but still findable via share-link / search-when-
+    // archived-is-checked, mirroring the Phase 7 #72 retention purge.
+    dashboardVisible: false,
   },
 ]
 
@@ -460,6 +482,25 @@ const seeds: MockSeed[] = [
  * page agree on the canonical URL.
  */
 export const mockArticles: MockArticle[] = seeds.map(fromSeed)
+
+/**
+ * Default age (in hours) used when a mock article doesn't set
+ * `insertedAtOffsetHours`. Larger than any plausible "NEW" badge window
+ * so unflagged mocks always read as "old" in the badge UI (#79).
+ */
+const DEFAULT_INSERTED_OFFSET_HOURS = 24 * 30
+
+/**
+ * Synthesize the mock article's agent-insertion timestamp for the
+ * "NEW" badge (#79). Mocks don't carry a real `created_at`, so we
+ * derive one at read time by subtracting `insertedAtOffsetHours` from
+ * "now". A couple of seeds are flagged with a small offset (< 24h)
+ * to demo the badge in the visual gate.
+ */
+export function getMockCreatedAt(article: MockArticle): Date {
+  const offsetHours = article.insertedAtOffsetHours ?? DEFAULT_INSERTED_OFFSET_HOURS
+  return new Date(Date.now() - offsetHours * 60 * 60 * 1000)
+}
 
 /**
  * Returns the active dashboard article set. When `LUCIDINDEX_MOCK=1`
@@ -478,7 +519,11 @@ export async function loadDashboardArticles(): Promise<MockArticle[]> {
     return []
   }
   if (process.env.LUCIDINDEX_MOCK === '1') {
-    return mockArticles
+    // Mirror the real-DB loader's WHERE clause: hide hidden articles
+    // and articles the retention purge has rolled off (`dashboard_visible
+    // = false`). Both surface elsewhere — hidden via Settings → Hidden
+    // articles (#78), archived via Search "Include archived" (#73).
+    return mockArticles.filter((a) => !a.hidden && (a.dashboardVisible ?? true))
   }
   // Real DB loader will land alongside Phase 5 backend wiring; for the
   // visual-foundation PR we intentionally fall through to "empty" so
