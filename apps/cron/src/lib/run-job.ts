@@ -23,7 +23,14 @@ import { eq } from '@lucidindex/db/query'
 import { cronRuns } from '@lucidindex/db/schema'
 import { logger } from '../logger.js'
 
-export type JobName = 'heartbeat' | 'scheduler' | 'reaper' | 'hwm_reset'
+export type JobName =
+  | 'heartbeat'
+  | 'scheduler'
+  | 'reaper'
+  | 'hwm_reset'
+  | 'retention_purge'
+  | 'local_backup'
+  | 'off_site_backup'
 
 export type JobDetails = Record<string, unknown>
 
