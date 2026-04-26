@@ -18,7 +18,24 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
 
-  apps/cron: {}
+  apps/cron:
+    dependencies:
+      '@lucidindex/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      drizzle-orm:
+        specifier: 0.45.2
+        version: 0.45.2(postgres@3.4.9)
+      node-cron:
+        specifier: 4.2.1
+        version: 4.2.1
+    devDependencies:
+      '@types/node':
+        specifier: 25.6.0
+        version: 25.6.0
+      tsx:
+        specifier: 4.20.6
+        version: 4.20.6
 
   apps/mcp-store:
     dependencies:
@@ -2154,6 +2171,10 @@ packages:
       sass:
         optional: true
 
+  node-cron@4.2.1:
+    resolution: {integrity: sha512-lgimEHPE/QDgFlywTd8yTR61ptugX3Qer29efeyWw2rv259HtGBNn1vZVmp8lB9uo9wC0t/AT4iGqXxia+CJFg==}
+    engines: {node: '>=6.0.0'}
+
   node-loader@2.1.0:
     resolution: {integrity: sha512-OwjPkyh8+7jW8DMd/iq71uU1Sspufr/C2+c3t0p08J3CrM9ApZ4U53xuisNrDXOHyGi5OYHgtfmmh+aK9zJA6g==}
     engines: {node: '>= 10.13.0'}
@@ -4152,6 +4173,8 @@ snapshots:
     transitivePeerDependencies:
       - '@babel/core'
       - babel-plugin-macros
+
+  node-cron@4.2.1: {}
 
   node-loader@2.1.0(webpack@5.106.2):
     dependencies:

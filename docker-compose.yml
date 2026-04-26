@@ -1,9 +1,10 @@
-# LucidIndex — local / production stack: Postgres 16 + Next.js web + mcp-store.
+# LucidIndex — local / production stack: Postgres 16 + Next.js web + mcp-store + cron.
 #
 # Phase 1: postgres + web.
-# Phase 3: mcp-store sidecar (scaffold — see apps/mcp-store/README.md).
-# Phase 4 (cron) sidecar is NOT included here yet — see its ticket for the
-# service definition and Dockerfile.
+# Phase 3: mcp-store sidecar (full MCP server — see apps/mcp-store/README.md).
+# Phase 4: cron sidecar (scheduled jobs — see apps/cron/README.md). The
+#          sidecar has no HTTP surface; it writes to cron_runs and reads
+#          targets / settings via @lucidindex/db.
 #
 # Ports are bound to 127.0.0.1 so that only the host Caddy reverse proxy
 # (outside this stack) can reach them. No service is exposed to the LAN.
@@ -83,15 +84,24 @@ services:
     ports:
       - "127.0.0.1:4000:4000"
 
-  # ---------------------------------------------------------------------------
-  # Phase 4 — cron (placeholder; not yet implemented)
-  # cron:
-  #   image: lxrbckl/lucidindex-cron:main
-  #   build:
-  #     context: .
-  #     dockerfile: apps/cron/Dockerfile
-  #   ...
-  # ---------------------------------------------------------------------------
+  cron:
+    image: lxrbckl/lucidindex-cron:main
+    build:
+      context: .
+      dockerfile: apps/cron/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://lucidindex:${POSTGRES_PASSWORD:-lucidindex_dev}@postgres:5432/lucidindex
+      NODE_ENV: production
+      # Timezone for cron expressions. UTC is the right default; flip to
+      # a local zone (e.g. America/New_York) only when human-aligned
+      # schedules matter (nightly backup at "midnight local", etc.).
+      CRON_TIMEZONE: ${CRON_TIMEZONE:-UTC}
+    # No `ports:` block — the cron sidecar has no HTTP surface. It is
+    # internal-only and reachable only via Postgres state.
 
 volumes:
   pg_data:
