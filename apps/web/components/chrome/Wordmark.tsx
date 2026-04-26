@@ -24,8 +24,8 @@
 export function Wordmark() {
   return (
     <h1
-      className="text-[length:var(--text-display-xl)] font-black leading-none tracking-tight text-ink uppercase w-full text-center"
-      style={{ fontStretch: 'condensed', letterSpacing: '-0.02em' }}
+      className="font-display text-[length:var(--text-display-xl)] font-black leading-none tracking-tight text-ink uppercase w-full text-center"
+      style={{ letterSpacing: '-0.02em' }}
     >
       LUCIDINDEX
     </h1>

@@ -82,7 +82,7 @@ export function LargeArticleCard({ article }: Props) {
       {/* Bottom overlay — gradient + title + byline */}
       <div className="relative z-10 bg-gradient-to-t from-ink/85 via-ink/50 to-transparent p-6 pt-24">
         <h2
-          className="text-[length:var(--text-display-lg)] font-black leading-[0.95] tracking-tight text-paper"
+          className="font-display text-[length:var(--text-display-lg)] font-black leading-[0.95] tracking-tight text-paper"
           style={{ letterSpacing: '-0.02em' }}
         >
           {article.title}

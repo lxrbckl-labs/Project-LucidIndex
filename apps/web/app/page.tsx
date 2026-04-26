@@ -89,8 +89,8 @@ export default async function Page({
       <main className="min-h-screen bg-paper flex flex-col px-6 pt-16 pb-24 md:px-18">
         {/* Editorial wordmark — page-spanning, visual anchor */}
         <h1
-          className="text-[clamp(3rem,12vw,9rem)] font-black tracking-tight leading-none text-ink uppercase w-full"
-          style={{ fontStretch: 'condensed', letterSpacing: '-0.02em' }}
+          className="font-display text-[clamp(3rem,12vw,9rem)] font-black tracking-tight leading-none text-ink uppercase w-full"
+          style={{ letterSpacing: '-0.02em' }}
         >
           LUCIDINDEX
         </h1>
