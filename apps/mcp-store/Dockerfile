@@ -27,6 +27,13 @@ COPY packages/templates/package.json ./packages/templates/package.json
 
 # --ignore-scripts skips the `prepare` hook (lefthook install) which requires
 # git — not present in the Alpine image and not needed inside the container.
+#
+# sharp@0.34 (used by the hero-image pipeline) ships pre-compiled native
+# binaries via optionalDependencies — `@img/sharp-linuxmusl-x64`,
+# `@img/sharp-linuxmusl-arm64`, etc. pnpm picks the right platform binary
+# automatically; no install script needed (sharp 0.33+ dropped that). If
+# the runner reports "Could not load the sharp module" at boot, double-
+# check that optionalDependencies weren't pruned somewhere in the flow.
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # ---- builder ----
@@ -64,5 +71,11 @@ COPY --from=builder /app/deploy ./
 COPY --from=builder /app/apps/mcp-store/dist ./dist
 
 EXPOSE 4000
+
+# The hero-image pipeline writes WebP+JPEG outputs under MCP_IMAGE_DIR
+# (default `data/images` relative to the workdir). Production deployments
+# should mount a host volume here so files survive container restarts;
+# the dashboard's image-serve route handler (Phase 7 #74) reads from
+# this same directory. docker-compose.yml owns the volume mapping.
 
 CMD ["node", "dist/server.js"]

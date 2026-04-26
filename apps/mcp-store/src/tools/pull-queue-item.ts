@@ -1,22 +1,47 @@
 // `pull_queue_item` — claim the next due queue row.
 //
-// STUB-quality implementation. The flow is:
-//   1. SELECT the oldest unacked-and-unlocked row (or one whose lock expired).
-//   2. UPDATE its `claimed_by` and `locked_until`.
-//   3. Join in the target + prompt_template fields and return the contract.
+// Atomic claim-lock (#42). The classic SELECT-then-UPDATE flow has a race:
+// two concurrent pullers can both observe an unclaimed row, then both
+// UPDATE it. PostgreSQL's `FOR UPDATE SKIP LOCKED` is the canonical fix —
+// the inner SELECT row-locks the candidate, so a second concurrent
+// transaction's SELECT silently passes that row over and picks the next
+// one.
 //
-// TODO(#42): replace the SELECT-then-UPDATE with `FOR UPDATE SKIP LOCKED` so
-// concurrent agents can't double-claim the same row. The stub here is
-// trivially racy under concurrency.
+// drizzle-orm 0.45.x does not expose `SKIP LOCKED` ergonomically through
+// its query builder, so this tool drops to raw SQL via `db.execute(sql\`\`)`.
+// The implementation is one statement:
 //
-// TODO(#44): `rendered_prompt` currently returns the raw template body.
-// #44 wires Liquid rendering against the target metadata + per-template
-// variables.
+//   UPDATE queue
+//   SET locked_until = now() + interval '<TTL>',
+//       claimed_by   = $agent_token_id
+//   WHERE id = (
+//     SELECT id FROM queue
+//     WHERE acked_at IS NULL
+//       AND (locked_until IS NULL OR locked_until < now())
+//     ORDER BY priority DESC, enqueued_at ASC
+//     LIMIT 1
+//     FOR UPDATE SKIP LOCKED
+//   )
+//   RETURNING *;
+//
+// One DB round-trip; row-level locks are held only for the duration of
+// the UPDATE; concurrent pullers cleanly skip past whatever row another
+// transaction has just claimed.
+//
+// After the claim, a second SELECT joins targets + prompt_templates to
+// build the response. We split the two so the atomic UPDATE stays small
+// and trivially auditable.
+//
+// #44: rendered_prompt is the LiquidJS-rendered template body. Render
+// errors surface as `template_render_failed` ToolErrors so the agent
+// sees WHICH target/template broke.
 
 import { db } from '@lucidindex/db/client'
 import { promptTemplates, queue, targets } from '@lucidindex/db/schema'
-import { and, eq, isNull, lte, or, sql } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import env from '../env.js'
+import { renderPromptBody } from '../lib/liquid-render.js'
+import { ToolError } from './index.js'
 
 export type PullQueueItemArgs = {
   /** Authenticated agent_token_id, if any. Stored as `claimed_by` on the row. */
@@ -39,18 +64,56 @@ export type PullQueueItemResult =
     }
   | { queue_item_id: null }
 
-export async function pullQueueItem(args: PullQueueItemArgs): Promise<PullQueueItemResult> {
-  const now = new Date()
-  const lockExpires = new Date(now.getTime() + env.MCP_QUEUE_LOCK_TTL_SEC * 1000)
+type ClaimedRow = {
+  id: string
+  target_id: string
+  enqueued_at: Date
+  claimed_by: string | null
+  locked_until: Date
+  priority: number
+  acked_at: Date | null
+}
 
-  // Find the next eligible row. Eligible = not yet acked AND (no claim OR
-  // claim's lock has expired). Order by enqueued_at so we hand out FIFO,
-  // priority desc as a tie-breaker.
-  // TODO(#42): replace with FOR UPDATE SKIP LOCKED atomic claim-lock
-  const candidate = await db
+export async function pullQueueItem(args: PullQueueItemArgs): Promise<PullQueueItemResult> {
+  const ttlSec = env.MCP_QUEUE_LOCK_TTL_SEC
+
+  // ATOMIC CLAIM-LOCK (#42). The interval expression uses `make_interval`
+  // so we can parameterize the seconds count — Postgres won't accept a
+  // bound parameter inside an `interval '<literal>'` syntax.
+  //
+  // The inner SELECT's FOR UPDATE SKIP LOCKED is what makes this safe
+  // under contention: two concurrent pullers either pick different rows
+  // or one returns null (queue empty after the other claimed the only
+  // candidate). No double-claims possible.
+  const claimResult = await db.execute<ClaimedRow>(sql`
+    UPDATE queue
+    SET locked_until = now() + make_interval(secs => ${ttlSec}),
+        claimed_by   = ${args.agentTokenId}
+    WHERE id = (
+      SELECT id FROM queue
+      WHERE acked_at IS NULL
+        AND (locked_until IS NULL OR locked_until < now())
+      ORDER BY priority DESC, enqueued_at ASC
+      LIMIT 1
+      FOR UPDATE SKIP LOCKED
+    )
+    RETURNING *;
+  `)
+
+  // drizzle-orm's postgres-js execute returns the row array directly.
+  const rows = claimResult as unknown as ClaimedRow[]
+  if (rows.length === 0) {
+    return { queue_item_id: null }
+  }
+
+  // biome-ignore lint/style/noNonNullAssertion: length-checked above
+  const claimed = rows[0]!
+
+  // Second query: pull the joined target + template metadata for the
+  // response payload. The atomic UPDATE above already locked the row
+  // for us, so this is a plain read.
+  const meta = await db
     .select({
-      id: queue.id,
-      targetId: queue.targetId,
       promptTemplateId: targets.promptTemplateId,
       urlOrHandle: targets.urlOrHandle,
       label: targets.label,
@@ -62,37 +125,55 @@ export async function pullQueueItem(args: PullQueueItemArgs): Promise<PullQueueI
     .from(queue)
     .innerJoin(targets, eq(queue.targetId, targets.id))
     .innerJoin(promptTemplates, eq(targets.promptTemplateId, promptTemplates.id))
-    .where(and(isNull(queue.ackedAt), or(isNull(queue.lockedUntil), lte(queue.lockedUntil, now))))
-    .orderBy(sql`${queue.priority} desc`, queue.enqueuedAt)
+    .where(eq(queue.id, claimed.id))
     .limit(1)
 
-  if (candidate.length === 0) {
-    return { queue_item_id: null }
+  if (meta.length === 0) {
+    // Target or prompt_template was deleted (or FK-broken) between claim
+    // and read — should never happen given the FK constraints, but guard
+    // anyway. Return a recognizable error rather than crashing.
+    throw new ToolError(
+      'queue_item_metadata_missing',
+      `Queue item ${claimed.id} has no joinable target/prompt_template metadata.`,
+    )
+  }
+  // biome-ignore lint/style/noNonNullAssertion: length-checked above
+  const m = meta[0]!
+
+  // #44: render the Liquid template. Pass through any render error as a
+  // tool error so the agent can distinguish "template broken" from
+  // "internal_error".
+  let renderedPrompt: string
+  try {
+    renderedPrompt = await renderPromptBody(m.promptBody, {
+      creator_name: m.label,
+      target_url: m.urlOrHandle,
+      high_water_mark: m.highWaterMark ?? null,
+      cadence: m.cadence,
+      cross_source_n: m.crossSourceN,
+    })
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err)
+    throw new ToolError(
+      'template_render_failed',
+      `Liquid render failed for prompt_template_id=${m.promptTemplateId}: ${reason}`,
+    )
   }
 
-  // biome-ignore lint/style/noNonNullAssertion: length-checked above
-  const row = candidate[0]!
-
-  await db
-    .update(queue)
-    .set({
-      claimedBy: args.agentTokenId,
-      lockedUntil: lockExpires,
-    })
-    .where(eq(queue.id, row.id))
-
   return {
-    queue_item_id: row.id,
-    target_id: row.targetId,
-    url_or_handle: row.urlOrHandle,
-    label: row.label,
-    prompt_template_id: row.promptTemplateId,
-    // TODO(#44): replace raw template body with Liquid-rendered output
-    rendered_prompt: row.promptBody,
-    high_water_mark: row.highWaterMark ?? null,
-    cadence: row.cadence,
-    cross_source_n: row.crossSourceN,
-    pulled_at: now.toISOString(),
-    lock_expires_at: lockExpires.toISOString(),
+    queue_item_id: claimed.id,
+    target_id: claimed.target_id,
+    url_or_handle: m.urlOrHandle,
+    label: m.label,
+    prompt_template_id: m.promptTemplateId,
+    rendered_prompt: renderedPrompt,
+    high_water_mark: m.highWaterMark ?? null,
+    cadence: m.cadence,
+    cross_source_n: m.crossSourceN,
+    // claimed.locked_until is set by the same statement as the claim, so
+    // it's the authoritative lock expiry — we report it back rather than
+    // recomputing from the local clock.
+    pulled_at: new Date().toISOString(),
+    lock_expires_at: new Date(claimed.locked_until).toISOString(),
   }
 }

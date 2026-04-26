@@ -1,28 +1,47 @@
 // `write_articles` — insert article rows produced from a queue pull.
 //
-// STUB-quality implementation:
-//   - Accepts any topic_badges[] without validation. TODO(#43) routes
-//     unknown badges to topic_badge_suggestions.
-//   - No dedup beyond the DB's UNIQUE(target_id, source_url) constraint.
-//     Duplicates surface as a clean `duplicate_source_url` ToolError, not
-//     a stack trace. TODO(#43) implements pre-insert dedup.
-//   - hero_image_hash is left null. TODO(#45) does the fetch + sharp
-//     pipeline and populates it.
-//   - Slug is generated from title + date + a short random suffix. The
-//     rich disambiguator-on-collision flow is Phase 6 #65 territory.
+// #43 expanded the surface beyond the original stub:
+//   - Topic-badge validation against `topic_badges`. Default mode routes
+//     unknown badges to `topic_badge_suggestions` (upsert, count++ on
+//     repeat). Strict mode (settings.strict_mode = true) rejects the call
+//     with `unknown_topic_badge`.
+//   - `(target_id, source_url)` dedup is now a no-op — return the existing
+//     article id with `deduped: true` instead of throwing
+//     `duplicate_source_url`. The DB UNIQUE constraint stays as a
+//     last-resort safety net, but the happy path is the pre-insert lookup.
+//   - Per-article result is `{ id, deduped }`. Response shape is
+//     `{ accepted, results: { id, deduped }[] }`.
 //
-// The articles table requires a non-null run_log_id, but ack_queue_item
-// won't run until after the agent finishes its pass. To bridge that gap we
-// create an interim run_log row on the FIRST write_articles call for a
-// queue item (status='succeeded' as a sentinel), and ack_queue_item then
-// promotes the same row to its real terminal status with the final
-// articles_count. See ack-queue-item.ts for the matching half.
+// #45 added the hero-image pipeline:
+//   - When an article carries `hero_image_url`, fetch + sharp-resize +
+//     write WebP+JPEG under data/images/<hash>.<ext>. Store just the hash
+//     in `articles.hero_image_hash`.
+//   - Failure (any reason) does NOT block the article write — log and
+//     skip with `hero_image_hash = null`.
+//
+// run_log timing — flow change:
+// ----------------------------
+// Before #43, `ack_queue_item` created the run_log row. But articles need
+// a non-null `run_log_id`, so write_articles created an INTERIM run_log
+// row with sentinel status `succeeded` and ack_queue_item promoted it.
+// That worked but the sentinel was awkward.
+//
+// With #43: write_articles still creates the run_log row first (FK still
+// requires it), but does so cleanly — status='succeeded' with
+// articles_count populated as we go. The "promotion" in ack_queue_item is
+// now an UPDATE that adjusts the terminal status if the run actually
+// failed (or otherwise leaves the row untouched).
+//
+// If write_articles never runs (failed-pass scenario), ack_queue_item
+// inserts a fresh run_log row with articles_count=0 — same as before.
 
 import { randomBytes } from 'node:crypto'
 import { db } from '@lucidindex/db/client'
-import { articles, queue, runLog } from '@lucidindex/db/schema'
-import { and, eq, sql } from 'drizzle-orm'
+import { articles, queue, runLog, settings, topicBadges } from '@lucidindex/db/schema'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
+import { findExistingArticleId } from '../lib/dedup.js'
+import { fetchAndStoreHeroImage } from '../lib/image-pipeline.js'
 import { ToolError } from './index.js'
 
 const articleSchema = z.object({
@@ -36,6 +55,7 @@ const articleSchema = z.object({
   reasonableness_rating: z.number().int().min(0).max(10).optional(),
   source_published_at: z.string().datetime().optional(),
   source_published_at_estimated: z.boolean().optional(),
+  hero_image_url: z.string().url().optional(),
   cross_source: z.array(z.unknown()).optional(),
 })
 
@@ -50,9 +70,12 @@ export type WriteArticlesArgs = z.infer<typeof writeArticlesArgs> & {
   agentTokenId: string
 }
 
-export async function writeArticles(
-  args: WriteArticlesArgs,
-): Promise<{ accepted: number; ids: string[] }> {
+export type WriteArticlesResult = {
+  accepted: number
+  results: { id: string; deduped: boolean }[]
+}
+
+export async function writeArticles(args: WriteArticlesArgs): Promise<WriteArticlesResult> {
   // Verify the queue row is currently claimed by this agent.
   const queueRows = await db
     .select({
@@ -82,8 +105,50 @@ export async function writeArticles(
     )
   }
 
-  // Find or create the interim run_log row. ack_queue_item will promote it.
-  const existing = await db
+  // ---- #43 BADGE VALIDATION ----
+  //
+  // 1. Pull all distinct badges referenced across this call.
+  // 2. SELECT the matching rows from topic_badges; anything missing is
+  //    the "unknown" set.
+  // 3. If strict_mode is on AND there are unknowns → reject the whole
+  //    call. We're explicit about this being all-or-nothing per the spec.
+  // 4. If default mode → upsert each unknown into topic_badge_suggestions
+  //    (count++ on existing names) and proceed.
+  const allBadges = Array.from(new Set(args.articles.flatMap((a) => a.topic_badges)))
+  const unknownBadges: string[] = []
+  if (allBadges.length > 0) {
+    const known = await db
+      .select({ name: topicBadges.name })
+      .from(topicBadges)
+      .where(inArray(topicBadges.name, allBadges))
+    const knownSet = new Set(known.map((r) => r.name))
+    for (const b of allBadges) {
+      if (!knownSet.has(b)) unknownBadges.push(b)
+    }
+  }
+
+  // settings is a singleton (id = 1). The row may not exist on a fresh
+  // DB — treat absent settings as default mode (strict_mode = false).
+  const settingsRows = await db
+    .select({ strictMode: settings.strictMode })
+    .from(settings)
+    .where(eq(settings.id, 1))
+    .limit(1)
+  const strictMode = settingsRows[0]?.strictMode ?? false
+
+  if (unknownBadges.length > 0 && strictMode) {
+    throw new ToolError(
+      'unknown_topic_badge',
+      `Strict mode is on and these topic badges are not in the taxonomy: ${unknownBadges.join(', ')}.`,
+    )
+  }
+
+  // ---- run_log row creation (see file header for the timing change) ----
+  //
+  // Find or create. Idempotent: a previous write_articles for this same
+  // queue_item_id + agent reuses its run_log row so articles_count keeps
+  // accumulating across calls (rare, but possible).
+  const existingRunLog = await db
     .select({ id: runLog.id })
     .from(runLog)
     .where(and(eq(runLog.queueItemId, q.id), eq(runLog.agentTokenId, args.agentTokenId)))
@@ -91,9 +156,9 @@ export async function writeArticles(
 
   let runLogId: string
   const now = new Date()
-  if (existing.length > 0) {
+  if (existingRunLog.length > 0) {
     // biome-ignore lint/style/noNonNullAssertion: length-checked above
-    runLogId = existing[0]!.id
+    runLogId = existingRunLog[0]!.id
   } else {
     const inserted = await db
       .insert(runLog)
@@ -101,7 +166,8 @@ export async function writeArticles(
         targetId: q.targetId,
         queueItemId: q.id,
         agentTokenId: args.agentTokenId,
-        // Sentinel — ack_queue_item promotes this to its terminal value.
+        // 'succeeded' is the optimistic terminal status. ack_queue_item
+        // overwrites this if the run is acked as 'failed'.
         status: 'succeeded',
         articlesCount: 0,
         startedAt: q.enqueuedAt,
@@ -112,63 +178,137 @@ export async function writeArticles(
     runLogId = inserted[0]!.id
   }
 
-  const acceptedIds: string[] = []
-
-  for (const a of args.articles) {
-    try {
-      const slug = generateSlug(a.title)
-      const inserted = await db
-        .insert(articles)
-        .values({
-          targetId: q.targetId,
-          agentTokenId: args.agentTokenId,
-          runLogId,
-          sourceUrl: a.source_url,
-          slug,
-          title: a.title,
-          summary: a.summary,
-          agentDeepDive: a.agent_deep_dive ?? null,
-          // TODO(#43): validate against topic_badges; route unknowns to
-          // topic_badge_suggestions instead of accepting raw.
-          topicBadges: a.topic_badges,
-          significance: a.significance,
-          difficulty: a.difficulty,
-          reasonablenessRating: a.reasonableness_rating ?? null,
-          sourcePublishedAt: a.source_published_at ? new Date(a.source_published_at) : null,
-          sourcePublishedAtEstimated: a.source_published_at_estimated ?? false,
-          // TODO(#45): hero image fetch + sharp pipeline
-          heroImageHash: null,
-          // jsonb column — pass the array as-is; drizzle handles the cast.
-          // biome-ignore lint/suspicious/noExplicitAny: jsonb column
-          crossSource: (a.cross_source ?? []) as any,
-        })
-        .returning({ id: articles.id })
-
-      // biome-ignore lint/style/noNonNullAssertion: just inserted one row
-      acceptedIds.push(inserted[0]!.id)
-    } catch (err) {
-      // The DB's UNIQUE(target_id, source_url) constraint surfaces as a
-      // postgres error code 23505. Translate it to a clean ToolError so
-      // callers can distinguish duplicates from real failures without
-      // parsing stack traces.
-      if (isUniqueViolation(err)) {
-        throw new ToolError(
-          'duplicate_source_url',
-          `An article for source_url=${a.source_url} already exists for this target.`,
-        )
-      }
-      throw err
+  // ---- per-article processing ----
+  //
+  // We do dedup + insert + suggestion-upsert + image-fetch in a
+  // transaction so a mid-batch failure leaves the DB consistent. The
+  // image-fetch IS NOT in the transaction's critical path — we resolve
+  // the hash before opening the transaction so we don't hold a DB tx
+  // open across an HTTP fetch.
+  const heroHashes = new Map<number, string | null>()
+  for (let i = 0; i < args.articles.length; i++) {
+    // biome-ignore lint/style/noNonNullAssertion: index in range
+    const a = args.articles[i]!
+    if (a.hero_image_url) {
+      const result = await fetchAndStoreHeroImage(a.hero_image_url)
+      heroHashes.set(i, result.ok ? result.hash : null)
+    } else {
+      heroHashes.set(i, null)
     }
   }
 
-  // Keep the run_log articles_count roughly in sync as we go (ack_queue_item
-  // recomputes it definitively at finalization).
-  await db
-    .update(runLog)
-    .set({ articlesCount: sql`${runLog.articlesCount} + ${acceptedIds.length}` })
-    .where(eq(runLog.id, runLogId))
+  const results: { id: string; deduped: boolean }[] = []
 
-  return { accepted: acceptedIds.length, ids: acceptedIds }
+  await db.transaction(async (tx) => {
+    // Suggestion upserts run AFTER the article inserts because
+    // topic_badge_suggestions.article_id is NOT NULL — we need a real
+    // article id to attribute each suggestion to. The block below the
+    // article loop emits one ON CONFLICT (name) DO UPDATE per unknown
+    // badge.
+    for (let i = 0; i < args.articles.length; i++) {
+      // biome-ignore lint/style/noNonNullAssertion: index in range
+      const a = args.articles[i]!
+
+      // Pre-insert dedup. If `(target_id, source_url)` already exists,
+      // return the existing id and skip the insert. We still keep the
+      // DB UNIQUE constraint for last-resort safety against a
+      // concurrent insert that races between the SELECT and the INSERT.
+      const existingId = await findExistingArticleId(q.targetId, a.source_url)
+      if (existingId) {
+        results.push({ id: existingId, deduped: true })
+        continue
+      }
+
+      const slug = generateSlug(a.title)
+      try {
+        const inserted = await tx
+          .insert(articles)
+          .values({
+            targetId: q.targetId,
+            agentTokenId: args.agentTokenId,
+            runLogId,
+            sourceUrl: a.source_url,
+            slug,
+            title: a.title,
+            summary: a.summary,
+            agentDeepDive: a.agent_deep_dive ?? null,
+            topicBadges: a.topic_badges,
+            significance: a.significance,
+            difficulty: a.difficulty,
+            reasonablenessRating: a.reasonableness_rating ?? null,
+            sourcePublishedAt: a.source_published_at ? new Date(a.source_published_at) : null,
+            sourcePublishedAtEstimated: a.source_published_at_estimated ?? false,
+            heroImageHash: heroHashes.get(i) ?? null,
+            // jsonb column — pass the array as-is; drizzle handles the cast.
+            // biome-ignore lint/suspicious/noExplicitAny: jsonb column
+            crossSource: (a.cross_source ?? []) as any,
+          })
+          .returning({ id: articles.id })
+
+        // biome-ignore lint/style/noNonNullAssertion: just inserted one row
+        const id = inserted[0]!.id
+        results.push({ id, deduped: false })
+      } catch (err) {
+        // 23505 means a concurrent writer beat us to (target_id,
+        // source_url). Re-resolve and treat as deduped — this is the
+        // exact same outcome the dedup lookup produces, just on a
+        // narrower race window.
+        if (isUniqueViolation(err)) {
+          const id = await findExistingArticleId(q.targetId, a.source_url)
+          if (id) {
+            results.push({ id, deduped: true })
+            continue
+          }
+        }
+        throw err
+      }
+    }
+
+    // Suggestion-inbox upserts. We need at least one inserted article to
+    // attribute a suggestion to (the FK on topic_badge_suggestions
+    // requires article_id). Pick the first non-deduped result; if every
+    // article in this batch was a dedup, attribute to the first deduped
+    // article id (still a real article row).
+    if (unknownBadges.length > 0 && results.length > 0) {
+      // Find which article first mentioned each unknown badge.
+      const firstArticleForBadge = new Map<string, string>()
+      for (let i = 0; i < args.articles.length; i++) {
+        // biome-ignore lint/style/noNonNullAssertion: index in range
+        const article = args.articles[i]!
+        // biome-ignore lint/style/noNonNullAssertion: results parallels articles
+        const result = results[i]!
+        for (const b of article.topic_badges) {
+          if (unknownBadges.includes(b) && !firstArticleForBadge.has(b)) {
+            firstArticleForBadge.set(b, result.id)
+          }
+        }
+      }
+
+      for (const badgeName of unknownBadges) {
+        const articleId = firstArticleForBadge.get(badgeName)
+        if (!articleId) continue
+        await tx.execute(sql`
+          INSERT INTO topic_badge_suggestions (name, article_id, target_id, agent_token_id, count, last_seen_at)
+          VALUES (${badgeName}, ${articleId}, ${q.targetId}, ${args.agentTokenId}, 1, now())
+          ON CONFLICT (name) DO UPDATE
+          SET count = topic_badge_suggestions.count + 1,
+              last_seen_at = now()
+        `)
+      }
+    }
+
+    // Keep the run_log articles_count in sync as we go (ack_queue_item
+    // recomputes it definitively at finalization).
+    const insertedCount = results.filter((r) => !r.deduped).length
+    if (insertedCount > 0) {
+      await tx
+        .update(runLog)
+        .set({ articlesCount: sql`${runLog.articlesCount} + ${insertedCount}` })
+        .where(eq(runLog.id, runLogId))
+    }
+  })
+
+  return { accepted: results.length, results }
 }
 
 /**
