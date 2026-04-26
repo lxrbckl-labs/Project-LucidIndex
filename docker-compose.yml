@@ -1,8 +1,9 @@
-# LucidIndex — local / production stack: Postgres 16 + Next.js web.
+# LucidIndex — local / production stack: Postgres 16 + Next.js web + mcp-store.
 #
-# Phase 1: postgres + web only.
-# Phase 3 (mcp-store) and Phase 4 (cron) sidecars are NOT included here —
-# see their respective tickets for service definitions and Dockerfiles.
+# Phase 1: postgres + web.
+# Phase 3: mcp-store sidecar (scaffold — see apps/mcp-store/README.md).
+# Phase 4 (cron) sidecar is NOT included here yet — see its ticket for the
+# service definition and Dockerfile.
 #
 # Ports are bound to 127.0.0.1 so that only the host Caddy reverse proxy
 # (outside this stack) can reach them. No service is exposed to the LAN.
@@ -60,15 +61,21 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
 
-  # ---------------------------------------------------------------------------
-  # Phase 3 — mcp-store (placeholder; not yet implemented)
-  # mcp-store:
-  #   image: lxrbckl/lucidindex-mcp-store:main
-  #   build:
-  #     context: .
-  #     dockerfile: apps/mcp-store/Dockerfile
-  #   ...
-  # ---------------------------------------------------------------------------
+  mcp-store:
+    image: lxrbckl/lucidindex-mcp-store:main
+    build:
+      context: .
+      dockerfile: apps/mcp-store/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://lucidindex:${POSTGRES_PASSWORD:-lucidindex_dev}@postgres:5432/lucidindex
+      NODE_ENV: production
+      MCP_PORT: "4000"
+    ports:
+      - "127.0.0.1:4000:4000"
 
   # ---------------------------------------------------------------------------
   # Phase 4 — cron (placeholder; not yet implemented)
