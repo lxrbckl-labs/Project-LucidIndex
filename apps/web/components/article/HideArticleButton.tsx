@@ -45,7 +45,10 @@ export function HideArticleButton({ articleId, slug }: Props) {
       type="button"
       onClick={handleHide}
       disabled={pending}
-      className="text-[var(--text-meta)] uppercase tracking-[0.08em] text-[var(--color-muted-500)] transition-colors hover:text-ink disabled:opacity-40"
+      // Phase 8 #83 — tap-friendly min-height. Padding gives the text a
+      // proper hit area on mobile without thickening the editorial
+      // visual weight.
+      className="inline-flex min-h-[44px] items-center px-2 text-[var(--text-meta)] uppercase tracking-[0.08em] text-[var(--color-muted-500)] transition-colors hover:text-ink disabled:opacity-40"
     >
       {pending ? 'Hiding…' : 'Hide article'}
     </button>

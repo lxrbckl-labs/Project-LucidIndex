@@ -91,4 +91,81 @@
     background-color: var(--color-paper);
     color: var(--color-ink);
   }
+
+  /* ---------------------------------------------------------------------------
+   * Phase 8 #85 — global focus-visible default.
+   *
+   * The Visual Identity binding is hairline + B&W everywhere. The default
+   * browser focus ring (rounded blue outline on Chromium/Safari) clashes
+   * loudly with the magazine vibe, so we override every interactive
+   * element's focus-visible state to a 1px ink outline with a 2px offset.
+   *
+   * Per-component overrides MAY thicken the outline (e.g. tile focus uses
+   * a 1.5px ring + offset for tile-prominence) — do that on the component,
+   * not by removing this default.
+   *
+   * Hard rule: NEVER pair `outline: none` with no replacement. Components
+   * that disable the outline (e.g. pills that already carry a hairline
+   * border) must add a visible alternative — typically `box-shadow: inset
+   * 0 0 0 1px var(--color-ink)` or thickened border on `:focus-visible`.
+   * ------------------------------------------------------------------------- */
+  :focus-visible {
+    outline: 1px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+
+  /* The article-page deep-dive uses `whitespace-pre-wrap` with no
+   * tabindex; we don't want to add focus rings to plain paragraphs.
+   * Restrict the global ring to actually-interactive surfaces — buttons,
+   * links, inputs, selects, textareas, and anything with an explicit
+   * tabindex. Browsers already mostly do this; this is a belt-and-braces
+   * rule for the few elements (e.g. role="button" divs) that don't.
+   */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+ * Phase 8 #81 — significance-driven row spans for the tablet/mobile masonry.
+ *
+ * Below the desktop breakpoint (≤1023px), the per-panel grid does NOT
+ * carry a `grid-template-areas` definition (the 6-pattern named-areas
+ * are 4 columns wide and only make sense at lg+). Tiles fall back to
+ * CSS Grid auto-placement. The classes below give large/medium tiles a
+ * 2-row span at sub-lg sizes so the editorial rhythm survives the
+ * breakpoint switch — large/medium tiles read taller than smalls.
+ *
+ * Wrapped in a `@media (max-width: 1023px)` block so the desktop
+ * named-area placement (which encodes its own row spans) is left
+ * untouched. At ≥1024px the row spans come from `grid-template-areas`,
+ * not these classes.
+ * --------------------------------------------------------------------------- */
+@media (max-width: 1023px) {
+  .lucidindex-tile-span-2 {
+    grid-row-end: span 2;
+  }
+  .lucidindex-tile-span-1 {
+    grid-row-end: span 1;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+ * Phase 8 #82 — visually hidden scrollbar for the topic-filter pill row.
+ *
+ * The pill row scrolls horizontally on mobile/tablet (≤1023px) but the
+ * native scrollbar reads as visual chrome that fights the magazine vibe.
+ * We hide it via Firefox's `scrollbar-width: none` and the WebKit
+ * pseudo-element. The element remains scrollable (touch + wheel + key);
+ * only the bar itself is suppressed.
+ *
+ * Scoped to `.lucidindex-pill-row` so we don't accidentally hide
+ * scrollbars elsewhere on the page.
+ * --------------------------------------------------------------------------- */
+.lucidindex-pill-row {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge */
+}
+.lucidindex-pill-row::-webkit-scrollbar {
+  display: none; /* WebKit (Chromium / Safari) */
 }

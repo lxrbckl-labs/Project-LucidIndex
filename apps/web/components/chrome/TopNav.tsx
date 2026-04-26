@@ -36,6 +36,9 @@ export function TopNav() {
     >
       {/* Search lives on the left of the right-aligned cluster (#73). */}
       <SearchInput />
+      {/* Phase 8 #85 — focus state inherits the global :focus-visible
+          rule (1px ink outline + 2px offset) from globals.css. No
+          rounded-blue browser default; magazine vibe holds. */}
       <Link
         href="/settings"
         className="text-[var(--text-meta)] uppercase tracking-[0.12em] text-[var(--color-muted-700)] transition-colors hover:text-ink hover:underline underline-offset-4"

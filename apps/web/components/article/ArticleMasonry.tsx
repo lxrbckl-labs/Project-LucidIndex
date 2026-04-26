@@ -5,7 +5,7 @@
  * (the catalog of explicit tile subdivisions) and Visual Identity.md
  * ("Masonry — `infinite_scroll.jpg`").
  *
- * Approach:
+ * Approach (desktop, ≥1024px):
  *
  *   - The dashboard is partitioned into PANELS of 6 articles each.
  *     Each panel picks one of N curated patterns and lays its
@@ -25,14 +25,42 @@
  *     Six patterns shipped here; the catalog can grow without
  *     touching layout code.
  *
- * Tile assignment to a panel slot:
+ * Phase 8 #81 — responsive variants:
  *
- *   The panel's `slots` array describes the kind of tile each named
- *   area expects (`small` / `medium` / `large`). When we fill a panel
- *   we walk the article queue and grab the first article whose
- *   significance matches the next slot. Articles that don't fit in the
- *   current panel roll over to the next panel. This keeps the grid
- *   visually stable — significance and tile size always agree.
+ *   - Tablet (640-1023px): 2-column flow grid. Significance still drives
+ *     tile height (small = 1 row, medium / large = 2 rows). The 6-pattern
+ *     named-areas don't apply — a simple 2-col grid where tiles flow
+ *     naturally preserves the editorial rhythm without trying to scale
+ *     the desktop patterns down.
+ *   - Mobile (≤639px): single-column flow. Tiles stack vertically.
+ *     Significance still drives the hero aspect (large gets a full-bleed
+ *     dramatic hero; medium and small keep their portrait/square
+ *     proportions). Card padding tightens but stays editorial.
+ *
+ *   The breakpoint switch uses Tailwind's `sm:` (≥640px) and `lg:`
+ *   (≥1024px) utilities. Below `sm:`, single column; between `sm:` and
+ *   `lg:`, two columns; at `lg:` and up, the 6-pattern masonry.
+ *
+ *   The panel's `grid-template-areas` is applied at desktop only via a
+ *   <style> block scoped to the panel's `data-panel-idx` and the
+ *   masonry instance's `data-masonry-scope`. The tile's `grid-area`
+ *   (e.g. "L1") is set unconditionally — at sub-lg sizes it names an
+ *   undefined area, which CSS Grid handles by falling back to
+ *   auto-placement (per CSS Grid spec — an undefined named area resolves
+ *   to `auto / auto / auto / auto`). The per-tile `grid-row: span N`
+ *   rule keeps the significance-driven height variation alive at tablet
+ *   and mobile.
+ *
+ * Phase 8 #84 — keyboard navigation:
+ *
+ *   - The keyboard handler lives in a thin client component
+ *     (MasonryKeyboardNav) mounted by the dashboard route alongside
+ *     this masonry. That keeps ArticleMasonry / ArticleCard pure
+ *     server components (so server-only env vars in BASE_URL keep
+ *     resolving correctly).
+ *   - Tiles carry `data-masonry-tile=""` so the handler can enumerate
+ *     them via `document.querySelectorAll`. See ArticleCard for the
+ *     attribute placement.
  */
 
 import type { MockArticle, Significance } from '@/app/_mock/articles'
@@ -284,12 +312,58 @@ type Props = {
   newArticleIds?: ReadonlySet<string>
 }
 
+/**
+ * Mobile/tablet flow row-span per significance. Mirrors the desktop
+ * spirit (large > medium > small) without trying to retro-fit the
+ * 6-pattern 4-col grid into 1 or 2 columns. Two rows for medium and
+ * large makes those tiles visibly taller against the `auto-rows:
+ * minmax(180px, auto)` floor; small tiles stay one row.
+ */
+function rowSpanForSignificance(s: Significance): number {
+  if (s === 'large') return 2
+  if (s === 'medium') return 2
+  return 1
+}
+
 export function ArticleMasonry({ articles, newArticleIds }: Props) {
   const panels = buildPanels(articles)
 
+  // Build the per-panel desktop-only `grid-template-areas` rules in a
+  // single <style> block. Below 1024px the panel grids fall back to
+  // flow placement (1 col on mobile, 2 cols on tablet) — see the
+  // per-panel className.
+  //
+  // Distinct named-area slots used across all 6 panels: L1, m1, m2,
+  // s1-s6. We emit one rule per slot that reads `data-area="<slot>"`
+  // and sets `grid-area: <slot>`. Setting it via CSS (rather than
+  // inline style) keeps the desktop-template behavior wallpaper-
+  // tightly scoped to ≥1024px — at sub-lg, the rule doesn't fire and
+  // tiles auto-place + use the `lucidindex-tile-span-N` class for
+  // their row span.
+  const desktopAreasCss = panels
+    .map((panel, i) => {
+      const flat = panel.pattern.areas.replace(/\s+/g, ' ').trim()
+      return `[data-panel-idx="${i}"] { grid-template-areas: ${flat}; }`
+    })
+    .join('\n')
+
+  // Distinct slot names emitted. Static across all six panels but the
+  // set lives in the patterns; build it dynamically so adding a panel
+  // with new slot names doesn't silently break grid-area resolution.
+  const slotNames = Array.from(new Set(panels.flatMap((p) => p.filled.map((f) => f.slot.area))))
+  const desktopGridAreaCss = slotNames
+    .map((name) => `[data-area="${name}"] { grid-area: ${name}; }`)
+    .join('\n')
+
   return (
     <div className="flex flex-col gap-6 md:gap-8">
-      {panels.map((panel) => {
+      <style>{`
+@media (min-width: 1024px) {
+  ${desktopAreasCss}
+  ${desktopGridAreaCss}
+}
+`}</style>
+      {panels.map((panel, panelIdx) => {
         // A panel's key must be stable across re-renders without leaking
         // the array index. The first article in the panel is unique
         // within a render (greedy fill never reuses an article), so its
@@ -300,19 +374,45 @@ export function ArticleMasonry({ articles, newArticleIds }: Props) {
         return (
           <div
             key={panelKey}
-            className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6"
+            data-panel-idx={panelIdx}
+            // Three-tier responsive grid:
+            //   <sm  (≤639px) — single column, auto rows.
+            //   sm:  (640-1023px) — 2-col grid; tiles get row-span by
+            //                       significance so large/medium tiles
+            //                       read taller.
+            //   lg:  (≥1024px) — 4-col grid with named template areas
+            //                    (the 6-pattern desktop masonry, applied
+            //                    via the <style> block above).
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4 lg:gap-6"
             style={{
-              gridTemplateAreas: panel.pattern.areas,
               // Each row in the named-area grid is one "tile-height" unit.
-              // With a 4-col grid and the panels above, 3 rows works out to
-              // a panel that's roughly 2:1 wide-to-tall on desktop.
+              // With a 4-col grid and the panels above, 3 rows works out
+              // to a panel that's roughly 2:1 wide-to-tall on desktop.
+              // The same row floor works on tablet and mobile; large and
+              // medium tiles span 2 rows below to keep their dramatic
+              // proportions.
               gridAutoRows: 'minmax(180px, auto)',
             }}
           >
             {panel.filled.map(({ slot, article }) => {
               const isNew = newArticleIds?.has(article.id) ?? false
+              const span = rowSpanForSignificance(slot.significance)
               return (
-                <div key={article.id} style={{ gridArea: slot.area }} className="min-h-0">
+                <div
+                  key={article.id}
+                  // Phase 8 #81 — `data-area` carries the named-area for
+                  // the desktop template; the per-masonry <style> block
+                  // above wires `data-panel-idx` panels into a
+                  // grid-template-areas rule, and a separate desktop-
+                  // only rule reads `data-area` to set the tile's
+                  // `grid-area` (so we don't have to set it inline,
+                  // which would override the row-span at tablet/mobile).
+                  // At ≤1023px the `lucidindex-tile-span-N` class drives
+                  // the row span. At ≥1024px the named area's implicit
+                  // span (from the template) drives it.
+                  className={`min-h-0 lucidindex-tile-span-${span}`}
+                  data-area={slot.area}
+                >
                   {slot.significance === 'large' ? (
                     <LargeArticleCard article={article} isNew={isNew} />
                   ) : (

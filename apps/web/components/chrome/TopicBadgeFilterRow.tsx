@@ -31,8 +31,18 @@
  *   - Active pill = filled background (`bg-ink`) + paper text.
  *   - Inactive pill = paper background + ink border + ink text.
  *   - Smooth ~150ms color transition on hover and on selection change.
- *   - Horizontal scroll on overflow (small viewports) — no wrap, no
- *     truncate; the row is meant to be scannable side-to-side.
+ *
+ * Phase 8 #82 — mobile horizontal scroll:
+ *
+ *   - Below the lg breakpoint (≤1023px), the row scrolls horizontally
+ *     when its pills overflow. `overflow-x-auto` + iOS momentum scroll
+ *     keep the touch feel native. The scrollbar is hidden visually
+ *     (`scrollbar-width: none` for Firefox, `::-webkit-scrollbar
+ *     { display: none }` for WebKit) — the row remains scrollable, the
+ *     visual chrome stays editorial.
+ *   - When the user picks a pill, we scroll the active element into
+ *     view via `Element.scrollIntoView({ inline: 'nearest', behavior:
+ *     'smooth' })` so it stays visible after a tap on a clipped pill.
  *
  * Why client-side: the pill click needs to update the URL via
  * `router.replace()` AND surface the active state immediately. We
@@ -41,7 +51,7 @@
  */
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useMemo, useTransition } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useTransition } from 'react'
 
 export type TopicBadgeOption = {
   /** The canonical badge name as stored in `topic_badges.name`. */
@@ -79,7 +89,7 @@ export function TopicBadgeFilterRow({ badges }: Props) {
   }, [badges])
 
   const handleClick = useCallback(
-    (value: string | null) => {
+    (value: string | null, target: HTMLElement) => {
       // Clone the existing search params so any non-badge filters (future
       // additions like `?starred=1`) survive a pill click.
       const next = new URLSearchParams(searchParams.toString())
@@ -102,18 +112,52 @@ export function TopicBadgeFilterRow({ badges }: Props) {
       startTransition(() => {
         router.replace(url, { scroll: false })
       })
+
+      // Phase 8 #82 — scroll the just-tapped pill into view on mobile,
+      // so a tap on a clipped pill at the row's edge isn't lost behind
+      // the overflow boundary. `inline: 'nearest'` only scrolls when
+      // the pill isn't already fully visible; `block: 'nearest'`
+      // prevents the page from jumping vertically.
+      target.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' })
     },
     [active, router, searchParams],
   )
 
+  // Phase 8 #82 — when the active filter changes (e.g. via deep-link or
+  // back/forward), scroll the active pill into view so the user sees
+  // which one is selected. Runs on mount + on `active` change.
+  // The effect doesn't read `active` directly — it queries the DOM for
+  // the element carrying `data-active` — but we still depend on `active`
+  // so the effect re-runs whenever the URL-derived selection changes.
+  const navRef = useRef<HTMLElement | null>(null)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `active` is the trigger; the body reads from the DOM.
+  useEffect(() => {
+    const nav = navRef.current
+    if (!nav) return
+    const activeEl = nav.querySelector<HTMLElement>('button[data-active]')
+    if (!activeEl) return
+    activeEl.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' })
+  }, [active])
+
   return (
     <nav
+      ref={navRef}
       aria-label="Topic filter"
-      className="flex items-center gap-3 overflow-x-auto py-1"
+      // Phase 8 #82 — `flex-nowrap` keeps pills on a single line on
+      // mobile so the horizontal-scroll behavior actually triggers
+      // (with `flex-wrap`, pills would wrap to a second line and the
+      // overflow rule would never fire). The custom class
+      // `lucidindex-pill-row` carries the scrollbar-hide rules from
+      // globals.css.
+      className="lucidindex-pill-row flex flex-nowrap items-center gap-3 overflow-x-auto py-1"
       // Keep the scrollbar invisible on macOS-style trackpads but still
       // scrollable. `overscroll-behavior` keeps horizontal flicks from
       // pulling the page along.
-      style={{ overscrollBehaviorX: 'contain' }}
+      style={{
+        overscrollBehaviorX: 'contain',
+        // iOS momentum scroll for natural touch feel.
+        WebkitOverflowScrolling: 'touch',
+      }}
       data-pending={isPending ? '' : undefined}
     >
       {items.map((item) => {
@@ -122,13 +166,20 @@ export function TopicBadgeFilterRow({ badges }: Props) {
           <button
             key={item.key}
             type="button"
-            onClick={() => handleClick(item.value)}
+            onClick={(e) => handleClick(item.value, e.currentTarget)}
             aria-pressed={isActive}
             data-active={isActive ? '' : undefined}
             className={[
               'inline-flex shrink-0 items-center justify-center border px-4 py-1.5',
               'text-[0.7rem] uppercase tracking-[0.1em] transition-colors duration-150',
               'cursor-pointer',
+              // Phase 8 #85 — focus ring. The pill already carries a
+              // hairline border so the global :focus-visible 1px outline
+              // would double up; we use an inset box-shadow instead so
+              // the focus indicator reads as a thickened border without
+              // extending past the pill silhouette.
+              'focus:outline-none focus-visible:outline-none',
+              'focus-visible:[box-shadow:inset_0_0_0_2px_var(--color-ink)]',
               isActive
                 ? 'border-ink bg-ink text-paper'
                 : 'border-ink bg-paper text-ink hover:bg-ink hover:text-paper',

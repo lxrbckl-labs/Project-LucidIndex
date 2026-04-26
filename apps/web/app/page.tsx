@@ -46,6 +46,7 @@ import { requireAdmin } from '@lucidindex/auth'
 import { ArticleMasonry } from '@/components/article/ArticleMasonry'
 import { AuthenticatedEmptyState } from '@/components/article/AuthenticatedEmptyState'
 import { LiveArticleStream } from '@/components/article/LiveArticleStream'
+import { MasonryKeyboardNav } from '@/components/article/MasonryKeyboardNav'
 import { TopicBadgeFilterRow } from '@/components/chrome/TopicBadgeFilterRow'
 import { TopNav } from '@/components/chrome/TopNav'
 import { Wordmark } from '@/components/chrome/Wordmark'
@@ -162,7 +163,13 @@ export default async function Page({
         {articles.length === 0 ? (
           <AuthenticatedEmptyState />
         ) : (
-          <ArticleMasonry articles={articles} newArticleIds={newArticleIds} />
+          <>
+            <ArticleMasonry articles={articles} newArticleIds={newArticleIds} />
+            {/* Phase 8 #84 — keyboard nav handler. Renders nothing
+                visible; attaches a window-level keydown listener that
+                walks focus across [data-masonry-tile] elements. */}
+            <MasonryKeyboardNav />
+          </>
         )}
       </main>
     </div>

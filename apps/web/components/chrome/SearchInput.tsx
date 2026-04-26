@@ -114,7 +114,14 @@ export function SearchInput() {
           onChange={(e) => handleChange(e.target.value)}
           placeholder="Search"
           autoComplete="off"
-          className="w-32 border-b border-[var(--color-card-border)] bg-transparent px-1 py-1 text-[var(--text-meta)] uppercase tracking-[0.12em] text-ink placeholder:text-[var(--color-muted-500)] focus:border-ink focus:outline-none md:w-44"
+          // Phase 8 #85 — focus state. The hairline-bottom underline
+          // already thickens to ink on focus (replacing the rounded
+          // blue browser default). We deliberately suppress the global
+          // :focus-visible outline here because the underline IS the
+          // focus indicator on this element — a 1px outline above a
+          // 1px underline reads as visual noise. The thickened underline
+          // alone meets WCAG 2.4.7 (focus visible).
+          className="w-32 border-b border-[var(--color-card-border)] bg-transparent px-1 py-1 text-[var(--text-meta)] uppercase tracking-[0.12em] text-ink placeholder:text-[var(--color-muted-500)] focus:border-ink focus:outline-none focus-visible:outline-none md:w-44"
         />
       </form>
     </search>
