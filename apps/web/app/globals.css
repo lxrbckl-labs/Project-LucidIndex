@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+/* TODO(#56): full Visual-Identity B&W palette + hairline-border tokens land in Phase 5. */
+@theme {
+  /* placeholder — design tokens land in #56 */
+}

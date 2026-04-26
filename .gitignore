@@ -11,6 +11,9 @@ out/
 # TypeScript
 *.tsbuildinfo
 
+# Next.js auto-generated env types
+next-env.d.ts
+
 # Environment
 .env
 .env.local
