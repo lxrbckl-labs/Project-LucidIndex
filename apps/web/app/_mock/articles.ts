@@ -63,6 +63,16 @@ export type MockArticle = {
   heroImageUrl: string
   /** Byline value — `agent_token.label`. */
   agentLabel: string
+  /**
+   * Creator (target) label — the source being analysed (e.g. "MKBHD").
+   * Distinct from `agentLabel` (the analyst). Added in Phase 6 #71.
+   */
+  creatorLabel?: string
+  /**
+   * Creator slug for `/c/<slug>` links. Derived from the creator's
+   * label + a stable created-at timestamp. Added in Phase 6 #71.
+   */
+  creatorSlug?: string
   /** Read-time estimate in minutes (rough: word_count / 250). */
   readMinutes: number
   /** 1-10 reasonableness rating; null when the agent skipped the field. */
@@ -107,7 +117,7 @@ The release notes do contain one telling sentence: "Production stability for adv
 /** Helper — paste the long body N times to push past the fair-use cap. */
 const VERY_LONG_BODY = Array.from({ length: 6 }, () => LONG_BODY).join('\n\n')
 
-type MockSeed = Omit<MockArticle, 'slug' | 'publishedLabel'> & {
+type MockSeed = Omit<MockArticle, 'slug'> & {
   /** Pretty date for the date-pill — co-derived with `publishedAt`. */
   publishedLabel: string
 }
@@ -119,6 +129,34 @@ function fromSeed(seed: MockSeed): MockArticle {
     slug: generateSlug(seed.title, seed.publishedAt),
   }
 }
+
+/**
+ * Mock creators (targets) — the sources being analysed. Each creator has
+ * a stable slug derived from their label + a fixed created-at timestamp
+ * (the same `generateSlug` logic the DB lazy-backfill uses). Added for
+ * Phase 6 #71 so creator-page click-throughs work in mock mode.
+ *
+ * Creator slugs are stable and deterministic — changing the label here
+ * would break existing creator-page URLs, so treat these as locked once
+ * shipped.
+ */
+const CREATORS = {
+  webGraphics: { label: 'Web Graphics Lab', slug: 'web-graphics-lab', handle: '@webgfxlab' },
+  skyWatch: { label: 'Sky Survey', slug: 'sky-survey', handle: '@skysurvey.bsky.social' },
+  soundLab: { label: 'Sound Lab', slug: 'sound-lab', handle: '@soundlab.fm' },
+  neuroRead: { label: 'Neuro Reader', slug: 'neuro-reader', handle: '@neuroreader.substack.com' },
+  aiWatch: { label: 'AI Watch', slug: 'ai-watch', handle: '@aiwatch' },
+  photoEssay: { label: 'Photo Essay', slug: 'photo-essay', handle: '@photoessay' },
+  longnow: { label: 'Long Now Foundation', slug: 'long-now-foundation', handle: '@longnow.org' },
+  fieldNotes: { label: 'Field Notes', slug: 'field-notes', handle: '@fieldnotes.science' },
+  webStandards: {
+    label: 'Web Standards Weekly',
+    slug: 'web-standards-weekly',
+    handle: '@webstandardsweekly.com',
+  },
+  statsNerd: { label: 'Stats Nerd', slug: 'stats-nerd', handle: '@statsnerd.substack.com' },
+  policyBrief: { label: 'Policy Brief', slug: 'policy-brief', handle: '@policybrief' },
+} as const
 
 const seeds: MockSeed[] = [
   {
@@ -134,6 +172,8 @@ const seeds: MockSeed[] = [
     publishedAt: '2026-04-24T12:00:00Z',
     heroImageUrl: HERO('lucid-001', 1600, 1000),
     agentLabel: 'compute-watch',
+    creatorLabel: CREATORS.webGraphics.label,
+    creatorSlug: CREATORS.webGraphics.slug,
     readMinutes: 8,
     reasonablenessRating: 8,
     crossSource: [
@@ -163,6 +203,8 @@ const seeds: MockSeed[] = [
     publishedAt: '2026-04-23T12:00:00Z',
     heroImageUrl: HERO('lucid-002', 800, 1000),
     agentLabel: 'sky-survey',
+    creatorLabel: CREATORS.skyWatch.label,
+    creatorSlug: CREATORS.skyWatch.slug,
     readMinutes: 6,
     reasonablenessRating: 7,
     crossSource: [
@@ -187,6 +229,8 @@ const seeds: MockSeed[] = [
     publishedAt: '2026-04-22T12:00:00Z',
     heroImageUrl: HERO('lucid-003', 800, 800),
     agentLabel: 'tonal-drift',
+    creatorLabel: CREATORS.soundLab.label,
+    creatorSlug: CREATORS.soundLab.slug,
     readMinutes: 4,
     reasonablenessRating: null,
     crossSource: [],
@@ -205,6 +249,8 @@ const seeds: MockSeed[] = [
     publishedAt: '2026-04-21T12:00:00Z',
     heroImageUrl: HERO('lucid-004', 800, 1000),
     agentLabel: 'mind-loop',
+    creatorLabel: CREATORS.neuroRead.label,
+    creatorSlug: CREATORS.neuroRead.slug,
     readMinutes: 7,
     reasonablenessRating: 6,
     crossSource: [
@@ -229,6 +275,8 @@ const seeds: MockSeed[] = [
     publishedAt: '2026-04-20T12:00:00Z',
     heroImageUrl: HERO('lucid-005', 800, 800),
     agentLabel: 'compute-watch',
+    creatorLabel: CREATORS.aiWatch.label,
+    creatorSlug: CREATORS.aiWatch.slug,
     readMinutes: 3,
     reasonablenessRating: 9,
     crossSource: [],
@@ -247,6 +295,8 @@ const seeds: MockSeed[] = [
     publishedAt: '2026-04-19T12:00:00Z',
     heroImageUrl: HERO('lucid-006', 1600, 1000),
     agentLabel: 'frame-finder',
+    creatorLabel: CREATORS.photoEssay.label,
+    creatorSlug: CREATORS.photoEssay.slug,
     readMinutes: 9,
     reasonablenessRating: 7,
     crossSource: [
@@ -281,6 +331,8 @@ const seeds: MockSeed[] = [
     publishedAt: '2026-04-18T12:00:00Z',
     heroImageUrl: HERO('lucid-007', 800, 800),
     agentLabel: 'long-now',
+    creatorLabel: CREATORS.longnow.label,
+    creatorSlug: CREATORS.longnow.slug,
     readMinutes: 4,
     reasonablenessRating: null,
     crossSource: [],
@@ -299,6 +351,8 @@ const seeds: MockSeed[] = [
     publishedAt: '2026-04-17T12:00:00Z',
     heroImageUrl: HERO('lucid-008', 800, 1000),
     agentLabel: 'field-notes',
+    creatorLabel: CREATORS.fieldNotes.label,
+    creatorSlug: CREATORS.fieldNotes.slug,
     readMinutes: 5,
     reasonablenessRating: 8,
     crossSource: [
@@ -323,6 +377,8 @@ const seeds: MockSeed[] = [
     publishedAt: '2026-04-16T12:00:00Z',
     heroImageUrl: HERO('lucid-009', 800, 800),
     agentLabel: 'render-tree',
+    creatorLabel: CREATORS.webStandards.label,
+    creatorSlug: CREATORS.webStandards.slug,
     readMinutes: 4,
     reasonablenessRating: 5,
     crossSource: [],
@@ -341,6 +397,8 @@ const seeds: MockSeed[] = [
     publishedAt: '2026-04-15T12:00:00Z',
     heroImageUrl: HERO('lucid-010', 800, 800),
     agentLabel: 'cold-take',
+    creatorLabel: CREATORS.statsNerd.label,
+    creatorSlug: CREATORS.statsNerd.slug,
     readMinutes: 3,
     reasonablenessRating: null,
     crossSource: [],
@@ -359,6 +417,8 @@ const seeds: MockSeed[] = [
     publishedAt: '2026-04-14T12:00:00Z',
     heroImageUrl: HERO('lucid-011', 800, 1000),
     agentLabel: 'ground-truth',
+    creatorLabel: CREATORS.policyBrief.label,
+    creatorSlug: CREATORS.policyBrief.slug,
     readMinutes: 6,
     reasonablenessRating: 6,
     crossSource: [
@@ -383,6 +443,8 @@ const seeds: MockSeed[] = [
     publishedAt: '2026-04-13T12:00:00Z',
     heroImageUrl: HERO('lucid-012', 800, 800),
     agentLabel: 'tonal-drift',
+    creatorLabel: CREATORS.soundLab.label,
+    creatorSlug: CREATORS.soundLab.slug,
     readMinutes: 4,
     reasonablenessRating: null,
     crossSource: [],
@@ -422,6 +484,44 @@ export async function loadDashboardArticles(): Promise<MockArticle[]> {
   // visual-foundation PR we intentionally fall through to "empty" so
   // the empty-state design (#62) renders against an unflagged dev run.
   return []
+}
+
+/**
+ * Mock creator view model — the minimal shape the creator page needs.
+ * Added for Phase 6 #71. In real-DB mode the creator page joins `targets`.
+ */
+export type MockCreator = {
+  label: string
+  slug: string
+  handle: string
+}
+
+/**
+ * Find a mock creator by slug (#71). Returns null when no creator matches.
+ * Used by the creator page under `LUCIDINDEX_MOCK=1`.
+ */
+export function findMockCreatorBySlug(slug: string): MockCreator | null {
+  // Derive the list of unique creators from the current mock articles.
+  // We look for `creatorSlug === slug` and return the first match.
+  const article = mockArticles.find((a) => a.creatorSlug === slug)
+  if (!article?.creatorLabel || !article.creatorSlug) return null
+  // Look up the handle from the CREATORS const by matching label.
+  // This is mock-only code — the handle is just for display.
+  const handle =
+    Object.values(CREATORS).find((c) => c.slug === slug)?.handle ?? article.creatorLabel
+  return {
+    label: article.creatorLabel,
+    slug: article.creatorSlug,
+    handle,
+  }
+}
+
+/**
+ * Return all visible mock articles scoped to a creator slug (#71). Filters
+ * out hidden articles — consistent with the home-dashboard filter.
+ */
+export function findMockArticlesByCreatorSlug(creatorSlug: string): MockArticle[] {
+  return mockArticles.filter((a) => a.creatorSlug === creatorSlug && !a.hidden)
 }
 
 /**

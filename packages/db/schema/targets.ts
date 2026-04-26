@@ -23,6 +23,19 @@ import { agentTokens, promptTemplates } from './agent.js'
  *
  * `last_run_status` is constrained via CHECK (not enum) for the same
  * future-proofing reason as `cron_runs.status`.
+ *
+ * `slug` — URL-safe identifier used in creator pages (`/c/<slug>`).
+ * Added in Phase 6 #71 as a nullable column (migration `0003_target_slug`).
+ * Lazy backfill: the get-or-set helper in the creator-page loader generates
+ * the slug on first access and persists it, so existing rows are silently
+ * migrated on their first page visit. The unique index on `slug` is used
+ * for creator-page lookups.
+ *
+ * Trade-off: a nullable slug means we can't enforce NOT NULL at the DB
+ * level without a backfill migration. We chose lazy over eager because
+ * (a) no production data yet, and (b) the get-or-set pattern is
+ * self-healing if the backfill is interrupted (e.g. in test teardowns).
+ * Phase 7 can add a NOT NULL migration once all rows are filled.
  */
 export const targets = pgTable(
   'targets',
@@ -30,6 +43,12 @@ export const targets = pgTable(
     id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
     label: text('label').notNull(),
     urlOrHandle: text('url_or_handle').notNull(),
+    /**
+     * URL-safe slug for creator pages. Nullable — generated lazily on
+     * first access via `getOrSetTargetSlug()` in the creator-page loader.
+     * Unique so `/c/<slug>` lookups resolve to exactly one creator.
+     */
+    slug: text('slug').unique(),
     cadence: text('cadence').notNull(),
     promptTemplateId: uuid('prompt_template_id')
       .notNull()
