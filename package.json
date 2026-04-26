@@ -12,7 +12,10 @@
     "typecheck": "pnpm tsc -b --noEmit && pnpm -r --if-present typecheck",
     "lint": "pnpm biome check",
     "format": "pnpm biome format --write",
-    "prepare": "lefthook install"
+    "prepare": "lefthook install",
+    "db:generate": "pnpm --filter @lucidindex/db db:generate",
+    "db:migrate": "pnpm --filter @lucidindex/db db:migrate",
+    "db:studio": "pnpm --filter @lucidindex/db db:studio"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.13",
