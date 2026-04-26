@@ -59,6 +59,16 @@ function payloadToArticle(payload: ArticleNewPayload): LiveArticle {
     heroImageUrl: payload.heroImageUrl,
     agentLabel: payload.agentLabel,
     readMinutes: payload.readMinutes,
+    // The SSE payload (Phase 5 #60) doesn't carry the per-article-page
+    // fields (deep-dive body, cross-source list, source URL). The
+    // dashboard tile that wraps this LiveArticle only reads the
+    // dashboard-relevant subset, so the article-page fields stay
+    // empty/now until the user clicks through to `/a/<slug>`, at
+    // which point the article-page route loads the full record.
+    publishedAt: new Date().toISOString(),
+    reasonablenessRating: null,
+    crossSource: [],
+    sourceUrl: '',
     receivedAt: Date.now(),
   }
 }

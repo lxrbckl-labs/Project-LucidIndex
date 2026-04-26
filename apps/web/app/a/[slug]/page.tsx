@@ -1,0 +1,268 @@
+/**
+ * Standalone article page (#64 / #65 / #66).
+ *
+ * Route: `/a/<slug>` — the per-article home and the canonical share-link
+ * target. Public by design (friends opening a share link must NOT hit a
+ * login wall); admin-only interactions (star toggle) gate themselves.
+ *
+ * Anatomy (rendered top-to-bottom inside a single 820px column):
+ *
+ *   Page chrome:
+ *     - <TopNav>   ← Settings + Account links (matches dashboard)
+ *     - <Wordmark> ← page-spanning LUCIDINDEX wordmark
+ *     - hairline rule
+ *
+ *   Article header:
+ *     - Date pill ("~"-prefixed when source date was estimated)
+ *     - Topic-badge pills (every badge, not just the primary)
+ *
+ *   Body (single 720-820px column, generous editorial whitespace):
+ *     - Hero image (in-frame, object-cover; placeholder when null)
+ *     - Title (display, condensed, bold — Bebas Neue from #54)
+ *     - Summary (italic standfirst paragraph)
+ *     - Byline + read time ("Analysis by <agent.label>" + N min)
+ *     - Agent deep-dive (server-capped at 2000 words for fair-use)
+ *     - Reasonableness rating (hidden when null)
+ *
+ *   Cross-source list (hidden when N=0):
+ *     - "Other coverage" hairline-bordered text list
+ *
+ *   Bottom interactions:
+ *     - Star toggle (admin-gated; renders disabled for public visitors)
+ *     - "Copy share link" skeleton (full UX in #68)
+ *
+ * Read-state: this page calls `markRead(article.id)` server-side on
+ * every render. The action is a no-op when the row is already read,
+ * so revisits don't issue a write — the visit-marks-read semantics
+ * cost one update per *unread* visit, not per visit.
+ *
+ * 404 handling: the loader returns null for missing OR `hidden` slugs.
+ * The page calls Next.js `notFound()` in both cases. The friendly 404
+ * page (#70) is a separate ticket; standard Next.js 404 UI is fine
+ * for this PR.
+ */
+
+import { requireAdmin } from '@lucidindex/auth'
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { ShareLinkButton } from '@/components/article/ShareLinkButton'
+import { StarButton } from '@/components/article/StarButton'
+import { TopNav } from '@/components/chrome/TopNav'
+import { Wordmark } from '@/components/chrome/Wordmark'
+import { markRead } from './actions'
+import { applyFairUseCap, estimateReadMinutes, loadArticleBySlug } from './loader'
+
+const MOCK_MODE = process.env.LUCIDINDEX_MOCK === '1'
+
+export default async function ArticlePage({
+  params,
+}: {
+  // Next 15 ships params as a Promise — must be awaited before
+  // touching its keys.
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+
+  const article = await loadArticleBySlug(slug)
+  if (!article) {
+    notFound()
+  }
+
+  // Mark the article as read on visit. We don't await any side-effect
+  // beyond the action itself — the action revalidate-paths nothing
+  // (the read flag is invisible on this page) so there's no cache
+  // invalidation we need to flush before render.
+  // Real-DB: gated to authenticated admins inside the action.
+  // Mock-mode: the action mutates the in-process mock array.
+  // We only call this when there IS something to update.
+  if (!article.read) {
+    // Fire-and-forget: we don't need the promise to resolve before
+    // rendering. The action is admin-gated server-side, so a public
+    // visit no-ops without throwing.
+    void markRead(article.id)
+  }
+
+  // Public visitors can read but can't star. The button still renders
+  // (so the visual anchor stays) but it goes inert.
+  const session = MOCK_MODE ? { adminId: 'mock' } : await requireAdmin()
+  const canInteract = !!session
+
+  // Apply the fair-use cap to the deep-dive body.
+  const bodyText = article.agentDeepDive ?? ''
+  const { text: cappedBody, truncated } = applyFairUseCap(bodyText)
+  const readMinutes = estimateReadMinutes(article.summary, bodyText)
+
+  const datePrefix = article.publishedEstimated ? '~ ' : ''
+  const showRating = article.reasonablenessRating !== null
+  const showCrossSource = article.crossSource.length > 0
+
+  return (
+    <div className="min-h-screen bg-paper">
+      {/* Same chrome as the dashboard so the article reads as a
+          magazine page within the same product. */}
+      <TopNav />
+
+      <main className="px-6 pt-12 pb-24 md:px-18">
+        <div className="py-6 md:py-10">
+          <Wordmark />
+        </div>
+
+        {/* Hairline rule under the wordmark, page-width — matches the
+            dashboard's editorial separator. */}
+        <div className="mt-6 mb-12 h-px w-full bg-[var(--color-card-border)]" />
+
+        {/* Single-column reading width — 820px max, centered. */}
+        <article className="mx-auto w-full max-w-[820px]">
+          {/* Header — date pill + every topic-badge pill. */}
+          <header className="flex flex-wrap items-center gap-3">
+            {article.publishedLabel ? (
+              <time
+                className="inline-flex items-center border border-[var(--color-card-border)] bg-paper px-3 py-1 text-[var(--text-meta)] uppercase tracking-[0.08em] text-[var(--color-muted-700)]"
+                style={{ borderRadius: 'var(--radius-pill)' }}
+                dateTime={article.publishedAtIso ?? undefined}
+              >
+                {datePrefix}
+                {article.publishedLabel}
+              </time>
+            ) : null}
+            {article.topicBadges.map((badge) => (
+              <span
+                key={badge}
+                className="inline-flex items-center justify-center border border-ink px-3 py-1 text-[0.65rem] uppercase tracking-[0.08em] text-ink"
+                style={{ borderRadius: 'var(--radius-pill)' }}
+              >
+                {badge}
+              </span>
+            ))}
+          </header>
+
+          {/* Hero image — full-column-width, in-frame, object-cover.
+              Falls back to a muted-surface placeholder when null. The
+              placeholder is intentionally simple — Phase 7 #74 lands
+              the image-serve route, after which `heroImageUrl` is
+              always populated for real articles. */}
+          <figure className="mt-10 aspect-[16/9] w-full overflow-hidden bg-[var(--color-muted-300)]">
+            {article.heroImageUrl ? (
+              // biome-ignore lint/performance/noImgElement: dev-only mock heroes / placeholder route
+              <img
+                src={article.heroImageUrl}
+                alt=""
+                className="h-full w-full object-cover"
+                loading="eager"
+              />
+            ) : (
+              <div
+                aria-hidden="true"
+                className="flex h-full w-full items-center justify-center text-[var(--text-meta)] uppercase tracking-[0.12em] text-[var(--color-muted-500)]"
+              >
+                No hero image
+              </div>
+            )}
+          </figure>
+
+          {/* Title — display sans, condensed, bold. */}
+          <h1
+            className="font-display mt-10 text-[length:var(--text-display-lg)] font-black leading-[0.95] tracking-tight text-ink"
+            style={{ letterSpacing: '-0.02em' }}
+          >
+            {article.title}
+          </h1>
+
+          {/* Summary — italicized standfirst-style intro. */}
+          <p className="mt-6 text-[length:var(--text-body)] italic leading-relaxed text-[var(--color-muted-700)]">
+            {article.summary}
+          </p>
+
+          {/* Byline + read time — magazine-credit style label/value pairs. */}
+          <div className="mt-8 flex flex-wrap items-baseline gap-6 border-t border-[var(--color-card-border)] pt-6 text-[var(--text-meta)]">
+            <span className="flex items-baseline gap-2">
+              <span className="uppercase tracking-[0.08em] text-[var(--color-muted-500)]">
+                Analysis by
+              </span>
+              <span className="text-ink">{article.agentLabel}</span>
+            </span>
+            <span className="flex items-baseline gap-2">
+              <span className="uppercase tracking-[0.08em] text-[var(--color-muted-500)]">
+                Duration
+              </span>
+              <span className="text-ink">{readMinutes} Min</span>
+            </span>
+          </div>
+
+          {/* Agent deep-dive — long-form body. Whitespace-pre-wrap so
+              paragraph breaks from the source survive the cap-trim. */}
+          {cappedBody ? (
+            <section className="mt-10">
+              <p className="whitespace-pre-wrap text-[length:var(--text-body)] leading-[1.7] text-ink">
+                {cappedBody}
+              </p>
+              {truncated ? (
+                <p className="mt-6 border-t border-[var(--color-card-border)] pt-4 text-[var(--text-meta)] uppercase tracking-[0.08em] text-[var(--color-muted-500)]">
+                  Truncated for fair-use
+                </p>
+              ) : null}
+            </section>
+          ) : null}
+
+          {/* Reasonableness rating — small, subtle, hidden when null. */}
+          {showRating ? (
+            <section
+              className="mt-10 border-t border-[var(--color-card-border)] pt-6"
+              data-testid="article-rating"
+            >
+              <span className="flex items-baseline gap-2 text-[var(--text-meta)]">
+                <span className="uppercase tracking-[0.08em] text-[var(--color-muted-500)]">
+                  Reasonableness
+                </span>
+                <span className="text-ink">{article.reasonablenessRating}/10</span>
+              </span>
+            </section>
+          ) : null}
+
+          {/* Cross-source list — hidden when N=0. Hairline-bordered text
+              list, no thumbnails (Phase 7 #80 will polish the styling). */}
+          {showCrossSource ? (
+            <section
+              className="mt-12 border-t border-[var(--color-card-border)] pt-8"
+              data-testid="article-cross-source"
+            >
+              <h2 className="font-display text-[length:var(--text-display-md)] font-bold uppercase tracking-tight text-ink">
+                Other coverage
+              </h2>
+              <ul className="mt-6 divide-y divide-[var(--color-card-border)]">
+                {article.crossSource.map((entry) => (
+                  <li key={`${entry.source_url}-${entry.title}`} className="py-4">
+                    <Link
+                      href={entry.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-[length:var(--text-body)] text-ink no-underline hover:underline underline-offset-4"
+                    >
+                      <span className="block leading-snug">{entry.title}</span>
+                      {entry.publisher ? (
+                        <span className="mt-1 block text-[var(--text-meta)] uppercase tracking-[0.08em] text-[var(--color-muted-500)]">
+                          {entry.publisher}
+                        </span>
+                      ) : null}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {/* Bottom interaction row — star + share. */}
+          <div className="mt-12 flex flex-wrap items-center gap-3 border-t border-[var(--color-card-border)] pt-8">
+            <StarButton
+              articleId={article.id}
+              slug={article.slug}
+              initialStarred={article.starred}
+              disabled={!canInteract}
+            />
+            <ShareLinkButton />
+          </div>
+        </article>
+      </main>
+    </div>
+  )
+}

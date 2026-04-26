@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@lucidindex/db": "workspace:*",
+    "@lucidindex/shared": "workspace:*",
     "@modelcontextprotocol/sdk": "1.29.0",
     "@node-rs/argon2": "2.0.2",
     "drizzle-orm": "0.45.2",

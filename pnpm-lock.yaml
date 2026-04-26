@@ -42,6 +42,9 @@ importers:
       '@lucidindex/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@lucidindex/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@modelcontextprotocol/sdk':
         specifier: 1.29.0
         version: 1.29.0(zod@4.3.6)
@@ -76,6 +79,9 @@ importers:
       '@lucidindex/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@lucidindex/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@lucidindex/templates':
         specifier: workspace:*
         version: link:../../packages/templates
@@ -182,7 +188,14 @@ importers:
         specifier: 4.20.6
         version: 4.20.6
 
-  packages/shared: {}
+  packages/shared:
+    devDependencies:
+      '@types/node':
+        specifier: 25.6.0
+        version: 25.6.0
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.2)(tsx@4.21.0)
 
   packages/templates:
     dependencies:

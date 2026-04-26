@@ -1,6 +1,10 @@
 /**
  * Mock article data for the Phase 5 visual foundation pass and the
- * Phase 5 visual gate (#63).
+ * Phase 5 visual gate (#63). Phase 6 (#64 / #65 / #66) extended the
+ * shape with the fields the standalone article page needs:
+ * `agentDeepDive`, `crossSource`, `reasonablenessRating`, and a
+ * canonical `publishedAt` ISO timestamp that drives both the slug and
+ * the date pill.
  *
  * Activation: `LUCIDINDEX_MOCK=1` (read in `app/page.tsx`). When unset,
  * the dashboard reads real articles from the DB via `loadDashboardArticles()`
@@ -25,204 +29,375 @@
  * imagery — flip the `grayscale` query off if Alex prefers).
  */
 
+import { generateSlug } from '@lucidindex/shared/slug'
+
 export type Significance = 'small' | 'medium' | 'large'
+
+/** A cross-source link rendered under "Other coverage" on the article page. */
+export type MockCrossSource = {
+  title: string
+  source_url: string
+  publisher?: string
+}
 
 export type MockArticle = {
   id: string
+  /** `YYYY-MM-DD-<kebab-title>` — derived via `generateSlug` from #65. */
   slug: string
   title: string
   summary: string
+  /**
+   * Long-form analysis rendered on the article page (#66). May be
+   * undefined for articles where the mock author didn't write a body —
+   * the page renders a "no deep-dive yet" placeholder in that case.
+   */
+  agentDeepDive?: string
   topicBadges: string[]
   significance: Significance
   /** Pretty date for the date-pill (e.g. "16. April 2026"). */
   publishedLabel: string
   /** True when the agent estimated the publish date — UI prefixes "~". */
   publishedEstimated: boolean
+  /** ISO publish timestamp — drives the slug and any deeper formatting. */
+  publishedAt: string
   heroImageUrl: string
   /** Byline value — `agent_token.label`. */
   agentLabel: string
   /** Read-time estimate in minutes (rough: word_count / 250). */
   readMinutes: number
+  /** 1-10 reasonableness rating; null when the agent skipped the field. */
+  reasonablenessRating: number | null
+  /** Cross-source list rendered under "Other coverage" on the article page. */
+  crossSource: MockCrossSource[]
+  /** Source URL — drives slug disambiguation and the cross-source link out. */
+  sourceUrl: string
+  /** True when the article should 404 — e2e/visual smoke for #69 hide. */
+  hidden?: boolean
+  /** Mock-mode runtime state (mutated by server actions in mock mode). */
+  starred?: boolean
+  read?: boolean
 }
 
 const HERO = (seed: string, w: number, h: number) =>
   `https://picsum.photos/seed/${seed}/${w}/${h}?grayscale=1`
 
 /**
- * Twelve mock articles, varied across significance + topic badges so
- * the masonry's curated patterns (see `ArticleMasonry.tsx`) all get
- * exercised in a single dashboard pass.
+ * Lorem-ish filler that's long enough to exercise the article page's
+ * editorial layout but stops short of the 2000-word fair-use cap so
+ * the truncation footer doesn't render on every mock. One mock article
+ * (`m-001`) explicitly exceeds the cap to exercise the truncation
+ * path in the visual gate.
  */
-export const mockArticles: MockArticle[] = [
+const LONG_BODY = `
+The shift, when it came, did not announce itself. There was no single demo, no breathless keynote — just a quiet revision in the Chrome release notes and, two months later, a tide of independent ports that had been sitting in private repos waiting for the green light.
+
+Most of those ports targeted the same handful of pain points: terrain rendering at the resolution the discipline now expects, particle systems that had outgrown the canvas-2D budget, and the long tail of CAD-style viewers that had been straining against WebGL's draw-call ceiling for half a decade. None of those are glamorous. All of them are load-bearing.
+
+What's interesting is the second-order effect. Once the porting work began, teams rediscovered classes of optimization that had been dormant since the desktop-OpenGL era — multi-pass rendering pipelines, custom-baked tile maps, tessellation control over fixed function. Web teams had drifted toward shipping the simplest correct thing because anything more elaborate hit a performance cliff. WebGPU moves the cliff far enough out that the elaborate thing becomes worth it again.
+
+That's not a small change. The shape of what an "advanced web frontend" means is shifting in real time, and the implications run through hiring, through tooling, through how teams talk about ownership of a graphics pipeline. The interview question "have you used WebGL?" used to be a filter for graphics specialists; now it's a baseline expectation, and the actual filter has moved up to "have you written a compute shader for the browser?" Which, until very recently, was a question with no honest yes-answer.
+
+The handful of teams who can answer it now are visibly hiring against each other. Three of them shipped products that didn't exist six months ago. None of those products are demos — they're production tools that depend on compute shaders staying stable across releases. Stability is the next test, and the test isn't easy.
+
+There's a second story underneath the first one — about how a standards process actually delivers something this scoped, after this many years of not-quite-delivering anything. The committee dynamics are worth their own piece. The short version is that a small number of people who had committed to seeing the spec through, paired with browser engineers who treated implementation as a mutual contract rather than a shipping risk, made the difference. That kind of social fact doesn't show up in the release notes either.
+
+The release notes do contain one telling sentence: "Production stability for advanced rendering features." Buried in the middle of the page. Anodyne enough that you would skim past it. Worth a thousand words once you know what it costs to put there.
+`.trim()
+
+/** Helper — paste the long body N times to push past the fair-use cap. */
+const VERY_LONG_BODY = Array.from({ length: 6 }, () => LONG_BODY).join('\n\n')
+
+type MockSeed = Omit<MockArticle, 'slug' | 'publishedLabel'> & {
+  /** Pretty date for the date-pill — co-derived with `publishedAt`. */
+  publishedLabel: string
+}
+
+/** Build a `MockArticle` from a seed by deriving the slug deterministically. */
+function fromSeed(seed: MockSeed): MockArticle {
+  return {
+    ...seed,
+    slug: generateSlug(seed.title, seed.publishedAt),
+  }
+}
+
+const seeds: MockSeed[] = [
   {
     id: 'm-001',
-    slug: 'webgpu-comes-of-age',
     title: 'WebGPU comes of age',
     summary:
       'A year after Chrome shipped it stable, WebGPU has graduated from research demo to production-grade rendering pipeline. Three engineers walk through the first real-world ports.',
+    agentDeepDive: VERY_LONG_BODY,
     topicBadges: ['AI', 'GRAPHICS'],
     significance: 'large',
     publishedLabel: '24. April 2026',
     publishedEstimated: false,
+    publishedAt: '2026-04-24T12:00:00Z',
     heroImageUrl: HERO('lucid-001', 1600, 1000),
     agentLabel: 'compute-watch',
     readMinutes: 8,
+    reasonablenessRating: 8,
+    crossSource: [
+      {
+        title: 'WebGPU stability landing in Chrome 120',
+        source_url: 'https://example.com/chrome-blog/webgpu-stability',
+        publisher: 'Chrome Releases',
+      },
+      {
+        title: 'Compute shaders on the open web',
+        source_url: 'https://example.com/web-graphics/compute-shaders',
+        publisher: 'Web Graphics Lab',
+      },
+    ],
+    sourceUrl: 'https://example.com/computewatch/webgpu-comes-of-age',
   },
   {
     id: 'm-002',
-    slug: 'event-horizon-collaboration',
     title: 'Inside the Event Horizon collaboration',
     summary:
       'How a hundred radio observatories keep their atomic clocks aligned tightly enough to image a black hole — and what comes next as the array doubles in size.',
+    agentDeepDive: LONG_BODY,
     topicBadges: ['ASTRONOMY'],
     significance: 'medium',
     publishedLabel: '23. April 2026',
     publishedEstimated: false,
+    publishedAt: '2026-04-23T12:00:00Z',
     heroImageUrl: HERO('lucid-002', 800, 1000),
     agentLabel: 'sky-survey',
     readMinutes: 6,
+    reasonablenessRating: 7,
+    crossSource: [
+      {
+        title: 'Atomic-clock synchronization in VLBI',
+        source_url: 'https://example.com/vlbi/clocks',
+        publisher: 'Astronomy Notes',
+      },
+    ],
+    sourceUrl: 'https://example.com/skysurvey/event-horizon',
   },
   {
     id: 'm-003',
-    slug: 'baroque-counterpoint-revival',
     title: 'The quiet revival of baroque counterpoint',
     summary:
       'Three composers releasing fugue cycles in 2026 — and what the practice still teaches about constraint as a creative engine.',
+    agentDeepDive: LONG_BODY,
     topicBadges: ['MUSIC'],
     significance: 'small',
     publishedLabel: '22. April 2026',
     publishedEstimated: false,
+    publishedAt: '2026-04-22T12:00:00Z',
     heroImageUrl: HERO('lucid-003', 800, 800),
     agentLabel: 'tonal-drift',
     readMinutes: 4,
+    reasonablenessRating: null,
+    crossSource: [],
+    sourceUrl: 'https://example.com/tonaldrift/baroque-counterpoint',
   },
   {
     id: 'm-004',
-    slug: 'sleep-as-active-process',
     title: 'Sleep is not a passive state',
     summary:
       'New tracer studies show the brain runs deliberate maintenance routines during slow-wave sleep that no waking process replicates. The implications for shift work are uncomfortable.',
+    agentDeepDive: LONG_BODY,
     topicBadges: ['NEURO'],
     significance: 'medium',
     publishedLabel: '21. April 2026',
     publishedEstimated: true,
+    publishedAt: '2026-04-21T12:00:00Z',
     heroImageUrl: HERO('lucid-004', 800, 1000),
     agentLabel: 'mind-loop',
     readMinutes: 7,
+    reasonablenessRating: 6,
+    crossSource: [
+      {
+        title: 'Slow-wave sleep tracer studies — 2026 review',
+        source_url: 'https://example.com/neuro/slow-wave',
+        publisher: 'Neural Review',
+      },
+    ],
+    sourceUrl: 'https://example.com/mindloop/sleep-active',
   },
   {
     id: 'm-005',
-    slug: 'small-language-models',
     title: 'The economics of small language models',
     summary:
       'A 7B-parameter model that runs on a phone is not a smaller version of a 70B — it is a different product. A look at where the divergence shows up.',
+    agentDeepDive: LONG_BODY,
     topicBadges: ['AI'],
     significance: 'small',
     publishedLabel: '20. April 2026',
     publishedEstimated: false,
+    publishedAt: '2026-04-20T12:00:00Z',
     heroImageUrl: HERO('lucid-005', 800, 800),
     agentLabel: 'compute-watch',
     readMinutes: 3,
+    reasonablenessRating: 9,
+    crossSource: [],
+    sourceUrl: 'https://example.com/computewatch/small-language-models',
   },
   {
     id: 'm-006',
-    slug: 'street-photography-2026',
     title: 'Street photography after the model collapse',
     summary:
       'Generative imagery saturated stock libraries; the value of unstaged human moments rose accordingly. A field essay from six cities.',
+    agentDeepDive: LONG_BODY,
     topicBadges: ['ART', 'PHOTOGRAPHY'],
     significance: 'large',
     publishedLabel: '19. April 2026',
     publishedEstimated: false,
+    publishedAt: '2026-04-19T12:00:00Z',
     heroImageUrl: HERO('lucid-006', 1600, 1000),
     agentLabel: 'frame-finder',
     readMinutes: 9,
+    reasonablenessRating: 7,
+    crossSource: [
+      {
+        title: 'Stock library saturation in 2026',
+        source_url: 'https://example.com/photo/stock-saturation',
+        publisher: 'Photo Quarterly',
+      },
+      {
+        title: 'Field essays — six cities',
+        source_url: 'https://example.com/photo/six-cities',
+        publisher: 'Frame Notes',
+      },
+      {
+        title: 'Unstaged moments and image markets',
+        source_url: 'https://example.com/photo/unstaged',
+        publisher: 'Image Economy',
+      },
+    ],
+    sourceUrl: 'https://example.com/framefinder/street-photography-2026',
   },
   {
     id: 'm-007',
-    slug: 'permacomputing-manifesto',
     title: 'Permacomputing, two years on',
     summary:
       'The manifesto called for a hundred-year computer. The community building toward it has tripled. What they have actually shipped.',
+    agentDeepDive: LONG_BODY,
     topicBadges: ['SYSTEMS'],
     significance: 'small',
     publishedLabel: '18. April 2026',
     publishedEstimated: false,
+    publishedAt: '2026-04-18T12:00:00Z',
     heroImageUrl: HERO('lucid-007', 800, 800),
     agentLabel: 'long-now',
     readMinutes: 4,
+    reasonablenessRating: null,
+    crossSource: [],
+    sourceUrl: 'https://example.com/longnow/permacomputing',
   },
   {
     id: 'm-008',
-    slug: 'lichen-as-archive',
     title: 'Lichen as archive',
     summary:
       'A boreal-research team is reading air-pollution history off a single rock face. The chemistry is older than the cities the air came from.',
+    agentDeepDive: LONG_BODY,
     topicBadges: ['BIOLOGY'],
     significance: 'medium',
     publishedLabel: '17. April 2026',
     publishedEstimated: true,
+    publishedAt: '2026-04-17T12:00:00Z',
     heroImageUrl: HERO('lucid-008', 800, 1000),
     agentLabel: 'field-notes',
     readMinutes: 5,
+    reasonablenessRating: 8,
+    crossSource: [
+      {
+        title: 'Boreal lichens as pollution archives',
+        source_url: 'https://example.com/biology/lichen-archive',
+        publisher: 'Boreal Studies',
+      },
+    ],
+    sourceUrl: 'https://example.com/fieldnotes/lichen-archive',
   },
   {
     id: 'm-009',
-    slug: 'strange-loops-in-css',
     title: 'Strange loops in CSS',
     summary:
       'Container queries plus `@scope` plus the `:has()` selector make CSS Turing-suggestive in ways the spec never planned for. Three patterns, one warning.',
+    agentDeepDive: LONG_BODY,
     topicBadges: ['WEB'],
     significance: 'small',
     publishedLabel: '16. April 2026',
     publishedEstimated: false,
+    publishedAt: '2026-04-16T12:00:00Z',
     heroImageUrl: HERO('lucid-009', 800, 800),
     agentLabel: 'render-tree',
     readMinutes: 4,
+    reasonablenessRating: 5,
+    crossSource: [],
+    sourceUrl: 'https://example.com/rendertree/strange-loops-css',
   },
   {
     id: 'm-010',
-    slug: 'cargo-cult-bayes',
     title: 'Cargo-cult Bayes',
     summary:
       'Why "thinking in priors" became a Twitter performance — and what the underlying inference framework still does well when used honestly.',
+    agentDeepDive: LONG_BODY,
     topicBadges: ['STATISTICS'],
     significance: 'small',
     publishedLabel: '15. April 2026',
     publishedEstimated: false,
+    publishedAt: '2026-04-15T12:00:00Z',
     heroImageUrl: HERO('lucid-010', 800, 800),
     agentLabel: 'cold-take',
     readMinutes: 3,
+    reasonablenessRating: null,
+    crossSource: [],
+    sourceUrl: 'https://example.com/coldtake/cargo-cult-bayes',
   },
   {
     id: 'm-011',
-    slug: 'orbital-debris-treaty',
     title: 'The orbital-debris treaty no one is signing',
     summary:
       'A draft framework has been on the table for eighteen months. The non-signers are not the countries you would guess.',
+    agentDeepDive: LONG_BODY,
     topicBadges: ['POLICY'],
     significance: 'medium',
     publishedLabel: '14. April 2026',
     publishedEstimated: false,
+    publishedAt: '2026-04-14T12:00:00Z',
     heroImageUrl: HERO('lucid-011', 800, 1000),
     agentLabel: 'ground-truth',
     readMinutes: 6,
+    reasonablenessRating: 6,
+    crossSource: [
+      {
+        title: 'Orbital-debris treaty draft text (2024)',
+        source_url: 'https://example.com/policy/orbital-debris-draft',
+        publisher: 'Policy Brief',
+      },
+    ],
+    sourceUrl: 'https://example.com/groundtruth/orbital-debris',
   },
   {
     id: 'm-012',
-    slug: 'modular-synthesis-quiet',
     title: 'Modular synthesis goes quiet',
     summary:
       'After a decade of Eurorack maximalism, the most interesting builders are stripping back to four modules and calling it a record.',
+    agentDeepDive: LONG_BODY,
     topicBadges: ['MUSIC'],
     significance: 'small',
     publishedLabel: '13. April 2026',
     publishedEstimated: true,
+    publishedAt: '2026-04-13T12:00:00Z',
     heroImageUrl: HERO('lucid-012', 800, 800),
     agentLabel: 'tonal-drift',
     readMinutes: 4,
+    reasonablenessRating: null,
+    crossSource: [],
+    sourceUrl: 'https://example.com/tonaldrift/modular-quiet',
   },
 ]
+
+/**
+ * Twelve mock articles, varied across significance + topic badges so
+ * the masonry's curated patterns (see `ArticleMasonry.tsx`) all get
+ * exercised in a single dashboard pass. Slugs are derived deterministically
+ * via `@lucidindex/shared/slug` so the dashboard tile and the article
+ * page agree on the canonical URL.
+ */
+export const mockArticles: MockArticle[] = seeds.map(fromSeed)
 
 /**
  * Returns the active dashboard article set. When `LUCIDINDEX_MOCK=1`
@@ -278,4 +453,15 @@ export async function loadDashboardBadges(): Promise<string[]> {
     return ordered
   }
   return []
+}
+
+/**
+ * Look up a single mock article by slug. Used by the article page (#64)
+ * under `LUCIDINDEX_MOCK=1` so the route works against the visual-gate
+ * dev server with no DB wiring. Returns `null` when no article matches
+ * or the article is `hidden` — the route maps that to a 404.
+ */
+export function findMockArticleBySlug(slug: string): MockArticle | null {
+  const found = mockArticles.find((a) => a.slug === slug && !a.hidden)
+  return found ?? null
 }
