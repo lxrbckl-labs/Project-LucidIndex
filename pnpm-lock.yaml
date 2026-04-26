@@ -1,0 +1,23 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .: {}
+
+  apps/cron: {}
+
+  apps/mcp-store: {}
+
+  apps/web: {}
+
+  packages/auth: {}
+
+  packages/db: {}
+
+  packages/shared: {}
+
+  packages/templates: {}

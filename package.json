@@ -1,0 +1,15 @@
+{
+  "name": "lucidindex",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@10.30.2",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "echo \"TODO: wired up in #18 (apps/web) and #20 (apps/cron) / #21 (apps/mcp-store)\"",
+    "build": "echo \"TODO: wired up in #18 (apps/web) and downstream package tickets\"",
+    "lint": "echo \"TODO: wired up in #29 (Biome)\"",
+    "typecheck": "echo \"TODO: wired up per-workspace as tsconfigs land in subsequent tickets\""
+  }
+}
