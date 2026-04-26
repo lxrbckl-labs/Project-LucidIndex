@@ -7,6 +7,10 @@
  */
 
 export {
+  type CredentialSummary,
+  getAdminCredentials,
+} from './account.js'
+export {
   type FinalizeFoundingSessionResult,
   type FinishFoundingEnrollmentInput,
   type FinishFoundingEnrollmentResult,
@@ -39,6 +43,17 @@ export {
   hashCode,
   verifyHash,
 } from './recovery.js'
+export {
+  type RegenerateRecoveryCodeResult,
+  regenerateRecoveryCode,
+} from './recovery-actions.js'
+export {
+  type FinishPasskeyRegistrationInput,
+  type FinishPasskeyRegistrationResult,
+  finishPasskeyRegistration,
+  type StartPasskeyRegistrationResult,
+  startPasskeyRegistration,
+} from './register.js'
 export {
   destroySession,
   establishSession,
