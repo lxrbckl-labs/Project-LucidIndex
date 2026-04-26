@@ -1,4 +1,12 @@
+import { fileURLToPath } from 'node:url'
 import type { NextConfig } from 'next'
+
+// Workspace root (two levels up from apps/web). Set explicitly so Next's
+// file tracer scans the full pnpm virtual store at the monorepo root, not
+// just the app directory's local node_modules. Without this, the standalone
+// output's tracing can miss workspace-level deps that resolve through
+// `.pnpm/` symlinks — most painfully, native modules like `@node-rs/argon2`.
+const workspaceRoot = fileURLToPath(new URL('../..', import.meta.url))
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -12,7 +20,19 @@ const nextConfig: NextConfig = {
   // Keep these out of the bundler so their native bindings (`.node` files)
   // and Node-only deps load via plain `require` at runtime instead of
   // tripping webpack's "no loader for binary file" error.
+  //
+  // The flip side: nothing in the standalone bundle copies these into the
+  // runner image automatically. The `apps/web/Dockerfile` runner stage
+  // does a focused `npm install --no-save` for them — see the
+  // "@node-rs/argon2 native binding" comment in that file for why we
+  // can't rely on the standalone trace alone.
   serverExternalPackages: ['@node-rs/argon2', 'postgres', 'iron-session'],
+  // Anchor file-tracing at the workspace root so the standalone output
+  // walks the whole pnpm `.pnpm/` tree (workspace deps live there, not in
+  // `apps/web/node_modules`). Without this, the standalone build emits a
+  // warning that it can't resolve some workspace packages and silently
+  // ships an incomplete bundle.
+  outputFileTracingRoot: workspaceRoot,
   // Webpack resolver + loader shims for the workspace packages.
   webpack(config, { isServer }) {
     config.resolve = config.resolve || {}

@@ -103,6 +103,39 @@ COPY --from=builder /app/packages/db/migrations ./packages/db/migrations
 COPY --from=builder /app/packages/db/schema ./packages/db/schema
 COPY --from=builder /app/packages/db/dist ./packages/db/dist
 
+# Server-external runtime deps — `@node-rs/argon2` (native binding for
+# password hashing), `iron-session` (encrypted session cookie), `postgres`
+# (the postgres-js driver wrapped by Drizzle).
+#
+# next.config.ts lists these in `serverExternalPackages` so they're never
+# bundled — at runtime the standalone server does `require('@node-rs/argon2')`
+# (and friends) and expects them to resolve through `node_modules/`.
+#
+# The Next file tracer COPIES files into `.next/standalone/node_modules/.pnpm/`
+# but does NOT reconstruct the top-level pnpm symlinks (`node_modules/<pkg>
+# → .pnpm/...`) that Node's resolver needs to honour the bare specifier —
+# so the standalone tree alone fails with `Cannot find module '@node-rs/argon2'`.
+# (The native `.node` is also dlopen'd at runtime, which the static tracer
+# can't follow regardless.) We materialise real top-level `node_modules/<pkg>`
+# trees with a focused install, pinned to the workspace versions so the
+# runtime always matches what was built. `--no-save` skips writing back to
+# any package.json; `--omit=dev` keeps it lean.
+RUN mkdir -p /tmp/runtime-deps \
+    && cd /tmp/runtime-deps \
+    && npm init -y >/dev/null \
+    && npm install --omit=dev --no-audit --no-fund --no-package-lock \
+       @node-rs/argon2@2.0.2 \
+       iron-session@8.0.4 \
+       postgres@3.4.9 \
+    && mkdir -p /app/node_modules/@node-rs \
+    && cp -R /tmp/runtime-deps/node_modules/@node-rs/argon2 /app/node_modules/@node-rs/argon2 \
+    && for sub in /tmp/runtime-deps/node_modules/@node-rs/argon2-*; do \
+         [ -d "$sub" ] && cp -R "$sub" "/app/node_modules/@node-rs/$(basename "$sub")" || true; \
+       done \
+    && cp -R /tmp/runtime-deps/node_modules/iron-session /app/node_modules/iron-session \
+    && cp -R /tmp/runtime-deps/node_modules/postgres /app/node_modules/postgres \
+    && rm -rf /tmp/runtime-deps
+
 # Entrypoint runs migrations + seed before starting the Next server.
 COPY --from=builder /app/apps/web/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
