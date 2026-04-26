@@ -35,6 +35,10 @@
 
 import Link from 'next/link'
 import type { MockArticle } from '@/app/_mock/articles'
+import { TileShareButton } from './TileShareButton'
+
+const BASE_URL =
+  process.env.WEBAUTHN_ORIGIN ?? process.env.LUCIDINDEX_BASE_URL ?? 'http://localhost:3000'
 
 type Props = {
   article: MockArticle
@@ -105,19 +109,28 @@ export function ArticleCard({ article }: Props) {
           {article.summary}
         </p>
 
-        {/* Footer — byline + duration, label-value pairs separated by
-          wide whitespace. Pushed to the bottom of the flex column. */}
-        <footer className="mt-auto flex items-baseline gap-6 pt-6 text-[var(--text-meta)]">
-          <span className="flex items-baseline gap-2">
-            <span className="uppercase tracking-[0.08em] text-[var(--color-muted-500)]">Text</span>
-            <span className="text-ink">{article.agentLabel}</span>
-          </span>
-          <span className="flex items-baseline gap-2">
-            <span className="uppercase tracking-[0.08em] text-[var(--color-muted-500)]">
-              Duration
+        {/* Footer — byline + duration, label-value pairs + share affordance.
+          Pushed to the bottom of the flex column. The share button sits
+          at the trailing edge and must NOT trigger the <Link> navigation —
+          TileShareButton calls stopPropagation + preventDefault on click. */}
+        <footer className="mt-auto flex items-baseline justify-between gap-6 pt-6 text-[var(--text-meta)]">
+          <div className="flex items-baseline gap-6">
+            <span className="flex items-baseline gap-2">
+              <span className="uppercase tracking-[0.08em] text-[var(--color-muted-500)]">
+                Text
+              </span>
+              <span className="text-ink">{article.agentLabel}</span>
             </span>
-            <span className="text-ink">{article.readMinutes} Min</span>
-          </span>
+            <span className="flex items-baseline gap-2">
+              <span className="uppercase tracking-[0.08em] text-[var(--color-muted-500)]">
+                Duration
+              </span>
+              <span className="text-ink">{article.readMinutes} Min</span>
+            </span>
+          </div>
+          {/* Share — small, unobtrusive. Uses stopPropagation to avoid
+            navigating; see TileShareButton for the full event-guard. */}
+          <TileShareButton url={`${BASE_URL}/a/${article.slug}`} />
         </footer>
       </article>
     </Link>

@@ -34,6 +34,10 @@
 
 import Link from 'next/link'
 import type { MockArticle } from '@/app/_mock/articles'
+import { TileShareButton } from './TileShareButton'
+
+const BASE_URL =
+  process.env.WEBAUTHN_ORIGIN ?? process.env.LUCIDINDEX_BASE_URL ?? 'http://localhost:3000'
 
 type Props = {
   article: MockArticle
@@ -93,15 +97,22 @@ export function LargeArticleCard({ article }: Props) {
           >
             {article.title}
           </h2>
-          <div className="mt-4 flex items-baseline gap-6 text-[var(--text-meta)] text-paper/90">
-            <span className="flex items-baseline gap-2">
-              <span className="uppercase tracking-[0.08em] text-paper/70">Text</span>
-              <span>{article.agentLabel}</span>
-            </span>
-            <span className="flex items-baseline gap-2">
-              <span className="uppercase tracking-[0.08em] text-paper/70">Duration</span>
-              <span>{article.readMinutes} Min</span>
-            </span>
+          <div className="mt-4 flex items-baseline justify-between gap-6 text-[var(--text-meta)] text-paper/90">
+            <div className="flex items-baseline gap-6">
+              <span className="flex items-baseline gap-2">
+                <span className="uppercase tracking-[0.08em] text-paper/70">Text</span>
+                <span>{article.agentLabel}</span>
+              </span>
+              <span className="flex items-baseline gap-2">
+                <span className="uppercase tracking-[0.08em] text-paper/70">Duration</span>
+                <span>{article.readMinutes} Min</span>
+              </span>
+            </div>
+            {/* Share — small, unobtrusive. Uses stopPropagation to avoid
+              navigating; see TileShareButton for the full event-guard.
+              "dark" variant uses paper-toned border/text for the
+              image-overlay background. */}
+            <TileShareButton url={`${BASE_URL}/a/${article.slug}`} variant="dark" />
           </div>
         </div>
       </article>
