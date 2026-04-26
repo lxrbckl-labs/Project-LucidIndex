@@ -360,7 +360,7 @@ function IssueModal({
         if (e.key === 'Escape') onClose()
       }}
     >
-      <div className="bg-white w-full max-w-md mx-4 p-8 shadow-xl">
+      <div className="bg-white w-full max-w-md mx-4 p-8 border border-black">
         <h2 id="issue-modal-title" className="text-xl font-black uppercase tracking-tight mb-6">
           Issue new token
         </h2>
