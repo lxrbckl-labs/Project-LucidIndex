@@ -4,6 +4,8 @@ This is the source-of-truth repository for Project LucidIndex. Read this before 
 
 **Hard rule: do NOT destroy or wholesale rewrite existing documentation or code without explicit user approval.**
 
+> **Design notes live in Obsidian, not in this repo.** Architecture, dashboard, MCP, backend, triggers, claude-code orientation notes, the narrative debrief, feature-idea decisions, and design reference images were migrated out of `docs/` and `ideas/` to Alex's Obsidian vault under `Projects/Project-LucidIndex/`. The repo now holds only this file (`CLAUDE.md`), `README.md`, and code. To find the vault path on Alex's machine: read `~/Library/Application Support/obsidian/obsidian.json`, parse the `vaults` map, and use the entry with `"open": true` (fall back to the most recent by `ts` if none are open). The Project-LucidIndex notes live at `<vault>/Projects/Project-LucidIndex/`. Wikilinks below (`[[Architecture]]`, etc.) resolve directly when the file is opened in Obsidian.
+
 ---
 
 ## What This Project Is
@@ -12,7 +14,7 @@ LucidIndex is a multi-user personal intelligence forum. Each user logs in (passk
 
 LucidIndex is the infrastructure. It does not ship agents, scrapers, or summarization pipelines.
 
-See [README.md](README.md) for the full pitch. See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for the layer breakdown.
+See [README.md](README.md) for the full pitch. See `[[Architecture]]` in the Obsidian vault for the layer breakdown.
 
 ---
 
@@ -20,14 +22,16 @@ See [README.md](README.md) for the full pitch. See [ARCHITECTURE.md](docs/ARCHIT
 
 | What | Where |
 |---|---|
-| Narrative debrief | [DEBRIEF.md](docs/DEBRIEF.md) |
-| Project overview and north star | [README.md](README.md) |
-| Architecture (all 5 layers) | [ARCHITECTURE.md](docs/ARCHITECTURE.md) |
-| MCP layer and `mcp-store` (queue + write-back + genres) | [docs/mcp.md](docs/mcp.md) |
-| Backend API, passkey auth, SSE, DB schema, admin CLI | [docs/backend.md](docs/backend.md) |
-| Dashboard UI vision (TweetDeck columns, card anatomy) | [docs/dashboard.md](docs/dashboard.md) |
-| Claude Code slash commands | [docs/claude-code.md](docs/claude-code.md) |
-| Trigger system (cron / webhook / manual) | [docs/triggers.md](docs/triggers.md) |
+| Project overview and north star | [README.md](README.md) (in repo) |
+| Architecture (all 5 layers) | `[[Architecture]]` (vault) |
+| Narrative debrief | `[[Debrief]]` (vault) |
+| MCP layer and `mcp-store` (queue + write-back + genres) | `[[MCP]]` (vault) |
+| Backend API, passkey auth, SSE, DB schema, admin CLI | `[[Backend]]` (vault) |
+| Dashboard UI vision (TweetDeck columns, card anatomy) | `[[Dashboard]]` (vault) |
+| Claude Code slash commands | `[[Claude Code]]` (vault) |
+| Trigger system (cron / webhook / manual) | `[[Triggers]]` (vault) |
+| Feature ideas / locked decisions | `[[Features (Ideas)]]` (vault) |
+| Design references (vibe images for main page + infinite scroll) | `<vault>/Projects/Project-LucidIndex/Design/Index.md` |
 
 ---
 
@@ -60,6 +64,6 @@ See [README.md](README.md) for the full pitch. See [ARCHITECTURE.md](docs/ARCHIT
 
 ## Current Status
 
-Docs have been redrafted to match the queue-based, multi-user, passkey-authed, genre-column design. No code yet. All nine docs now tell one consistent story; v0.1 shape is locked in (queue pull-model, passkey auth, agent-classified genres, TweetDeck columns, Fastify). Next: begin implementation against these specs, starting with `mcp-store` and the Fastify backend.
+Nine design docs were redrafted to match the queue-based, multi-user, passkey-authed, genre-column design and now live in the Obsidian vault under `Projects/Project-LucidIndex/`; v0.1 shape is locked in (queue pull-model, passkey auth, agent-classified genres, TweetDeck columns, Fastify). No code yet. Next: begin implementation against these specs, starting with `mcp-store` and the Fastify backend.
 
 > TODO: Update this section as the project progresses — what's built, what's in progress, what's next.
