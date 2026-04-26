@@ -19,6 +19,11 @@ import {
   validateIssueInput,
 } from '../../../settings/agent-tokens/_lib/agent-tokens-repo'
 
+// Session-gated + DB-backed — request-scoped, must never be statically
+// rendered at build time (no cookie store, no DB connection in the build
+// container).
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   const session = await requireAdmin()
   if (!session) {

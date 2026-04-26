@@ -15,6 +15,9 @@ import { redirect } from 'next/navigation'
 import { RegenerateRecoveryCode } from './_components/RegenerateRecoveryCode'
 import { RegisterPasskeyForm } from './_components/RegisterPasskeyForm'
 
+// Session-gated + DB-backed — never statically renderable.
+export const dynamic = 'force-dynamic'
+
 function formatDate(d: Date): string {
   return d.toLocaleDateString('en-US', {
     year: 'numeric',

@@ -15,6 +15,9 @@ import { requireAdmin } from '@lucidindex/auth'
 import { NextResponse } from 'next/server'
 import { getTarget, setTargetActive } from '../../../../../settings/targets/_lib/targets-repo'
 
+// Session-gated + DB-backed — must execute per-request.
+export const dynamic = 'force-dynamic'
+
 type RouteContext = { params: Promise<{ id: string }> }
 
 export async function POST(req: Request, ctx: RouteContext) {

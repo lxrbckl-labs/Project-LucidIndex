@@ -21,6 +21,9 @@ import { and, eq } from '@lucidindex/db/query'
 import { topicBadgeSuggestions, topicBadges } from '@lucidindex/db/schema'
 import { NextResponse } from 'next/server'
 
+// Session-gated + DB-backed — must execute per-request.
+export const dynamic = 'force-dynamic'
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 type ResolveBody = { action?: unknown }

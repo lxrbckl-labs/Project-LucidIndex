@@ -9,6 +9,10 @@
 import { getSession } from '@lucidindex/auth'
 import { NextResponse } from 'next/server'
 
+// Reads the iron-session cookie — request-scoped, must never be statically
+// rendered at build time.
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   const session = await getSession()
   if (!session.adminId) {

@@ -19,6 +19,9 @@ import {
   validateTemplateInput,
 } from '../../../../settings/templates/_lib/templates-repo'
 
+// Session-gated + DB-backed — must execute per-request.
+export const dynamic = 'force-dynamic'
+
 type RouteContext = { params: Promise<{ id: string }> }
 
 export async function GET(_req: Request, ctx: RouteContext) {

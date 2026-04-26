@@ -12,6 +12,9 @@
 import { finalizeFoundingSession } from '@lucidindex/auth'
 import { NextResponse } from 'next/server'
 
+// Mints the iron-session cookie — request-scoped.
+export const dynamic = 'force-dynamic'
+
 export async function POST(req: Request) {
   let body: unknown
   try {

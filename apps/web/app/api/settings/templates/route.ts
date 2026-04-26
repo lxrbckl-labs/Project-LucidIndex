@@ -21,6 +21,9 @@ import {
   validateTemplateInput,
 } from '../../../settings/templates/_lib/templates-repo'
 
+// Session-gated + DB-backed — must execute per-request.
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   const session = await requireAdmin()
   if (!session) {

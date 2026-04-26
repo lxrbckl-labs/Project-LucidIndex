@@ -29,6 +29,9 @@ import {
   hashFoundingToken,
 } from '../../../../../lib/founding-token'
 
+// DB-backed (founding-admin transaction insert) — must execute per-request.
+export const dynamic = 'force-dynamic'
+
 export async function POST(req: Request) {
   let body: unknown
   try {

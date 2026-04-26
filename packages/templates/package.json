@@ -4,11 +4,34 @@
   "version": "0.0.0",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./starters": "./src/starters.ts",
-    "./validate": "./src/validate.ts"
+    ".": {
+      "source": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./starters": {
+      "source": "./src/starters.ts",
+      "default": "./dist/starters.js"
+    },
+    "./validate": {
+      "source": "./src/validate.ts",
+      "default": "./dist/validate.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      ".": [
+        "./dist/index.d.ts"
+      ],
+      "starters": [
+        "./dist/starters.d.ts"
+      ],
+      "validate": [
+        "./dist/validate.d.ts"
+      ]
+    }
   },
   "scripts": {
+    "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

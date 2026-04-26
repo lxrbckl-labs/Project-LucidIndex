@@ -13,6 +13,9 @@ import { desc, eq } from '@lucidindex/db/query'
 import { articles, topicBadgeSuggestions } from '@lucidindex/db/schema'
 import { NextResponse } from 'next/server'
 
+// Session-gated + DB-backed — must execute per-request.
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   const session = await requireAdmin()
   if (!session) return NextResponse.json({ ok: false }, { status: 401 })

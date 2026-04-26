@@ -30,6 +30,8 @@ COPY tsconfig.base.json tsconfig.json ./
 COPY apps/web/package.json ./apps/web/package.json
 COPY packages/db/package.json ./packages/db/package.json
 COPY packages/auth/package.json ./packages/auth/package.json
+COPY packages/shared/package.json ./packages/shared/package.json
+COPY packages/templates/package.json ./packages/templates/package.json
 
 # --ignore-scripts skips the `prepare` hook (lefthook install) which requires
 # git — not present in the Alpine image and not needed inside the container.
@@ -44,9 +46,21 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY --from=deps /app/packages/db/node_modules ./packages/db/node_modules
 COPY --from=deps /app/packages/auth/node_modules ./packages/auth/node_modules
+COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
+COPY --from=deps /app/packages/templates/node_modules ./packages/templates/node_modules
 
 # Copy full source.
 COPY . .
+
+# Compile workspace packages first so their dist/ is ready when Next bundles
+# the web app. Without this, the Next build resolves @lucidindex/templates
+# (and friends) via the package's `default` exports condition — which points
+# at dist/ — and fails with "Module not found: Can't resolve 'liquidjs'"
+# (the unbuilt source uses `import { Liquid } from 'liquidjs'` which Next
+# can't follow through a workspace package whose dist/ doesn't exist yet).
+RUN pnpm --filter @lucidindex/templates build \
+    && pnpm --filter @lucidindex/db build \
+    && pnpm --filter @lucidindex/shared build
 
 # Build the Next.js app. `output: 'standalone'` is set in next.config.ts, so
 # the build produces `.next/standalone/` with server.js + trimmed node_modules.

@@ -14,6 +14,9 @@ import { eq } from '@lucidindex/db/query'
 import { topicBadges } from '@lucidindex/db/schema'
 import { NextResponse } from 'next/server'
 
+// Session-gated + DB-backed — must execute per-request.
+export const dynamic = 'force-dynamic'
+
 type PatchBody = {
   name?: unknown
   color?: unknown
