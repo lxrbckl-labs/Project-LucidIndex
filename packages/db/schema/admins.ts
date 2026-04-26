@@ -1,5 +1,14 @@
 import { sql } from 'drizzle-orm'
-import { bigint, customType, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import {
+  bigint,
+  check,
+  customType,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core'
 
 /**
  * Postgres `bytea` mapped to `Uint8Array` in TS.
@@ -48,3 +57,32 @@ export const recoveryCodes = pgTable('recovery_codes', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
   consumedAt: timestamp('consumed_at', { withTimezone: true }),
 })
+
+/**
+ * Audit log of every auth-relevant event. Surfaces in Settings → System and
+ * (eventually) admin-side tooling. Append-only; nothing in the app deletes rows.
+ *
+ * Design notes:
+ * - `admin_id` is nullable: pre-admin attempts (e.g. failed founding-claim
+ *   attempts, login attempts that miss any credential) have no admin to point at.
+ * - `kind` is constrained via a CHECK constraint (not a Postgres enum) to keep
+ *   future kind additions a single-line migration instead of an `ALTER TYPE`.
+ * - `details` is freeform jsonb so the surface can carry context (IP, user
+ *   agent, attempted credential id, etc.) without us pre-committing to a schema.
+ */
+export const authEvents = pgTable(
+  'auth_events',
+  {
+    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    adminId: uuid('admin_id').references(() => admins.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(),
+    details: jsonb('details').notNull().default(sql`'{}'::jsonb`),
+    at: timestamp('at', { withTimezone: true }).notNull().default(sql`now()`),
+  },
+  (t) => [
+    check(
+      'auth_events_kind_check',
+      sql`${t.kind} in ('founding_claim', 'passkey_register', 'passkey_login', 'recovery_used', 'recovery_regenerated', 'admin_reset', 'failed_passkey_login', 'failed_founding_claim')`,
+    ),
+  ],
+)
