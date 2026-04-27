@@ -78,9 +78,9 @@ test('1. article anatomy renders — date pill, badge, hero, title, summary, byl
   expect(src).toBeTruthy()
   expect(src?.length).toBeGreaterThan(0)
 
-  // Title (h1)
-  await expect(page.locator('h1')).toBeVisible()
-  await expect(page.locator('h1')).toContainText('Event Horizon')
+  // Title (h1) — scoped to <article> to avoid strict-mode collision with the Wordmark h1
+  await expect(page.locator('article h1')).toBeVisible()
+  await expect(page.locator('article h1')).toContainText('Event Horizon')
 
   // Italic standfirst summary — rendered as <p class="... italic ...">
   // (the summary is italicized via CSS class, not an <em> element)
@@ -158,7 +158,7 @@ test('7. unauthenticated visitor gets 200 on a valid article', async ({ browser 
   const res = await page.goto(`/a/${SLUG_BAROQUE}`)
   expect(res?.status()).toBe(200)
   // Title renders — page didn't redirect to login
-  await expect(page.locator('h1')).toBeVisible()
+  await expect(page.locator('article h1')).toBeVisible()
   await ctx.close()
 })
 

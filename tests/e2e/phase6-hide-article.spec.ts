@@ -184,7 +184,7 @@ test('13. hide flow: insert article → hide from article page → 404 → resto
 
   // ── Step 3: visit the article page and click "Hide article" ───────────────
   await page.goto(`/a/${ARTICLE_SLUG}`)
-  await expect(page.locator('h1')).toContainText(ARTICLE_TITLE)
+  await expect(page.locator('article h1')).toContainText(ARTICLE_TITLE)
 
   // HideArticleButton renders for authenticated admin. It opens a confirm
   // dialog — we must accept it via Playwright's dialog handler.
@@ -236,7 +236,7 @@ test('13. hide flow: insert article → hide from article page → 404 → resto
   // The article page should be reachable again.
   const restoredRes = await page.goto(`/a/${ARTICLE_SLUG}`)
   expect(restoredRes?.status()).toBe(200)
-  await expect(page.locator('h1')).toContainText(ARTICLE_TITLE)
+  await expect(page.locator('article h1')).toContainText(ARTICLE_TITLE)
 
   await auth.cleanup()
   await ctx.close()
