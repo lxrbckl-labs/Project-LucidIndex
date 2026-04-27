@@ -43,6 +43,8 @@ LucidIndex is **infrastructure only** — there are no agents, no scrapers, and 
 
 Design notes (architecture deep-dive, MCP tool surface, schema, dashboard UX, Visual Identity, Plan of Attack, Debrief) live in Alex's Obsidian vault at `<vault>/Projects/Project-LucidIndex/`. See [`CLAUDE.md`](CLAUDE.md) for the vault-discovery instructions; this repo deliberately holds only `README.md`, `CLAUDE.md`, and code.
 
+For a deeper look at the as-built implementation — service responsibilities, schema tables, data-flow walkthrough — see [`docs/architecture.md`](docs/architecture.md).
+
 ---
 
 ## Tech stack
@@ -187,6 +189,12 @@ Then visit `/settings?token=<LUCIDINDEX_FOUNDING_TOKEN>` to claim founding-admin
 The web container runs Drizzle migrations + the idempotent seed before binding port 3000. The runner image bundles `drizzle-kit`, the SQL files under `packages/db/migrations/`, and the compiled `packages/db/dist/seed.js`. On a fresh database this materialises the schema; on a populated database the migration journal makes it a no-op. The healthcheck on `web` doubles as a "schema is ready" signal — `mcp-store` and `cron` `depends_on: web → service_healthy` so they never query an unmigrated DB. There is no host-side `pnpm db:migrate` step in production.
 
 Concrete commands, env var list, and the admin CLI surface (`admin:reset`) get written into this section once the scaffold exists.
+
+---
+
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the quick-start, local dev loop, testing commands, migration workflow, and PR conventions. Short version: `pnpm install` then `pnpm test:e2e`.
 
 ---
 
