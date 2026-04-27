@@ -145,6 +145,27 @@ After dropping the snippet into your Caddyfile, reload Caddy so the changes take
 
 ---
 
+## Deploy
+
+The full step-by-step production deploy guide lives at **[`docs/deploy.md`](docs/deploy.md)**. It covers DNS, host Caddy setup, `.env` configuration, `docker compose up -d --build`, founding-admin enrollment, and first agent run.
+
+Short version:
+
+```sh
+git clone https://github.com/lxrbckl-dev/Project-LucidIndex.git
+cd Project-LucidIndex
+cp apps/web/.env.example .env
+# edit .env — set POSTGRES_PASSWORD, IRON_SESSION_PASSWORD,
+#   WEBAUTHN_RP_ID, WEBAUTHN_ORIGIN, LUCIDINDEX_FOUNDING_TOKEN
+docker compose up -d --build
+# then visit https://your-domain.com/settings?token=<LUCIDINDEX_FOUNDING_TOKEN>
+# to claim founding-admin and register your first passkey
+```
+
+See [`docs/deploy.md`](docs/deploy.md) for the full runbook, Caddy snippet, troubleshooting, and backup configuration.
+
+---
+
 ## Setup
 
 > **TODO — no code yet, this section will fill in once Phase 1 lands** (the foundation scaffold: pnpm monorepo, Next.js 15 app, Drizzle schema with first migration, `docker-compose.yml` for Postgres + web, founding-admin flow ported from Project-Showalter).
