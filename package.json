@@ -12,7 +12,7 @@
     "typecheck": "pnpm tsc -b --noEmit && pnpm -r --if-present typecheck",
     "lint": "pnpm biome check",
     "format": "pnpm biome format --write",
-    "prepare": "lefthook install",
+    "prepare": "lefthook install && pnpm --filter @lucidindex/templates build && pnpm --filter @lucidindex/db build && pnpm --filter @lucidindex/shared build",
     "db:generate": "pnpm --filter @lucidindex/db db:generate",
     "db:migrate": "pnpm --filter @lucidindex/db db:migrate",
     "db:seed": "pnpm --filter @lucidindex/db db:seed",
