@@ -51,7 +51,8 @@ import { TopicBadgeFilterRow } from '@/components/chrome/TopicBadgeFilterRow'
 import { TopNav } from '@/components/chrome/TopNav'
 import { Wordmark } from '@/components/chrome/Wordmark'
 import { getNewBadgeHours, isNew } from '@/lib/new-badge'
-import { getMockCreatedAt, loadDashboardArticles, loadDashboardBadges } from './_mock/articles'
+import { loadDashboardArticles, loadDashboardBadges } from './_lib/dashboard-loader'
+import { getMockCreatedAt } from './_mock/articles'
 
 // Reads the iron-session cookie via requireAdmin() and queries the DB for
 // articles / badges — never statically renderable.
@@ -118,23 +119,22 @@ export default async function Page({
   // ---------------------------------------------------------------------
   // Authenticated admin — full Fyrre-style dashboard.
   // ---------------------------------------------------------------------
-  const [allArticles, badgeNames, newBadgeHours] = await Promise.all([
-    loadDashboardArticles(),
+  // The badge filter is applied in SQL so the LIMIT acts on the filtered
+  // slice (otherwise the pill could empty out a fully-loaded 100-row page).
+  // Mock mode applies the same filter post-fetch — see the loader.
+  const [articles, badgeNames, newBadgeHours] = await Promise.all([
+    loadDashboardArticles({ badge: badgeFilter }),
     loadDashboardBadges(),
     getNewBadgeHours(),
   ])
 
-  // Server-side filter — when `?badge=…` is set, drop articles that
-  // don't carry that badge. The pill row's "All" state passes no param.
-  const articles = badgeFilter
-    ? allArticles.filter((a) => a.topicBadges.includes(badgeFilter))
-    : allArticles
-
   const badgeOptions = badgeNames.map((name) => ({ name }))
 
-  // Compute the "NEW" pill set once per render (#79). Mock-mode synthesizes
-  // `created_at` from the per-seed `insertedAtOffsetHours` field; a real-DB
-  // path will read `articles.created_at` directly when the loader lands.
+  // Compute the "NEW" pill set once per render (#79). `getMockCreatedAt`
+  // is the canonical timestamp accessor for the dashboard — it returns
+  // `articles.created_at` for real-DB rows (populated by the dashboard
+  // loader's row mapper) and synthesizes "now − insertedAtOffsetHours"
+  // for mock articles so the visual gate can still demo the badge.
   const newArticleIds = new Set(
     articles.filter((a) => isNew(getMockCreatedAt(a), newBadgeHours)).map((a) => a.id),
   )
