@@ -7,12 +7,19 @@
     "./slug": {
       "source": "./src/slug.ts",
       "default": "./dist/slug.js"
+    },
+    "./image-pipeline": {
+      "source": "./src/image-pipeline.ts",
+      "default": "./dist/image-pipeline.js"
     }
   },
   "typesVersions": {
     "*": {
       "slug": [
         "./dist/slug.d.ts"
+      ],
+      "image-pipeline": [
+        "./dist/image-pipeline.d.ts"
       ]
     }
   },
@@ -20,6 +27,9 @@
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "sharp": "0.34.4"
   },
   "devDependencies": {
     "@types/node": "25.6.0",

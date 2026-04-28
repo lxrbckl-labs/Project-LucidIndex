@@ -16,7 +16,6 @@
     "@node-rs/argon2": "2.0.2",
     "drizzle-orm": "0.45.2",
     "liquidjs": "10.21.1",
-    "sharp": "0.34.4",
     "zod": "4.3.6"
   },
   "devDependencies": {

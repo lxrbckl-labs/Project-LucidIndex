@@ -70,6 +70,23 @@ services:
       # Founding-token guard (Phase 1, ticket #27) — empty default is intentional.
       # Admin must set a value on first deploy; app logic (Phase 1 #27) enforces this.
       LUCIDINDEX_FOUNDING_TOKEN: ${LUCIDINDEX_FOUNDING_TOKEN:-}
+      # Demo-data seeder toggle. When `true` / `1` / `yes` (case-insensitive),
+      # the entrypoint runs packages/db/seed-demo.ts after migrations to
+      # populate an empty DB with ~1000 articles + 50–80 targets + supporting
+      # rows for stress-testing the dashboard, FTS, retention, etc.
+      # IDEMPOTENT — only fires when targets/articles are empty. Default off.
+      # See apps/web/.env.example for the full description.
+      LUCIDINDEX_SEED_DEMO: ${LUCIDINDEX_SEED_DEMO:-false}
+      # Hero-image pipeline config (mirrors mcp-store env). Demo data writes
+      # through the same image-pipeline used by mcp-store — disk layout and
+      # content-hash format match — so the dashboard's image route resolves
+      # seeded and real images identically. Operators who want demo images
+      # served by the image route should mount the mcp_images volume on web
+      # too (this compose file leaves that as a deployment-time choice).
+      MCP_IMAGE_DIR: ${MCP_IMAGE_DIR:-/app/data/images}
+      MCP_IMAGE_FETCH_TIMEOUT_MS: ${MCP_IMAGE_FETCH_TIMEOUT_MS:-10000}
+      MCP_IMAGE_MAX_BYTES: ${MCP_IMAGE_MAX_BYTES:-26214400}
+      MCP_IMAGE_MAX_WIDTH: ${MCP_IMAGE_MAX_WIDTH:-1600}
       # Next.js standalone reads HOSTNAME (not HOST) for the bind address.
       # Default behaviour binds to the container's eth0 IP, which makes the
       # in-container healthcheck (`localhost:3000`) fail even though the
