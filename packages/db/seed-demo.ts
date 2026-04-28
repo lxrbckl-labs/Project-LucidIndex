@@ -13,12 +13,27 @@
  *     row. This is the cheap, sufficient guard against double-seeding on
  *     container restarts. Operators who want to re-seed must drop the
  *     volume.
- *   - Never seeds `admins`, `credentials`, `recovery_codes`,
- *     `agent_tokens`, or `auth_events`. Those tables are governed by the
- *     founding-admin claim flow and the operator-issued token flow.
- *   - Does NOT re-seed `prompt_templates`. Those are inserted by
+ *   - Never seeds `admins`, `credentials`, or `recovery_codes`. Those
+ *     tables are governed by the founding-admin claim flow — adding a
+ *     row breaks `countAdminsIsZero()` and the first-claim flow refuses
+ *     to enroll. Round 8 explored seeding a placeholder admin and
+ *     escalated back: the gate is strict.
+ *   - `auth_events` is partially seeded (Round 8) — failure-kind rows
+ *     only, with `admin_id = null`. The other event kinds require a
+ *     non-null admin_id, which we don't have until Alex claims founding.
+ *   - `agent_tokens` is seeded (Round 8) with a primary "Demo Agent"
+ *     row plus 5–8 realistic-feeling lived-in tokens (~1 revoked) so
+ *     bylines display variety on the dashboard.
+ *   - `prompt_templates`: the 7 canonical starters are inserted by
  *     `seed.ts` (the existing first-boot seeder) before this runs;
- *     targets reference them by slug.
+ *     targets reference them by slug. Round 8 adds 3–5 customized
+ *     variants alongside the starters with distinct slugs (ON CONFLICT
+ *     DO NOTHING for idempotency).
+ *   - `settings` singleton (Round 8) is pre-filled with non-default
+ *     toggles + a clearly-fake off-site-backup config so the Settings
+ *     panels display as touched. The off-site-backup credentials use
+ *     the same AES-256-GCM envelope as the production helper, encoding
+ *     a `DEMO_PLACEHOLDER_DO_NOT_RUN` string.
  *
  * Determinism:
  *   - Faker is seeded with a fixed RNG seed (42) so the same env produces
@@ -42,20 +57,31 @@
  *     environment still produces a usable demo DB, just without imagery.
  */
 
+import { Buffer } from 'node:buffer'
+import { createCipheriv, hkdfSync, randomBytes } from 'node:crypto'
 import { fetchAndStoreHeroImage } from '@lucidindex/shared/image-pipeline'
 import { sql } from 'drizzle-orm'
 import { db } from './client.js'
 import {
   agentTokens,
   articles,
+  authEvents,
   cronRuns,
   promptTemplates,
   queue,
   runLog,
+  settings,
   targets,
   topicBadgeSuggestions,
   topicBadges,
 } from './schema/index.js'
+import {
+  buildCustomizedTemplates,
+  buildDemoAgentTokenLabels,
+  chooseSettingsNonDefaults,
+  DEMO_OFF_SITE_BACKUP_CREDENTIALS_PLACEHOLDER,
+  DEMO_OFF_SITE_BACKUP_REMOTE,
+} from './seed-demo-settings.js'
 
 // Faker is loaded lazily so the seed-demo module can be imported (e.g. by
 // unit tests against the parser / idempotency check) without paying the
@@ -351,6 +377,14 @@ export type SeedDemoResult = {
     cronRuns: number
     heroImagesStored: number
     heroImagesFailed: number
+    /** Round 8: total agent_tokens rows inserted (1 primary + N extras). */
+    agentTokens: number
+    /** Round 8: customized prompt-template variants inserted alongside starters. */
+    customizedTemplates: number
+    /** Round 8: 0 or 1 — settings singleton row insert (skipped if pre-existing). */
+    settings: number
+    /** Round 8: auth_events failure rows inserted (admin_id=null only). */
+    authEvents: number
   }
 }
 
@@ -366,7 +400,13 @@ export async function seedDemo(): Promise<SeedDemoResult> {
 
   console.log('[seed-demo] starting demo seed (LUCIDINDEX_SEED_DEMO=true)...')
 
-  // ---- agent token (synthetic byline owner for all demo articles) ----
+  // ---- agent tokens (synthetic byline owners for demo articles) ----
+  //
+  // Round 8: in addition to the original "Demo Agent" placeholder, seed a
+  // handful of realistic-feeling labels so Settings → Agent Tokens looks
+  // lived in and the article byline ("Analysis by `<token-label>`") shows
+  // variety on the dashboard. All hashes are non-authenticating
+  // placeholders — same pattern as "Demo Agent".
   const [demoAgentToken] = await db
     .insert(agentTokens)
     .values({
@@ -379,6 +419,38 @@ export async function seedDemo(): Promise<SeedDemoResult> {
     })
     .returning({ id: agentTokens.id })
   if (!demoAgentToken) throw new Error('failed to insert demo agent token')
+
+  const extraTokenInputs = buildDemoAgentTokenLabels(new Date())
+  const extraTokenIds: string[] = []
+  for (const t of extraTokenInputs) {
+    const [row] = await db
+      .insert(agentTokens)
+      .values({
+        label: t.label,
+        // Non-authenticating placeholder, matches the "Demo Agent" pattern
+        // above. argon2 hashes are 90+ chars so this can never decode.
+        tokenHash: `demo-seed-token-hash-${t.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+        createdAt: t.createdAt,
+        revokedAt: t.revokedAt,
+      })
+      .returning({ id: agentTokens.id })
+    if (row) extraTokenIds.push(row.id)
+  }
+  console.log(
+    `[seed-demo] agent_tokens: inserted ${1 + extraTokenIds.length} (1 primary + ${extraTokenIds.length} extras)`,
+  )
+
+  // ---- byline-attribution pool ----
+  // Articles, run_log rows, suggestions, and queue claims will be spread
+  // across the non-revoked tokens (including "Demo Agent") so the
+  // dashboard byline shows variety. Revoked tokens are excluded from
+  // future attribution — they exist for the Settings panel only.
+  const nonRevokedExtraIds = extraTokenIds.filter((_id, i) => !extraTokenInputs[i]?.revokedAt)
+  const bylineTokenIds = [demoAgentToken.id, ...nonRevokedExtraIds]
+  const pickByline = (): string => {
+    const idx = faker.number.int({ min: 0, max: bylineTokenIds.length - 1 })
+    return bylineTokenIds[idx] ?? demoAgentToken.id
+  }
 
   // ---- prompt_templates lookup (already seeded by seed.ts) ----
   const templateRows = await db
@@ -455,12 +527,13 @@ export async function seedDemo(): Promise<SeedDemoResult> {
       startedAt.getTime() + faker.number.int({ min: 1_000, max: 90_000 }),
     )
     // Insert a queue row first (acked, since the run is complete).
+    const claimingToken = pickByline()
     const [qRow] = await db
       .insert(queue)
       .values({
         targetId: t.id,
         enqueuedAt: startedAt,
-        claimedBy: demoAgentToken.id,
+        claimedBy: claimingToken,
         lockedUntil: completedAt,
         ackedAt: completedAt,
       })
@@ -473,7 +546,7 @@ export async function seedDemo(): Promise<SeedDemoResult> {
       .values({
         targetId: t.id,
         queueItemId: qRow.id,
-        agentTokenId: demoAgentToken.id,
+        agentTokenId: claimingToken,
         status,
         failureReason: status === 'failed' ? faker.hacker.phrase() : null,
         articlesCount: 0, // updated as articles attribute themselves
@@ -628,7 +701,7 @@ export async function seedDemo(): Promise<SeedDemoResult> {
       try {
         await db.insert(articles).values({
           targetId: plan.targetId,
-          agentTokenId: demoAgentToken.id,
+          agentTokenId: pickByline(),
           runLogId: plan.runLogId,
           sourceUrl: plan.sourceUrl,
           slug: slugFor(batchStart + j, plan),
@@ -718,7 +791,7 @@ export async function seedDemo(): Promise<SeedDemoResult> {
         name: `${name} ${i}`, // disambiguate
         articleId: a.id,
         targetId: a.targetId,
-        agentTokenId: demoAgentToken.id,
+        agentTokenId: pickByline(),
         count: faker.number.int({ min: 1, max: 8 }),
       })
       suggestionsInserted++
@@ -737,7 +810,7 @@ export async function seedDemo(): Promise<SeedDemoResult> {
     await db.insert(queue).values({
       targetId: t.id,
       enqueuedAt: faker.date.recent({ days: 1 }),
-      claimedBy: claimed ? demoAgentToken.id : null,
+      claimedBy: claimed ? pickByline() : null,
       lockedUntil: claimed ? faker.date.soon({ days: 1 }) : null,
       ackedAt: null,
     })
@@ -764,6 +837,119 @@ export async function seedDemo(): Promise<SeedDemoResult> {
   }
   console.log(`[seed-demo] cron_runs: inserted ${cronInserted}`)
 
+  // ---- Round 8 — Settings-layer extensions ----
+  //
+  // Everything below populates the various Settings panels so they look
+  // lived in. None of these touches affect the dashboard / article /
+  // creator surfaces; they're strictly for Settings → ... renderings.
+
+  // ---- prompt_templates: customized variants alongside starters ----
+  //
+  // The 7 canonical starter templates are owned by `seed.ts` (which runs
+  // before this seeder per entrypoint.sh). Here we add a handful of
+  // customized variants — distinct slugs so the unique-on-slug index
+  // doesn't fight us, ON CONFLICT DO NOTHING for idempotency in case
+  // someone is mid-experiment with the same slugs.
+  const customTemplateRows = buildCustomizedTemplates()
+  let customTemplatesInserted = 0
+  for (const t of customTemplateRows) {
+    const inserted = await db
+      .insert(promptTemplates)
+      .values({
+        slug: t.slug,
+        body: t.body,
+        crossSourceN: t.crossSourceN,
+      })
+      .onConflictDoNothing({ target: promptTemplates.slug })
+      .returning({ id: promptTemplates.id })
+    if (inserted.length > 0) customTemplatesInserted++
+  }
+  console.log(
+    `[seed-demo] prompt_templates (customized variants): inserted ${customTemplatesInserted}/${customTemplateRows.length}`,
+  )
+
+  // ---- settings singleton ----
+  //
+  // Pre-fill non-default toggles + a clearly-fake off-site-backup config
+  // so Settings → Off-site backup displays as "configured" without
+  // actually being able to ship a backup. The encryption helper requires
+  // IRON_SESSION_PASSWORD; if it's not set (e.g. someone ran the seeder
+  // standalone), we fall back to a raw placeholder byte string that the
+  // Off-site backup repo's `decryptCredentials` will return null for —
+  // the page still renders the remote name as configured.
+  const nonDefaults = chooseSettingsNonDefaults()
+  const offSiteBackupPlaceholder = buildOffSiteBackupPlaceholder()
+  let settingsInserted = 0
+  try {
+    await db
+      .insert(settings)
+      .values({
+        id: 1,
+        strictMode: nonDefaults.strictMode,
+        newArticleBadgeHours: nonDefaults.newArticleBadgeHours,
+        offSiteBackupRemote: DEMO_OFF_SITE_BACKUP_REMOTE,
+        offSiteBackupCredentialsEncrypted: offSiteBackupPlaceholder,
+      })
+      .onConflictDoNothing({ target: settings.id })
+    settingsInserted = 1
+  } catch (err) {
+    console.warn('[seed-demo] settings singleton insert failed', {
+      reason: err instanceof Error ? err.message : String(err),
+    })
+  }
+  console.log(
+    `[seed-demo] settings: inserted ${settingsInserted} (strict_mode=${nonDefaults.strictMode}, new_article_badge_hours=${nonDefaults.newArticleBadgeHours}, off_site_backup configured)`,
+  )
+
+  // ---- auth_events ----
+  //
+  // The schema's CHECK constraint allows: founding_claim, passkey_register,
+  // passkey_login, recovery_used, recovery_regenerated, admin_reset,
+  // failed_passkey_login, failed_founding_claim. Of those, only the two
+  // failure variants tolerate a null `admin_id`. We seed ONLY null-admin
+  // failure events here — the other kinds require a non-null admin_id, and
+  // we cannot seed an admin row without breaking the founding-claim flow
+  // (`countAdminsIsZero` in `packages/auth/src/found-core.ts` strictly
+  // requires the admins table to be empty before the first claim succeeds).
+  //
+  // The assignment doc anticipated this constraint and instructed: "If
+  // your schema reading reveals the claim flow checks differently and
+  // seeding a placeholder admin would break it: do NOT force it." That's
+  // exactly the case here — see PR body for the full discussion.
+  const authEventCount = faker.number.int({ min: 30, max: 60 })
+  let authEventsInserted = 0
+  for (let i = 0; i < authEventCount; i++) {
+    // Bias: ~80% failed_passkey_login, ~20% failed_founding_claim. Both
+    // schema-permitted with adminId=null; the latter happens during
+    // founding-token mismatches, the former during normal-life login
+    // failures.
+    const kind: 'failed_passkey_login' | 'failed_founding_claim' =
+      faker.number.float({ min: 0, max: 1 }) < 0.8
+        ? 'failed_passkey_login'
+        : 'failed_founding_claim'
+    const at = faker.date.recent({ days: 60 })
+    try {
+      await db.insert(authEvents).values({
+        adminId: null,
+        kind,
+        at,
+        details: {
+          ip: faker.internet.ipv4(),
+          userAgent: faker.internet.userAgent(),
+        },
+      })
+      authEventsInserted++
+    } catch (err) {
+      console.warn('[seed-demo] auth_events insert failed', {
+        kind,
+        reason: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+  console.log(
+    `[seed-demo] auth_events: inserted ${authEventsInserted} (admin_id=null failure events; non-null kinds skipped — see PR body)`,
+  )
+
   console.log('[seed-demo] demo seed complete.')
 
   return {
@@ -778,8 +964,68 @@ export async function seedDemo(): Promise<SeedDemoResult> {
       cronRuns: cronInserted,
       heroImagesStored: heroSuccess,
       heroImagesFailed: heroFailed,
+      agentTokens: 1 + extraTokenIds.length,
+      customizedTemplates: customTemplatesInserted,
+      settings: settingsInserted,
+      authEvents: authEventsInserted,
     },
   }
+}
+
+/**
+ * Build the ciphertext for the demo off-site-backup credentials field.
+ *
+ * Prefers the production AES-256-GCM helper (`encryptCredentials`) when
+ * `IRON_SESSION_PASSWORD` is available, so that Settings → Off-site
+ * backup decrypts the placeholder back to a clearly-fake DEMO string.
+ *
+ * Falls back to a raw "demo placeholder" byte string when the env var
+ * isn't set (e.g. someone runs the seeder standalone outside the web
+ * container). The fallback is too short to satisfy `decryptCredentials`'
+ * IV+tag length check, so the panel reads the remote name back as
+ * configured but the credentials blob displays as null — exactly the
+ * behaviour we want for a fake setup.
+ *
+ * The encryption helper lives in `apps/web/.../off-site-backup-repo` —
+ * importing it would cycle the workspace boundary (`@lucidindex/db`
+ * cannot depend on `@lucidindex/web`), so we re-implement the same
+ * algorithm here. Keeping it in lockstep with that module is documented
+ * as a known coupling: any change to the encryption envelope there must
+ * be mirrored here.
+ */
+function buildOffSiteBackupPlaceholder(): Uint8Array {
+  const password = process.env.IRON_SESSION_PASSWORD
+  if (!password || password.length < 32) {
+    // Fallback: raw bytes that won't decrypt. The Off-site backup repo's
+    // `decryptCredentials` returns null for payloads shorter than IV+tag
+    // (12 + 16 = 28 bytes), so this clearly-fake string will surface as
+    // "remote configured, credentials unavailable" — the right shape for
+    // a demo stack.
+    return new TextEncoder().encode(DEMO_OFF_SITE_BACKUP_CREDENTIALS_PLACEHOLDER)
+  }
+
+  // Real path: same envelope as `apps/web/.../off-site-backup-repo.ts`.
+  // Kept in lockstep with that module — any change to the AES-256-GCM
+  // envelope there must be mirrored here.
+  const HKDF_SALT = Buffer.from('lucidindex-off-site-backup-salt-v1', 'utf8')
+  const HKDF_INFO = Buffer.from('off-site-backup-key', 'utf8')
+  const IV_LENGTH = 12
+  const AES_KEY_LENGTH = 32
+
+  const key = Buffer.from(hkdfSync('sha256', password, HKDF_SALT, HKDF_INFO, AES_KEY_LENGTH))
+  // The IV is non-deterministic via randomBytes — fine because the
+  // placeholder is non-secret and the seeder runs once per fresh DB.
+  // The faker seed governs application-visible data; this seed is for
+  // an opaque encrypted blob whose round-trip plaintext is what tests
+  // would assert on, not the byte layout.
+  const iv = randomBytes(IV_LENGTH)
+  const cipher = createCipheriv('aes-256-gcm', key, iv)
+  const encrypted = Buffer.concat([
+    cipher.update(DEMO_OFF_SITE_BACKUP_CREDENTIALS_PLACEHOLDER, 'utf8'),
+    cipher.final(),
+  ])
+  const tag = cipher.getAuthTag()
+  return new Uint8Array(Buffer.concat([iv, tag, encrypted]))
 }
 
 // ----------------------- Direct-run entrypoint -----------------------
