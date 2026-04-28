@@ -16,6 +16,7 @@
     "db:generate": "pnpm --filter @lucidindex/db db:generate",
     "db:migrate": "pnpm --filter @lucidindex/db db:migrate",
     "db:seed": "pnpm --filter @lucidindex/db db:seed",
+    "db:seed-demo": "pnpm --filter @lucidindex/db db:seed-demo",
     "db:studio": "pnpm --filter @lucidindex/db db:studio",
     "compose:up": "docker compose up -d",
     "compose:down": "docker compose down",

@@ -190,6 +190,18 @@ The web container runs Drizzle migrations + the idempotent seed before binding p
 
 Concrete commands, env var list, and the admin CLI surface (`admin:reset`) get written into this section once the scaffold exists.
 
+### Demo data (`LUCIDINDEX_SEED_DEMO`)
+
+Set `LUCIDINDEX_SEED_DEMO=true` (or `1` / `yes`, case-insensitive) on the `web` service to populate an **empty** database with a large synthetic fixture for stress-testing — ~50–80 targets across all source types, 15–25 topic badges, **800–1200 articles** with realistic titles, summaries, and recency-weighted publish dates, plus pending topic-badge suggestions, queue items, run-log entries, and cron-run history. Hero images are fetched from `picsum.photos` and run through the **same production image-pipeline** (`@lucidindex/shared/image-pipeline`) that `mcp-store` uses for real agent writes — disk layout, content hashes, and WebP+JPEG outputs match exactly, so the dashboard's image route resolves seeded and real images identically.
+
+The seeder hooks into the web entrypoint **after migrations apply** and is **fully idempotent**: it skips silently if `targets` or `articles` already has any row, so it's safe to leave on across container restarts. To re-seed a fresh fixture, tear down the volume (`docker compose down -v`) and bring the stack back up.
+
+What it never seeds: `admins`, `credentials`, `recovery_codes`, `agent_tokens` (real ones — it inserts a single placeholder byline-only token), and `auth_events`. Those are governed by the founding-admin claim flow and the operator-issued token flow.
+
+For ad-hoc invocation outside Docker, `pnpm db:seed-demo` runs the same script against `DATABASE_URL` directly. Faker is seeded with a fixed RNG seed (`42`) so every run against the same env produces identical fixtures — useful for reproducing stress-test results.
+
+Default: `false`. Production deployments should leave this off.
+
 ---
 
 ## Contributing

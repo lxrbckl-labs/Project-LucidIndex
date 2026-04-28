@@ -103,6 +103,17 @@ COPY --from=builder /app/packages/db/migrations ./packages/db/migrations
 COPY --from=builder /app/packages/db/schema ./packages/db/schema
 COPY --from=builder /app/packages/db/dist ./packages/db/dist
 
+# @lucidindex/shared dist/ — needed by the demo seeder (LUCIDINDEX_SEED_DEMO)
+# at runtime. `pnpm deploy --prod` materialises @lucidindex/shared as a
+# workspace dep under packages/db/node_modules/@lucidindex/shared/ but only
+# copies the source files (per the package.json `source` exports condition);
+# Node's production resolver picks the `default` condition which points at
+# dist/, so without this COPY the runtime would fail with
+# ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING on the raw .ts files.
+# Mirrors the same pattern in apps/mcp-store/Dockerfile.
+COPY --from=builder /app/packages/shared/dist \
+    ./packages/db/node_modules/@lucidindex/shared/dist
+
 # Server-external runtime deps — `@node-rs/argon2` (native binding for
 # password hashing), `iron-session` (encrypted session cookie), `postgres`
 # (the postgres-js driver wrapped by Drizzle).
