@@ -61,8 +61,8 @@ COPY . .
 # (the unbuilt source uses `import { Liquid } from 'liquidjs'` which Next
 # can't follow through a workspace package whose dist/ doesn't exist yet).
 RUN pnpm --filter @lucidindex/templates build \
-    && pnpm --filter @lucidindex/db build \
-    && pnpm --filter @lucidindex/shared build
+    && pnpm --filter @lucidindex/shared build \
+    && pnpm --filter @lucidindex/db build
 
 # Build the Next.js app. `output: 'standalone'` is set in next.config.ts, so
 # the build produces `.next/standalone/` with server.js + trimmed node_modules.
