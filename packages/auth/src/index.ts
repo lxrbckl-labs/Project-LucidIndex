@@ -10,6 +10,7 @@ export {
   type CredentialSummary,
   getAdminCredentials,
 } from './account.js'
+export { DEV_BYPASS_ADMIN_ID, isDevAuthBypassActive } from './dev-bypass.js'
 export {
   type FinalizeFoundingSessionResult,
   type FinishFoundingEnrollmentInput,

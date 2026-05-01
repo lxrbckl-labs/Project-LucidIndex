@@ -70,6 +70,9 @@ services:
       # Founding-token guard (Phase 1, ticket #27) — empty default is intentional.
       # Admin must set a value on first deploy; app logic (Phase 1 #27) enforces this.
       LUCIDINDEX_FOUNDING_TOKEN: ${LUCIDINDEX_FOUNDING_TOKEN:-}
+      # Dev-only auth bypass. Default off; ONLY works when NODE_ENV != production.
+      # See apps/web/.env.example for the full description and production warning.
+      LUCIDINDEX_DEV_SKIP_AUTH: ${LUCIDINDEX_DEV_SKIP_AUTH:-false}
       # Demo-data seeder toggle. When `true` / `1` / `yes` (case-insensitive),
       # the entrypoint runs packages/db/seed-demo.ts after migrations to
       # populate an empty DB with ~1000 articles + 50–80 targets + supporting

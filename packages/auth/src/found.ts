@@ -38,6 +38,7 @@ import {
   verifyRegistrationResponse,
 } from '@simplewebauthn/server'
 import { eq } from 'drizzle-orm'
+import { isDevAuthBypassActive } from './dev-bypass.js'
 import {
   type FoundingPreCheck,
   type FoundingStore,
@@ -123,6 +124,11 @@ export function makeDrizzleFoundingStore(database: DrizzleHandle = db): Founding
 
 /** Public read for "should we render the founding form?". */
 export async function isFoundingFlowAvailable(): Promise<boolean> {
+  // When the dev bypass is active, skip the founding gate entirely —
+  // bypass mode synthesizes a valid session, so the admins table being
+  // empty is irrelevant and redirecting to /settings/found would break
+  // the developer experience.
+  if (isDevAuthBypassActive()) return false
   return isAdminsTableEmpty(makeDrizzleFoundingStore())
 }
 

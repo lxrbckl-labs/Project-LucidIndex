@@ -5,11 +5,13 @@
  *
  *   1. Public landing renders the LUCIDINDEX wordmark + the
  *      "Nothing has been filed yet." empty state.
- *   2. `/settings?token=<env>` lands on `/settings/found` and renders the
- *      founding form (the layout redirects from `/settings` to
- *      `/settings/found` when the `admins` table is empty).
- *   3. Submitting name + device + a virtual-authenticator passkey claims
+ *   2. `/settings/found` renders the token-input gate. User pastes the
+ *      founding token and clicks "Continue" to reach the passkey form.
+ *      (The settings layout redirects from `/settings` to `/settings/found`
+ *      when the `admins` table is empty.)
+ *   3. Submitting name + a virtual-authenticator passkey claims
  *      the founding admin and shows the one-time recovery code.
+ *      (Device label is auto-defaulted to "Founding device" — no UI input.)
  *   4. Subsequent visits to `/settings` from a fresh browser context
  *      (no session cookie) get gated to `/settings/login`, NOT
  *      `/settings/found` — confirms the `admins` table is non-empty and
@@ -60,17 +62,23 @@ test('founding-admin smoke: empty state -> claim -> recovery code -> /settings i
   const claim = await claimCtx.newPage()
   const auth = await setupVirtualAuthenticator(claim)
 
-  // The settings layout redirects `/settings?token=...` to `/settings/found`
-  // when the admins table is empty — follow the redirect by hitting the
-  // canonical URL with the token preserved.
-  await claim.goto(`/settings/found?token=${encodeURIComponent(FOUNDING_TOKEN)}`)
+  // Navigate to the founding page — no token in the URL.
+  // The settings layout redirects `/settings` to `/settings/found` when
+  // the admins table is empty; we go directly to the canonical URL.
+  await claim.goto('/settings/found')
   await expect(claim).toHaveURL(/\/settings\/found/)
   await expect(claim.getByRole('heading', { name: /claim founding admin/i })).toBeVisible()
 
-  // Fill the form (name + device label) and submit. The data-testid
-  // anchors are stable contracts in the FoundingAdminForm component.
+  // Stage A — enter the founding token to unlock the passkey form.
+  await claim.getByTestId('founding-token-input').fill(FOUNDING_TOKEN)
+  await claim.getByTestId('founding-token-submit').click()
+
+  // Wait for Stage B — the claim form should now be visible.
+  await expect(claim.getByTestId('founding-name')).toBeVisible()
+
+  // Fill the form (name only — device label is auto-defaulted) and submit.
+  // The data-testid anchors are stable contracts in the FoundingAdminForm component.
   await claim.getByTestId('founding-name').fill('Phase1 Acceptance')
-  await claim.getByTestId('founding-device').fill('e2e Virtual Authenticator')
   await claim.getByTestId('founding-submit').click()
 
   // The recovery-code modal is shown once, BEFORE the session is minted.

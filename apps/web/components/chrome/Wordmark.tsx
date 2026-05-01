@@ -19,7 +19,13 @@
  * Pure server component — semantically an `<h1>` so the page has a
  * single, well-formed top-level heading regardless of whether the
  * empty state or the masonry renders below.
+ *
+ * The inner <Link href="/"> makes the wordmark a home-navigation anchor.
+ * The h1 accessible name is derived from its text content (the link text),
+ * so getByRole('heading', { name: 'LUCIDINDEX' }) still resolves correctly.
  */
+
+import Link from 'next/link'
 
 type Props = {
   /**
@@ -38,7 +44,9 @@ export function Wordmark({ className }: Props = {}) {
       className={`font-display ${sizeClass} font-black leading-none tracking-tight text-ink uppercase w-full text-center`}
       style={{ letterSpacing: '-0.02em' }}
     >
-      LUCIDINDEX
+      <Link href="/" className="block hover:opacity-80 transition-opacity">
+        LUCIDINDEX
+      </Link>
     </h1>
   )
 }

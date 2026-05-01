@@ -26,6 +26,7 @@
 
 import { getIronSession, type IronSession, type SessionOptions } from 'iron-session'
 import { cookies } from 'next/headers'
+import { DEV_BYPASS_ADMIN_ID, isDevAuthBypassActive } from './dev-bypass.js'
 
 export const SESSION_COOKIE_NAME = 'li-session'
 const THIRTY_DAYS_SECONDS = 30 * 24 * 60 * 60
@@ -87,6 +88,11 @@ export async function getSession(): Promise<IronSession<SessionData>> {
  * we don't bake it in here.
  */
 export async function requireAdmin(): Promise<IronSession<SessionData> | null> {
+  if (isDevAuthBypassActive()) {
+    // Return a synthetic session object that satisfies the IronSession<SessionData>
+    // shape well enough for all consumers (they only read .adminId).
+    return { adminId: DEV_BYPASS_ADMIN_ID } as unknown as IronSession<SessionData>
+  }
   const session = await getSession()
   if (!session.adminId) return null
   return session

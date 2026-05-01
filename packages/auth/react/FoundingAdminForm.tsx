@@ -7,8 +7,10 @@
  * (`src/app/(admin)/admin/login/FoundingAdminForm.tsx`), adapted for
  * single-admin LucidIndex:
  *   - No email field. LucidIndex admins have only a `name`.
- *   - Adds a `deviceLabel` field (defaults to "MacBook" / "iPhone" etc.)
- *     because LucidIndex tracks per-credential device labels.
+ *   - No `deviceLabel` input field — the device label is auto-defaulted to
+ *     `'Founding device'` and passed to the server actions transparently.
+ *     The server-side API and prop types for `startEnrollment` /
+ *     `finishEnrollment` are unchanged; only the UI input is removed.
  *   - Server actions are passed in as props (see `LoginForm.tsx` for
  *     the same rationale).
  *   - Recovery-code modal is rendered inline (no shared `RecoveryCodeModal`
@@ -81,7 +83,6 @@ export function FoundingAdminForm(props: FoundingAdminFormProps) {
     className,
   } = props
   const [name, setName] = useState('')
-  const [deviceLabel, setDeviceLabel] = useState('')
   const [stage, setStage] = useState<Stage>('idle')
   const [error, setError] = useState<string | null>(null)
   const [recoveryCode, setRecoveryCode] = useState<string | null>(null)
@@ -91,13 +92,14 @@ export function FoundingAdminForm(props: FoundingAdminFormProps) {
     e.preventDefault()
     if (stage !== 'idle') return
     setError(null)
-    if (!name.trim() || !deviceLabel.trim()) {
+    if (!name.trim()) {
       setError(GENERIC_FAILURE)
       return
     }
     setStage('working')
 
-    const start = await startEnrollment({ deviceLabel: deviceLabel.trim() })
+    const DEFAULT_DEVICE_LABEL = 'Founding device'
+    const start = await startEnrollment({ deviceLabel: DEFAULT_DEVICE_LABEL })
     if (!start.ok) {
       setError(GENERIC_FAILURE)
       setStage('idle')
@@ -109,7 +111,7 @@ export function FoundingAdminForm(props: FoundingAdminFormProps) {
       const finish = await finishEnrollment({
         challengeToken: start.challengeToken,
         name: name.trim(),
-        deviceLabel: deviceLabel.trim(),
+        deviceLabel: DEFAULT_DEVICE_LABEL,
         attestation,
       })
       if (!finish.ok) {
@@ -165,21 +167,6 @@ export function FoundingAdminForm(props: FoundingAdminFormProps) {
             disabled={stage !== 'idle'}
             data-testid="founding-name"
             placeholder="Alex"
-          />
-        </label>
-
-        <label>
-          <span>This device</span>
-          <input
-            type="text"
-            name="deviceLabel"
-            required
-            maxLength={100}
-            value={deviceLabel}
-            onChange={(e) => setDeviceLabel(e.currentTarget.value)}
-            disabled={stage !== 'idle'}
-            data-testid="founding-device"
-            placeholder="MacBook TouchID"
           />
         </label>
 
