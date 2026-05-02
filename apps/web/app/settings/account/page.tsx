@@ -12,6 +12,7 @@
 
 import { getAdminCredentials, requireAdmin } from '@lucidindex/auth'
 import { redirect } from 'next/navigation'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { RegenerateRecoveryCode } from './_components/RegenerateRecoveryCode'
 import { RegisterPasskeyForm } from './_components/RegisterPasskeyForm'
 
@@ -35,68 +36,60 @@ export default async function AccountPanelPage() {
   const creds = await getAdminCredentials(session.adminId as string)
 
   return (
-    <div className="max-w-[640px]">
+    <div className="max-w-[640px] flex flex-col gap-6">
       {/* Page header */}
-      <p className="text-xs uppercase tracking-wide text-neutral-400 mb-2">Phase 2</p>
-      <h1
-        className="text-[clamp(2rem,5vw,3.5rem)] font-black tracking-tight leading-none text-black uppercase"
-        style={{ fontStretch: 'condensed', letterSpacing: '-0.02em' }}
-      >
-        Account
-      </h1>
-      <div className="mt-6 mb-10 h-px w-full bg-neutral-200" />
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Account</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Manage your passkeys and recovery code.
+        </p>
+      </div>
 
       {/* ── Section 1: Registered passkeys ── */}
-      <section aria-labelledby="passkeys-heading" className="mb-10">
-        <h2 id="passkeys-heading" className="text-base font-semibold text-black mb-4">
-          Registered passkeys
-        </h2>
-
-        {creds.length === 0 ? (
-          <p className="text-sm text-neutral-500">No passkeys registered yet.</p>
-        ) : (
-          <ul
-            className="divide-y divide-neutral-100 border-t border-neutral-100"
-            data-testid="passkey-list"
-          >
-            {creds.map((cred) => (
-              <li
-                key={cred.id}
-                className="flex items-center justify-between py-3 gap-4"
-                data-testid="passkey-item"
-              >
-                <span className="text-sm font-medium text-black truncate">{cred.deviceLabel}</span>
-                <span className="text-xs text-neutral-400 shrink-0">
-                  {formatDate(cred.createdAt)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <div className="mb-10 h-px w-full bg-neutral-100" />
+      <Card>
+        <CardHeader>
+          <CardTitle>Registered passkeys</CardTitle>
+          <CardDescription>Passkeys enrolled on this LucidIndex instance.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {creds.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No passkeys registered yet.</p>
+          ) : (
+            <ul
+              className="divide-y divide-border border-t border-border"
+              data-testid="passkey-list"
+            >
+              {creds.map((cred) => (
+                <li
+                  key={cred.id}
+                  className="flex items-center justify-between py-3 gap-4"
+                  data-testid="passkey-item"
+                >
+                  <span className="text-sm font-medium text-foreground truncate">
+                    {cred.deviceLabel}
+                  </span>
+                  <span className="text-xs text-muted-foreground shrink-0">
+                    {formatDate(cred.createdAt)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       {/* ── Section 2: Register another passkey ── */}
-      <section aria-labelledby="register-passkey-heading" className="mb-10">
-        <h2 id="register-passkey-heading" className="text-base font-semibold text-black mb-1">
-          Register another passkey
-        </h2>
-        <p className="text-sm text-neutral-500 mb-4">
-          Add a passkey from another device so you can sign in from multiple places.
-        </p>
-        <RegisterPasskeyForm />
-      </section>
-
-      <div className="mb-10 h-px w-full bg-neutral-100" />
+      <RegisterPasskeyForm />
 
       {/* ── Section 3: Recovery code ── */}
-      <section aria-labelledby="recovery-heading" className="mb-10">
-        <h2 id="recovery-heading" className="text-base font-semibold text-black mb-1">
-          Recovery code
-        </h2>
-        <RegenerateRecoveryCode />
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Recovery code</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RegenerateRecoveryCode />
+        </CardContent>
+      </Card>
     </div>
   )
 }

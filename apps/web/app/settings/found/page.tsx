@@ -11,6 +11,8 @@
  * No URL query params are read or required.
  */
 
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Separator } from '@/components/ui/separator'
 import { foundingTokenIsConfigured } from '../../../lib/founding-token'
 import { FoundingPanel } from './FoundingPanel'
 
@@ -19,20 +21,19 @@ export default async function FoundPage() {
   if (!foundingTokenIsConfigured()) {
     return (
       <div>
-        <h1
-          className="text-[clamp(2.5rem,7vw,4.5rem)] font-black tracking-tight leading-none text-black uppercase"
-          style={{ fontStretch: 'condensed', letterSpacing: '-0.02em' }}
-        >
+        <h1 className="font-display text-5xl font-black tracking-tight leading-none text-foreground uppercase">
           Founding admin
         </h1>
-        <div className="mt-6 mb-10 h-px w-full bg-neutral-200" />
-        <p className="text-base text-neutral-600 leading-relaxed">
-          Founding-admin enrollment is disabled. Set{' '}
-          <code className="text-sm font-mono bg-neutral-100 px-1 py-0.5 rounded">
-            LUCIDINDEX_FOUNDING_TOKEN
-          </code>{' '}
-          in your environment and reload.
-        </p>
+        <Separator className="mt-6 mb-10" />
+        <Alert variant="default" className="max-w-prose">
+          <AlertDescription>
+            Founding-admin enrollment is disabled. Set{' '}
+            <code className="text-sm font-mono bg-muted px-1 py-0.5 rounded">
+              LUCIDINDEX_FOUNDING_TOKEN
+            </code>{' '}
+            in your environment and reload.
+          </AlertDescription>
+        </Alert>
       </div>
     )
   }
@@ -42,17 +43,17 @@ export default async function FoundPage() {
   return (
     <div>
       <h1
-        className="text-[clamp(2.5rem,7vw,4.5rem)] font-black tracking-tight leading-none text-black uppercase"
-        style={{ fontStretch: 'condensed', letterSpacing: '-0.02em' }}
+        className="font-display text-5xl font-black tracking-tight leading-none text-foreground uppercase"
+        data-testid="founding-page-heading"
       >
         Claim founding admin
       </h1>
-      <div className="mt-6 mb-10 h-px w-full bg-neutral-200" />
-      <p className="text-base text-neutral-600 leading-relaxed mb-2">
+      <Separator className="mt-6 mb-10" />
+      <p className="text-base text-muted-foreground leading-relaxed mb-2">
         No admin has been registered yet. Enroll a passkey on this device to take ownership of this
         LucidIndex.
       </p>
-      <p className="text-sm text-neutral-500 leading-relaxed mb-8">
+      <p className="text-sm text-muted-foreground leading-relaxed mb-8">
         You'll be shown a one-time recovery code on the next screen — save it before continuing.
       </p>
       <FoundingPanel />

@@ -1,15 +1,26 @@
 'use client'
 
 /**
- * "Regenerate recovery code" client component.
+ * "Regenerate recovery code" client component — shadcn/ui rebuild (Phase 1).
  *
  * Fires a POST to /api/settings/account/recovery-code, then displays the
- * plaintext code ONCE with a "Copy to clipboard" affordance and a clear
- * "Save this now" warning. After the user navigates away the code is gone
- * from the UI forever (the server only returns it on the generate call).
+ * plaintext code ONCE in a shadcn Dialog with a "Copy to clipboard"
+ * affordance and a clear "Save this now" warning. After the user dismisses,
+ * the code is gone from the UI forever.
  */
 
 import { useState } from 'react'
+
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 type Stage = 'idle' | 'working' | 'showing'
 
@@ -51,7 +62,7 @@ export function RegenerateRecoveryCode() {
       await navigator.clipboard.writeText(code)
       setCopied(true)
     } catch {
-      // Clipboard API unavailable (non-HTTPS, old browser) — silently no-op.
+      // Clipboard API unavailable — silently no-op.
     }
   }
 
@@ -63,71 +74,71 @@ export function RegenerateRecoveryCode() {
 
   return (
     <div className="flex flex-col gap-4" data-testid="regenerate-recovery-code">
-      <p className="text-sm text-neutral-600 leading-relaxed max-w-prose">
+      <p className="text-sm text-muted-foreground leading-relaxed max-w-prose">
         If you lose all your passkeys, the recovery code is the only path back. Generate a new code
         if you suspect the old one is compromised.{' '}
-        <strong className="text-black">
+        <strong className="text-foreground">
           Each regeneration immediately burns the previous code.
         </strong>
       </p>
 
-      {stage !== 'showing' && (
-        <button
-          type="button"
-          onClick={handleRegenerate}
-          disabled={stage === 'working'}
-          className="self-start px-4 py-2 text-sm font-medium border border-neutral-300 rounded hover:border-black hover:text-black text-neutral-700 disabled:opacity-50"
-          data-testid="regenerate-recovery-button"
-        >
-          {stage === 'working' ? 'Generating…' : 'Regenerate recovery code'}
-        </button>
-      )}
+      <Button
+        type="button"
+        variant="outline"
+        onClick={handleRegenerate}
+        disabled={stage === 'working'}
+        className="self-start"
+        data-testid="regenerate-recovery-button"
+      >
+        {stage === 'working' ? 'Generating…' : 'Regenerate recovery code'}
+      </Button>
 
       {error && (
-        <p role="alert" className="text-sm text-red-600" data-testid="regenerate-recovery-error">
-          {error}
-        </p>
+        <Alert variant="destructive" data-testid="regenerate-recovery-error">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
-      {stage === 'showing' && code && (
-        <div
-          role="alert"
-          className="border border-amber-400 bg-amber-50 rounded p-4 flex flex-col gap-3"
+      {/* Recovery code dialog — one-time display */}
+      <Dialog open={stage === 'showing' && !!code} onOpenChange={() => {}}>
+        <DialogContent
           data-testid="recovery-code-display"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
         >
-          <p className="text-sm font-semibold text-amber-900">
-            Save this recovery code now — it will not be shown again.
-          </p>
-          <p className="text-xs text-amber-800 leading-relaxed">
-            Store it somewhere safe and offline: a password manager, printed paper, or an encrypted
-            note. Once you dismiss this panel, there is no way to retrieve this code.
-          </p>
+          <DialogHeader>
+            <DialogTitle>Save your recovery code</DialogTitle>
+            <DialogDescription>
+              This code will not be shown again. Store it somewhere safe — a password manager,
+              printed paper, or an encrypted note.
+            </DialogDescription>
+          </DialogHeader>
+
           <div className="flex items-center gap-3">
             <code
-              className="flex-1 font-mono text-lg tracking-[0.15em] text-black bg-white border border-neutral-200 rounded px-3 py-2 select-all"
+              className="flex-1 font-mono text-lg tracking-[0.15em] rounded-md bg-muted px-3 py-2 select-all"
               data-testid="recovery-code-value"
             >
               {code}
             </code>
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={handleCopy}
-              className="px-3 py-2 text-sm font-medium border border-neutral-300 rounded hover:border-black text-neutral-700 shrink-0"
               data-testid="recovery-code-copy"
             >
               {copied ? 'Copied!' : 'Copy'}
-            </button>
+            </Button>
           </div>
-          <button
-            type="button"
-            onClick={handleDismiss}
-            className="self-start px-4 py-2 text-sm font-medium bg-black text-white rounded hover:opacity-80"
-            data-testid="recovery-code-dismiss"
-          >
-            I've saved it — dismiss
-          </button>
-        </div>
-      )}
+
+          <DialogFooter>
+            <Button type="button" onClick={handleDismiss} data-testid="recovery-code-dismiss">
+              I've saved it — dismiss
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
