@@ -12,5 +12,11 @@
  * single LiquidJS dependency for the workspace.
  */
 
-export { STARTER_TEMPLATES, type Starter } from './starters.js'
+export {
+  AGENT_OPINION_INSTRUCTION,
+  appendOpinionInstruction,
+  hasOpinionInstruction,
+  STARTER_TEMPLATES,
+  type Starter,
+} from './starters.js'
 export { validateLiquidSyntax } from './validate.js'

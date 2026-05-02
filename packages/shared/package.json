@@ -15,6 +15,10 @@
     "./article-view": {
       "source": "./src/article-view.ts",
       "default": "./dist/article-view.js"
+    },
+    "./article-density": {
+      "source": "./src/article-density.ts",
+      "default": "./dist/article-density.js"
     }
   },
   "typesVersions": {
@@ -27,6 +31,9 @@
       ],
       "article-view": [
         "./dist/article-view.d.ts"
+      ],
+      "article-density": [
+        "./dist/article-density.d.ts"
       ]
     }
   },

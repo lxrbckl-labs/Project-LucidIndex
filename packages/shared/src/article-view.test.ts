@@ -106,6 +106,7 @@ describe('mapArticleRowToCard', () => {
     creatorSlug: 'web-graphics-lab',
     reasonablenessRating: 8,
     crossSource: [{ title: 'X', source_url: 'https://x/y' }],
+    citations: [],
     sourceUrl: 'https://example.com/a',
     createdAt: new Date('2026-04-24T13:00:00Z'),
   }

@@ -31,6 +31,30 @@ export type Starter = {
   cross_source_n: number
 }
 
+/**
+ * The opinion instruction appended to every prompt template body.
+ * Contains a stable marker so idempotent re-runs can detect and skip
+ * already-patched bodies.
+ */
+export const AGENT_OPINION_INSTRUCTION =
+  "\n\n**Opinion (required):** After your analysis, include your own subjective take on this source in the `agent_opinion` field of your response. Be specific — flag what's strong, weak, or worth pushback. 1–3 sentences.\n<!-- AGENT_OPINION_INSTRUCTION -->"
+
+/**
+ * Returns true when a template body already contains the opinion instruction.
+ */
+export function hasOpinionInstruction(body: string): boolean {
+  return body.includes('<!-- AGENT_OPINION_INSTRUCTION -->')
+}
+
+/**
+ * Append the opinion instruction to a body string if not already present.
+ * Idempotent — safe to call multiple times.
+ */
+export function appendOpinionInstruction(body: string): string {
+  if (hasOpinionInstruction(body)) return body
+  return body + AGENT_OPINION_INSTRUCTION
+}
+
 const youtubeBody = `You are watching {{ creator_name }}'s YouTube channel at {{ target_url }}.
 
 Pull the most recent uploads. The high_water_mark for this target is:
@@ -220,11 +244,11 @@ Cadence: {{ cadence }}. Stop once every new piece past the high_water_mark
 is filed.`
 
 export const STARTER_TEMPLATES: ReadonlyArray<Starter> = [
-  { slug: 'youtube', body: youtubeBody, cross_source_n: 3 },
-  { slug: 'blog', body: blogBody, cross_source_n: 3 },
-  { slug: 'newsletter', body: newsletterBody, cross_source_n: 3 },
-  { slug: 'news', body: newsBody, cross_source_n: 3 },
-  { slug: 'instagram', body: instagramBody, cross_source_n: 3 },
-  { slug: 'x', body: xBody, cross_source_n: 3 },
-  { slug: 'website', body: websiteBody, cross_source_n: 3 },
+  { slug: 'youtube', body: youtubeBody + AGENT_OPINION_INSTRUCTION, cross_source_n: 3 },
+  { slug: 'blog', body: blogBody + AGENT_OPINION_INSTRUCTION, cross_source_n: 3 },
+  { slug: 'newsletter', body: newsletterBody + AGENT_OPINION_INSTRUCTION, cross_source_n: 3 },
+  { slug: 'news', body: newsBody + AGENT_OPINION_INSTRUCTION, cross_source_n: 3 },
+  { slug: 'instagram', body: instagramBody + AGENT_OPINION_INSTRUCTION, cross_source_n: 3 },
+  { slug: 'x', body: xBody + AGENT_OPINION_INSTRUCTION, cross_source_n: 3 },
+  { slug: 'website', body: websiteBody + AGENT_OPINION_INSTRUCTION, cross_source_n: 3 },
 ]

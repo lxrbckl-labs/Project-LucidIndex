@@ -64,6 +64,19 @@ export type ArticleCrossSourceEntry = {
 }
 
 /**
+ * One external citation attached to an article. Mirrors `ArticleCitation`
+ * from `@lucidindex/db/schema` but lives here (in the shared package) so
+ * view-layer code and tests can import it without pulling in the DB client.
+ */
+export type ArticleCitationView = {
+  url: string
+  title: string
+  source_name: string
+  accessed_at?: string
+  image_url?: string | null
+}
+
+/**
  * Dashboard / creator-page card shape — matches `MockArticle` for the
  * fields `ArticleMasonry` reads, so the masonry doesn't need to branch
  * on backing-store. `creatorLabel` / `creatorSlug` are optional because
@@ -87,6 +100,7 @@ export type ArticleCardView = {
   readMinutes: number
   reasonablenessRating: number | null
   crossSource: ArticleCrossSourceEntry[]
+  citations: ArticleCitationView[]
   sourceUrl: string
   /**
    * Agent-insertion timestamp — `articles.created_at`. Drives the "NEW"
@@ -120,6 +134,7 @@ export type ArticleCardRow = {
   creatorSlug: string | null
   reasonablenessRating: number | null
   crossSource: unknown
+  citations: unknown
   sourceUrl: string
   createdAt: Date
 }
@@ -156,6 +171,36 @@ export function decodeCrossSource(raw: unknown): ArticleCrossSourceEntry[] {
         title: e.title,
         source_url: e.source_url,
         ...(typeof e.publisher === 'string' ? { publisher: e.publisher } : {}),
+      })
+    }
+  }
+  return out
+}
+
+/**
+ * Decode the jsonb `citations` column into a typed array. Mirrors
+ * `decodeCrossSource` — defensive narrowing, keeps only entries with the
+ * required `url`, `title`, and `source_name` strings.
+ */
+export function decodeCitations(raw: unknown): ArticleCitationView[] {
+  if (!Array.isArray(raw)) return []
+  const out: ArticleCitationView[] = []
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object') continue
+    const e = entry as Record<string, unknown>
+    if (
+      typeof e.url === 'string' &&
+      typeof e.title === 'string' &&
+      typeof e.source_name === 'string'
+    ) {
+      out.push({
+        url: e.url,
+        title: e.title,
+        source_name: e.source_name,
+        ...(typeof e.accessed_at === 'string' ? { accessed_at: e.accessed_at } : {}),
+        ...(typeof e.image_url === 'string' || e.image_url === null
+          ? { image_url: e.image_url as string | null }
+          : {}),
       })
     }
   }
@@ -219,6 +264,7 @@ export function mapArticleRowToCard(row: ArticleCardRow): ArticleCardView {
     readMinutes: estimateCardReadMinutes(row.summary),
     reasonablenessRating: row.reasonablenessRating,
     crossSource: decodeCrossSource(row.crossSource),
+    citations: decodeCitations(row.citations),
     sourceUrl: row.sourceUrl,
     createdAt: row.createdAt,
   }
