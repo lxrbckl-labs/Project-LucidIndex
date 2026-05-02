@@ -35,6 +35,14 @@ export type ArticleCrossSource = {
   publisher?: string
 }
 
+export type ArticleCitation = {
+  url: string
+  title: string
+  source_name: string
+  accessed_at?: string
+  image_url?: string | null
+}
+
 /**
  * The minimum-shape view model the article page renders against. Bigger
  * than the dashboard's `MockArticle` because the page surfaces fields
@@ -62,15 +70,24 @@ export type ArticleViewModel = {
   creatorSlug: string | null
   reasonablenessRating: number | null
   crossSource: ArticleCrossSource[]
+  citations: ArticleCitation[]
   starred: boolean
   read: boolean
   sourceUrl: string
+  /** Agent's subjective take on the analysed source. Null until the agent produces one. */
+  agentOpinion: string | null
   /**
    * Agent-insertion timestamp — drives the "NEW" badge (#79). Always
    * populated: real-DB rows surface `articles.created_at`; mock rows
    * synthesize one from `insertedAtOffsetHours`.
    */
   createdAt: Date
+  /**
+   * Original source publication date (`articles.source_published_at`).
+   * Null when the source didn't surface a date. Displayed on the detail
+   * page as supplementary "Originally published" metadata.
+   */
+  sourcePublishedAt: Date | null
 }
 
 /**
@@ -115,10 +132,13 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
       creatorSlug: mock.creatorSlug ?? null,
       reasonablenessRating: mock.reasonablenessRating,
       crossSource: mock.crossSource,
+      citations: [],
       starred: mock.starred ?? false,
       read: mock.read ?? false,
+      agentOpinion: null,
       sourceUrl: mock.sourceUrl,
       createdAt: getMockCreatedAt(mock),
+      sourcePublishedAt: mock.publishedAt ? new Date(mock.publishedAt) : null,
     }
   }
 
@@ -140,8 +160,10 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
       creatorSlug: targets.slug,
       reasonablenessRating: articles.reasonablenessRating,
       crossSource: articles.crossSource,
+      citations: articles.citations,
       starred: articles.starred,
       read: articles.read,
+      agentOpinion: articles.agentOpinion,
       hidden: articles.hidden,
       sourceUrl: articles.sourceUrl,
       createdAt: articles.createdAt,
@@ -175,6 +197,28 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
     }
   }
 
+  const citationsRaw = Array.isArray(row.citations) ? row.citations : []
+  const citations: ArticleCitation[] = []
+  for (const entry of citationsRaw) {
+    if (!entry || typeof entry !== 'object') continue
+    const e = entry as Record<string, unknown>
+    if (
+      typeof e.url === 'string' &&
+      typeof e.title === 'string' &&
+      typeof e.source_name === 'string'
+    ) {
+      citations.push({
+        url: e.url,
+        title: e.title,
+        source_name: e.source_name,
+        ...(typeof e.accessed_at === 'string' ? { accessed_at: e.accessed_at } : {}),
+        ...(typeof e.image_url === 'string' || e.image_url === null
+          ? { image_url: e.image_url as string | null }
+          : {}),
+      })
+    }
+  }
+
   return {
     id: row.id,
     slug: row.slug,
@@ -191,10 +235,13 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
     creatorSlug: row.creatorSlug ?? null,
     reasonablenessRating: row.reasonablenessRating ?? null,
     crossSource,
+    citations,
     starred: row.starred,
     read: row.read,
+    agentOpinion: row.agentOpinion ?? null,
     sourceUrl: row.sourceUrl,
     createdAt: row.createdAt,
+    sourcePublishedAt: row.sourcePublishedAt ?? null,
   }
 }
 

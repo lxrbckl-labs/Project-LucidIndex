@@ -3,8 +3,11 @@
 /**
  * EscapeToBack — global Esc handler that calls `router.back()` (#84).
  *
- * Mounted on the article page. When the user presses Esc, navigates
- * back in browser history. Combined with the dashboard's
+ * Phase 5 rebuild: shadcn `<Button variant="ghost" size="sm">` with lucide
+ * `<ChevronLeft>` and "Back" label. Keyboard shortcut (Escape) preserved.
+ *
+ * Mounted on the article page and creator page. When the user presses Esc,
+ * navigates back in browser history. Combined with the dashboard's
  * MasonryKeyboardNav this completes the keyboard contract:
  *
  *   - On the dashboard: Arrow keys move focus across tiles, Enter opens
@@ -19,8 +22,10 @@
  * against future changes.)
  */
 
+import { ChevronLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
+import { Button } from '@/components/ui/button'
 
 export function EscapeToBack() {
   const router = useRouter()
@@ -45,5 +50,10 @@ export function EscapeToBack() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [router])
 
-  return null
+  return (
+    <Button type="button" variant="ghost" size="sm" onClick={() => router.back()} className="gap-1">
+      <ChevronLeft aria-hidden="true" />
+      Back
+    </Button>
+  )
 }

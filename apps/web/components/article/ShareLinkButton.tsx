@@ -3,9 +3,11 @@
 /**
  * ShareLinkButton — polished clipboard copy of the absolute article URL (#68).
  *
- * Replaces the #66 skeleton. Full UX:
- *   - Hairline border, magazine vibe (not a colored CTA).
- *   - "Copy link" → click → copies + shows "Copied!" affordance for ~1.5s.
+ * Phase 5 rebuild: shadcn `<Button variant="outline">` with lucide `<Share2>`
+ * icon and "Share" text label. Preserves clipboard copy + "Copied!" affordance.
+ *
+ * Full UX:
+ *   - "Share" → click → copies + shows "Copied!" affordance for ~1.5s.
  *   - Textarea fallback for non-secure contexts / older browsers that
  *     lack the Clipboard API.
  *   - Accepts an optional `url` prop so the dashboard tile can pass
@@ -14,7 +16,9 @@
  *     `window.location.href` (the article-page usage).
  */
 
+import { Share2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
 
 type Props = {
   /** Explicit URL to copy. Falls back to `window.location.href` when omitted. */
@@ -68,15 +72,9 @@ export function ShareLinkButton({ url }: Props) {
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      // Phase 8 #83 — tap-friendly min height (44×44 WCAG target).
-      className="inline-flex min-h-[44px] items-center gap-2 border border-[var(--color-card-border)] bg-paper px-4 py-2 text-[var(--text-meta)] uppercase tracking-[0.08em] text-ink transition-colors duration-150 hover:border-ink"
-      style={{ borderRadius: 'var(--radius-pill)' }}
-      data-testid="article-share"
-    >
-      <span>{copied ? 'Copied!' : 'Copy link'}</span>
-    </button>
+    <Button type="button" variant="outline" onClick={handleClick} data-testid="article-share">
+      <Share2 aria-hidden="true" />
+      {copied ? 'Copied!' : 'Share'}
+    </Button>
   )
 }

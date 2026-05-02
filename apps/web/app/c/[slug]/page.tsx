@@ -1,6 +1,8 @@
 /**
  * Creator page — `/c/<slug>` (#71).
  *
+ * Phase 5 rebuild on shadcn primitives with neutral defaults.
+ *
  * Renders a scoped view of all articles from a single creator (target).
  * Public by design — same as the article page, no auth gate. The creator
  * slug is derived lazily from `target.label + target.created_at` via
@@ -9,16 +11,17 @@
  * Anatomy (top to bottom):
  *
  *   Page chrome:
- *     - <TopNav>    ← same as dashboard / article page
- *     - <Wordmark>  ← LUCIDINDEX wordmark
+ *     - <TopNav>       ← same as dashboard / article page
+ *     - Back button    ← <EscapeToBack> (shadcn ghost Button + ChevronLeft)
+ *     - <Wordmark>     ← LUCIDINDEX wordmark
  *     - hairline rule
  *
- *   Creator subheader:
- *     - Creator label (e.g. "Web Graphics Lab") — display sans, bold
+ *   Creator header — shadcn <Card>:
+ *     - Creator label (display sans, bold)
  *     - Creator handle / URL — muted body
- *     - Article count — pill badge
+ *     - Article count — shadcn <Badge variant="secondary">
  *
- *   Below the subheader:
+ *   Below the header:
  *     - <ArticleMasonry> with articles scoped to this creator
  *     - OR an editorial empty state when no articles exist yet
  *
@@ -45,8 +48,11 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { findMockArticlesByCreatorSlug, findMockCreatorBySlug } from '@/app/_mock/articles'
 import { ArticleMasonry } from '@/components/article/ArticleMasonry'
+import { EscapeToBack } from '@/components/article/EscapeToBack'
 import { TopNav } from '@/components/chrome/TopNav'
 import { Wordmark } from '@/components/chrome/Wordmark'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { loadCreatorArticles, loadCreatorBySlug } from './loader'
 
 // DB-backed (loadCreatorBySlug, loadCreatorArticles) — never statically
@@ -144,37 +150,39 @@ function CreatorPageLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="min-h-screen bg-paper">
+    <div className="min-h-screen bg-background">
       <TopNav />
 
-      <main className="px-6 pt-12 pb-24 md:px-18">
-        <div className="py-6 md:py-10">
+      {/* Back link — EscapeToBack (shadcn ghost Button + keyboard Esc). */}
+      <div className="px-4 pt-4 sm:px-6 md:px-18">
+        <EscapeToBack />
+      </div>
+
+      <main className="px-6 pt-4 pb-24 md:px-18">
+        <div className="py-4 md:py-8">
           <Wordmark />
         </div>
 
         {/* Hairline rule — editorial separator. */}
-        <div className="mt-6 mb-12 h-px w-full bg-[var(--color-card-border)]" />
+        <div className="mt-6 mb-10 h-px w-full bg-border" />
 
-        {/* Creator subheader — label + handle + count. */}
-        <header className="mb-10 flex flex-wrap items-baseline justify-between gap-4">
-          <div>
-            <h2
-              className="font-display text-[length:var(--text-display-md)] font-bold uppercase tracking-tight text-ink"
-              style={{ letterSpacing: '-0.01em' }}
-            >
-              {label}
-            </h2>
-            <p className="mt-2 text-[length:var(--text-body-sm)] text-[var(--color-muted-700)]">
-              {handle}
-            </p>
-          </div>
-          <span
-            className="inline-flex items-center border border-[var(--color-card-border)] px-4 py-1 text-[var(--text-meta)] uppercase tracking-[0.08em] text-[var(--color-muted-700)]"
-            style={{ borderRadius: 'var(--radius-pill)' }}
-          >
-            {articleCount} {articleCount === 1 ? 'article' : 'articles'}
-          </span>
-        </header>
+        {/* Creator header — shadcn <Card> with label, handle, article count. */}
+        <Card className="mb-10">
+          <CardHeader className="pb-3">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <CardTitle className="font-display text-2xl font-bold uppercase tracking-tight text-foreground">
+                  {label}
+                </CardTitle>
+                <p className="mt-2 text-sm text-muted-foreground">{handle}</p>
+              </div>
+              <Badge variant="secondary" className="shrink-0">
+                {articleCount} {articleCount === 1 ? 'article' : 'articles'}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0" />
+        </Card>
 
         {/* Article content — masonry or empty state. */}
         {children}
@@ -190,13 +198,10 @@ function CreatorPageLayout({
 function CreatorEmptyState({ label }: { label: string }) {
   return (
     <div className="flex flex-col items-center py-24 text-center">
-      <p
-        className="font-display text-[length:var(--text-display-md)] font-bold uppercase tracking-tight text-ink"
-        style={{ letterSpacing: '-0.01em' }}
-      >
+      <p className="font-display text-2xl font-bold uppercase tracking-tight text-foreground">
         Nothing from {label} yet.
       </p>
-      <p className="mt-6 max-w-[480px] text-[length:var(--text-body)] leading-relaxed text-[var(--color-muted-700)]">
+      <p className="mt-6 max-w-[480px] text-base leading-relaxed text-muted-foreground">
         Your agents haven't filed any articles from this creator. Check back once a run completes.
       </p>
     </div>
