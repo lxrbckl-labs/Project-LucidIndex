@@ -1,32 +1,25 @@
-/**
- * SearchInput — top-nav search affordance (#73).
- *
- * Sits in the right-side cluster of the TopNav, before the Settings /
- * Account links. Hairline magazine vibe — no rounded corners, no fill,
- * just a thin underline that thickens on focus. Same uppercase tracking
- * as the rest of the nav so it reads as part of the same row.
- *
- * Behavior:
- *   - Submitting the form (Enter) navigates to `/search?q=<term>`.
- *   - The input is debounced (~300ms) and pushes the same URL when the
- *     user stops typing — instant-search-via-navigation. We deliberately
- *     don't render in-line dropdown suggestions for v0.1; the spec
- *     defers that to a follow-up. The search route is fast enough that
- *     navigating-on-debounce reads as "live".
- *   - Empty query is a no-op — we never navigate to `/search?q=` with
- *     an empty term; the user is left where they are.
- *   - When already on `/search`, typing replaces the URL (no history
- *     spam) and preserves the `include_archived` flag if present.
- *
- * Client component — owns the debounce timer + the controlled input
- * state. The route renders against `searchParams` server-side so we
- * don't need a separate "submit" path beyond the URL push.
- */
-
 'use client'
 
+/**
+ * SearchInput — top-nav search affordance (Phase 3 rebuild on shadcn).
+ *
+ * Visual: shadcn `Input` with a leading lucide `Search` icon positioned
+ * absolutely inside the input wrapper (standard shadcn pattern). The
+ * input gains left padding so text doesn't overlap the icon.
+ *
+ * All functional behaviour is preserved verbatim:
+ *   - Submitting (Enter) navigates to /search?q=<term>.
+ *   - 300 ms debounce pushes the URL while the user types.
+ *   - Empty query is a no-op.
+ *   - On /search, URL replacement (no history spam) + include_archived
+ *     flag is preserved on debounce.
+ *   - Input rehydrates from ?q= so back-nav restores the value.
+ */
+
+import { Search } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Input } from '@/components/ui/input'
 
 const DEBOUNCE_MS = 300
 
@@ -36,15 +29,13 @@ export function SearchInput() {
   const searchParams = useSearchParams()
 
   // Initial value comes from `?q=…` so the input rehydrates to whatever
-  // the user typed in the URL — important on `/search` page reloads.
+  // the user typed in the URL — important on /search page reloads.
   const [value, setValue] = useState(() => searchParams.get('q') ?? '')
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Keep the input in sync if the user navigates server-side and the
   // URL's `?q=` changes from underneath us (e.g. clicking a saved link).
-  // This effect mirrors `?q=` → state when the user is currently on the
-  // search page; on other pages, the input is the source of truth.
   useEffect(() => {
     if (pathname === '/search') {
       const fromUrl = searchParams.get('q') ?? ''
@@ -55,17 +46,15 @@ export function SearchInput() {
   const navigateToSearch = useCallback(
     (raw: string) => {
       const trimmed = raw.trim()
-      if (!trimmed) return // never navigate with an empty query
+      if (!trimmed) return
 
       const params = new URLSearchParams()
       params.set('q', trimmed)
-      // Preserve the `include_archived` flag when typing on /search.
       if (pathname === '/search') {
         const archived = searchParams.get('include_archived')
         if (archived) params.set('include_archived', archived)
       }
       const url = `/search?${params.toString()}`
-      // On /search we replace so debounced typing doesn't pollute history.
       if (pathname === '/search') {
         router.replace(url)
       } else {
@@ -90,9 +79,6 @@ export function SearchInput() {
     navigateToSearch(value)
   }
 
-  // Clean up the pending timer on unmount so a stale debounced push
-  // can't fire after the component is gone (rare in practice, but
-  // strict-mode dev would otherwise warn).
   useEffect(
     () => () => {
       if (timerRef.current) clearTimeout(timerRef.current)
@@ -102,27 +88,21 @@ export function SearchInput() {
 
   return (
     <search aria-label="Site search">
-      <form onSubmit={handleSubmit} className="flex items-center">
-        <label htmlFor="topnav-search" className="sr-only">
-          Search articles
-        </label>
-        <input
-          id="topnav-search"
-          type="search"
-          name="q"
-          value={value}
-          onChange={(e) => handleChange(e.target.value)}
-          placeholder="Search"
-          autoComplete="off"
-          // Phase 8 #85 — focus state. The hairline-bottom underline
-          // already thickens to ink on focus (replacing the rounded
-          // blue browser default). We deliberately suppress the global
-          // :focus-visible outline here because the underline IS the
-          // focus indicator on this element — a 1px outline above a
-          // 1px underline reads as visual noise. The thickened underline
-          // alone meets WCAG 2.4.7 (focus visible).
-          className="w-32 border-b border-[var(--color-card-border)] bg-transparent px-1 py-1 text-[var(--text-meta)] uppercase tracking-[0.12em] text-ink placeholder:text-[var(--color-muted-500)] focus:border-ink focus:outline-none focus-visible:outline-none md:w-44"
-        />
+      <form onSubmit={handleSubmit} data-testid="topnav-search-form">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <Input
+            id="topnav-search"
+            type="search"
+            name="q"
+            value={value}
+            onChange={(e) => handleChange(e.target.value)}
+            placeholder="Search"
+            autoComplete="off"
+            data-testid="topnav-search-input"
+            className="w-32 pl-8 md:w-44 h-9"
+          />
+        </div>
       </form>
     </search>
   )
