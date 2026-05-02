@@ -1,18 +1,27 @@
 'use client'
 
 /**
- * Shared create / edit form for a Target.
+ * Shared create/edit form for a Target — rebuilt on shadcn (Phase 2).
  *
- * Same fields, same submit semantics — the only difference is whether we
- * POST to the collection endpoint (create) or PATCH the single-resource
- * endpoint (edit). The page wrapper picks the mode and redirects on success.
- *
- * Validation is mirrored on the server (`targets-repo.ts`); we only echo
- * field-level errors that come back in the JSON response.
+ * Same fields, same submit semantics. The only difference is POST (create)
+ * vs PATCH (edit). Validation echoes field-level errors from the JSON response.
  */
 
 import { useRouter } from 'next/navigation'
 import { type FormEvent, useState } from 'react'
+import { toast } from 'sonner'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import type { CadencePreset } from '../_lib/targets-repo'
 
 export type TargetFormInitial = {
@@ -25,12 +34,10 @@ export type TargetFormInitial = {
 
 export type TargetFormProps = {
   mode: 'create' | 'edit'
-  /** Existing target id — required when mode === 'edit'. */
   targetId?: string
   initial: TargetFormInitial
   cadencePresets: ReadonlyArray<CadencePreset>
   promptTemplates: ReadonlyArray<{ id: string; slug: string }>
-  /** When false, the form is disabled and a notice is shown above it. */
   promptTemplatesAvailable: boolean
 }
 
@@ -43,7 +50,7 @@ export function TargetForm(props: TargetFormProps) {
 
   const [label, setLabel] = useState(initial.label)
   const [urlOrHandle, setUrlOrHandle] = useState(initial.urlOrHandle)
-  const [cadence, setCadence] = useState(initial.cadence || cadencePresets[0])
+  const [cadence, setCadence] = useState(initial.cadence || cadencePresets[0] || '')
   const [promptTemplateId, setPromptTemplateId] = useState(
     initial.promptTemplateId || promptTemplates[0]?.id || '',
   )
@@ -80,6 +87,7 @@ export function TargetForm(props: TargetFormProps) {
         return
       }
 
+      toast.success(mode === 'create' ? 'Target created.' : 'Target updated.')
       router.push('/settings/targets')
       router.refresh()
     } catch {
@@ -91,18 +99,22 @@ export function TargetForm(props: TargetFormProps) {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-6 max-w-[560px]">
-      {!promptTemplatesAvailable ? (
-        <div className="border border-amber-500 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Create a prompt template first in{' '}
-          <a className="underline" href="/settings/templates">
-            Settings &rarr; Templates
-          </a>
-          .
-        </div>
-      ) : null}
+      {!promptTemplatesAvailable && (
+        <Alert>
+          <AlertDescription>
+            Create a prompt template first in{' '}
+            <a className="underline" href="/settings/templates">
+              Settings &rarr; Templates
+            </a>
+            .
+          </AlertDescription>
+        </Alert>
+      )}
 
-      <Field label="Label" error={errors.label} htmlFor="label">
-        <input
+      {/* Label */}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="label">Label</Label>
+        <Input
           id="label"
           name="label"
           type="text"
@@ -111,12 +123,14 @@ export function TargetForm(props: TargetFormProps) {
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           disabled={!promptTemplatesAvailable || submitting}
-          className="w-full border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
         />
-      </Field>
+        {errors.label && <span className="text-xs text-destructive">{errors.label}</span>}
+      </div>
 
-      <Field label="URL or handle" error={errors.urlOrHandle} htmlFor="urlOrHandle">
-        <input
+      {/* URL or handle */}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="urlOrHandle">URL or handle</Label>
+        <Input
           id="urlOrHandle"
           name="urlOrHandle"
           type="text"
@@ -125,110 +139,98 @@ export function TargetForm(props: TargetFormProps) {
           value={urlOrHandle}
           onChange={(e) => setUrlOrHandle(e.target.value)}
           disabled={!promptTemplatesAvailable || submitting}
-          className="w-full border border-neutral-300 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-black"
+          className="font-mono"
           placeholder="https://example.com/feed.xml or @handle"
         />
-      </Field>
+        {errors.urlOrHandle && (
+          <span className="text-xs text-destructive">{errors.urlOrHandle}</span>
+        )}
+      </div>
 
-      <Field label="Cadence" error={errors.cadence} htmlFor="cadence">
-        <select
-          id="cadence"
-          name="cadence"
+      {/* Cadence */}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="cadence">Cadence</Label>
+        <Select
           value={cadence}
-          onChange={(e) => setCadence(e.target.value)}
+          onValueChange={setCadence}
           disabled={!promptTemplatesAvailable || submitting}
-          className="w-full border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
         >
-          {cadencePresets.map((preset) => (
-            <option key={preset} value={preset}>
-              {preset}
-            </option>
-          ))}
-        </select>
-      </Field>
+          <SelectTrigger id="cadence">
+            <SelectValue placeholder="Select cadence" />
+          </SelectTrigger>
+          <SelectContent>
+            {cadencePresets.map((preset) => (
+              <SelectItem key={preset} value={preset}>
+                {preset}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {errors.cadence && <span className="text-xs text-destructive">{errors.cadence}</span>}
+      </div>
 
-      <Field label="Prompt template" error={errors.promptTemplateId} htmlFor="promptTemplateId">
-        <select
-          id="promptTemplateId"
-          name="promptTemplateId"
+      {/* Prompt template */}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="promptTemplateId">Prompt template</Label>
+        <Select
           value={promptTemplateId}
-          onChange={(e) => setPromptTemplateId(e.target.value)}
+          onValueChange={setPromptTemplateId}
           disabled={!promptTemplatesAvailable || submitting}
-          className="w-full border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
         >
-          {promptTemplates.length === 0 ? (
-            <option value="" disabled>
-              No prompt templates available
-            </option>
-          ) : (
-            promptTemplates.map((tpl) => (
-              <option key={tpl.id} value={tpl.id}>
-                {tpl.slug}
-              </option>
-            ))
-          )}
-        </select>
-      </Field>
+          <SelectTrigger id="promptTemplateId">
+            <SelectValue placeholder="Select template" />
+          </SelectTrigger>
+          <SelectContent>
+            {promptTemplates.length === 0 ? (
+              <SelectItem value="" disabled>
+                No prompt templates available
+              </SelectItem>
+            ) : (
+              promptTemplates.map((tpl) => (
+                <SelectItem key={tpl.id} value={tpl.id}>
+                  {tpl.slug}
+                </SelectItem>
+              ))
+            )}
+          </SelectContent>
+        </Select>
+        {errors.promptTemplateId && (
+          <span className="text-xs text-destructive">{errors.promptTemplateId}</span>
+        )}
+      </div>
 
-      <label className="inline-flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
+      {/* Active */}
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id="active"
           checked={active}
-          onChange={(e) => setActive(e.target.checked)}
+          onCheckedChange={(val) => setActive(!!val)}
           disabled={!promptTemplatesAvailable || submitting}
-          className="border border-neutral-300"
         />
-        <span>Active (the cron sidecar will pick this up; uncheck to pause)</span>
-      </label>
+        <Label htmlFor="active" className="font-normal cursor-pointer">
+          Active (the cron sidecar will pick this up; uncheck to pause)
+        </Label>
+      </div>
 
-      {errors._form ? (
-        <div className="text-sm text-red-600" role="alert">
+      {errors._form && (
+        <p className="text-sm text-destructive" role="alert">
           {errors._form}
-        </div>
-      ) : null}
+        </p>
+      )}
 
       <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={!promptTemplatesAvailable || submitting}
-          className="bg-black text-white text-sm font-semibold px-5 py-2 hover:opacity-80 disabled:opacity-40"
-        >
-          {submitting ? 'Saving...' : mode === 'create' ? 'Create target' : 'Save changes'}
-        </button>
-        <button
+        <Button type="submit" disabled={!promptTemplatesAvailable || submitting}>
+          {submitting ? 'Saving…' : mode === 'create' ? 'Create target' : 'Save changes'}
+        </Button>
+        <Button
           type="button"
+          variant="outline"
           onClick={() => router.push('/settings/targets')}
           disabled={submitting}
-          className="text-sm font-semibold underline hover:opacity-70 disabled:opacity-40"
         >
           Cancel
-        </button>
+        </Button>
       </div>
     </form>
-  )
-}
-
-function Field({
-  label,
-  error,
-  htmlFor,
-  children,
-}: {
-  label: string
-  error?: string
-  htmlFor: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <label
-        htmlFor={htmlFor}
-        className="text-xs uppercase tracking-wide text-neutral-500 font-semibold"
-      >
-        {label}
-      </label>
-      {children}
-      {error ? <span className="text-xs text-red-600">{error}</span> : null}
-    </div>
   )
 }

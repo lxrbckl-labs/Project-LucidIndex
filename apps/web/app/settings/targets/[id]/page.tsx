@@ -1,15 +1,11 @@
 /**
- * Settings → Targets → Edit (RSC).
- *
- * Loads the existing target + prompt-template options server-side, then
- * renders the same `<TargetForm>` in `mode="edit"`. 404s if the id doesn't
- * exist. Cron-managed fields (next_due_at, last_run_*) are shown as a
- * read-only side panel underneath the form — they're owned by the Phase 4
- * cron sidecar / Phase 3 mcp-store.
+ * Settings → Targets → Edit (RSC) — rebuilt on shadcn (Phase 2).
  */
 
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TargetForm } from '../_components/TargetForm'
 import {
   CADENCE_PRESETS,
@@ -31,22 +27,14 @@ export default async function EditTargetPage({ params }: { params: Promise<{ id:
   if (!target) notFound()
 
   return (
-    <div className="max-w-[640px]">
-      <p className="text-xs uppercase tracking-wide text-neutral-400 mb-2">Phase 2</p>
-      <h1
-        className="text-[clamp(2rem,5vw,3.5rem)] font-black tracking-tight leading-none text-black uppercase"
-        style={{ fontStretch: 'condensed', letterSpacing: '-0.02em' }}
-      >
-        Edit target
-      </h1>
-      <div className="mt-6 mb-8 h-px w-full bg-neutral-200" />
+    <div className="max-w-[640px] flex flex-col gap-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Edit target</h1>
+      </div>
 
-      <Link
-        href="/settings/targets"
-        className="text-xs uppercase tracking-wide text-neutral-500 hover:text-black mb-6 inline-block"
-      >
-        &larr; Back to targets
-      </Link>
+      <Button variant="ghost" size="sm" asChild className="self-start -ml-2">
+        <Link href="/settings/targets">&larr; Back to targets</Link>
+      </Button>
 
       <TargetForm
         mode="edit"
@@ -63,32 +51,38 @@ export default async function EditTargetPage({ params }: { params: Promise<{ id:
         promptTemplatesAvailable={templatesAvailable}
       />
 
-      <div className="mt-12 pt-8 border-t border-neutral-200">
-        <h2 className="text-xs uppercase tracking-wide text-neutral-500 font-semibold mb-3">
-          Cron-managed (read-only)
-        </h2>
-        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-          <ReadOnlyRow label="Next due">
-            {target.nextDueAt.toISOString().replace('T', ' ').slice(0, 19)}
-          </ReadOnlyRow>
-          <ReadOnlyRow label="Last run">
-            {target.lastRunAt ? target.lastRunAt.toISOString().replace('T', ' ').slice(0, 19) : '—'}
-          </ReadOnlyRow>
-          <ReadOnlyRow label="Last status">{target.lastRunStatus ?? '—'}</ReadOnlyRow>
-          <ReadOnlyRow label="Last failure reason">
-            {target.lastRunFailureReason ?? '—'}
-          </ReadOnlyRow>
-          <ReadOnlyRow label="Created">
-            {target.createdAt.toISOString().replace('T', ' ').slice(0, 19)}
-          </ReadOnlyRow>
-          <ReadOnlyRow label="Updated">
-            {target.updatedAt.toISOString().replace('T', ' ').slice(0, 19)}
-          </ReadOnlyRow>
-        </dl>
-        <p className="text-xs text-neutral-500 mt-3">
-          These fields are written by the cron sidecar (Phase 4) and the agent runtime (Phase 3).
-        </p>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm uppercase tracking-wide text-muted-foreground font-semibold">
+            Cron-managed (read-only)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+            <ReadOnlyRow label="Next due">
+              {target.nextDueAt.toISOString().replace('T', ' ').slice(0, 19)}
+            </ReadOnlyRow>
+            <ReadOnlyRow label="Last run">
+              {target.lastRunAt
+                ? target.lastRunAt.toISOString().replace('T', ' ').slice(0, 19)
+                : '—'}
+            </ReadOnlyRow>
+            <ReadOnlyRow label="Last status">{target.lastRunStatus ?? '—'}</ReadOnlyRow>
+            <ReadOnlyRow label="Last failure reason">
+              {target.lastRunFailureReason ?? '—'}
+            </ReadOnlyRow>
+            <ReadOnlyRow label="Created">
+              {target.createdAt.toISOString().replace('T', ' ').slice(0, 19)}
+            </ReadOnlyRow>
+            <ReadOnlyRow label="Updated">
+              {target.updatedAt.toISOString().replace('T', ' ').slice(0, 19)}
+            </ReadOnlyRow>
+          </dl>
+          <p className="text-xs text-muted-foreground mt-3">
+            These fields are written by the cron sidecar (Phase 4) and the agent runtime (Phase 3).
+          </p>
+        </CardContent>
+      </Card>
     </div>
   )
 }
@@ -96,8 +90,8 @@ export default async function EditTargetPage({ params }: { params: Promise<{ id:
 function ReadOnlyRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <>
-      <dt className="text-neutral-500">{label}</dt>
-      <dd className="font-mono text-xs text-neutral-800 break-all">{children}</dd>
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="font-mono text-xs break-all">{children}</dd>
     </>
   )
 }

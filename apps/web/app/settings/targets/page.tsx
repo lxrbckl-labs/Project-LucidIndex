@@ -1,20 +1,25 @@
 /**
- * Settings → Targets list view (RSC).
- *
- * Pulls the full target list directly from the DB (server-side) and renders
- * a simple table with the human-supplied fields plus the cron-managed
- * `last_run_*` columns when present.
- *
- * Functional-only styling — Phase 5 (#56) layers the Visual Identity on top
- * of every Settings panel in one pass. Sticking to plain Tailwind that
- * matches the rest of the Phase 1 settings shell.
- *
- * The Pause / Resume button is a tiny client component (`PauseResumeButton`)
- * because it has to fire a `fetch()` and refresh the route. Everything else
- * on this page is server-rendered.
+ * Settings → Targets list view (RSC) — rebuilt on shadcn (Phase 2).
  */
 
 import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { PauseResumeButton } from './_components/PauseResumeButton'
 import { listTargets, type TargetRow } from './_lib/targets-repo'
 
@@ -24,129 +29,121 @@ export default async function TargetsPanelPage() {
   const targets = await listTargets()
 
   return (
-    <div className="max-w-[960px]">
-      <p className="text-xs uppercase tracking-wide text-neutral-400 mb-2">Phase 2</p>
-      <div className="flex items-baseline justify-between gap-4">
-        <h1
-          className="text-[clamp(2rem,5vw,3.5rem)] font-black tracking-tight leading-none text-black uppercase"
-          style={{ fontStretch: 'condensed', letterSpacing: '-0.02em' }}
-        >
-          Targets
-        </h1>
-        <Link
-          href="/settings/targets/new"
-          className="shrink-0 inline-block bg-black text-white text-sm font-semibold px-4 py-2 hover:opacity-80"
-        >
-          New target
-        </Link>
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Targets</h1>
+          <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+            Sources LucidIndex crawls. Cadence and the prompt template are read by the cron sidecar
+            (Phase 4) — paused targets are skipped.
+          </p>
+        </div>
+        <Button asChild>
+          <Link href="/settings/targets/new">New target</Link>
+        </Button>
       </div>
-      <div className="mt-6 mb-8 h-px w-full bg-neutral-200" />
-      <p className="text-sm text-neutral-600 leading-relaxed mb-8">
-        Sources LucidIndex crawls. Cadence and the prompt template are read by the cron sidecar
-        (Phase 4) — paused targets are skipped.
-      </p>
 
-      {targets.length === 0 ? <EmptyState /> : <TargetsTable rows={targets} />}
+      {targets.length === 0 ? (
+        <Card className="border-dashed">
+          <CardHeader className="text-center">
+            <CardTitle>No targets yet</CardTitle>
+          </CardHeader>
+          <CardContent className="pb-4 text-center">
+            <p className="text-sm text-muted-foreground">Add a source to start filing articles.</p>
+          </CardContent>
+          <CardFooter className="justify-center pb-8">
+            <Button asChild>
+              <Link href="/settings/targets/new">Add your first target</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Configured targets</CardTitle>
+            <CardDescription>
+              {targets.length} target{targets.length === 1 ? '' : 's'} configured.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Label</TableHead>
+                  <TableHead>URL / handle</TableHead>
+                  <TableHead>Cadence</TableHead>
+                  <TableHead>Template</TableHead>
+                  <TableHead>Active</TableHead>
+                  <TableHead>Last run</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {targets.map((row) => (
+                  <TargetTableRow key={row.id} row={row} />
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
 
-function EmptyState() {
+function TargetTableRow({ row }: { row: TargetRow }) {
   return (
-    <div className="border border-dashed border-neutral-300 px-6 py-12 text-center">
-      <p className="text-sm text-neutral-600 mb-4">No targets yet.</p>
-      <Link
-        href="/settings/targets/new"
-        className="inline-block bg-black text-white text-sm font-semibold px-4 py-2 hover:opacity-80"
-      >
-        Add your first target
-      </Link>
-    </div>
-  )
-}
-
-function TargetsTable({ rows }: { rows: TargetRow[] }) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm border-collapse">
-        <thead>
-          <tr className="border-b border-neutral-300 text-left">
-            <Th>Label</Th>
-            <Th>URL / handle</Th>
-            <Th>Cadence</Th>
-            <Th>Template</Th>
-            <Th>Active</Th>
-            <Th>Last run</Th>
-            <Th className="text-right">Actions</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.id} className="border-b border-neutral-200 align-top">
-              <Td className="font-semibold">{row.label}</Td>
-              <Td className="font-mono text-xs text-neutral-700 max-w-[260px]">
-                <span className="block truncate" title={row.urlOrHandle}>
-                  {row.urlOrHandle}
-                </span>
-              </Td>
-              <Td>{row.cadence}</Td>
-              <Td className="font-mono text-xs">{row.promptTemplateSlug ?? '—'}</Td>
-              <Td>
-                <span
-                  className={`inline-block w-2 h-2 rounded-full mr-2 align-middle ${
-                    row.active ? 'bg-emerald-500' : 'bg-neutral-300'
-                  }`}
-                  aria-hidden="true"
-                />
-                <span className="align-middle">{row.active ? 'Active' : 'Paused'}</span>
-              </Td>
-              <Td>
-                <LastRunCell row={row} />
-              </Td>
-              <Td className="text-right whitespace-nowrap">
-                <Link
-                  href={`/settings/targets/${row.id}`}
-                  className="text-sm font-semibold underline hover:opacity-70 mr-4"
-                >
-                  Edit
-                </Link>
-                <PauseResumeButton id={row.id} active={row.active} />
-              </Td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <TableRow>
+      <TableCell className="font-semibold">{row.label}</TableCell>
+      <TableCell className="font-mono text-xs text-muted-foreground max-w-[260px]">
+        <span className="block truncate" title={row.urlOrHandle}>
+          {row.urlOrHandle}
+        </span>
+      </TableCell>
+      <TableCell>{row.cadence}</TableCell>
+      <TableCell className="font-mono text-xs">{row.promptTemplateSlug ?? '—'}</TableCell>
+      <TableCell>
+        <span className="inline-flex items-center gap-1.5 text-xs">
+          <span
+            className={`inline-block w-2 h-2 rounded-full ${
+              row.active ? 'bg-emerald-500' : 'bg-muted-foreground/30'
+            }`}
+            aria-hidden="true"
+          />
+          {row.active ? 'Active' : 'Paused'}
+        </span>
+      </TableCell>
+      <TableCell>
+        <LastRunCell row={row} />
+      </TableCell>
+      <TableCell className="text-right whitespace-nowrap">
+        <Button variant="ghost" size="sm" asChild className="mr-2">
+          <Link href={`/settings/targets/${row.id}`}>Edit</Link>
+        </Button>
+        <PauseResumeButton id={row.id} active={row.active} />
+      </TableCell>
+    </TableRow>
   )
 }
 
 function LastRunCell({ row }: { row: TargetRow }) {
-  if (!row.lastRunAt) return <span className="text-neutral-400">—</span>
+  if (!row.lastRunAt) return <span className="text-muted-foreground">—</span>
   const status = row.lastRunStatus ?? 'unknown'
   const when = row.lastRunAt.toISOString().replace('T', ' ').slice(0, 16)
   return (
     <div className="text-xs">
       <div>{when}</div>
-      <div className={status === 'failed' ? 'text-red-600' : 'text-neutral-600'}>{status}</div>
+      <div className={status === 'failed' ? 'text-destructive' : 'text-muted-foreground'}>
+        {status}
+      </div>
       {row.lastRunFailureReason ? (
-        <div className="text-neutral-500 truncate max-w-[200px]" title={row.lastRunFailureReason}>
+        <div
+          className="text-muted-foreground truncate max-w-[200px]"
+          title={row.lastRunFailureReason}
+        >
           {row.lastRunFailureReason}
         </div>
       ) : null}
     </div>
   )
-}
-
-function Th({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return (
-    <th
-      className={`px-3 py-2 text-xs uppercase tracking-wide text-neutral-500 font-semibold ${className}`}
-    >
-      {children}
-    </th>
-  )
-}
-
-function Td({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-3 py-3 ${className}`}>{children}</td>
 }

@@ -1,18 +1,12 @@
 /**
  * Settings → Off-site backup (Phase 2, #37)
- *
- * Config-only form for the rclone remote that receives nightly DB dumps.
- * No rclone execution — that lands in Phase 7 (#76).
- *
- * Page structure:
- *   1. Status panel (read-only) — last shipment timestamp + status from
- *      `cron_runs` WHERE job = 'off_site_backup'. Will always show "No
- *      shipments yet" until Phase 7 ships.
- *   2. Config form — remote name + credentials blob (AES-256-GCM at rest).
+ * Rebuilt on shadcn primitives: Card + Alert for security note.
  */
 
 import { requireAdmin } from '@lucidindex/auth'
 import { redirect } from 'next/navigation'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { OffSiteBackupForm } from './_components/OffSiteBackupForm'
 import { getLastShipmentStatus, getOffSiteBackupConfig } from './_lib/off-site-backup-repo'
 
@@ -28,7 +22,6 @@ export default async function OffSiteBackupPanelPage() {
     redirect('/settings/login')
   }
 
-  // Load current config + last cron run in parallel.
   const [config, shipmentStatus] = await Promise.all([
     getOffSiteBackupConfig(),
     getLastShipmentStatus(),
@@ -37,62 +30,63 @@ export default async function OffSiteBackupPanelPage() {
   const lastRun = shipmentStatus.lastRun
 
   return (
-    <div className="max-w-[640px]">
-      {/* Page header */}
-      <p className="text-xs uppercase tracking-wide text-neutral-400 mb-2">Phase 2</p>
-      <h1
-        className="text-[clamp(2rem,5vw,3.5rem)] font-black tracking-tight leading-none text-black uppercase"
-        style={{ fontStretch: 'condensed', letterSpacing: '-0.02em' }}
-      >
-        Off-site backup
-      </h1>
-      <div className="mt-6 mb-10 h-px w-full bg-neutral-200" />
+    <div className="max-w-[640px] flex flex-col gap-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Off-site backup</h1>
+        <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+          Configure the rclone remote that receives nightly DB dumps.
+        </p>
+      </div>
 
       {/* ── Section 1: Status panel ── */}
-      <section aria-labelledby="shipment-status-heading" className="mb-10">
-        <h2 id="shipment-status-heading" className="text-base font-semibold text-black mb-3">
-          Last shipment
-        </h2>
-        <div
-          className="border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm"
-          data-testid="shipment-status-panel"
-        >
+      <Card>
+        <CardHeader>
+          <CardTitle>Last shipment</CardTitle>
+          <CardDescription>Most recent off-site backup run status.</CardDescription>
+        </CardHeader>
+        <CardContent data-testid="shipment-status-panel">
           {lastRun ? (
-            <p>
+            <p className="text-sm">
               <span className="font-medium">{formatTimestamp(lastRun.startedAt)}</span>
               {' — '}
               <span
-                className={lastRun.status === 'succeeded' ? 'text-emerald-700' : 'text-red-600'}
+                className={lastRun.status === 'succeeded' ? 'text-emerald-700' : 'text-destructive'}
               >
                 {lastRun.status}
               </span>
             </p>
           ) : (
-            <p className="text-neutral-500">
+            <p className="text-sm text-muted-foreground">
               No shipments yet — Phase 7 (#76) wires the nightly rclone cron job.
             </p>
           )}
-        </div>
-      </section>
-
-      <div className="mb-10 h-px w-full bg-neutral-100" />
+        </CardContent>
+      </Card>
 
       {/* ── Section 2: Config form ── */}
-      <section aria-labelledby="config-heading" className="mb-10">
-        <h2 id="config-heading" className="text-base font-semibold text-black mb-1">
-          rclone remote configuration
-        </h2>
-        <p className="text-sm text-neutral-500 mb-6">
-          Enter the rclone remote name and credentials block. The credentials are encrypted at rest
-          (AES-256-GCM). Supported remotes: Backblaze B2, AWS S3 (or compatible), Tailscale-attached
-          NAS — anything rclone supports.
-        </p>
+      <Card>
+        <CardHeader>
+          <CardTitle>rclone remote configuration</CardTitle>
+          <CardDescription>
+            Enter the rclone remote name and credentials block. Supported remotes: Backblaze B2, AWS
+            S3 (or compatible), Tailscale-attached NAS — anything rclone supports.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <Alert>
+            <AlertTitle>Credentials encrypted at rest</AlertTitle>
+            <AlertDescription>
+              The credentials blob is encrypted with AES-256-GCM, key derived from your session
+              secret via HKDF. It is never logged or transmitted in plaintext.
+            </AlertDescription>
+          </Alert>
 
-        <OffSiteBackupForm
-          initialRemoteName={config.remoteName ?? ''}
-          initialCredentialsBlob={config.credentialsBlob ?? ''}
-        />
-      </section>
+          <OffSiteBackupForm
+            initialRemoteName={config.remoteName ?? ''}
+            initialCredentialsBlob={config.credentialsBlob ?? ''}
+          />
+        </CardContent>
+      </Card>
     </div>
   )
 }

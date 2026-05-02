@@ -1,16 +1,25 @@
 /**
- * Settings → Templates list view (RSC).
- *
- * Pulls every prompt template directly from the DB (server-side) and
- * renders a table with slug, cross_source_n, body excerpt, and updated_at.
- * Edit button hands off to `/settings/templates/[id]`.
- *
- * Functional-only styling — Phase 5 (#56) layers the Visual Identity on top
- * of every Settings panel in one pass. Sticking to plain Tailwind that
- * matches the rest of the Phase 1/2 settings shell.
+ * Settings → Templates list view (RSC) — rebuilt on shadcn (Phase 2).
  */
 
 import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { listTemplates, type TemplateRow } from './_lib/templates-repo'
 
 export const dynamic = 'force-dynamic'
@@ -21,110 +30,94 @@ export default async function TemplatesPanelPage() {
   const templates = await listTemplates()
 
   return (
-    <div className="max-w-[960px]">
-      <p className="text-xs uppercase tracking-wide text-neutral-400 mb-2">Phase 2</p>
-      <div className="flex items-baseline justify-between gap-4">
-        <h1
-          className="text-[clamp(2rem,5vw,3.5rem)] font-black tracking-tight leading-none text-black uppercase"
-          style={{ fontStretch: 'condensed', letterSpacing: '-0.02em' }}
-        >
-          Templates
-        </h1>
-        <Link
-          href="/settings/templates/new"
-          className="shrink-0 inline-block bg-black text-white text-sm font-semibold px-4 py-2 hover:opacity-80"
-        >
-          New template
-        </Link>
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Templates</h1>
+          <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+            Liquid prompts the agent renders at queue-pull time. The starter set is seeded on first
+            boot via <code className="font-mono">pnpm db:seed</code>; admins can fork or edit any of
+            them.
+          </p>
+        </div>
+        <Button asChild>
+          <Link href="/settings/templates/new">New template</Link>
+        </Button>
       </div>
-      <div className="mt-6 mb-8 h-px w-full bg-neutral-200" />
-      <p className="text-sm text-neutral-600 leading-relaxed mb-8">
-        Liquid prompts the agent renders at queue-pull time. The starter set is seeded on first boot
-        via <code className="font-mono">pnpm db:seed</code>; admins can fork or edit any of them.
-      </p>
 
-      {templates.length === 0 ? <EmptyState /> : <TemplatesTable rows={templates} />}
+      {templates.length === 0 ? (
+        <Card className="border-dashed">
+          <CardHeader className="text-center">
+            <CardTitle>No templates yet</CardTitle>
+          </CardHeader>
+          <CardContent className="pb-4 text-center">
+            <p className="text-sm text-muted-foreground">
+              Run <code className="font-mono">pnpm db:seed</code> to seed the 7 starter templates,
+              or create your own.
+            </p>
+          </CardContent>
+          <CardFooter className="justify-center pb-8">
+            <Button asChild>
+              <Link href="/settings/templates/new">Create your first template</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Prompt templates</CardTitle>
+            <CardDescription>
+              {templates.length} template{templates.length === 1 ? '' : 's'} configured.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Slug</TableHead>
+                  <TableHead className="text-right">Cross-source N</TableHead>
+                  <TableHead>Body excerpt</TableHead>
+                  <TableHead>Updated</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {templates.map((row) => (
+                  <TemplateTableRow key={row.id} row={row} />
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
 
-function EmptyState() {
+function TemplateTableRow({ row }: { row: TemplateRow }) {
   return (
-    <div className="border border-dashed border-neutral-300 px-6 py-12 text-center">
-      <p className="text-sm text-neutral-600 mb-4">No templates yet.</p>
-      <p className="text-xs text-neutral-500 mb-4">
-        Run <code className="font-mono">pnpm db:seed</code> from the repo root to seed the 7 starter
-        templates, or create your own.
-      </p>
-      <Link
-        href="/settings/templates/new"
-        className="inline-block bg-black text-white text-sm font-semibold px-4 py-2 hover:opacity-80"
-      >
-        Create your first template
-      </Link>
-    </div>
-  )
-}
-
-function TemplatesTable({ rows }: { rows: TemplateRow[] }) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm border-collapse">
-        <thead>
-          <tr className="border-b border-neutral-300 text-left">
-            <Th>Slug</Th>
-            <Th className="text-right">Cross-source N</Th>
-            <Th>Body excerpt</Th>
-            <Th>Updated</Th>
-            <Th className="text-right">Actions</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.id} className="border-b border-neutral-200 align-top">
-              <Td className="font-mono text-xs font-semibold">{row.slug}</Td>
-              <Td className="text-right tabular-nums">{row.crossSourceN}</Td>
-              <Td className="text-xs text-neutral-700 max-w-[420px]">
-                <span className="block truncate" title={row.body}>
-                  {excerpt(row.body, EXCERPT_LEN)}
-                </span>
-              </Td>
-              <Td className="text-xs text-neutral-600 whitespace-nowrap">
-                {row.updatedAt.toISOString().replace('T', ' ').slice(0, 16)}
-              </Td>
-              <Td className="text-right whitespace-nowrap">
-                <Link
-                  href={`/settings/templates/${row.id}`}
-                  className="text-sm font-semibold underline hover:opacity-70"
-                >
-                  Edit
-                </Link>
-              </Td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <TableRow>
+      <TableCell className="font-mono text-xs font-semibold">{row.slug}</TableCell>
+      <TableCell className="text-right tabular-nums">{row.crossSourceN}</TableCell>
+      <TableCell className="text-xs text-muted-foreground max-w-[420px]">
+        <span className="block truncate" title={row.body}>
+          {excerpt(row.body, EXCERPT_LEN)}
+        </span>
+      </TableCell>
+      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+        {row.updatedAt.toISOString().replace('T', ' ').slice(0, 16)}
+      </TableCell>
+      <TableCell className="text-right whitespace-nowrap">
+        <Button variant="ghost" size="sm" asChild>
+          <Link href={`/settings/templates/${row.id}`}>Edit</Link>
+        </Button>
+      </TableCell>
+    </TableRow>
   )
 }
 
 function excerpt(body: string, max: number): string {
-  // Collapse interior whitespace so the excerpt reads as a single line.
   const flat = body.replace(/\s+/g, ' ').trim()
   if (flat.length <= max) return flat
   return `${flat.slice(0, max - 1)}…`
-}
-
-function Th({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return (
-    <th
-      className={`px-3 py-2 text-xs uppercase tracking-wide text-neutral-500 font-semibold ${className}`}
-    >
-      {children}
-    </th>
-  )
-}
-
-function Td({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-3 py-3 ${className}`}>{children}</td>
 }

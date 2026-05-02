@@ -1,94 +1,202 @@
-/**
- * Settings sidebar — links to every sub-panel.
- *
- * Editorial styling consistent with the public landing (`app/page.tsx`):
- * heavy condensed sans wordmark, hairline rules, restrained palette.
- * Full Visual Identity treatment lands in Phase 5 (#56) — this is a
- * functional placeholder that won't look out of place in the meantime.
- *
- * Marked as a client component so we can highlight the active sub-panel
- * with `usePathname()`. Active styling is minimal — a left-edge bar and
- * boldface — but it's enough to give a sense of place without dragging
- * in a router-aware nav primitive.
- */
-
 'use client'
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+/**
+ * SettingsSidebar — shadcn canonical sidebar block pattern (Phase 4 upgrade).
+ *
+ * Structure:
+ *   <SidebarHeader>  — LucidIndex wordmark / brand link
+ *   <SidebarContent> — grouped nav items with SidebarGroup sections
+ *   <SidebarFooter>  — user account dropdown (sign out, back to dashboard)
+ *
+ * Groups:
+ *   OVERVIEW  — Overview
+ *   AGENTS    — Targets, Comparison Sources, Templates
+ *   SYSTEM    — Off-site Backup, System, Agent Tokens
+ *   INBOX     — Badges, Hidden Articles
+ *   ACCOUNT   — Account
+ *
+ * collapsible="icon" — collapses to icon rail on desktop, consistent with
+ * shadcn dashboard-01 block; triggered via the SidebarTrigger in the inset header.
+ */
 
-const SECTIONS: ReadonlyArray<{ href: string; label: string; phase: string }> = [
-  { href: '/settings', label: 'Overview', phase: '' },
-  { href: '/settings/account', label: 'Account', phase: 'Phase 2' },
-  { href: '/settings/targets', label: 'Targets', phase: 'Phase 2' },
-  { href: '/settings/badges', label: 'Badges', phase: 'Phase 2' },
-  { href: '/settings/templates', label: 'Templates', phase: 'Phase 2' },
-  { href: '/settings/agent-tokens', label: 'Agent tokens', phase: 'Phase 2' },
-  { href: '/settings/off-site-backup', label: 'Off-site backup', phase: 'Phase 2' },
-  { href: '/settings/system', label: 'System', phase: 'Phase 7' },
-  { href: '/settings/hidden-articles', label: 'Hidden articles', phase: 'Phase 7' },
+import {
+  BookOpen,
+  ChevronsUpDown,
+  EyeOff,
+  FileText,
+  HardDriveDownload,
+  Key,
+  LayoutDashboard,
+  LogOut,
+  Settings2,
+  ShieldCheck,
+  Tag,
+  User,
+} from 'lucide-react'
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from '@/components/ui/sidebar'
+
+type NavItem = { href: string; label: string; icon: React.ElementType }
+
+const NAV_GROUPS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }> = [
+  {
+    label: 'Overview',
+    items: [{ href: '/settings', label: 'Overview', icon: LayoutDashboard }],
+  },
+  {
+    label: 'Agents',
+    items: [
+      { href: '/settings/targets', label: 'Targets', icon: Settings2 },
+      { href: '/settings/comparison-sources', label: 'Comparison sources', icon: BookOpen },
+      { href: '/settings/templates', label: 'Templates', icon: FileText },
+    ],
+  },
+  {
+    label: 'System',
+    items: [
+      { href: '/settings/off-site-backup', label: 'Off-site backup', icon: HardDriveDownload },
+      { href: '/settings/system', label: 'System', icon: Settings2 },
+      { href: '/settings/agent-tokens', label: 'Agent tokens', icon: Key },
+    ],
+  },
+  {
+    label: 'Inbox',
+    items: [
+      { href: '/settings/badges', label: 'Badges', icon: Tag },
+      { href: '/settings/hidden-articles', label: 'Hidden articles', icon: EyeOff },
+    ],
+  },
+  {
+    label: 'Account',
+    items: [{ href: '/settings/account', label: 'Account', icon: ShieldCheck }],
+  },
 ]
 
 export function SettingsSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+
+  function isActive(item: NavItem): boolean {
+    if (item.href === '/settings') return pathname === '/settings'
+    return pathname === item.href || pathname.startsWith(`${item.href}/`)
+  }
+
+  async function handleLogout() {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    router.push('/')
+    router.refresh()
+  }
 
   return (
-    <aside className="w-64 shrink-0 border-r border-neutral-200 px-6 py-12 md:py-16">
-      <Link
-        href="/settings"
-        className="block text-2xl font-black tracking-tight uppercase text-black hover:opacity-70"
-        style={{ fontStretch: 'condensed', letterSpacing: '-0.02em' }}
-      >
-        SETTINGS
-      </Link>
-      <div className="mt-6 mb-8 h-px w-full bg-neutral-200" />
-      <nav>
-        <ul className="space-y-1">
-          {SECTIONS.map((section) => {
-            // Treat /settings as active only on an exact match so it doesn't
-            // light up for every sub-panel.
-            const isActive =
-              section.href === '/settings'
-                ? pathname === '/settings'
-                : pathname === section.href || pathname.startsWith(`${section.href}/`)
-            return (
-              <li key={section.href}>
-                <Link
-                  href={section.href}
-                  className={`block py-2 px-2 -mx-2 border-l-2 transition-colors ${
-                    isActive
-                      ? 'border-black font-semibold text-black'
-                      : 'border-transparent text-neutral-600 hover:text-black'
-                  }`}
+    <Sidebar collapsible="icon">
+      {/* Brand header */}
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" asChild>
+              <Link href="/">
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                  <Settings2 className="size-4" />
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-semibold uppercase tracking-wider">
+                    LucidIndex
+                  </span>
+                  <span className="truncate text-xs text-muted-foreground">Settings</span>
+                </div>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
+
+      {/* Grouped nav */}
+      <SidebarContent>
+        {NAV_GROUPS.map((group) => (
+          <SidebarGroup key={group.label}>
+            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {group.items.map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton asChild isActive={isActive(item)} tooltip={item.label}>
+                        <Link href={item.href}>
+                          <Icon />
+                          <span>{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
+      </SidebarContent>
+
+      {/* Footer: user dropdown */}
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton
+                  size="lg"
+                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
-                  <span className="block text-sm">{section.label}</span>
-                  {section.phase && (
-                    <span className="block text-xs text-neutral-400 mt-0.5">{section.phase}</span>
-                  )}
-                </Link>
-              </li>
-            )
-          })}
-        </ul>
-      </nav>
-      <div className="mt-12 pt-6 border-t border-neutral-200">
-        <LogoutButton />
-      </div>
-    </aside>
-  )
-}
-
-function LogoutButton() {
-  return (
-    <button
-      type="button"
-      onClick={async () => {
-        await fetch('/api/auth/logout', { method: 'POST' })
-        window.location.href = '/'
-      }}
-      className="text-xs uppercase tracking-wide text-neutral-500 hover:text-black"
-    >
-      Sign out
-    </button>
+                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-muted">
+                    <User className="size-4" />
+                  </div>
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-semibold">Admin</span>
+                    <span className="truncate text-xs text-muted-foreground">Signed in</span>
+                  </div>
+                  <ChevronsUpDown className="ml-auto size-4" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                className="w-56 rounded-lg"
+                side="top"
+                align="end"
+                sideOffset={4}
+              >
+                <DropdownMenuItem asChild>
+                  <a href="/">← Back to Dashboard</a>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onSelect={handleLogout}
+                  className="gap-2 text-destructive focus:text-destructive"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
   )
 }

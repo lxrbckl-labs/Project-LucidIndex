@@ -1,13 +1,9 @@
 /**
- * Settings → Targets → New (RSC).
- *
- * Loads the prompt-template options server-side, then hands off to the
- * client-only `<TargetForm>` for the interactive form. If no prompt
- * templates exist yet (#34 hasn't seeded the starters), the form renders
- * disabled with a friendly notice — no crash, no silent failure.
+ * Settings → Targets → New (RSC) — rebuilt on shadcn (Phase 2).
  */
 
 import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 import { TargetForm } from '../_components/TargetForm'
 import {
   CADENCE_PRESETS,
@@ -24,22 +20,14 @@ export default async function NewTargetPage() {
   ])
 
   return (
-    <div className="max-w-[640px]">
-      <p className="text-xs uppercase tracking-wide text-neutral-400 mb-2">Phase 2</p>
-      <h1
-        className="text-[clamp(2rem,5vw,3.5rem)] font-black tracking-tight leading-none text-black uppercase"
-        style={{ fontStretch: 'condensed', letterSpacing: '-0.02em' }}
-      >
-        New target
-      </h1>
-      <div className="mt-6 mb-8 h-px w-full bg-neutral-200" />
+    <div className="max-w-[640px] flex flex-col gap-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">New target</h1>
+      </div>
 
-      <Link
-        href="/settings/targets"
-        className="text-xs uppercase tracking-wide text-neutral-500 hover:text-black mb-6 inline-block"
-      >
-        &larr; Back to targets
-      </Link>
+      <Button variant="ghost" size="sm" asChild className="self-start -ml-2">
+        <Link href="/settings/targets">&larr; Back to targets</Link>
+      </Button>
 
       <TargetForm
         mode="create"

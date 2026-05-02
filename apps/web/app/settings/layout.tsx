@@ -1,5 +1,5 @@
 /**
- * Settings shell layout — the passkey gate for every `/settings/*` route.
+ * Settings shell layout — passkey gate + shadcn Sidebar shell (Phase 2).
  *
  * Decision tree, evaluated server-side on every request:
  *
@@ -13,19 +13,21 @@
  *
  *   3. admins table NON-EMPTY, session present
  *      └── path === `/settings/login` or `/settings/found` → redirect to
- *          `/settings` (already signed in, no need to see auth surfaces)
- *      └── otherwise → render the children inside the sidebar shell
+ *          `/settings` (already signed in)
+ *      └── otherwise → render children inside the shadcn sidebar shell
  *
- * The auth-surface routes (`/settings/login`, `/settings/found`) render
- * children WITHOUT the sidebar — they're full-bleed pages, since the
- * sidebar is itself authenticated UI. The hub + sub-panels render WITH
- * the sidebar.
+ * Auth surfaces (`/settings/login`, `/settings/found`) render without a
+ * sidebar — they're full-bleed pages. Authenticated routes use
+ * `<SidebarProvider> → <SettingsSidebar /> + <SidebarInset>`.
  */
 
 import { isFoundingFlowAvailable, requireAdmin } from '@lucidindex/auth'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import type { ReactNode } from 'react'
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { Toaster } from '@/components/ui/sonner'
+import { SettingsInsetHeader } from './_components/SettingsInsetHeader'
 import { SettingsSidebar } from './_components/SettingsSidebar'
 
 // The settings shell decides routing per-request based on the admins table
@@ -40,9 +42,6 @@ const LOGIN_PATH = '/settings/login'
  * Read the current path from the `next-url` (or `x-invoke-path`) header
  * Next sets on RSC requests. We can't use `usePathname()` in a server
  * component, and `headers()` is the supported escape hatch for this.
- *
- * Falls back to `/settings` if the header is missing — defensive only;
- * the Next runtime always sets one of these for a layout render.
  */
 async function currentPath(): Promise<string> {
   const h = await headers()
@@ -50,7 +49,6 @@ async function currentPath(): Promise<string> {
   if (nextUrl) return nextUrl
   const invokePath = h.get('x-invoke-path')
   if (invokePath) return invokePath
-  // Last-ditch — middleware writes the original path here in some setups.
   const pathname = h.get('x-pathname')
   if (pathname) return pathname
   return '/settings'
@@ -82,16 +80,20 @@ export default async function SettingsLayout({ children }: { children: ReactNode
   }
 
   return (
-    <div className="min-h-screen bg-white text-black flex">
+    <SidebarProvider>
       <SettingsSidebar />
-      <main className="flex-1 px-8 py-12 md:px-12">{children}</main>
-    </div>
+      <SidebarInset>
+        <SettingsInsetHeader />
+        <div className="flex flex-1 flex-col gap-4 p-4 pt-4">{children}</div>
+      </SidebarInset>
+      <Toaster />
+    </SidebarProvider>
   )
 }
 
 function AuthSurface({ children }: { children: ReactNode }) {
   return (
-    <main className="min-h-screen bg-white text-black flex flex-col items-center justify-start px-6 pt-24 pb-24">
+    <main className="min-h-screen bg-background text-foreground flex flex-col items-center justify-start px-6 pt-24 pb-24">
       <div className="w-full max-w-[480px]">{children}</div>
     </main>
   )

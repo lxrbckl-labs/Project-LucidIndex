@@ -2,24 +2,63 @@
 
 /**
  * Client component that owns all interactivity for the Agent Tokens panel.
+ * Rebuilt on shadcn primitives (Phase 2).
  *
  * Modes / states:
- *   - List view  — table of tokens with Revoke action on non-revoked rows.
- *   - Issue modal — "Issue new token" form: label input → POST → display-once
- *     cleartext with copy affordance + "save now" warning → close.
- *
- * The RSC page (page.tsx) is the data owner — it loads the initial list from
- * the DB and passes it in as `initialTokens`. Mutations call `router.refresh()`
- * so Next re-runs the RSC and pipes fresh data back into this component.
+ *   - List view  — Table of tokens with Revoke action on non-revoked rows.
+ *   - Issue modal — Dialog: label input → POST → display-once cleartext
+ *     with copy affordance + "save now" warning → close.
+ *   - Revoke confirm — AlertDialog before destructive action.
  *
  * Cleartext token lifecycle:
  *   1. POST /api/settings/agent-tokens  → { ok: true, token, row }
  *   2. Stored in React state for display ONLY. Never leaves the browser tab.
- *   3. User closes the modal → state is cleared. Token is gone.
+ *   3. User closes the Alert → state is cleared. Token is gone.
  */
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 // Mirror of AgentTokenRow (dates serialized to ISO strings by JSON.stringify).
 export type TokenRowClient = {
@@ -34,18 +73,14 @@ type Props = { initialTokens: TokenRowClient[] }
 
 export function AgentTokensPanel({ initialTokens }: Props) {
   const router = useRouter()
-  const [showIssueModal, setShowIssueModal] = useState(false)
+  const [issueOpen, setIssueOpen] = useState(false)
   // cleartext shown once after successful issue
   const [issuedToken, setIssuedToken] = useState<string | null>(null)
 
   function handleIssued(token: string) {
     setIssuedToken(token)
-    setShowIssueModal(false)
+    setIssueOpen(false)
     router.refresh()
-  }
-
-  function handleModalClose() {
-    setShowIssueModal(false)
   }
 
   function handleDismissToken() {
@@ -53,42 +88,33 @@ export function AgentTokensPanel({ initialTokens }: Props) {
   }
 
   return (
-    <div className="max-w-[960px]">
-      <p className="text-xs uppercase tracking-wide text-neutral-400 mb-2">Phase 2</p>
-      <div className="flex items-baseline justify-between gap-4">
-        <h1
-          className="text-[clamp(2rem,5vw,3.5rem)] font-black tracking-tight leading-none text-black uppercase"
-          style={{ fontStretch: 'condensed', letterSpacing: '-0.02em' }}
-        >
-          Agent tokens
-        </h1>
-        <button
-          type="button"
-          onClick={() => setShowIssueModal(true)}
-          className="shrink-0 inline-block bg-black text-white text-sm font-semibold px-4 py-2 hover:opacity-80"
-        >
-          Issue new token
-        </button>
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Agent tokens</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Tokens issued to headless agents. Each token is shown in plaintext exactly once at
+            creation. Revoke a token to disable it — revoked tokens are kept for audit purposes.
+          </p>
+        </div>
+        <Dialog open={issueOpen} onOpenChange={setIssueOpen}>
+          <DialogTrigger asChild>
+            <Button>Issue new token</Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <IssueModalContent onIssued={handleIssued} onClose={() => setIssueOpen(false)} />
+          </DialogContent>
+        </Dialog>
       </div>
-      <div className="mt-6 mb-8 h-px w-full bg-neutral-200" />
-      <p className="text-sm text-neutral-600 leading-relaxed mb-8">
-        Tokens issued to headless agents. Each token is shown in plaintext exactly once at creation.
-        Revoke a token to disable it — revoked tokens are kept for audit purposes. Agent bylines on
-        articles use the token&apos;s <code className="font-mono text-xs">label</code> field (
-        <em>Analysis by &lt;label&gt;</em>).
-      </p>
 
       {/* Display-once cleartext banner */}
       {issuedToken && <DisplayOnceToken token={issuedToken} onDismiss={handleDismissToken} />}
 
       {initialTokens.length === 0 ? (
-        <EmptyState onIssue={() => setShowIssueModal(true)} />
+        <EmptyState onIssue={() => setIssueOpen(true)} />
       ) : (
         <TokensTable rows={initialTokens} onRevoked={() => router.refresh()} />
       )}
-
-      {/* Issue modal */}
-      {showIssueModal && <IssueModal onIssued={handleIssued} onClose={handleModalClose} />}
     </div>
   )
 }
@@ -104,6 +130,7 @@ function DisplayOnceToken({ token, onDismiss }: { token: string; onDismiss: () =
     try {
       await navigator.clipboard.writeText(token)
       setCopied(true)
+      toast.success('Token copied to clipboard')
       setTimeout(() => setCopied(false), 2000)
     } catch {
       // Clipboard API unavailable in some test envs — show a fallback.
@@ -111,40 +138,36 @@ function DisplayOnceToken({ token, onDismiss }: { token: string; onDismiss: () =
   }
 
   return (
-    <div
-      className="mb-8 border border-amber-400 bg-amber-50 px-5 py-5"
-      role="alert"
-      aria-live="assertive"
-    >
-      <p className="text-sm font-semibold text-amber-900 mb-1">
+    <Alert className="border-amber-400 bg-amber-50" role="alert" aria-live="assertive">
+      <AlertTitle className="text-amber-900">
         Save this token now — it will not be shown again.
-      </p>
-      <p className="text-xs text-amber-800 mb-4">
-        Copy it to your agent&apos;s configuration. Once you close this notice it is gone.
-      </p>
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <code
-          className="font-mono text-sm break-all bg-white border border-amber-300 px-3 py-2 flex-1"
-          data-testid="display-once-token"
-        >
-          {token}
-        </code>
-        <button
+      </AlertTitle>
+      <AlertDescription className="text-amber-800">
+        <p className="text-xs mb-4">
+          Copy it to your agent&apos;s configuration. Once you close this notice it is gone.
+        </p>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <code
+            className="font-mono text-sm break-all bg-white border border-amber-300 px-3 py-2 flex-1 rounded"
+            data-testid="display-once-token"
+          >
+            {token}
+          </code>
+          <Button type="button" variant="secondary" size="sm" onClick={copy} className="shrink-0">
+            {copied ? 'Copied!' : 'Copy to clipboard'}
+          </Button>
+        </div>
+        <Button
           type="button"
-          onClick={copy}
-          className="shrink-0 bg-amber-800 text-white text-xs font-semibold px-4 py-2 hover:opacity-80"
+          variant="link"
+          size="sm"
+          onClick={onDismiss}
+          className="mt-2 h-auto p-0 text-xs text-amber-700 underline hover:opacity-70"
         >
-          {copied ? 'Copied!' : 'Copy to clipboard'}
-        </button>
-      </div>
-      <button
-        type="button"
-        onClick={onDismiss}
-        className="mt-4 text-xs text-amber-700 underline hover:opacity-70"
-      >
-        I&apos;ve saved it — dismiss
-      </button>
-    </div>
+          I&apos;ve saved it — dismiss
+        </Button>
+      </AlertDescription>
+    </Alert>
   )
 }
 
@@ -154,16 +177,21 @@ function DisplayOnceToken({ token, onDismiss }: { token: string; onDismiss: () =
 
 function EmptyState({ onIssue }: { onIssue: () => void }) {
   return (
-    <div className="border border-dashed border-neutral-300 px-6 py-12 text-center">
-      <p className="text-sm text-neutral-600 mb-4">No agent tokens yet.</p>
-      <button
-        type="button"
-        onClick={onIssue}
-        className="inline-block bg-black text-white text-sm font-semibold px-4 py-2 hover:opacity-80"
-      >
-        Issue your first token
-      </button>
-    </div>
+    <Card className="border-dashed">
+      <CardHeader className="text-center">
+        <CardTitle>No agent tokens yet</CardTitle>
+      </CardHeader>
+      <CardContent className="pb-6 text-center">
+        <p className="text-sm text-muted-foreground">
+          Tokens are shown in plaintext exactly once at creation.
+        </p>
+      </CardContent>
+      <CardFooter className="justify-center pb-8">
+        <Button type="button" onClick={onIssue}>
+          Issue your first token
+        </Button>
+      </CardFooter>
+    </Card>
   )
 }
 
@@ -173,24 +201,32 @@ function EmptyState({ onIssue }: { onIssue: () => void }) {
 
 function TokensTable({ rows, onRevoked }: { rows: TokenRowClient[]; onRevoked: () => void }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm border-collapse">
-        <thead>
-          <tr className="border-b border-neutral-300 text-left">
-            <Th>Label</Th>
-            <Th>Hash prefix</Th>
-            <Th>Issued</Th>
-            <Th>Status</Th>
-            <Th className="text-right">Actions</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <TokenRow key={row.id} row={row} onRevoked={onRevoked} />
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Issued tokens</CardTitle>
+        <CardDescription>
+          Active tokens are used by agents at call time. Revoking is immediate.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Label</TableHead>
+              <TableHead>Hash prefix</TableHead>
+              <TableHead>Issued</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row) => (
+              <TokenRow key={row.id} row={row} onRevoked={onRevoked} />
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -198,18 +234,23 @@ function TokenRow({ row, onRevoked }: { row: TokenRowClient; onRevoked: () => vo
   const revokedAt = row.revokedAt
 
   return (
-    <tr className="border-b border-neutral-200 align-middle">
-      <Td className="font-semibold">{row.label}</Td>
-      <Td className="font-mono text-xs text-neutral-500">{row.tokenHash.slice(0, 20)}…</Td>
-      <Td className="text-xs text-neutral-600">
+    <TableRow>
+      <TableCell className="font-semibold">{row.label}</TableCell>
+      <TableCell className="font-mono text-xs text-muted-foreground">
+        {row.tokenHash.slice(0, 20)}…
+      </TableCell>
+      <TableCell className="text-xs text-muted-foreground">
         {new Date(row.createdAt).toISOString().replace('T', ' ').slice(0, 16)}
-      </Td>
-      <Td>
+      </TableCell>
+      <TableCell>
         {revokedAt !== null ? (
-          <span className="inline-flex items-center gap-1.5 text-xs text-neutral-500">
-            <span className="inline-block w-2 h-2 rounded-full bg-neutral-300" aria-hidden="true" />
+          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span
+              className="inline-block w-2 h-2 rounded-full bg-muted-foreground/30"
+              aria-hidden="true"
+            />
             Revoked{' '}
-            <span className="text-neutral-400">
+            <span className="text-muted-foreground/70">
               {new Date(revokedAt).toISOString().replace('T', ' ').slice(0, 16)}
             </span>
           </span>
@@ -219,16 +260,16 @@ function TokenRow({ row, onRevoked }: { row: TokenRowClient; onRevoked: () => vo
             Active
           </span>
         )}
-      </Td>
-      <Td className="text-right whitespace-nowrap">
+      </TableCell>
+      <TableCell className="text-right whitespace-nowrap">
         {revokedAt === null && <RevokeButton id={row.id} label={row.label} onRevoked={onRevoked} />}
-      </Td>
-    </tr>
+      </TableCell>
+    </TableRow>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Revoke button
+// Revoke button with AlertDialog confirm
 // ---------------------------------------------------------------------------
 
 function RevokeButton({
@@ -241,18 +282,9 @@ function RevokeButton({
   onRevoked: () => void
 }) {
   const [pending, setPending] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   async function handleRevoke() {
-    if (
-      !window.confirm(
-        `Revoke token "${label}"? This will immediately invalidate it for any agent using it.`,
-      )
-    ) {
-      return
-    }
     setPending(true)
-    setError(null)
     try {
       const res = await fetch(`/api/settings/agent-tokens/${id}`, {
         method: 'POST',
@@ -260,37 +292,52 @@ function RevokeButton({
         body: JSON.stringify({ action: 'revoke' }),
       })
       if (!res.ok) {
-        setError('Revoke failed.')
+        toast.error('Revoke failed.')
         return
       }
+      toast.success(`Token "${label}" revoked.`)
       onRevoked()
     } catch {
-      setError('Network error.')
+      toast.error('Network error.')
     } finally {
       setPending(false)
     }
   }
 
   return (
-    <span className="inline-block">
-      <button
-        type="button"
-        onClick={handleRevoke}
-        disabled={pending}
-        className="text-sm font-semibold underline text-red-700 hover:opacity-70 disabled:opacity-40"
-      >
-        {pending ? '…' : 'Revoke'}
-      </button>
-      {error && <span className="ml-2 text-xs text-red-600">{error}</span>}
-    </span>
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="destructive" size="sm" disabled={pending}>
+          {pending ? '…' : 'Revoke'}
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Revoke token &ldquo;{label}&rdquo;?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will immediately invalidate it for any agent using it. The token record is kept for
+            audit purposes.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleRevoke}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Revoke
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Issue modal
+// Issue modal content (rendered inside DialogContent)
 // ---------------------------------------------------------------------------
 
-function IssueModal({
+function IssueModalContent({
   onIssued,
   onClose,
 }: {
@@ -302,8 +349,7 @@ function IssueModal({
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Focus the label input when the modal mounts — replaces autoFocus to
-  // satisfy the biome/a11y/noAutofocus lint rule.
+  // Focus the label input when the modal mounts.
   useEffect(() => {
     inputRef.current?.focus()
   }, [])
@@ -347,32 +393,23 @@ function IssueModal({
   }
 
   return (
-    /* Backdrop */
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="issue-modal-title"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') onClose()
-      }}
-    >
-      <div className="bg-white w-full max-w-md mx-4 p-8 border border-black">
-        <h2 id="issue-modal-title" className="text-xl font-black uppercase tracking-tight mb-6">
-          Issue new token
-        </h2>
+    <>
+      <DialogHeader>
+        <DialogTitle>Issue new token</DialogTitle>
+        <DialogDescription>
+          The token is shown exactly once. Copy it immediately — it cannot be retrieved later.
+        </DialogDescription>
+      </DialogHeader>
 
-        <form onSubmit={handleSubmit} noValidate>
-          <label htmlFor="token-label" className="block text-sm font-semibold mb-1">
-            Label <span className="font-normal text-neutral-500">(≤ 100 chars)</span>
-          </label>
-          <p className="text-xs text-neutral-500 mb-3">
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="token-label">
+            Label <span className="font-normal text-muted-foreground">(≤ 100 chars)</span>
+          </Label>
+          <p className="text-xs text-muted-foreground">
             Also used as the agent byline on article pages: <em>Analysis by &lt;label&gt;</em>.
           </p>
-          <input
+          <Input
             ref={inputRef}
             id="token-label"
             type="text"
@@ -381,53 +418,25 @@ function IssueModal({
             maxLength={100}
             required
             placeholder="e.g. LucidIndex Crawler v1"
-            className="w-full border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:border-black mb-1"
           />
-          <p className="text-xs text-neutral-400 mb-4 text-right">{label.length}/100</p>
+          <p className="text-xs text-muted-foreground text-right">{label.length}/100</p>
+        </div>
 
-          {error && (
-            <p className="text-xs text-red-600 mb-4" role="alert">
-              {error}
-            </p>
-          )}
+        {error && (
+          <Alert variant="destructive" role="alert">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-          <div className="flex gap-3 justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={pending}
-              className="text-sm font-semibold underline hover:opacity-70 disabled:opacity-40"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={pending}
-              className="bg-black text-white text-sm font-semibold px-5 py-2 hover:opacity-80 disabled:opacity-40"
-            >
-              {pending ? 'Issuing…' : 'Issue token'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose} disabled={pending}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={pending}>
+            {pending ? 'Issuing…' : 'Issue token'}
+          </Button>
+        </DialogFooter>
+      </form>
+    </>
   )
-}
-
-// ---------------------------------------------------------------------------
-// Table helpers
-// ---------------------------------------------------------------------------
-
-function Th({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return (
-    <th
-      className={`px-3 py-2 text-xs uppercase tracking-wide text-neutral-500 font-semibold ${className}`}
-    >
-      {children}
-    </th>
-  )
-}
-
-function Td({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-3 py-3 ${className}`}>{children}</td>
 }
