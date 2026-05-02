@@ -14,8 +14,11 @@
  * DO NOT enable this in production. It is a developer-experience flag only.
  */
 
-/** Stable sentinel admin id used by bypass sessions so logs are obvious. */
-export const DEV_BYPASS_ADMIN_ID = 'dev-skip-auth'
+/**
+ * Stable sentinel admin id used by bypass sessions so logs are obvious.
+ * All-zeroes UUID v4 — valid Postgres UUID, clearly not a real admin id.
+ */
+export const DEV_BYPASS_ADMIN_ID = '00000000-0000-0000-0000-000000000000'
 
 /**
  * Parse the raw env-var string. Returns `true` for `true`, `1`, `yes`

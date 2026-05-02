@@ -174,11 +174,11 @@ describe('isDevAuthBypassActive', () => {
 })
 
 describe('DEV_BYPASS_ADMIN_ID', () => {
-  it('exports a non-empty sentinel string', async () => {
+  it('exports a valid all-zeroes UUID sentinel', async () => {
     const { DEV_BYPASS_ADMIN_ID } = await importFresh()
     expect(typeof DEV_BYPASS_ADMIN_ID).toBe('string')
     expect(DEV_BYPASS_ADMIN_ID.length).toBeGreaterThan(0)
-    // The sentinel should be recognisable in logs — it must not look like a UUID.
-    expect(DEV_BYPASS_ADMIN_ID).toBe('dev-skip-auth')
+    // Sentinel must be a valid UUID so it passes Postgres UUID-typed columns.
+    expect(DEV_BYPASS_ADMIN_ID).toBe('00000000-0000-0000-0000-000000000000')
   })
 })

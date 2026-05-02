@@ -60,16 +60,11 @@ function makeStore(initial?: Partial<State>): FoundingStore & { state: State } {
           recoveryCodes: [...target.recoveryCodes],
         }
         const tx = buildScoped(snapshot)
-        try {
-          const result = await fn(tx)
-          target.admins = snapshot.admins
-          target.credentials = snapshot.credentials
-          target.recoveryCodes = snapshot.recoveryCodes
-          return result
-        } catch (err) {
-          // Roll back: leave `target` untouched.
-          throw err
-        }
+        const result = await fn(tx)
+        target.admins = snapshot.admins
+        target.credentials = snapshot.credentials
+        target.recoveryCodes = snapshot.recoveryCodes
+        return result
       },
     }
   }
