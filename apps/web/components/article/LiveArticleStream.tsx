@@ -1,42 +1,27 @@
 'use client'
 
 /**
- * LiveArticleStream — client-side SSE consumer that renders newly-filed
- * articles above the static masonry without disturbing it (#60).
+ * LiveArticleStream — SSE-driven new-arrival strip (#60 / Phase 4).
  *
- * Design choice — why a dedicated strip, not a prepend into the existing
- * masonry:
+ * All SSE wiring (`/api/events`, `EventSource`, auto-reconnect, de-dup)
+ * is preserved from Phase 3. Only the rendered tile UI changes:
  *
- *   The static `<ArticleMasonry>` lays articles into hand-curated 6-tile
- *   panels with explicit `grid-template-areas`. Inserting a new article
- *   into an existing panel would shift every subsequent panel — exactly
- *   the "whole-grid reflow" the spec forbids. Instead, brand-new
- *   articles arrive in this strip directly above the static masonry.
+ *   - New arrivals render as shadcn Card tiles.
+ *   - Each tile mounts with a Tailwind `animate-in fade-in slide-in-from-top-2
+ *     duration-300` entry animation.
+ *   - The strip is a horizontal scroll: `<ScrollArea>` wrapping
+ *     `<div className="flex gap-3">` so a growing tile count doesn't
+ *     break the layout.
  *
- *   The strip is itself a small grid (one tile per row of new arrivals),
- *   appended-to in reverse-chronological order. Each new tile mounts
- *   with `opacity: 0` and transitions to `opacity: 1` over ~400ms, so
- *   the visual sensation is "fresh ink hitting the page" without any
- *   layout the eye has to re-parse.
- *
- *   When the admin reloads the page, the live arrivals are already part
- *   of the server-rendered masonry below (the next page load will pick
- *   them up from the DB). So the strip is intentionally ephemeral —
- *   it's a "since you've been here" surface, not a persistent buffer.
- *
- * SSE plumbing:
- *
- *   - Subscribes to `/api/events` via the browser-native `EventSource`.
- *   - `EventSource` auto-reconnects on connection drop with an
- *     exponential backoff baked into the platform — we don't need to
- *     wire our own retry logic.
- *   - On unmount we call `eventSource.close()` so disconnected pages
- *     don't keep the stream alive (that would also leak server-side
- *     bus listeners until the browser GC'd the request).
+ * SSE design notes (unchanged from Phase 3):
+ *   - `EventSource` auto-reconnects with built-in backoff — no manual retry.
+ *   - `source.close()` on unmount so disconnected pages don't leak listeners.
+ *   - De-dup on `article.id` guards against replay across tabs/reconnects.
  */
 
 import { useEffect, useState } from 'react'
 import type { MockArticle } from '@/app/_mock/articles'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import type { ArticleNewPayload } from '@/lib/sse/article-bus'
 import { ArticleCard } from './ArticleCard'
 import { LargeArticleCard } from './LargeArticleCard'
@@ -47,6 +32,7 @@ type LiveArticle = MockArticle & {
 }
 
 function payloadToArticle(payload: ArticleNewPayload): LiveArticle {
+  const now = new Date()
   return {
     id: payload.id,
     slug: payload.slug,
@@ -59,13 +45,8 @@ function payloadToArticle(payload: ArticleNewPayload): LiveArticle {
     heroImageUrl: payload.heroImageUrl,
     agentLabel: payload.agentLabel,
     readMinutes: payload.readMinutes,
-    // The SSE payload (Phase 5 #60) doesn't carry the per-article-page
-    // fields (deep-dive body, cross-source list, source URL). The
-    // dashboard tile that wraps this LiveArticle only reads the
-    // dashboard-relevant subset, so the article-page fields stay
-    // empty/now until the user clicks through to `/a/<slug>`, at
-    // which point the article-page route loads the full record.
-    publishedAt: new Date().toISOString(),
+    publishedAt: now.toISOString(),
+    createdAt: now,
     reasonablenessRating: null,
     crossSource: [],
     sourceUrl: '',
@@ -87,22 +68,17 @@ export function LiveArticleStream({ badgeFilter }: Props) {
   const [live, setLive] = useState<LiveArticle[]>([])
 
   useEffect(() => {
-    // EventSource is browser-native; SSR will never reach this branch
-    // because the parent component is `'use client'`.
     const source = new EventSource('/api/events')
 
     const onArticleNew = (e: MessageEvent<string>) => {
       try {
         const payload = JSON.parse(e.data) as ArticleNewPayload
         setLive((prev) => {
-          // Defensive de-dup: ignore an article we've already prepended.
-          // Multiple tabs + reconnects can replay the same event.
           if (prev.some((a) => a.id === payload.id)) return prev
           return [payloadToArticle(payload), ...prev]
         })
       } catch {
-        // Malformed payload — ignore. The server controls this surface
-        // so a runtime parse error would already be a server-side bug.
+        // Malformed payload — ignore.
       }
     }
 
@@ -114,57 +90,39 @@ export function LiveArticleStream({ badgeFilter }: Props) {
     }
   }, [])
 
-  // Apply the same view filter the static masonry uses, so toggling a
-  // badge filter doesn't surface stream events from other topics.
+  // Apply the same view filter the static masonry uses.
   const filtered = badgeFilter ? live.filter((a) => a.topicBadges.includes(badgeFilter)) : live
 
   if (filtered.length === 0) return null
 
   return (
-    <section
-      aria-label="Newly filed"
-      className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6"
-      data-testid="live-article-stream"
-    >
-      {filtered.map((article) => (
-        <LiveTile key={`${article.id}-${article.receivedAt}`} article={article} />
-      ))}
+    <section aria-label="Newly filed" data-testid="live-article-stream">
+      <ScrollArea className="w-full">
+        <div className="flex gap-3 pb-3">
+          {filtered.map((article) => (
+            <LiveTile key={`${article.id}-${article.receivedAt}`} article={article} />
+          ))}
+        </div>
+      </ScrollArea>
     </section>
   )
 }
 
 /**
- * A single live-arrival tile. Mounts with `opacity: 0` then transitions
- * to `opacity: 1` over ~400ms. The transition kicks off via a state
- * flip on first paint — using `useEffect` runs AFTER the initial render
- * so the browser commits the `opacity: 0` frame first and then animates
- * to the visible frame.
- *
- * The tile spans 2 columns when its significance is `large` so the size
- * still maps to importance even outside the masonry's panel grids.
+ * A single live-arrival tile. Mounts with Tailwind `animate-in` entry
+ * animation. The tile is narrow (w-72) so the horizontal scroll stays
+ * manageable. Large-significance tiles get a slightly wider slot (w-96).
  */
 function LiveTile({ article }: { article: LiveArticle }) {
-  const [visible, setVisible] = useState(false)
-
-  useEffect(() => {
-    // requestAnimationFrame guarantees we land on a fresh paint frame
-    // before flipping opacity — without it Chrome elides the
-    // transition because layout + style commit happens in the same
-    // tick as the state flip.
-    const raf = requestAnimationFrame(() => setVisible(true))
-    return () => cancelAnimationFrame(raf)
-  }, [])
-
   const isLarge = article.significance === 'large'
 
   return (
     <div
       data-testid="live-article-tile"
       data-significance={article.significance}
-      className={`min-h-0 transition-opacity duration-[400ms] ease-out ${
-        isLarge ? 'col-span-2 md:col-span-2' : ''
+      className={`shrink-0 animate-in fade-in slide-in-from-top-2 duration-300 ${
+        isLarge ? 'w-96' : 'w-72'
       }`}
-      style={{ opacity: visible ? 1 : 0 }}
     >
       {isLarge ? <LargeArticleCard article={article} /> : <ArticleCard article={article} />}
     </div>

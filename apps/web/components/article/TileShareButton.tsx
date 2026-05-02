@@ -1,31 +1,23 @@
 'use client'
 
 /**
- * TileShareButton — compact "share" affordance for dashboard article tiles (#68).
+ * TileShareButton — share button on dashboard tiles (#68).
  *
- * Design rules:
- *   - Small, unobtrusive — does NOT dominate the tile.
- *   - Hairline border, opacity transition on hover. Editorial vibe.
- *   - On click: copies the article URL to clipboard + shows "Copied!" for ~1.5s.
- *   - MUST NOT trigger the tile's <Link> navigation — uses
- *     event.stopPropagation() + event.preventDefault().
+ * Phase 4 rebuild: shadcn `<Button variant="ghost" size="icon">` with
+ * lucide `<Share2>` icon. Preserves existing onClick (clipboard copy) +
+ * stopPropagation guard + sonner toast on success.
  *
- * Two variants:
- *   - "light" (default) — hairline border on paper/light background.
- *   - "dark"            — paper-toned border/text for overlay-on-image tiles.
+ * MUST NOT trigger the tile's <Link> navigation.
  */
 
-import { useEffect, useState } from 'react'
+import { Share2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 type Props = {
-  /** Absolute URL of the article to share (e.g. `${baseUrl}/a/${slug}`). */
+  /** Absolute URL of the article to share. */
   url: string
-  /**
-   * Visual variant:
-   *   - "light" — renders on light (paper) backgrounds (ArticleCard default).
-   *   - "dark"  — renders on dark/image overlay backgrounds (LargeArticleCard).
-   */
-  variant?: 'light' | 'dark'
 }
 
 /** execCommand fallback for environments without `navigator.clipboard`. */
@@ -47,15 +39,7 @@ function copyViaTextarea(text: string): boolean {
   }
 }
 
-export function TileShareButton({ url, variant = 'light' }: Props) {
-  const [copied, setCopied] = useState(false)
-
-  useEffect(() => {
-    if (!copied) return
-    const timer = setTimeout(() => setCopied(false), 1500)
-    return () => clearTimeout(timer)
-  }, [copied])
-
+export function TileShareButton({ url }: Props) {
   const handleClick = async (e: React.MouseEvent) => {
     // Stop the event bubbling up to the parent <Link> so clicking Share
     // does not navigate to the article page.
@@ -74,24 +58,25 @@ export function TileShareButton({ url, variant = 'light' }: Props) {
     } else {
       ok = copyViaTextarea(url)
     }
-    if (ok) setCopied(true)
+    if (ok) toast.success('Link copied')
   }
 
-  const variantClass =
-    variant === 'dark'
-      ? 'border-paper/50 text-paper/70 hover:border-paper hover:text-paper'
-      : 'border-[var(--color-card-border)] text-[var(--color-muted-700)] hover:border-ink hover:text-ink'
-
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      aria-label={copied ? 'Link copied' : 'Copy share link'}
-      data-testid="tile-share"
-      className={`inline-flex items-center px-2 py-0.5 text-[0.6rem] uppercase tracking-[0.08em] border opacity-60 transition-all duration-150 hover:opacity-100 ${variantClass}`}
-      style={{ borderRadius: 'var(--radius-pill)' }}
-    >
-      {copied ? 'Copied!' : 'Share'}
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="border border-foreground"
+          onClick={handleClick}
+          aria-label="Copy share link"
+          data-testid="tile-share"
+        >
+          <Share2 />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>SHARE</TooltipContent>
+    </Tooltip>
   )
 }

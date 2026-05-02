@@ -121,6 +121,7 @@ export async function loadDashboardArticles(
       creatorSlug: targets.slug,
       reasonablenessRating: articles.reasonablenessRating,
       crossSource: articles.crossSource,
+      citations: articles.citations,
       sourceUrl: articles.sourceUrl,
       createdAt: articles.createdAt,
     })

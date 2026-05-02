@@ -1,24 +1,27 @@
 'use client'
 
 /**
- * StarButton — client wrapper that renders the star toggle on the
- * article page (#66).
+ * StarButton — star/unstar tile action (#66).
  *
- * Optimistic UI: on click we flip the local state immediately, then
- * fire the server action. If the action throws we revert. Star state
- * is visually small (a single icon swap) so the optimistic path is
- * the right default — a network blip shouldn't block the
- * "you starred this" feedback.
+ * Phase 4 rebuild: shadcn `<Button variant="ghost" size="icon">` with
+ * lucide `<Star>` icon (filled when starred). Preserves existing optimistic
+ * toggle state + server action. Used on both dashboard tiles and the
+ * article detail page.
  *
  * Authorization: the parent server component decides whether to render
  * this button at all. When no admin session is present, the parent
- * passes `disabled` so the button renders as a non-interactive icon
- * (the page still has to communicate "this exists" to public visitors,
- * since they ARE allowed to read but not star).
+ * passes `disabled` so the button renders as a non-interactive icon.
+ *
+ * `variant="labeled"` — used on the article detail page. Renders as a
+ * polished outlined pill (icon + "Star" / "Starred" label) to match the
+ * ShareLinkButton visual treatment. Tiles use the default `"icon"` mode.
  */
 
+import { Star } from 'lucide-react'
 import { useState, useTransition } from 'react'
 import { toggleStar } from '@/app/a/[slug]/actions'
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 type Props = {
   articleId: string
@@ -26,13 +29,27 @@ type Props = {
   initialStarred: boolean
   /** True when no admin session is present — render visible-but-inert. */
   disabled?: boolean
+  /**
+   * `'icon'` (default) — ghost icon-only button, used on dashboard tiles.
+   * `'labeled'` — outlined pill with icon + text label, used on the article
+   *   detail page to match ShareLinkButton.
+   */
+  variant?: 'icon' | 'labeled'
 }
 
-export function StarButton({ articleId, slug, initialStarred, disabled = false }: Props) {
+export function StarButton({
+  articleId,
+  slug,
+  initialStarred,
+  disabled = false,
+  variant = 'icon',
+}: Props) {
   const [starred, setStarred] = useState(initialStarred)
   const [isPending, startTransition] = useTransition()
 
-  const handleClick = () => {
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    e.preventDefault()
     if (disabled) return
     const next = !starred
     setStarred(next) // optimistic flip
@@ -40,49 +57,47 @@ export function StarButton({ articleId, slug, initialStarred, disabled = false }
       try {
         await toggleStar(articleId, slug)
       } catch {
-        // Revert on failure. Real failures are rare (admin-only action
-        // gated to the same origin); the revert keeps the UI honest if
-        // the server rejects the call for any reason.
+        // Revert on failure.
         setStarred(!next)
       }
     })
   }
 
-  return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={disabled || isPending}
-      aria-pressed={starred}
-      aria-label={starred ? 'Remove star' : 'Star this article'}
-      // Phase 8 #83 — tap-friendly: min-h-[44px] meets the 44×44 WCAG
-      // target-size recommendation on mobile. Phase 8 #85 — the global
-      // :focus-visible ring (1px ink outline + 2px offset) handles
-      // focus visibility; no rounded-blue browser default.
-      className={`inline-flex min-h-[44px] items-center gap-2 border border-[var(--color-card-border)] bg-paper px-4 py-2 text-[var(--text-meta)] uppercase tracking-[0.08em] transition-colors duration-150 ${
-        disabled
-          ? 'cursor-not-allowed text-[var(--color-muted-500)]'
-          : 'cursor-pointer text-ink hover:border-ink'
-      }`}
-      style={{ borderRadius: 'var(--radius-pill)' }}
-      data-testid="article-star"
-    >
-      {/* Inline SVG to keep the asset surface tiny — the star is the
-          only icon on the page. Filled when starred, hairline-only when
-          not, so the change reads at a glance even at small size. */}
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 24 24"
-        width="14"
-        height="14"
-        fill={starred ? 'currentColor' : 'none'}
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
+  if (variant === 'labeled') {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        onClick={handleClick}
+        disabled={disabled || isPending}
+        aria-pressed={starred}
+        aria-label={starred ? 'Remove star' : 'Star this article'}
+        data-testid="article-star"
       >
-        <path d="M12 2.5l3.09 6.26 6.91 1L17 14.62l1.18 6.88L12 18.27l-6.18 3.23L7 14.62 2 9.76l6.91-1L12 2.5z" />
-      </svg>
-      <span>{starred ? 'Starred' : 'Star'}</span>
-    </button>
+        <Star className={starred ? 'fill-current' : ''} aria-hidden="true" />
+        {starred ? 'Starred' : 'Star'}
+      </Button>
+    )
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="border border-foreground"
+          onClick={handleClick}
+          disabled={disabled || isPending}
+          aria-pressed={starred}
+          aria-label={starred ? 'Remove star' : 'Star this article'}
+          data-testid="article-star"
+        >
+          <Star className={starred ? 'fill-current' : ''} aria-hidden="true" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{starred ? 'UNSTAR' : 'STAR'}</TooltipContent>
+    </Tooltip>
   )
 }
