@@ -30,6 +30,20 @@ const tsvector = customType<{ data: string; default: false; notNull: true }>({
 })
 
 /**
+ * One external citation attached to an article. Stored as a JSONB element
+ * inside `articles.citations`. `source_name` mirrors a `comparison_sources.name`
+ * value for display purposes (denormalized — the source may be renamed later
+ * without breaking historical citations).
+ */
+export type ArticleCitation = {
+  url: string
+  title: string
+  source_name: string
+  accessed_at?: string
+  image_url?: string | null
+}
+
+/**
  * Articles produced by agents via `mcp-store` `write_articles`. The dashboard,
  * article page, and creator page all read from here.
  *
@@ -73,11 +87,13 @@ export const articles = pgTable(
     sourcePublishedAtEstimated: boolean('source_published_at_estimated').notNull().default(false),
     heroImageHash: text('hero_image_hash'),
     crossSource: jsonb('cross_source').notNull().default(sql`'[]'::jsonb`),
+    citations: jsonb('citations').notNull().default(sql`'[]'::jsonb`),
     hidden: boolean('hidden').notNull().default(false),
     hiddenAt: timestamp('hidden_at', { withTimezone: true }),
     dashboardVisible: boolean('dashboard_visible').notNull().default(true),
     starred: boolean('starred').notNull().default(false),
     read: boolean('read').notNull().default(false),
+    agentOpinion: text('agent_opinion'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
     tsvector: tsvector('tsvector').generatedAlwaysAs(
       sql`to_tsvector('english', coalesce(title, '') || ' ' || coalesce(summary, '') || ' ' || coalesce(agent_deep_dive, ''))`,

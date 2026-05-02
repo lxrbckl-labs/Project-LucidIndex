@@ -9,6 +9,8 @@
  * the deterministic helpers.
  */
 
+import { AGENT_OPINION_INSTRUCTION } from '@lucidindex/templates'
+
 /** Realistic-feeling labels Alex would actually use for an agent token. */
 export const DEMO_AGENT_TOKEN_LABELS: ReadonlyArray<{
   /** Label as it appears in Settings → Agent Tokens and as a byline. */
@@ -82,7 +84,8 @@ export const CUSTOMIZED_TEMPLATES: ReadonlyArray<{
       '  - Read the full description + chapter markers.\n' +
       '  - Summary should be 6-10 sentences (longer than the default — the form factor\n' +
       '    earns a longer write-up).\n' +
-      '  - Cross-source ~{{ cross_source_n }} entries; prefer written companions to the video.\n',
+      '  - Cross-source ~{{ cross_source_n }} entries; prefer written companions to the video.\n' +
+      AGENT_OPINION_INSTRUCTION,
     crossSourceN: 5,
   },
   {
@@ -92,7 +95,8 @@ export const CUSTOMIZED_TEMPLATES: ReadonlyArray<{
       'Quote the lede + the one-line takeaway and pass through the rest.\n' +
       '\n' +
       'Cross-source aggressively ({{ cross_source_n }}+) — newsletters are most valuable when\n' +
-      'paired with primary-source coverage. Skip aggregator copies of this newsletter.\n',
+      'paired with primary-source coverage. Skip aggregator copies of this newsletter.\n' +
+      AGENT_OPINION_INSTRUCTION,
     crossSourceN: 7,
   },
   {
@@ -102,7 +106,8 @@ export const CUSTOMIZED_TEMPLATES: ReadonlyArray<{
       'piece justifies — do not truncate at the default length cap.\n' +
       '\n' +
       'Lead with the thesis, not the setup. Cross-source {{ cross_source_n }} entries from\n' +
-      'independent voices on the same idea — this is the surface where cross-source pays off.\n',
+      'independent voices on the same idea — this is the surface where cross-source pays off.\n' +
+      AGENT_OPINION_INSTRUCTION,
     crossSourceN: 4,
   },
   {
@@ -112,7 +117,8 @@ export const CUSTOMIZED_TEMPLATES: ReadonlyArray<{
       "Stitch the thread into a coherent paragraph; preserve the author's framing.\n" +
       '\n' +
       'Cross-source {{ cross_source_n }} entries; threads usually echo a current event so the\n' +
-      'cross-source set should be the news entries that prompted the thread.\n',
+      'cross-source set should be the news entries that prompted the thread.\n' +
+      AGENT_OPINION_INSTRUCTION,
     crossSourceN: 2,
   },
 ] as const
