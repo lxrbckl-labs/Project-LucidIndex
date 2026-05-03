@@ -5,6 +5,7 @@
  *
  * Layout:
  *   <header bg-background border-b>
+ *     [Back button]       ← far left, only on /a/* article pages
  *     [Wordmark]          ← left
  *     [SearchInput]       ← right cluster
  *     [Settings icon]     ← right cluster (ghost button)
@@ -18,77 +19,52 @@
  * isn't required — this is in every authenticated layout.
  */
 
-import { Settings, User } from 'lucide-react'
+import { LayoutDashboard, Settings } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
+import { EscapeToBack } from '@/components/article/EscapeToBack'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { SidebarTrigger } from '@/components/ui/sidebar'
 import { TypeaheadSearch } from './TypeaheadSearch'
 
 export function TopNav() {
-  const router = useRouter()
+  const pathname = usePathname()
 
-  async function handleLogout() {
-    await fetch('/api/auth/logout', { method: 'POST' })
-    router.push('/')
-    router.refresh()
-  }
+  const isArticlePage = pathname.startsWith('/a/')
+  const isSettingsPage = pathname.startsWith('/settings')
 
   return (
-    <header className="bg-background border-b">
-      <div className="flex items-center justify-between px-4 py-3 md:px-6 lg:px-8">
-        {/* Brand mark — left side. Not an <h1> here; the page content
-            area owns the <h1> via the standalone <Wordmark> component. */}
-        <Link
-          href="/"
-          className="text-xl font-semibold uppercase tracking-wider text-foreground hover:opacity-80 transition-opacity"
-        >
-          LUCIDINDEX
-        </Link>
+    <header className="sticky top-0 z-50 border-b bg-background/70 backdrop-blur-lg supports-[backdrop-filter]:bg-background/50">
+      <div className="flex items-center justify-between p-4">
+        {/* Left cluster: sidebar collapse (settings only) + back button (article only) + wordmark */}
+        <div className="flex items-center gap-2">
+          {isSettingsPage && <SidebarTrigger className="h-9 w-9 border border-input" />}
+          {isArticlePage && <EscapeToBack />}
+          <Link
+            href="/"
+            className="text-xl font-semibold uppercase tracking-wider text-foreground hover:opacity-80 transition-opacity"
+          >
+            LUCIDINDEX
+          </Link>
+        </div>
 
-        {/* Right cluster: search + settings + user menu */}
+        {/* Right cluster: search + settings/dashboard toggle */}
         <div className="flex items-center gap-2">
           <TypeaheadSearch />
 
-          <Button variant="ghost" size="icon" className="h-9 w-9 border border-input" asChild>
-            <Link href="/settings" aria-label="Settings">
-              <Settings className="h-4 w-4" />
-            </Link>
-          </Button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 border border-input"
-                aria-label="Account menu"
-              >
-                <User className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild>
-                <Link href="/settings/account">Account</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/settings">Settings</Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onSelect={handleLogout}
-                className="text-destructive focus:text-destructive"
-              >
-                Logout
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {isSettingsPage ? (
+            <Button variant="ghost" size="icon" className="h-9 w-9 border border-input" asChild>
+              <Link href="/" aria-label="Dashboard">
+                <LayoutDashboard className="h-4 w-4" />
+              </Link>
+            </Button>
+          ) : (
+            <Button variant="ghost" size="icon" className="h-9 w-9 border border-input" asChild>
+              <Link href="/settings" aria-label="Settings">
+                <Settings className="h-4 w-4" />
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
     </header>

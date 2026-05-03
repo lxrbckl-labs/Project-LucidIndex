@@ -25,9 +25,9 @@ import { isFoundingFlowAvailable, requireAdmin } from '@lucidindex/auth'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import type { ReactNode } from 'react'
+import { TopNav } from '@/components/chrome/TopNav'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
-import { SettingsInsetHeader } from './_components/SettingsInsetHeader'
 import { SettingsSidebar } from './_components/SettingsSidebar'
 
 // The settings shell decides routing per-request based on the admins table
@@ -81,11 +81,15 @@ export default async function SettingsLayout({ children }: { children: ReactNode
 
   return (
     <SidebarProvider>
-      <SettingsSidebar />
-      <SidebarInset>
-        <SettingsInsetHeader />
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-4">{children}</div>
-      </SidebarInset>
+      <div className="flex w-full flex-col">
+        <TopNav />
+        <div className="flex flex-1">
+          <SettingsSidebar />
+          <SidebarInset>
+            <div className="flex flex-1 flex-col gap-4 p-6">{children}</div>
+          </SidebarInset>
+        </div>
+      </div>
       <Toaster />
     </SidebarProvider>
   )

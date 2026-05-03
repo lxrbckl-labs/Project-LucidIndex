@@ -12,7 +12,7 @@
  *   OVERVIEW  — Overview
  *   AGENTS    — Targets, Comparison Sources, Templates
  *   SYSTEM    — Off-site Backup, System, Agent Tokens
- *   INBOX     — Badges, Hidden Articles
+ *   INBOX     — Badges
  *   ACCOUNT   — Account
  *
  * collapsible="icon" — collapses to icon rail on desktop, consistent with
@@ -22,7 +22,6 @@
 import {
   BookOpen,
   ChevronsUpDown,
-  EyeOff,
   FileText,
   HardDriveDownload,
   Key,
@@ -49,7 +48,6 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -80,10 +78,7 @@ const NAV_GROUPS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }
   },
   {
     label: 'Inbox',
-    items: [
-      { href: '/settings/badges', label: 'Badges', icon: Tag },
-      { href: '/settings/hidden-articles', label: 'Hidden articles', icon: EyeOff },
-    ],
+    items: [{ href: '/settings/badges', label: 'Badges', icon: Tag }],
   },
   {
     label: 'Account',
@@ -108,27 +103,6 @@ export function SettingsSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      {/* Brand header */}
-      <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <Link href="/">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <Settings2 className="size-4" />
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold uppercase tracking-wider">
-                    LucidIndex
-                  </span>
-                  <span className="truncate text-xs text-muted-foreground">Settings</span>
-                </div>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarHeader>
-
       {/* Grouped nav */}
       <SidebarContent>
         {NAV_GROUPS.map((group) => (
