@@ -4,8 +4,8 @@
  * Two backends:
  *
  *   - `LUCIDINDEX_MOCK=1` → in-process substring filter over the mock
- *     article set. Same filter rules as the real-DB path (`hidden = false`,
- *     and `dashboard_visible = true OR includeArchived`). The mocks
+ *     article set. Same filter rules as the real-DB path
+ *     (`dashboard_visible = true OR includeArchived`). The mocks
  *     opt one article into "archived" via `dashboardVisible: false`
  *     so the "Include archived" toggle has a visible effect.
  *
@@ -17,8 +17,6 @@
  *     drizzle parameterizes `sql.placeholder`-style binds anyway).
  *
  * Hard rules from the spec:
- *   - `hidden = false` MUST be in the WHERE clause (Phase 6 #69
- *     requirement — hidden articles are gone from public surfaces).
  *   - Cap at 50 results — search is a discovery affordance, not a
  *     dump-everything endpoint.
  *   - Order by ts_rank_cd DESC so the strongest matches lead.
@@ -140,7 +138,6 @@ export async function searchArticles(
     const needle = trimmed.toLowerCase()
     return mockArticles
       .filter((a) => {
-        if (a.hidden) return false
         if (!includeArchived && a.dashboardVisible === false) return false
         const haystack = `${a.title} ${a.summary} ${a.agentDeepDive ?? ''}`.toLowerCase()
         return haystack.includes(needle)
@@ -197,7 +194,6 @@ export async function searchArticles(
     LEFT JOIN agent_tokens ag ON ag.id = a.agent_token_id
     LEFT JOIN targets      t  ON t.id  = a.target_id
     WHERE a.tsvector @@ plainto_tsquery('english', ${trimmed})
-      AND a.hidden = false
       AND (a.dashboard_visible = true OR ${includeArchived} = true)
     ORDER BY ts_rank_cd(a.tsvector, plainto_tsquery('english', ${trimmed})) DESC
     LIMIT ${SEARCH_RESULT_LIMIT}

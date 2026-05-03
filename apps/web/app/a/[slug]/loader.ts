@@ -8,9 +8,8 @@
  *     Same flag the dashboard uses, so the visual gate's flag-only run
  *     also covers the per-article page.
  *
- *   - Default → `articles` table via Drizzle. Filters out `hidden = true`
- *     rows (they 404 — Phase 6 #69 will add the admin "hide" action;
- *     this loader respects the column today).
+ *   - Default → `articles` table via Drizzle. Returns the article by slug;
+ *     missing slugs return null (→ 404).
  *
  * The shape returned (`ArticleViewModel`) is deliberately neutral — it
  * is what the page component renders against, regardless of backing
@@ -23,7 +22,7 @@
  */
 
 import { db } from '@lucidindex/db/client'
-import { and, eq } from '@lucidindex/db/query'
+import { eq } from '@lucidindex/db/query'
 import { agentTokens, articles, targets } from '@lucidindex/db/schema'
 import { findMockArticleBySlug, getMockCreatedAt, mockArticles } from '@/app/_mock/articles'
 
@@ -109,8 +108,8 @@ function formatPublishLabel(iso: string): string {
 }
 
 /**
- * Resolve a slug to a view model, or `null` when the article is missing
- * or hidden. The page maps `null` to a Next.js 404.
+ * Resolve a slug to a view model, or `null` when the article is missing.
+ * The page maps `null` to a Next.js 404.
  */
 export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel | null> {
   if (MOCK_MODE) {
@@ -164,14 +163,13 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
       starred: articles.starred,
       read: articles.read,
       agentOpinion: articles.agentOpinion,
-      hidden: articles.hidden,
       sourceUrl: articles.sourceUrl,
       createdAt: articles.createdAt,
     })
     .from(articles)
     .leftJoin(agentTokens, eq(articles.agentTokenId, agentTokens.id))
     .leftJoin(targets, eq(articles.targetId, targets.id))
-    .where(and(eq(articles.slug, slug), eq(articles.hidden, false)))
+    .where(eq(articles.slug, slug))
     .limit(1)
 
   const row = rows[0]

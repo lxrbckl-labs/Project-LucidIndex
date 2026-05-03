@@ -22,8 +22,6 @@
  *                                   retention purge (#72) drop out of
  *                                   the dashboard but stay reachable via
  *                                   share-link / "Include archived" search.
- *   - `hidden = false`            — admin-driven hide (#69) removes the
- *                                   article from every public surface.
  *
  * Order:  `source_published_at DESC NULLS LAST, created_at DESC`. The
  *         secondary `created_at` tiebreaker keeps ordering deterministic
@@ -99,7 +97,7 @@ export async function loadDashboardArticles(
   // Real-DB path. The filter on `topic_badges` uses the postgres array
   // containment operator (`@>`); the `topic_badges` column is `text[]`
   // and the operand has to be cast to the same type via `ARRAY[$1]::text[]`.
-  const baseWhere = and(eq(articles.dashboardVisible, true), eq(articles.hidden, false))
+  const baseWhere = eq(articles.dashboardVisible, true)
 
   const where = badge
     ? and(baseWhere, sql`${articles.topicBadges} @> ARRAY[${badge}]::text[]`)
