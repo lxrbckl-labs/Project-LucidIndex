@@ -9,12 +9,19 @@
  *   <TopNav>
  *   <main>
  *     heading "Starred"
- *     <ArticleMasonry> (starred articles)   OR   empty state
+ *
+ *     Topics  ← client-rendered from localStorage via StarredTopicsList
+ *       <StarredTopicsList />
+ *
+ *     Articles  ← server-rendered
+ *       <ArticleMasonry> (starred articles)   OR   empty state
  */
 
 import { requireAdmin } from '@lucidindex/auth'
+import { ChevronLeft } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { StarredTopicsList } from '@/app/favorites/StarredTopicsList'
 import { ArticleMasonry } from '@/components/article/ArticleMasonry'
 import { TopNav } from '@/components/chrome/TopNav'
 import { Button } from '@/components/ui/button'
@@ -37,27 +44,53 @@ export default async function StarredPage() {
     <div className="min-h-screen bg-background">
       <TopNav />
 
-      <main className="px-4 md:px-6 lg:px-8 pt-6 pb-16">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-semibold tracking-tight">Starred</h1>
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/">&larr; Dashboard</Link>
+      <main className="px-4 pt-4 pb-16">
+        <div className="mb-6 flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 border border-input"
+            aria-label="Back to dashboard"
+            asChild
+          >
+            <Link href="/">
+              <ChevronLeft className="h-4 w-4" />
+            </Link>
           </Button>
+          <h1 className="text-2xl font-semibold tracking-tight">Starred</h1>
         </div>
 
-        {articles.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-center">
-            <p className="text-lg font-medium text-foreground">No starred articles yet.</p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Star an article from the dashboard or article page to save it here.
-            </p>
-            <Button variant="outline" size="sm" asChild className="mt-6">
-              <Link href="/">Browse dashboard</Link>
-            </Button>
-          </div>
-        ) : (
-          <ArticleMasonry articles={articles} />
-        )}
+        {/* ----------------------------------------------------------------
+            Topics section (client-rendered from localStorage)
+        ---------------------------------------------------------------- */}
+        <section className="mb-10">
+          <p className="text-sm font-medium uppercase tracking-[0.08em] text-muted-foreground mb-3">
+            Topics
+          </p>
+          <StarredTopicsList />
+        </section>
+
+        {/* ----------------------------------------------------------------
+            Articles section (server-rendered)
+        ---------------------------------------------------------------- */}
+        <section>
+          <p className="text-sm font-medium uppercase tracking-[0.08em] text-muted-foreground mb-3">
+            Articles
+          </p>
+          {articles.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <p className="text-lg font-medium text-foreground">No starred articles yet.</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Star an article from the dashboard or article page to save it here.
+              </p>
+              <Button variant="outline" size="sm" asChild className="mt-6">
+                <Link href="/">Browse dashboard</Link>
+              </Button>
+            </div>
+          ) : (
+            <ArticleMasonry articles={articles} />
+          )}
+        </section>
       </main>
     </div>
   )

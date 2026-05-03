@@ -27,10 +27,11 @@
  */
 
 import { requireAdmin } from '@lucidindex/auth'
-import { ArticleMasonry } from '@/components/article/ArticleMasonry'
 import { AuthenticatedEmptyState } from '@/components/article/AuthenticatedEmptyState'
+import { FilteredArticleMasonry } from '@/components/article/FilteredArticleMasonry'
 import { LiveArticleStream } from '@/components/article/LiveArticleStream'
 import { MasonryKeyboardNav } from '@/components/article/MasonryKeyboardNav'
+import { TopicFocusHeader } from '@/components/article/TopicFocusHeader'
 import { TopicBadgeFilterRow } from '@/components/chrome/TopicBadgeFilterRow'
 import { TopNav } from '@/components/chrome/TopNav'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -53,9 +54,17 @@ function readBadgeParam(params: SearchParams): string | null {
   return trimmed.length === 0 ? null : trimmed
 }
 
+function readStarredParam(params: SearchParams): boolean {
+  const raw = params.starred
+  if (!raw) return false
+  const value = Array.isArray(raw) ? raw[0] : raw
+  return value === '1'
+}
+
 export default async function Page({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams
   const badgeFilter = readBadgeParam(params)
+  const starredFilter = readStarredParam(params)
 
   // In mock mode, skip the session gate entirely.
   const session = MOCK_MODE ? { adminId: 'mock' } : await requireAdmin()
@@ -92,7 +101,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
   // Authenticated admin — shadcn content grid.
   // ---------------------------------------------------------------------
   const [articles, badgeNames] = await Promise.all([
-    loadDashboardArticles({ badge: badgeFilter }),
+    loadDashboardArticles({ badge: badgeFilter, starred: starredFilter }),
     loadDashboardBadges(),
   ])
 
@@ -103,10 +112,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
       {/* Thin top nav — Settings + Account links. */}
       <TopNav />
 
-      <main className="px-6 pt-6 pb-16">
-        {/* Topic-badge filter pills (Wordmark lives in TopNav). */}
+      <main className="px-4 pt-4 pb-16">
+        {/* Topic filter row OR focus header, depending on ?badge */}
         <div className="mb-6">
-          <TopicBadgeFilterRow badges={badgeOptions} />
+          {badgeFilter ? (
+            /* Focused view: topic header with Back + Star + EyeOff */
+            <TopicFocusHeader topicName={badgeFilter} />
+          ) : (
+            /* Default view: topic-badge filter pills */
+            <TopicBadgeFilterRow badges={badgeOptions} />
+          )}
         </div>
 
         {/* Live arrivals strip — SSE-driven horizontal scroll. */}
@@ -118,7 +133,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
           <AuthenticatedEmptyState />
         ) : (
           <>
-            <ArticleMasonry articles={articles} />
+            {/*
+              FilteredArticleMasonry reads notInterested from localStorage
+              (client-side) and culls matching articles.
+              In focused view (badgeFilter set) skip the not-interested
+              filter — the user explicitly chose this topic.
+            */}
+            <FilteredArticleMasonry
+              articles={articles}
+              skipNotInterestedFilter={badgeFilter !== null}
+            />
             {/* Keyboard nav handler — renders nothing visible; attaches
                 a window-level keydown listener that walks focus across
                 [data-masonry-tile] elements. */}

@@ -41,6 +41,7 @@ export async function loadStarredArticles(): Promise<MockArticle[]> {
       citations: articles.citations,
       sourceUrl: articles.sourceUrl,
       createdAt: articles.createdAt,
+      starred: articles.starred,
     })
     .from(articles)
     .leftJoin(agentTokens, eq(articles.agentTokenId, agentTokens.id))
