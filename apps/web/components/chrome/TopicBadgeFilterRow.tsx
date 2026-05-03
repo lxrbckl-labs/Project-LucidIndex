@@ -121,7 +121,7 @@ export function TopicBadgeFilterRow({ badges }: Props) {
             aria-label={item.label === 'All' ? 'Show all topics' : `Filter by ${item.label}`}
             variant="outline"
             size="sm"
-            className="shrink-0 rounded-full px-4 text-xs uppercase tracking-[0.1em]"
+            className="shrink-0 rounded-full px-4 text-xs uppercase tracking-[0.1em] data-[state=on]:bg-zinc-200 data-[state=on]:text-zinc-600"
           >
             {item.label}
           </ToggleGroupItem>

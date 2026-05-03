@@ -39,7 +39,7 @@ export function AgentOpinionSection({ agentOpinion }: Props) {
         <CollapsibleContent>
           <div className="pb-4">
             {agentOpinion ? (
-              <p className="whitespace-pre-wrap text-base leading-relaxed text-foreground">
+              <p className="whitespace-pre-wrap text-base leading-relaxed text-foreground text-justify">
                 {agentOpinion}
               </p>
             ) : (

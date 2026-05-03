@@ -35,11 +35,15 @@ export function TopNav() {
 
   return (
     <header className="sticky top-0 z-50 border-b bg-background/70 backdrop-blur-lg supports-[backdrop-filter]:bg-background/50">
-      <div className="flex items-center justify-between p-4">
-        {/* Left cluster: sidebar collapse (settings only) + back button (article only) + wordmark */}
-        <div className="flex items-center gap-2">
+      <div className="grid grid-cols-3 items-center p-4">
+        {/* Left cluster: sidebar collapse (settings only) + back button (article only) */}
+        <div className="flex items-center justify-start gap-2">
           {isSettingsPage && <SidebarTrigger className="h-9 w-9 border border-input" />}
           {isArticlePage && <EscapeToBack />}
+        </div>
+
+        {/* Center: wordmark */}
+        <div className="flex items-center justify-center">
           <Link
             href="/"
             onClick={(e) => {
@@ -54,8 +58,8 @@ export function TopNav() {
           </Link>
         </div>
 
-        {/* Right cluster: search + favorites + settings/dashboard toggle */}
-        <div className="flex items-center gap-2">
+        {/* Right cluster: search + settings/dashboard toggle */}
+        <div className="flex items-center justify-end gap-2">
           <TypeaheadSearch />
 
           {isSettingsPage ? (

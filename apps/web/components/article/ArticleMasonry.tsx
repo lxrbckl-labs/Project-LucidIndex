@@ -43,16 +43,43 @@ function isHeroCandidate(index: number): boolean {
   return index % 7 === 0
 }
 
+/**
+ * Pick a starting column for a hero (col-span-2) tile based on its hero
+ * sequence number — alternates so heroes don't always pin to col 1. With
+ * `grid-flow-dense` on the grid, smaller tiles fill the gaps to the left
+ * when a hero starts further right, exercising the layout in different
+ * places.
+ *
+ * Patterns rotate through the available start columns at each breakpoint:
+ *   lg (3 cols, hero spans 2) → starts cycle 1 / 2
+ *   xl (4 cols, hero spans 2) → starts cycle 1 / 2 / 3
+ *
+ * Class strings are literal so Tailwind's JIT picks them up at build time.
+ */
+const HERO_COL_STARTS = [
+  'lg:col-start-1 xl:col-start-1',
+  'lg:col-start-2 xl:col-start-2',
+  'lg:col-start-1 xl:col-start-3',
+] as const
+
+function heroColStartClasses(heroIndex: number): string {
+  return HERO_COL_STARTS[heroIndex % HERO_COL_STARTS.length] ?? HERO_COL_STARTS[0]
+}
+
 export function ArticleMasonry({ articles }: Props) {
+  let heroSeq = 0
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    <div className="grid grid-flow-dense grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {articles.map((article, index) => {
         const candidate = isHeroCandidate(index) ? 'large' : 'small'
         const size = effectiveCardSize(article, candidate)
 
         if (size === 'large') {
+          const colStart = heroColStartClasses(heroSeq)
+          heroSeq += 1
           return (
-            <div key={article.id} className="lg:col-span-2">
+            <div key={article.id} className={`lg:col-span-2 ${colStart}`}>
               <LargeArticleCard article={article} />
             </div>
           )

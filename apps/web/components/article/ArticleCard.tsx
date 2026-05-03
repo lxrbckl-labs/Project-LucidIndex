@@ -83,7 +83,7 @@ export function ArticleCard({ article }: Props) {
           WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 24px), transparent)',
         }}
       >
-        <p className="text-sm text-muted-foreground">{article.summary}</p>
+        <p className="text-sm text-muted-foreground text-justify">{article.summary}</p>
       </CardContent>
 
       <CardFooter className="pt-4 flex items-center justify-between">

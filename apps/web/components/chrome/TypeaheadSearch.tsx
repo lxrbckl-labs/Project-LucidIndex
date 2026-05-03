@@ -230,10 +230,6 @@ export function TypeaheadSearch() {
     router.push(href)
   }
 
-  // ── Detect OS for keyboard hint ──────────────────────────────────────────
-  const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
-  const kbdHint = isMac ? '⌘K' : 'Ctrl+K'
-
   const hasResults =
     articles.length > 0 ||
     creators.length > 0 ||
@@ -259,7 +255,7 @@ export function TypeaheadSearch() {
                 onFocus={() => {
                   if (query.trim().length >= MIN_LENGTH) setOpen(true)
                 }}
-                placeholder={`Search  ${kbdHint}`}
+                placeholder="Search"
                 autoComplete="off"
                 data-testid="topnav-search-input"
                 className="w-64 pl-8 pr-2 md:w-80 h-9"

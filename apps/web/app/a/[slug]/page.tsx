@@ -328,7 +328,7 @@ export default async function ArticlePage({
                 the cap-trim. */}
             {cappedBody ? (
               <section className="mt-10">
-                <p className="whitespace-pre-wrap text-base leading-relaxed text-foreground">
+                <p className="whitespace-pre-wrap text-base leading-relaxed text-foreground text-justify">
                   {cappedBody}
                 </p>
                 {truncated ? (
