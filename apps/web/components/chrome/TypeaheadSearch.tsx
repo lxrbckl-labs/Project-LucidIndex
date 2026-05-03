@@ -5,11 +5,16 @@
  *
  * Behaviour:
  *   - Typing 2+ chars fetches /api/search/typeahead?q=<query> (200 ms debounce).
+ *   - On /settings/* routes, a "Settings" group is prepended with results from
+ *     the static settings index (synchronous, no fetch needed).
  *   - Matching creators appear first in a "Creators" group; topics second in a
- *     "Topics" group; articles below in an "Articles" group.
+ *     "Topics" group; starred articles in a "Starred" group; regular articles
+ *     below in an "Articles" group. Starred articles are deduplicated out of
+ *     the regular Articles group so each match appears only once.
  *   - Clicking (or keyboard-selecting) a creator navigates to /c/<slug>.
  *   - Clicking (or keyboard-selecting) a topic navigates to /?badge=<name>.
  *   - Clicking (or keyboard-selecting) an article navigates to /a/<slug>.
+ *   - Clicking (or keyboard-selecting) a settings entry navigates to its href.
  *   - Pressing Enter with no result highlighted falls back to /search?q=<query>.
  *   - Cmd+K / Ctrl+K focuses the input from anywhere on the page.
  *
@@ -18,9 +23,9 @@
  * sections for keyboard navigation and item selection.
  */
 
-import { FileText, Hash, Search, User } from 'lucide-react'
+import { FileText, Hash, Search, Settings, Star, User } from 'lucide-react'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type {
   TypeaheadArticle,
@@ -36,6 +41,7 @@ import {
 } from '@/components/ui/command'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { type SettingsIndexEntry, searchSettingsIndex } from '@/lib/settings-index'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -62,12 +68,16 @@ const MIN_LENGTH = 2
 
 export function TypeaheadSearch() {
   const router = useRouter()
+  const pathname = usePathname()
+  const onSettingsPage = pathname.startsWith('/settings')
 
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [articles, setArticles] = useState<TypeaheadArticle[]>([])
   const [creators, setCreators] = useState<TypeaheadCreator[]>([])
   const [topics, setTopics] = useState<TypeaheadTopic[]>([])
+  const [starredArticles, setStarredArticles] = useState<TypeaheadArticle[]>([])
+  const [settingsResults, setSettingsResults] = useState<SettingsIndexEntry[]>([])
   const [loading, setLoading] = useState(false)
 
   const inputRef = useRef<HTMLInputElement>(null)
@@ -79,6 +89,7 @@ export function TypeaheadSearch() {
       setArticles([])
       setCreators([])
       setTopics([])
+      setStarredArticles([])
       setLoading(false)
       return
     }
@@ -91,24 +102,40 @@ export function TypeaheadSearch() {
         setArticles([])
         setCreators([])
         setTopics([])
+        setStarredArticles([])
         return
       }
       const data = (await res.json()) as {
         articles: TypeaheadArticle[]
         creators: TypeaheadCreator[]
         topics: TypeaheadTopic[]
+        starredArticles: TypeaheadArticle[]
       }
       setArticles(data.articles ?? [])
       setCreators(data.creators ?? [])
       setTopics(data.topics ?? [])
+      setStarredArticles(data.starredArticles ?? [])
     } catch {
       setArticles([])
       setCreators([])
       setTopics([])
+      setStarredArticles([])
     } finally {
       setLoading(false)
     }
   }, [])
+
+  // ── Settings index search (synchronous) ─────────────────────────────────
+  const updateSettingsResults = useCallback(
+    (q: string) => {
+      if (onSettingsPage && q.trim().length >= MIN_LENGTH) {
+        setSettingsResults(searchSettingsIndex(q, 5))
+      } else {
+        setSettingsResults([])
+      }
+    },
+    [onSettingsPage],
+  )
 
   // ── Debounced query change ───────────────────────────────────────────────
   function handleChange(next: string) {
@@ -116,15 +143,30 @@ export function TypeaheadSearch() {
 
     if (debounceRef.current) clearTimeout(debounceRef.current)
 
+    // Settings search is synchronous — update immediately (no debounce needed)
+    updateSettingsResults(next)
+
     if (next.trim().length < MIN_LENGTH) {
       setArticles([])
       setCreators([])
       setTopics([])
+      setStarredArticles([])
       setOpen(false)
       return
     }
 
     setOpen(true)
+
+    // On settings pages: only show settings results — skip the typeahead API
+    // (no articles / creators / topics / starred articles).
+    if (onSettingsPage) {
+      setArticles([])
+      setCreators([])
+      setTopics([])
+      setStarredArticles([])
+      return
+    }
+
     debounceRef.current = setTimeout(() => {
       void fetchResults(next)
     }, DEBOUNCE_MS)
@@ -181,11 +223,23 @@ export function TypeaheadSearch() {
     router.push(`/?badge=${encodeURIComponent(name)}`)
   }
 
+  // ── Settings selection ──────────────────────────────────────────────────
+  function handleSelectSetting(href: string) {
+    setOpen(false)
+    setQuery('')
+    router.push(href)
+  }
+
   // ── Detect OS for keyboard hint ──────────────────────────────────────────
   const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
   const kbdHint = isMac ? '⌘K' : 'Ctrl+K'
 
-  const hasResults = articles.length > 0 || creators.length > 0 || topics.length > 0
+  const hasResults =
+    articles.length > 0 ||
+    creators.length > 0 ||
+    topics.length > 0 ||
+    starredArticles.length > 0 ||
+    settingsResults.length > 0
   const showDropdown = open && (loading || hasResults || query.trim().length >= MIN_LENGTH)
 
   return (
@@ -232,7 +286,34 @@ export function TypeaheadSearch() {
                 </CommandEmpty>
               )}
 
-              {/* ── Creators group (shown first) ──────────────────────── */}
+              {/* ── Settings group (shown first on /settings/* routes) ── */}
+              {!loading && settingsResults.length > 0 && (
+                <CommandGroup heading="Settings">
+                  {settingsResults.map((entry) => (
+                    <CommandItem
+                      key={entry.href}
+                      value={entry.href}
+                      onSelect={() => handleSelectSetting(entry.href)}
+                      className="flex items-center gap-3 px-3 py-2 cursor-pointer"
+                    >
+                      {/* Settings icon */}
+                      <div className="shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                        <Settings className="h-4 w-4 text-muted-foreground" />
+                      </div>
+
+                      {/* Title + description */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm leading-tight truncate">{entry.title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                          {entry.description}
+                        </p>
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+
+              {/* ── Creators group ────────────────────────────────────── */}
               {!loading && creators.length > 0 && (
                 <CommandGroup heading="Creators">
                   {creators.map((c) => (
@@ -281,6 +362,55 @@ export function TypeaheadSearch() {
                           {t.articleCount === 1 ? '1 article' : `${t.articleCount} articles`}
                         </p>
                       </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+
+              {/* ── Starred articles group ────────────────────────────── */}
+              {!loading && starredArticles.length > 0 && (
+                <CommandGroup heading="Starred">
+                  {starredArticles.map((r) => (
+                    <CommandItem
+                      key={r.id}
+                      value={`starred-${r.id}`}
+                      onSelect={() => handleSelectArticle(r.slug)}
+                      className="flex items-center gap-3 px-3 py-2 cursor-pointer"
+                    >
+                      {/* Thumbnail */}
+                      <div className="shrink-0 w-8 h-8 rounded overflow-hidden bg-muted flex items-center justify-center">
+                        {r.heroImageHash ? (
+                          <Image
+                            src={`/i/${r.heroImageHash}`}
+                            alt=""
+                            width={32}
+                            height={32}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Star className="h-4 w-4 text-muted-foreground fill-current" />
+                        )}
+                      </div>
+
+                      {/* Title + creator */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm leading-tight truncate">{truncate(r.title, 60)}</p>
+                        {r.creatorLabel && (
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">
+                            {r.creatorLabel}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Star icon (always visible, to distinguish from regular articles) */}
+                      <Star className="shrink-0 h-3.5 w-3.5 text-amber-400 fill-current" />
+
+                      {/* Date */}
+                      {r.sourcePublishedAt && (
+                        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                          {formatDate(r.sourcePublishedAt)}
+                        </span>
+                      )}
                     </CommandItem>
                   ))}
                 </CommandGroup>

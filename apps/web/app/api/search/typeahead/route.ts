@@ -3,22 +3,25 @@
  *
  *   GET ?q=<query>
  *
- * Returns up to 6 articles, up to 4 creators, and up to 4 topics whose
- * label/title/name matches the query. Used by the TypeaheadSearch component
- * in the TopNav to power the spotlight-style dropdown. The full `/search`
- * page endpoint is unchanged.
+ * Returns up to 6 articles, up to 4 creators, up to 4 topics, and up to 4
+ * starred articles whose label/title/name matches the query. Used by the
+ * TypeaheadSearch component in the TopNav to power the spotlight-style
+ * dropdown. The full `/search` page endpoint is unchanged.
  *
  * Response shape:
  *   {
- *     articles: TypeaheadArticle[],  // ≤ 6 results
- *     creators: TypeaheadCreator[],  // ≤ 4 results
- *     topics: TypeaheadTopic[]       // ≤ 4 results
+ *     articles: TypeaheadArticle[],        // ≤ 6 results (starred deduplicated out)
+ *     creators: TypeaheadCreator[],        // ≤ 4 results
+ *     topics: TypeaheadTopic[],            // ≤ 4 results
+ *     starredArticles: TypeaheadArticle[]  // ≤ 4 results (starred=true matches)
  *   }
  *
  * Rules:
- *   - Empty / whitespace query → { articles: [], creators: [], topics: [] } (no DB round-trip).
- *   - Queries shorter than 2 chars → { articles: [], creators: [], topics: [] } (avoid noise).
+ *   - Empty / whitespace query → { articles: [], creators: [], topics: [], starredArticles: [] } (no DB round-trip).
+ *   - Queries shorter than 2 chars → same empty shape (avoid noise).
  *   - Articles: dashboard_visible=true AND hidden=false, title ILIKE or FTS match.
+ *   - Starred articles: same filter as articles, plus starred=true.
+ *   - Regular articles deduplicate any IDs already in starredArticles.
  *   - Creators: active=true AND slug IS NOT NULL, label ILIKE match.
  *   - Topics: name ILIKE match; articleCount via correlated count against articles.topic_badges.
  *   - Both ordered sensibly (articles: newest first; creators: label asc; topics: name asc).
@@ -37,6 +40,7 @@ export const dynamic = 'force-dynamic'
 const ARTICLE_LIMIT = 6
 const CREATOR_LIMIT = 4
 const TOPIC_LIMIT = 4
+export const STARRED_LIMIT = 4
 const MIN_QUERY_LENGTH = 2
 const MOCK_MODE = process.env.LUCIDINDEX_MOCK === '1'
 
@@ -69,7 +73,7 @@ export type TypeaheadTopic = {
  */
 export type TypeaheadResult = TypeaheadArticle
 
-const EMPTY = { articles: [], creators: [], topics: [] }
+const EMPTY = { articles: [], creators: [], topics: [], starredArticles: [] }
 
 export async function GET(req: Request) {
   const session = await requireAdmin()
@@ -87,19 +91,32 @@ export async function GET(req: Request) {
 
   if (MOCK_MODE) {
     const needle = query.toLowerCase()
-    const articles: TypeaheadArticle[] = mockArticles
+
+    const toArticleShape = (a: (typeof mockArticles)[number]): TypeaheadArticle => ({
+      id: a.id,
+      slug: a.slug,
+      title: a.title,
+      sourcePublishedAt: a.publishedAt ?? null,
+      creatorLabel: a.creatorLabel ?? null,
+      // Mock heroImageUrl is a full URL like /i/<hash>; extract the hash.
+      heroImageHash: a.heroImageUrl ? a.heroImageUrl.replace(/^\/i\//, '') : null,
+    })
+
+    const visibleMatching = mockArticles
       .filter((a) => !a.hidden && a.dashboardVisible !== false)
       .filter((a) => a.title.toLowerCase().includes(needle))
+
+    const starredArticles: TypeaheadArticle[] = visibleMatching
+      .filter((a) => a.starred)
+      .slice(0, STARRED_LIMIT)
+      .map(toArticleShape)
+
+    const starredIds = new Set(starredArticles.map((a) => a.id))
+
+    const articles: TypeaheadArticle[] = visibleMatching
+      .filter((a) => !starredIds.has(a.id))
       .slice(0, ARTICLE_LIMIT)
-      .map((a) => ({
-        id: a.id,
-        slug: a.slug,
-        title: a.title,
-        sourcePublishedAt: a.publishedAt ?? null,
-        creatorLabel: a.creatorLabel ?? null,
-        // Mock heroImageUrl is a full URL like /i/<hash>; extract the hash.
-        heroImageHash: a.heroImageUrl ? a.heroImageUrl.replace(/^\/i\//, '') : null,
-      }))
+      .map(toArticleShape)
 
     // Collect unique topic names from visible articles, filter by query,
     // and compute article counts from mock data.
@@ -117,7 +134,7 @@ export async function GET(req: Request) {
       .map(([name, articleCount]) => ({ name, articleCount }))
 
     // No creator mock data — return empty creators in mock mode
-    return NextResponse.json({ articles, creators: [], topics })
+    return NextResponse.json({ articles, creators: [], topics, starredArticles })
   }
 
   type ArticleRow = {
@@ -142,7 +159,7 @@ export async function GET(req: Request) {
     article_count: string
   }
 
-  const [articleRows, creatorRows, topicRows] = await Promise.all([
+  const [articleRows, creatorRows, topicRows, starredArticleRows] = await Promise.all([
     db.execute<ArticleRow>(sql`
       SELECT
         a.id,
@@ -203,16 +220,47 @@ export async function GET(req: Request) {
       ORDER BY tb.name ASC
       LIMIT ${TOPIC_LIMIT}
     `),
+
+    // Starred articles: same as articles query plus starred=true filter.
+    db.execute<ArticleRow>(sql`
+      SELECT
+        a.id,
+        a.slug,
+        a.title,
+        a.source_published_at::text AS source_published_at,
+        t.label                     AS creator_label,
+        a.hero_image_hash
+      FROM articles a
+      LEFT JOIN targets t ON t.id = a.target_id
+      WHERE a.hidden            = false
+        AND a.dashboard_visible = true
+        AND a.starred           = true
+        AND (
+          a.title ILIKE ${`%${query}%`}
+          OR a.tsvector @@ plainto_tsquery('english', ${query})
+        )
+      ORDER BY a.source_published_at DESC NULLS LAST
+      LIMIT ${STARRED_LIMIT}
+    `),
   ])
 
-  const articles: TypeaheadArticle[] = articleRows.map((r) => ({
+  const toArticleShape = (r: ArticleRow): TypeaheadArticle => ({
     id: r.id,
     slug: r.slug,
     title: r.title,
     sourcePublishedAt: r.source_published_at ?? null,
     creatorLabel: r.creator_label ?? null,
     heroImageHash: r.hero_image_hash ?? null,
-  }))
+  })
+
+  const starredArticles: TypeaheadArticle[] = starredArticleRows.map(toArticleShape)
+
+  // Dedupe: if a starred article already appears in the regular articles
+  // query, remove it from the regular list so it only shows once (starred).
+  const starredIds = new Set(starredArticles.map((a) => a.id))
+  const articles: TypeaheadArticle[] = articleRows
+    .filter((r) => !starredIds.has(r.id))
+    .map(toArticleShape)
 
   const creators: TypeaheadCreator[] = creatorRows.map((r) => ({
     id: r.id,
@@ -227,5 +275,5 @@ export async function GET(req: Request) {
     articleCount: Number(r.article_count ?? 0),
   }))
 
-  return NextResponse.json({ articles, creators, topics })
+  return NextResponse.json({ articles, creators, topics, starredArticles })
 }
