@@ -13,7 +13,6 @@ import { type FormEvent, useState } from 'react'
 import { toast } from 'sonner'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Command,
   CommandEmpty,
@@ -32,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { CadencePreset } from '../_lib/targets-repo'
 
 export type TargetFormInitial = {
@@ -122,20 +122,44 @@ export function TargetForm(props: TargetFormProps) {
         </Alert>
       )}
 
-      {/* Label */}
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="label">Label</Label>
-        <Input
-          id="label"
-          name="label"
-          type="text"
-          required
-          maxLength={200}
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          disabled={!promptTemplatesAvailable || submitting}
-        />
-        {errors.label && <span className="text-xs text-destructive">{errors.label}</span>}
+      {/* Label + active toggle on the right */}
+      <div className="flex items-end gap-3">
+        <div className="flex flex-col gap-1.5 flex-1">
+          <Label htmlFor="label">Label</Label>
+          <Input
+            id="label"
+            name="label"
+            type="text"
+            required
+            maxLength={200}
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            disabled={!promptTemplatesAvailable || submitting}
+          />
+          {errors.label && <span className="text-xs text-destructive">{errors.label}</span>}
+        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => setActive(!active)}
+              disabled={!promptTemplatesAvailable || submitting}
+              aria-pressed={active}
+              aria-label={active ? 'Pause target' : 'Activate target'}
+              className="h-10 w-10 shrink-0 rounded-md border border-input bg-background hover:bg-accent flex items-center justify-center transition-colors disabled:pointer-events-none disabled:opacity-50"
+            >
+              {active ? (
+                <span className="relative flex h-2 w-2" aria-hidden="true">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+                </span>
+              ) : (
+                <span className="h-2 w-2 rounded-full bg-red-500" aria-hidden="true" />
+              )}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>{active ? 'Watching' : 'Paused'}</TooltipContent>
+        </Tooltip>
       </div>
 
       {/* URL or handle */}
@@ -232,19 +256,6 @@ export function TargetForm(props: TargetFormProps) {
         {errors.promptTemplateId && (
           <span className="text-xs text-destructive">{errors.promptTemplateId}</span>
         )}
-      </div>
-
-      {/* Active */}
-      <div className="flex items-center gap-2">
-        <Checkbox
-          id="active"
-          checked={active}
-          onCheckedChange={(val) => setActive(!!val)}
-          disabled={!promptTemplatesAvailable || submitting}
-        />
-        <Label htmlFor="active" className="font-normal cursor-pointer">
-          Active (the cron sidecar will pick this up; uncheck to pause)
-        </Label>
       </div>
 
       {errors._form && (

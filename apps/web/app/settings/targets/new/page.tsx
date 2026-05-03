@@ -5,6 +5,7 @@
 import { ChevronLeft } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
 import { TargetForm } from '../_components/TargetForm'
 import {
   CADENCE_PRESETS,
@@ -22,7 +23,7 @@ export default async function NewTargetPage() {
 
   return (
     <div className="max-w-[640px] flex flex-col gap-6">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-3">
         <Button
           variant="ghost"
           size="icon"
@@ -34,8 +35,10 @@ export default async function NewTargetPage() {
             <ChevronLeft className="h-4 w-4" />
           </Link>
         </Button>
-        <h1 className="text-3xl font-bold tracking-tight">New target</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Add Target</h1>
       </div>
+
+      <Separator />
 
       <TargetForm
         mode="create"

@@ -11,10 +11,10 @@ import { useRouter } from 'next/navigation'
 import { type FormEvent, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 export type ComparisonSourceFormInitial = {
   name: string
@@ -84,21 +84,45 @@ export function ComparisonSourceForm({ mode, sourceId, initial }: ComparisonSour
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-6">
-      {/* Name */}
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="name">Name</Label>
-        <Input
-          id="name"
-          name="name"
-          type="text"
-          required
-          maxLength={200}
-          placeholder="e.g. Wikipedia"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          disabled={submitting}
-        />
-        {errors.name && <span className="text-xs text-destructive">{errors.name}</span>}
+      {/* Name + active toggle on the right */}
+      <div className="flex items-end gap-3">
+        <div className="flex flex-col gap-1.5 flex-1">
+          <Label htmlFor="name">Name</Label>
+          <Input
+            id="name"
+            name="name"
+            type="text"
+            required
+            maxLength={200}
+            placeholder="e.g. Wikipedia"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={submitting}
+          />
+          {errors.name && <span className="text-xs text-destructive">{errors.name}</span>}
+        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => setIsActive(!isActive)}
+              disabled={submitting}
+              aria-pressed={isActive}
+              aria-label={isActive ? 'Pause source' : 'Activate source'}
+              className="h-10 w-10 shrink-0 rounded-md border border-input bg-background hover:bg-accent flex items-center justify-center transition-colors disabled:pointer-events-none disabled:opacity-50"
+            >
+              {isActive ? (
+                <span className="relative flex h-2 w-2" aria-hidden="true">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+                </span>
+              ) : (
+                <span className="h-2 w-2 rounded-full bg-red-500" aria-hidden="true" />
+              )}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>{isActive ? 'Watching' : 'Paused'}</TooltipContent>
+        </Tooltip>
       </div>
 
       {/* Base URL */}
@@ -133,19 +157,6 @@ export function ComparisonSourceForm({ mode, sourceId, initial }: ComparisonSour
           disabled={submitting}
         />
         {errors.notes && <span className="text-xs text-destructive">{errors.notes}</span>}
-      </div>
-
-      {/* Active */}
-      <div className="flex items-center gap-2">
-        <Checkbox
-          id="isActive"
-          checked={isActive}
-          onCheckedChange={(val) => setIsActive(!!val)}
-          disabled={submitting}
-        />
-        <Label htmlFor="isActive" className="font-normal cursor-pointer">
-          Active (agents will consult this source)
-        </Label>
       </div>
 
       {errors._form && (
