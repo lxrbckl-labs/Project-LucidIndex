@@ -183,6 +183,7 @@ export async function loadCreatorArticles(targetId: string): Promise<MockArticle
       reasonablenessRating: row.reasonablenessRating ?? null,
       crossSource,
       sourceUrl: row.sourceUrl,
+      starred: row.starred,
     }
   })
 }

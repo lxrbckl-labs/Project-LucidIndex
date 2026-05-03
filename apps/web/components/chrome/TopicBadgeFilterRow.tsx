@@ -39,20 +39,27 @@ type Props = {
 
 /** URL search-param key carrying the selected badge name. */
 export const BADGE_PARAM = 'badge'
+/** URL search-param key for the "Starred" virtual filter. */
+export const STARRED_PARAM = 'starred'
+/** Sentinel value used by the ToggleGroup for the "Starred" virtual entry. */
+const STARRED_VALUE = '__starred__'
 
 export function TopicBadgeFilterRow({ badges }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
 
-  // Active badge = current value of ?badge=… from the URL. Empty string
-  // means "All" is selected — the URL has no badge param.
-  const active = searchParams.get(BADGE_PARAM)?.trim() ?? ''
+  // Active value: starred → STARRED_VALUE; badge param → that badge name;
+  // otherwise "" (= All).
+  const starredActive = searchParams.get(STARRED_PARAM) === '1'
+  const badgeActive = searchParams.get(BADGE_PARAM)?.trim() ?? ''
+  const active = starredActive ? STARRED_VALUE : badgeActive
 
-  // Build row items. "All" is always the first, synthetic entry.
+  // Build row items. "All" first, "Starred" second (virtual), then badges.
   const items = useMemo(() => {
     const list: Array<{ key: string; label: string; value: string }> = [
       { key: '__all__', label: 'All', value: '' },
+      { key: '__starred__', label: 'Starred', value: STARRED_VALUE },
     ]
     for (const b of badges) {
       list.push({ key: b.name, label: b.name, value: b.name })
@@ -64,11 +71,13 @@ export function TopicBadgeFilterRow({ badges }: Props) {
     (next: string) => {
       // Radix fires onValueChange with "" when the user clicks the
       // already-active item (deselect) OR when "All" is clicked.
-      // Either way → clear the badge param.
       const params = new URLSearchParams(searchParams.toString())
-      if (!next) {
-        params.delete(BADGE_PARAM)
-      } else {
+      // Reset both filter params; selection sets exactly one.
+      params.delete(BADGE_PARAM)
+      params.delete(STARRED_PARAM)
+      if (next === STARRED_VALUE) {
+        params.set(STARRED_PARAM, '1')
+      } else if (next) {
         params.set(BADGE_PARAM, next)
       }
       const qs = params.toString()

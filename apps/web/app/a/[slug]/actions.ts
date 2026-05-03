@@ -6,9 +6,14 @@
  * Two actions:
  *
  *   - `toggleStar(articleId)` — admin-only. Flips `articles.starred`
- *     and revalidates the article page so a fresh visit reflects the
- *     new state. The button is hidden for unauthenticated visitors at
- *     the page level, so the auth guard here is defense-in-depth.
+ *     and revalidates all pages that reflect the starred state so a
+ *     fresh visit reflects the new state everywhere:
+ *       - `/a/<slug>` ('page') — the article detail page star button
+ *       - `/` — the dashboard (star button initialStarred prop)
+ *       - `/starred` — appears/disappears from the starred list
+ *       - `/favorites` — appears/disappears from the favorites list
+ *     The button is hidden for unauthenticated visitors at the page
+ *     level, so the auth guard here is defense-in-depth.
  *
  *   - `markRead(articleId)` — admin-only. Sets `articles.read = true`
  *     IF the article isn't already read. Called from the article page's
@@ -48,7 +53,10 @@ export async function toggleStar(articleId: string, slug: string): Promise<void>
     if (article) {
       article.starred = !(article.starred ?? false)
     }
-    revalidatePath(`/a/${slug}`)
+    revalidatePath(`/a/${slug}`, 'page')
+    revalidatePath('/')
+    revalidatePath('/starred')
+    revalidatePath('/favorites')
     return
   }
 
@@ -64,7 +72,14 @@ export async function toggleStar(articleId: string, slug: string): Promise<void>
     .limit(1)
   const current = rows[0]?.starred ?? false
   await db.update(articles).set({ starred: !current }).where(eq(articles.id, articleId))
-  revalidatePath(`/a/${slug}`)
+  // Revalidate all pages that reflect starred state:
+  //   - article detail ('page' type required for dynamic routes in Next.js 15)
+  //   - dashboard (star button initialStarred prop reflects DB truth on re-render)
+  //   - /starred and /favorites (article appears/disappears from these lists)
+  revalidatePath(`/a/${slug}`, 'page')
+  revalidatePath('/')
+  revalidatePath('/starred')
+  revalidatePath('/favorites')
 }
 
 export async function markRead(articleId: string): Promise<void> {

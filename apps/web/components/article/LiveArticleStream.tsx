@@ -50,6 +50,7 @@ function payloadToArticle(payload: ArticleNewPayload): LiveArticle {
     reasonablenessRating: null,
     crossSource: [],
     sourceUrl: '',
+    starred: false,
     receivedAt: Date.now(),
   }
 }

@@ -54,6 +54,8 @@ export type SearchResult = {
   sourceUrl: string
   /** Whether the article was rolled off the dashboard (Phase 7 #72). */
   archived: boolean
+  /** Whether the user has starred this article. Drives the `<StarButton>` fill. */
+  starred: boolean
 }
 
 const MOCK_MODE = process.env.LUCIDINDEX_MOCK === '1'
@@ -74,6 +76,7 @@ type DbSearchRow = {
   reasonableness_rating: number | null
   source_url: string
   dashboard_visible: boolean
+  starred: boolean
 }
 
 function formatPublishLabel(iso: string | null): string {
@@ -114,6 +117,7 @@ function rowToResult(row: DbSearchRow): SearchResult {
     crossSource: [],
     sourceUrl: row.source_url,
     archived: !row.dashboard_visible,
+    starred: row.starred,
   }
 }
 
@@ -162,6 +166,7 @@ export async function searchArticles(
         crossSource: [],
         sourceUrl: a.sourceUrl,
         archived: a.dashboardVisible === false,
+        starred: a.starred ?? false,
       }))
   }
 
@@ -189,7 +194,8 @@ export async function searchArticles(
       t.label  AS creator_label,
       t.slug   AS creator_slug,
       a.reasonableness_rating,
-      a.source_url
+      a.source_url,
+      a.starred
     FROM articles a
     LEFT JOIN agent_tokens ag ON ag.id = a.agent_token_id
     LEFT JOIN targets      t  ON t.id  = a.target_id

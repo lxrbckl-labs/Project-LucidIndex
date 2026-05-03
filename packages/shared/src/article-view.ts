@@ -109,6 +109,8 @@ export type ArticleCardView = {
    * the card view.
    */
   createdAt: Date
+  /** Whether the user has starred this article. Drives the `<StarButton>` fill. */
+  starred: boolean
 }
 
 /**
@@ -137,6 +139,7 @@ export type ArticleCardRow = {
   citations: unknown
   sourceUrl: string
   createdAt: Date
+  starred: boolean
 }
 
 /**
@@ -267,5 +270,6 @@ export function mapArticleRowToCard(row: ArticleCardRow): ArticleCardView {
     citations: decodeCitations(row.citations),
     sourceUrl: row.sourceUrl,
     createdAt: row.createdAt,
+    starred: row.starred,
   }
 }

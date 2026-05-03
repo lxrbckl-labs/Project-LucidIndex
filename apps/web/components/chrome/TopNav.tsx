@@ -42,13 +42,19 @@ export function TopNav() {
           {isArticlePage && <EscapeToBack />}
           <Link
             href="/"
+            onClick={(e) => {
+              if (pathname === '/') {
+                e.preventDefault()
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }
+            }}
             className="text-xl font-semibold uppercase tracking-wider text-foreground hover:opacity-80 transition-opacity"
           >
             LUCIDINDEX
           </Link>
         </div>
 
-        {/* Right cluster: search + settings/dashboard toggle */}
+        {/* Right cluster: search + favorites + settings/dashboard toggle */}
         <div className="flex items-center gap-2">
           <TypeaheadSearch />
 

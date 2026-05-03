@@ -109,6 +109,7 @@ describe('mapArticleRowToCard', () => {
     citations: [],
     sourceUrl: 'https://example.com/a',
     createdAt: new Date('2026-04-24T13:00:00Z'),
+    starred: false,
   }
 
   it('maps the canonical row to a card view', () => {

@@ -80,9 +80,9 @@ const MOCK_EMPTY_MODE = process.env.LUCIDINDEX_MOCK_EMPTY === '1'
  * to via `?badge=…`.
  */
 export async function loadDashboardArticles(
-  options: { badge?: string | null } = {},
+  options: { badge?: string | null; starred?: boolean } = {},
 ): Promise<MockArticle[]> {
-  const { badge } = options
+  const { badge, starred } = options
 
   // Mock-mode short-circuit (preserved verbatim from the original
   // `_mock/articles.ts` entry-point so SWE-4's screenshot session keeps
@@ -90,18 +90,22 @@ export async function loadDashboardArticles(
   // mock list afterwards.
   if (MOCK_EMPTY_MODE) return []
   if (MOCK_MODE) {
-    const mocks = await loadMockDashboardArticles()
-    return badge ? mocks.filter((a) => a.topicBadges.includes(badge)) : mocks
+    let mocks = await loadMockDashboardArticles()
+    if (starred) mocks = mocks.filter((a) => a.starred === true)
+    if (badge) mocks = mocks.filter((a) => a.topicBadges.includes(badge))
+    return mocks
   }
 
   // Real-DB path. The filter on `topic_badges` uses the postgres array
   // containment operator (`@>`); the `topic_badges` column is `text[]`
   // and the operand has to be cast to the same type via `ARRAY[$1]::text[]`.
-  const baseWhere = eq(articles.dashboardVisible, true)
-
-  const where = badge
-    ? and(baseWhere, sql`${articles.topicBadges} @> ARRAY[${badge}]::text[]`)
-    : baseWhere
+  let where = eq(articles.dashboardVisible, true)
+  if (starred) {
+    where = and(where, eq(articles.starred, true)) as typeof where
+  }
+  if (badge) {
+    where = and(where, sql`${articles.topicBadges} @> ARRAY[${badge}]::text[]`) as typeof where
+  }
 
   const rows = await db
     .select({
@@ -122,6 +126,7 @@ export async function loadDashboardArticles(
       citations: articles.citations,
       sourceUrl: articles.sourceUrl,
       createdAt: articles.createdAt,
+      starred: articles.starred,
     })
     .from(articles)
     .leftJoin(agentTokens, eq(articles.agentTokenId, agentTokens.id))
