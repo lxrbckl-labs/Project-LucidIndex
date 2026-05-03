@@ -31,7 +31,7 @@ export default async function ComparisonSourcesPage() {
           </p>
         </div>
         <Button asChild>
-          <Link href="/settings/comparison-sources/new">New source</Link>
+          <Link href="/settings/comparison-sources/new">Add Source</Link>
         </Button>
       </div>
 

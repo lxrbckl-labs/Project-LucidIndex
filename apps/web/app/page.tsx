@@ -31,7 +31,7 @@ import { AuthenticatedEmptyState } from '@/components/article/AuthenticatedEmpty
 import { FilteredArticleMasonry } from '@/components/article/FilteredArticleMasonry'
 import { LiveArticleStream } from '@/components/article/LiveArticleStream'
 import { MasonryKeyboardNav } from '@/components/article/MasonryKeyboardNav'
-import { TopicFocusHeader } from '@/components/article/TopicFocusHeader'
+import { TopicFocusCard } from '@/components/article/TopicFocusCard'
 import { TopicBadgeFilterRow } from '@/components/chrome/TopicBadgeFilterRow'
 import { TopNav } from '@/components/chrome/TopNav'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -107,17 +107,26 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
 
   const badgeOptions = badgeNames.map((name) => ({ name }))
 
+  // Compute topic-focus card metadata (cheap, in-memory from the already-loaded articles list)
+  const topicFocusCreatorCount = new Set(
+    articles.map((a) => (a as { creatorSlug?: string }).creatorSlug).filter(Boolean),
+  ).size
+
   return (
     <div className="min-h-screen bg-background">
       {/* Thin top nav — Settings + Account links. */}
       <TopNav />
 
       <main className="px-4 pt-4 pb-16">
-        {/* Topic filter row OR focus header, depending on ?badge */}
+        {/* Topic filter row OR focus card, depending on ?badge */}
         <div className="mb-6">
           {badgeFilter ? (
-            /* Focused view: topic header with Back + Star + EyeOff */
-            <TopicFocusHeader topicName={badgeFilter} />
+            /* Focused view: topic card with star + metadata. Back lives in TopNav. */
+            <TopicFocusCard
+              topicName={badgeFilter}
+              articleCount={articles.length}
+              creatorCount={topicFocusCreatorCount}
+            />
           ) : (
             /* Default view: topic-badge filter pills */
             <TopicBadgeFilterRow badges={badgeOptions} />

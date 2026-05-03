@@ -1,10 +1,11 @@
 /**
  * Favorites page — `/favorites`.
  *
- * Aggregates three sections:
- *   1. Starred articles   — server-rendered via loadStarredArticles()
- *   2. Starred topics     — client-rendered from localStorage
- *   3. Not-interested topics — client-rendered from localStorage
+ * Aggregates four sections:
+ *   1. Starred articles      — server-rendered via loadStarredArticles()
+ *   2. Starred topics        — client-rendered from localStorage
+ *   3. Starred creators      — client-rendered from localStorage
+ *   4. Not-interested topics — client-rendered from localStorage
  *
  * Auth-gated: redirects unauthenticated visitors to /settings/login.
  */
@@ -15,6 +16,7 @@ import { loadStarredArticles } from '@/app/starred/loader'
 import { ArticleMasonry } from '@/components/article/ArticleMasonry'
 import { TopNav } from '@/components/chrome/TopNav'
 import { NotInterestedTopicsList } from './NotInterestedTopicsList'
+import { StarredCreatorsList } from './StarredCreatorsList'
 import { StarredTopicsList } from './StarredTopicsList'
 
 export const dynamic = 'force-dynamic'
@@ -57,7 +59,15 @@ export default async function FavoritesPage() {
         </section>
 
         {/* ----------------------------------------------------------------
-            Section 3 — Not-interested topics (client, localStorage)
+            Section 3 — Starred creators (client, localStorage)
+        ---------------------------------------------------------------- */}
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold tracking-tight mb-4">Starred creators</h2>
+          <StarredCreatorsList />
+        </section>
+
+        {/* ----------------------------------------------------------------
+            Section 4 — Not-interested topics (client, localStorage)
         ---------------------------------------------------------------- */}
         <section className="mb-12">
           <h2 className="text-2xl font-bold tracking-tight mb-4">Hidden topics</h2>

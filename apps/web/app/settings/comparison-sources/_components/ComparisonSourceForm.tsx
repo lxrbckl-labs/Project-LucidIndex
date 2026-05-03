@@ -83,7 +83,7 @@ export function ComparisonSourceForm({ mode, sourceId, initial }: ComparisonSour
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-6 max-w-[560px]">
+    <form onSubmit={onSubmit} className="flex flex-col gap-6">
       {/* Name */}
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="name">Name</Label>
@@ -154,9 +154,9 @@ export function ComparisonSourceForm({ mode, sourceId, initial }: ComparisonSour
         </p>
       )}
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-3">
         <Button type="submit" disabled={submitting}>
-          {submitting ? 'Saving…' : mode === 'create' ? 'Create source' : 'Save changes'}
+          {submitting ? 'Saving…' : 'Save'}
         </Button>
         <Button
           type="button"

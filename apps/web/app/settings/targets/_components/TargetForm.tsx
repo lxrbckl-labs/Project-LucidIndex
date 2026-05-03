@@ -7,14 +7,24 @@
  * vs PATCH (edit). Validation echoes field-level errors from the JSON response.
  */
 
+import { Check, ChevronsUpDown } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { type FormEvent, useState } from 'react'
 import { toast } from 'sonner'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Select,
   SelectContent,
@@ -57,6 +67,7 @@ export function TargetForm(props: TargetFormProps) {
   const [active, setActive] = useState(initial.active)
   const [errors, setErrors] = useState<FieldErrors>({})
   const [submitting, setSubmitting] = useState(false)
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false)
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -98,7 +109,7 @@ export function TargetForm(props: TargetFormProps) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-6 max-w-[560px]">
+    <form onSubmit={onSubmit} className="flex flex-col gap-6">
       {!promptTemplatesAvailable && (
         <Alert>
           <AlertDescription>
@@ -169,31 +180,55 @@ export function TargetForm(props: TargetFormProps) {
         {errors.cadence && <span className="text-xs text-destructive">{errors.cadence}</span>}
       </div>
 
-      {/* Prompt template */}
+      {/* Prompt template — searchable combobox */}
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="promptTemplateId">Prompt template</Label>
-        <Select
-          value={promptTemplateId}
-          onValueChange={setPromptTemplateId}
-          disabled={!promptTemplatesAvailable || submitting}
-        >
-          <SelectTrigger id="promptTemplateId">
-            <SelectValue placeholder="Select template" />
-          </SelectTrigger>
-          <SelectContent>
-            {promptTemplates.length === 0 ? (
-              <SelectItem value="" disabled>
-                No prompt templates available
-              </SelectItem>
-            ) : (
-              promptTemplates.map((tpl) => (
-                <SelectItem key={tpl.id} value={tpl.id}>
-                  {tpl.slug}
-                </SelectItem>
-              ))
-            )}
-          </SelectContent>
-        </Select>
+        <Popover open={templatePickerOpen} onOpenChange={setTemplatePickerOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              id="promptTemplateId"
+              type="button"
+              variant="outline"
+              role="combobox"
+              aria-expanded={templatePickerOpen}
+              disabled={!promptTemplatesAvailable || submitting}
+              className="w-full justify-between font-normal"
+            >
+              {promptTemplates.find((t) => t.id === promptTemplateId)?.slug ??
+                (promptTemplates.length === 0
+                  ? 'No prompt templates available'
+                  : 'Select template')}
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+            <Command>
+              <CommandInput placeholder="Search templates..." />
+              <CommandList className="max-h-64 overflow-y-auto">
+                <CommandEmpty>No template found.</CommandEmpty>
+                <CommandGroup>
+                  {promptTemplates.map((tpl) => (
+                    <CommandItem
+                      key={tpl.id}
+                      value={tpl.slug}
+                      onSelect={() => {
+                        setPromptTemplateId(tpl.id)
+                        setTemplatePickerOpen(false)
+                      }}
+                    >
+                      <Check
+                        className={`mr-2 h-4 w-4 ${
+                          promptTemplateId === tpl.id ? 'opacity-100' : 'opacity-0'
+                        }`}
+                      />
+                      {tpl.slug}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
         {errors.promptTemplateId && (
           <span className="text-xs text-destructive">{errors.promptTemplateId}</span>
         )}
@@ -218,9 +253,9 @@ export function TargetForm(props: TargetFormProps) {
         </p>
       )}
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-3">
         <Button type="submit" disabled={!promptTemplatesAvailable || submitting}>
-          {submitting ? 'Saving…' : mode === 'create' ? 'Create target' : 'Save changes'}
+          {submitting ? 'Saving…' : 'Save'}
         </Button>
         <Button
           type="button"

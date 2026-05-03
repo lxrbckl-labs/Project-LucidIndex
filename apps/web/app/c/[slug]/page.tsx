@@ -48,11 +48,10 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { findMockArticlesByCreatorSlug, findMockCreatorBySlug } from '@/app/_mock/articles'
 import { ArticleMasonry } from '@/components/article/ArticleMasonry'
-import { EscapeToBack } from '@/components/article/EscapeToBack'
 import { TopNav } from '@/components/chrome/TopNav'
-import { Wordmark } from '@/components/chrome/Wordmark'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { CreatorStarButton } from './CreatorStarButton'
 import { loadCreatorArticles, loadCreatorBySlug } from './loader'
 
 // DB-backed (loadCreatorBySlug, loadCreatorArticles) — never statically
@@ -97,6 +96,7 @@ export default async function CreatorPage({ params }: { params: Promise<{ slug: 
 
     return (
       <CreatorPageLayout
+        slug={slug}
         label={creator.label}
         handle={creator.handle}
         articleCount={articles.length}
@@ -121,6 +121,7 @@ export default async function CreatorPage({ params }: { params: Promise<{ slug: 
 
   return (
     <CreatorPageLayout
+      slug={slug}
       label={creator.label}
       handle={creator.urlOrHandle}
       articleCount={articles.length}
@@ -139,11 +140,13 @@ export default async function CreatorPage({ params }: { params: Promise<{ slug: 
 // ---------------------------------------------------------------------------
 
 function CreatorPageLayout({
+  slug,
   label,
   handle,
   articleCount,
   children,
 }: {
+  slug: string
   label: string
   handle: string
   articleCount: number
@@ -153,21 +156,9 @@ function CreatorPageLayout({
     <div className="min-h-screen bg-background">
       <TopNav />
 
-      {/* Back link — EscapeToBack (shadcn ghost Button + keyboard Esc). */}
-      <div className="px-4 pt-4 sm:px-6 md:px-18">
-        <EscapeToBack />
-      </div>
-
-      <main className="px-6 pt-4 pb-24 md:px-18">
-        <div className="py-4 md:py-8">
-          <Wordmark />
-        </div>
-
-        {/* Hairline rule — editorial separator. */}
-        <div className="mt-6 mb-10 h-px w-full bg-border" />
-
-        {/* Creator header — shadcn <Card> with label, handle, article count. */}
-        <Card className="mb-10">
+      <main className="px-4 pt-4 pb-16">
+        {/* Creator header — shadcn <Card> with label, handle, article count, star. */}
+        <Card className="mb-4">
           <CardHeader className="pb-3">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
@@ -176,9 +167,12 @@ function CreatorPageLayout({
                 </CardTitle>
                 <p className="mt-2 text-sm text-muted-foreground">{handle}</p>
               </div>
-              <Badge variant="secondary" className="shrink-0">
-                {articleCount} {articleCount === 1 ? 'article' : 'articles'}
-              </Badge>
+              <div className="flex items-center gap-2 shrink-0">
+                <Badge variant="secondary">
+                  {articleCount} {articleCount === 1 ? 'article' : 'articles'}
+                </Badge>
+                <CreatorStarButton slug={slug} label={label} />
+              </div>
             </div>
           </CardHeader>
           <CardContent className="pt-0" />

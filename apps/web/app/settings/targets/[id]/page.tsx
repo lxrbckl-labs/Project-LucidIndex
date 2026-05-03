@@ -2,6 +2,7 @@
  * Settings → Targets → Edit (RSC) — rebuilt on shadcn (Phase 2).
  */
 
+import { ChevronLeft } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -28,13 +29,20 @@ export default async function EditTargetPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="max-w-[640px] flex flex-col gap-6">
-      <div>
+      <div className="flex items-center gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 border border-input"
+          aria-label="Back to targets"
+          asChild
+        >
+          <Link href="/settings/targets">
+            <ChevronLeft className="h-4 w-4" />
+          </Link>
+        </Button>
         <h1 className="text-3xl font-bold tracking-tight">Edit target</h1>
       </div>
-
-      <Button variant="ghost" size="sm" asChild className="self-start -ml-2">
-        <Link href="/settings/targets">&larr; Back to targets</Link>
-      </Button>
 
       <TargetForm
         mode="edit"

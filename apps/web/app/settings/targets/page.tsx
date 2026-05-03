@@ -39,7 +39,7 @@ export default async function TargetsPanelPage() {
           </p>
         </div>
         <Button asChild>
-          <Link href="/settings/targets/new">New target</Link>
+          <Link href="/settings/targets/new">Add Target</Link>
         </Button>
       </div>
 

@@ -8,9 +8,7 @@
  *   4. Drift warning — fires when `large` > threshold. Shows Copy-prompt island.
  */
 
-import { requireAdmin } from '@lucidindex/auth'
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -43,11 +41,7 @@ function formatTimestamp(iso: string | null): string {
 }
 
 export default async function SystemPanelPage() {
-  const session = await requireAdmin()
-  if (!session) {
-    redirect('/settings/login')
-  }
-
+  // Auth is already handled by the settings layout — no need to re-check here.
   const [cronJobs, queueDepth, significance, difficulty] = await Promise.all([
     getCronJobsSummary(),
     getQueueDepth(),

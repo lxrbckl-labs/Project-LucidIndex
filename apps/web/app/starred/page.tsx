@@ -10,8 +10,11 @@
  *   <main>
  *     heading "Starred"
  *
- *     Topics  ← client-rendered from localStorage via StarredTopicsList
+ *     Topics    ← client-rendered from localStorage via StarredTopicsList
  *       <StarredTopicsList />
+ *
+ *     Creators  ← client-rendered from localStorage via StarredCreatorsList
+ *       <StarredCreatorsList />
  *
  *     Articles  ← server-rendered
  *       <ArticleMasonry> (starred articles)   OR   empty state
@@ -21,6 +24,7 @@ import { requireAdmin } from '@lucidindex/auth'
 import { ChevronLeft } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { StarredCreatorsList } from '@/app/favorites/StarredCreatorsList'
 import { StarredTopicsList } from '@/app/favorites/StarredTopicsList'
 import { ArticleMasonry } from '@/components/article/ArticleMasonry'
 import { TopNav } from '@/components/chrome/TopNav'
@@ -68,6 +72,16 @@ export default async function StarredPage() {
             Topics
           </p>
           <StarredTopicsList />
+        </section>
+
+        {/* ----------------------------------------------------------------
+            Creators section (client-rendered from localStorage)
+        ---------------------------------------------------------------- */}
+        <section className="mb-10">
+          <p className="text-sm font-medium uppercase tracking-[0.08em] text-muted-foreground mb-3">
+            Creators
+          </p>
+          <StarredCreatorsList />
         </section>
 
         {/* ----------------------------------------------------------------

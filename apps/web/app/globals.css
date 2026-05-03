@@ -139,6 +139,11 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+    /* Disable rubber-band overscroll on macOS Safari + iOS / Chromium so the
+       page can't scroll past its bounds. `overscroll-behavior: none` is the
+       correct pattern here (per project memory: don't use overflow:hidden,
+       it breaks position:fixed + position:sticky chrome). */
+    overscroll-behavior: none;
   }
 
   /* ---------------------------------------------------------------------------

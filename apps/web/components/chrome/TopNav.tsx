@@ -21,7 +21,7 @@
 
 import { LayoutDashboard, Settings } from 'lucide-react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { EscapeToBack } from '@/components/article/EscapeToBack'
 import { Button } from '@/components/ui/button'
 import { SidebarTrigger } from '@/components/ui/sidebar'
@@ -29,9 +29,13 @@ import { TypeaheadSearch } from './TypeaheadSearch'
 
 export function TopNav() {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   const isArticlePage = pathname.startsWith('/a/')
+  const isCreatorPage = pathname.startsWith('/c/')
   const isSettingsPage = pathname.startsWith('/settings')
+  const isTopicFocus = pathname === '/' && Boolean(searchParams.get('badge'))
+  const showBack = isArticlePage || isCreatorPage || isTopicFocus
 
   return (
     <header className="sticky top-0 z-50 border-b bg-background/70 backdrop-blur-lg supports-[backdrop-filter]:bg-background/50">
@@ -39,7 +43,7 @@ export function TopNav() {
         {/* Left cluster: sidebar collapse (settings only) + back button (article only) */}
         <div className="flex items-center justify-start gap-2">
           {isSettingsPage && <SidebarTrigger className="h-9 w-9 border border-input" />}
-          {isArticlePage && <EscapeToBack />}
+          {showBack && <EscapeToBack />}
         </div>
 
         {/* Center: wordmark */}
