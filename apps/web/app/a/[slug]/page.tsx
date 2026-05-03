@@ -10,8 +10,7 @@
  * Anatomy (rendered top-to-bottom inside a single 640px column):
  *
  *   Page chrome:
- *     - <TopNav>       ← Settings + Account links (matches dashboard)
- *     - Back button    ← <EscapeToBack> (shadcn ghost Button + ChevronLeft)
+ *     - <TopNav>       ← Settings + Account links + back button on /a/* (matches dashboard)
  *     - <Wordmark>     ← page-spanning LUCIDINDEX wordmark
  *     - hairline rule
  *
@@ -33,15 +32,14 @@
  *   Bottom interactions:
  *     - Star toggle (admin-gated; renders disabled for public visitors)
  *     - Share button (shadcn Button variant="outline" + Share2)
- *     - Hide button (admin-only)
  *
  * Read-state: this page calls `markRead(article.id)` server-side on
  * every render. The action is a no-op when the row is already read,
  * so revisits don't issue a write — the visit-marks-read semantics
  * cost one update per *unread* visit, not per visit.
  *
- * 404 handling: the loader returns null for missing OR `hidden` slugs.
- * The page calls Next.js `notFound()` in both cases.
+ * 404 handling: the loader returns null for missing slugs.
+ * The page calls Next.js `notFound()` in that case.
  */
 
 import { requireAdmin } from '@lucidindex/auth'
@@ -50,8 +48,6 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { AgentOpinionSection } from '@/components/article/AgentOpinionSection'
 import { CrossSourceList } from '@/components/article/CrossSourceList'
-import { EscapeToBack } from '@/components/article/EscapeToBack'
-import { HideArticleButton } from '@/components/article/HideArticleButton'
 import { MarkSeenOnMount } from '@/components/article/MarkSeenOnMount'
 import { ShareLinkButton } from '@/components/article/ShareLinkButton'
 import { SourcesSection } from '@/components/article/SourcesSection'
@@ -60,7 +56,7 @@ import { TopNav } from '@/components/chrome/TopNav'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { markRead } from './actions'
-import { applyFairUseCap, estimateReadMinutes, loadArticleBySlug } from './loader'
+import { applyFairUseCap, loadArticleBySlug } from './loader'
 
 // DB-backed (loadArticleBySlug, markRead) + session-aware (canInteract via
 // requireAdmin) — never statically renderable.
@@ -223,10 +219,10 @@ export default async function ArticlePage({
             narrower 640px inner column for prose readability. */}
         <div className="mx-auto max-w-4xl px-0">
           <article className="mx-auto w-full max-w-[640px]">
-            {/* Header — Back button + topic badges.
+            {/* Header — topic badges.
+                Back button moved to TopNav (rendered on /a/* routes).
                 The filed date moved into the metadata grid below. */}
             <header className="flex flex-wrap items-center gap-3">
-              <EscapeToBack />
               {article.topicBadges.map((badge) => (
                 <Badge key={badge} variant="secondary">
                   {badge}
@@ -237,7 +233,7 @@ export default async function ArticlePage({
             {/* Title — <h1>. Placed above the hero so the article reads
                 title-first, image-second. The summary that lived here is
                 dropped — readers already saw it on the dashboard tile. */}
-            <h1 className="mt-10 text-3xl font-bold tracking-tight text-foreground">
+            <h1 className="mt-3 text-3xl font-bold tracking-tight text-foreground">
               {article.title}
             </h1>
 
@@ -355,10 +351,7 @@ export default async function ArticlePage({
                 Component renders nothing when N=0. */}
             <CrossSourceList entries={article.crossSource} />
 
-            {/* Bottom interaction row — star + share + hide (admin-only).
-                The hide affordance is intentionally quiet — ghost icon only,
-                no destructive red coloring. It belongs at the end of the row
-                so it can't be accidentally tapped. */}
+            {/* Bottom interaction row — star + share. */}
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <StarButton
                 articleId={article.id}
@@ -368,14 +361,6 @@ export default async function ArticlePage({
                 variant="labeled"
               />
               <ShareLinkButton url={`${getBaseUrl()}/a/${slug}`} />
-              {canInteract ? (
-                <HideArticleButton
-                  articleId={article.id}
-                  slug={article.slug}
-                  variant="labeled"
-                  redirectOnHide
-                />
-              ) : null}
             </div>
           </article>
         </div>

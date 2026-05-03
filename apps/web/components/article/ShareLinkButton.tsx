@@ -7,7 +7,8 @@
  * icon and "Share" text label. Preserves clipboard copy + "Copied!" affordance.
  *
  * Full UX:
- *   - "Share" → click → copies + shows "Copied!" affordance for ~1.5s.
+ *   - "Share" → click → copies + sonner toast + shows "Copied" label / <Check>
+ *     icon for ~2 seconds, button disabled during that window.
  *   - Textarea fallback for non-secure contexts / older browsers that
  *     lack the Clipboard API.
  *   - Accepts an optional `url` prop so the dashboard tile can pass
@@ -16,9 +17,12 @@
  *     `window.location.href` (the article-page usage).
  */
 
-import { Share2 } from 'lucide-react'
+import { Check, Share2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+
+const COPIED_DURATION_MS = 2000
 
 type Props = {
   /** Explicit URL to copy. Falls back to `window.location.href` when omitted. */
@@ -49,7 +53,7 @@ export function ShareLinkButton({ url }: Props) {
 
   useEffect(() => {
     if (!copied) return
-    const timer = setTimeout(() => setCopied(false), 1500)
+    const timer = setTimeout(() => setCopied(false), COPIED_DURATION_MS)
     return () => clearTimeout(timer)
   }, [copied])
 
@@ -68,13 +72,22 @@ export function ShareLinkButton({ url }: Props) {
     } else {
       ok = copyViaTextarea(target)
     }
-    if (ok) setCopied(true)
+    if (ok) {
+      setCopied(true)
+      toast.success('Link copied')
+    }
   }
 
   return (
-    <Button type="button" variant="outline" onClick={handleClick} data-testid="article-share">
-      <Share2 aria-hidden="true" />
-      {copied ? 'Copied!' : 'Share'}
+    <Button
+      type="button"
+      variant="outline"
+      onClick={handleClick}
+      disabled={copied}
+      data-testid="article-share"
+    >
+      {copied ? <Check aria-hidden="true" /> : <Share2 aria-hidden="true" />}
+      {copied ? 'Copied' : 'Share'}
     </Button>
   )
 }

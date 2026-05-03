@@ -3,23 +3,25 @@
  *
  *   GET ?q=<query>
  *
- * Returns up to 6 articles and up to 4 creators whose label/title matches
- * the query. Used by the TypeaheadSearch component in the TopNav to power
- * the spotlight-style dropdown. The full `/search` page endpoint is
- * unchanged.
+ * Returns up to 6 articles, up to 4 creators, and up to 4 topics whose
+ * label/title/name matches the query. Used by the TypeaheadSearch component
+ * in the TopNav to power the spotlight-style dropdown. The full `/search`
+ * page endpoint is unchanged.
  *
  * Response shape:
  *   {
  *     articles: TypeaheadArticle[],  // ≤ 6 results
- *     creators: TypeaheadCreator[]   // ≤ 4 results
+ *     creators: TypeaheadCreator[],  // ≤ 4 results
+ *     topics: TypeaheadTopic[]       // ≤ 4 results
  *   }
  *
  * Rules:
- *   - Empty / whitespace query → { articles: [], creators: [] } (no DB round-trip).
- *   - Queries shorter than 2 chars → { articles: [], creators: [] } (avoid noise).
+ *   - Empty / whitespace query → { articles: [], creators: [], topics: [] } (no DB round-trip).
+ *   - Queries shorter than 2 chars → { articles: [], creators: [], topics: [] } (avoid noise).
  *   - Articles: dashboard_visible=true AND hidden=false, title ILIKE or FTS match.
  *   - Creators: active=true AND slug IS NOT NULL, label ILIKE match.
- *   - Both ordered sensibly (articles: newest first; creators: label asc).
+ *   - Topics: name ILIKE match; articleCount via correlated count against articles.topic_badges.
+ *   - Both ordered sensibly (articles: newest first; creators: label asc; topics: name asc).
  *
  * Auth: passkey-gated via `requireAdmin()`. 401 when missing.
  */
@@ -34,6 +36,7 @@ export const dynamic = 'force-dynamic'
 
 const ARTICLE_LIMIT = 6
 const CREATOR_LIMIT = 4
+const TOPIC_LIMIT = 4
 const MIN_QUERY_LENGTH = 2
 const MOCK_MODE = process.env.LUCIDINDEX_MOCK === '1'
 
@@ -54,6 +57,11 @@ export type TypeaheadCreator = {
   articleCount: number
 }
 
+export type TypeaheadTopic = {
+  name: string
+  articleCount: number
+}
+
 /**
  * @deprecated Use TypeaheadArticle instead. Kept for backwards compat
  * in case any consumer still reads the old `results` key — the API no
@@ -61,7 +69,7 @@ export type TypeaheadCreator = {
  */
 export type TypeaheadResult = TypeaheadArticle
 
-const EMPTY = { articles: [], creators: [] }
+const EMPTY = { articles: [], creators: [], topics: [] }
 
 export async function GET(req: Request) {
   const session = await requireAdmin()
@@ -92,8 +100,24 @@ export async function GET(req: Request) {
         // Mock heroImageUrl is a full URL like /i/<hash>; extract the hash.
         heroImageHash: a.heroImageUrl ? a.heroImageUrl.replace(/^\/i\//, '') : null,
       }))
+
+    // Collect unique topic names from visible articles, filter by query,
+    // and compute article counts from mock data.
+    const topicCountMap = new Map<string, number>()
+    for (const a of mockArticles) {
+      if (a.hidden || a.dashboardVisible === false) continue
+      for (const badge of a.topicBadges) {
+        topicCountMap.set(badge, (topicCountMap.get(badge) ?? 0) + 1)
+      }
+    }
+    const topics: TypeaheadTopic[] = Array.from(topicCountMap.entries())
+      .filter(([name]) => name.toLowerCase().includes(needle))
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(0, TOPIC_LIMIT)
+      .map(([name, articleCount]) => ({ name, articleCount }))
+
     // No creator mock data — return empty creators in mock mode
-    return NextResponse.json({ articles, creators: [] })
+    return NextResponse.json({ articles, creators: [], topics })
   }
 
   type ArticleRow = {
@@ -113,7 +137,12 @@ export async function GET(req: Request) {
     article_count: string
   }
 
-  const [articleRows, creatorRows] = await Promise.all([
+  type TopicRow = {
+    name: string
+    article_count: string
+  }
+
+  const [articleRows, creatorRows, topicRows] = await Promise.all([
     db.execute<ArticleRow>(sql`
       SELECT
         a.id,
@@ -157,6 +186,23 @@ export async function GET(req: Request) {
       ORDER BY t.label ASC
       LIMIT ${CREATOR_LIMIT}
     `),
+
+    // Topics: match badge name, count visible articles that carry this badge
+    // via the topic_badges text[] column on articles.
+    db.execute<TopicRow>(sql`
+      SELECT
+        tb.name,
+        COUNT(a.id)::text AS article_count
+      FROM topic_badges tb
+      LEFT JOIN articles a
+        ON a.topic_badges @> ARRAY[tb.name]::text[]
+       AND a.hidden            = false
+       AND a.dashboard_visible = true
+      WHERE tb.name ILIKE ${`%${query}%`}
+      GROUP BY tb.name
+      ORDER BY tb.name ASC
+      LIMIT ${TOPIC_LIMIT}
+    `),
   ])
 
   const articles: TypeaheadArticle[] = articleRows.map((r) => ({
@@ -176,5 +222,10 @@ export async function GET(req: Request) {
     articleCount: Number(r.article_count ?? 0),
   }))
 
-  return NextResponse.json({ articles, creators })
+  const topics: TypeaheadTopic[] = topicRows.map((r) => ({
+    name: r.name,
+    articleCount: Number(r.article_count ?? 0),
+  }))
+
+  return NextResponse.json({ articles, creators, topics })
 }

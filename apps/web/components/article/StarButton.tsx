@@ -15,13 +15,24 @@
  * `variant="labeled"` — used on the article detail page. Renders as a
  * polished outlined pill (icon + "Star" / "Starred" label) to match the
  * ShareLinkButton visual treatment. Tiles use the default `"icon"` mode.
+ *
+ * Toasts on every toggle:
+ *   - Starred → toast.success('Starred')
+ *   - Unstarred → toast('Unstarred')
+ * First-time star: replaces the basic "Starred" toast with a longer-duration
+ * one that links to /starred. Tracked via localStorage key
+ * `lucidindex:has-starred-once`.
  */
 
 import { Star } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
+import { toast } from 'sonner'
 import { toggleStar } from '@/app/a/[slug]/actions'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+
+const STARRED_ONCE_KEY = 'lucidindex:has-starred-once'
 
 type Props = {
   articleId: string
@@ -46,6 +57,7 @@ export function StarButton({
 }: Props) {
   const [starred, setStarred] = useState(initialStarred)
   const [isPending, startTransition] = useTransition()
+  const router = useRouter()
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -56,6 +68,25 @@ export function StarButton({
     startTransition(async () => {
       try {
         await toggleStar(articleId, slug)
+        if (next) {
+          // Starring — check first-time hint
+          if (typeof window !== 'undefined' && !localStorage.getItem(STARRED_ONCE_KEY)) {
+            localStorage.setItem(STARRED_ONCE_KEY, '1')
+            toast.success('Starred', {
+              description: 'Find your starred articles at /starred',
+              duration: 8000,
+              action: {
+                label: 'View',
+                onClick: () => router.push('/starred'),
+              },
+            })
+          } else {
+            toast.success('Starred')
+          }
+        } else {
+          // Unstarring
+          toast('Unstarred')
+        }
       } catch {
         // Revert on failure.
         setStarred(!next)

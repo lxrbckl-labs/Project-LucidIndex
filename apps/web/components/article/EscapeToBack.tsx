@@ -3,8 +3,13 @@
 /**
  * EscapeToBack — global Esc handler that calls `router.back()` (#84).
  *
- * Phase 5 rebuild: shadcn `<Button variant="ghost" size="sm">` with lucide
- * `<ChevronLeft>` and "Back" label. Keyboard shortcut (Escape) preserved.
+ * TopNav icon-button variant: matches the Settings gear and Profile icon
+ * style (`h-9 w-9 border border-input`). No text label — icon only.
+ * Rendered in TopNav on `/a/*` routes (not in the article column header).
+ *
+ * Keyboard shortcut (Escape → router.back) preserved. Bails when an
+ * input/textarea/contenteditable is focused so Esc doesn't accidentally
+ * yank the user out of a form mid-edit.
  *
  * Mounted on the article page and creator page. When the user presses Esc,
  * navigates back in browser history. Combined with the dashboard's
@@ -15,11 +20,6 @@
  *   - On the article page: Esc returns the user to wherever they came
  *     from (the dashboard, /search, /c/<slug>, etc.) — that's the same
  *     surface as the browser back button.
- *
- * Bails when an input/textarea/contenteditable is focused so Esc
- * doesn't accidentally yank the user out of a form mid-edit. (Article
- * pages don't currently have any forms but this is a cheap guard
- * against future changes.)
  */
 
 import { ChevronLeft } from 'lucide-react'
@@ -51,9 +51,15 @@ export function EscapeToBack() {
   }, [router])
 
   return (
-    <Button type="button" variant="ghost" size="sm" onClick={() => router.back()} className="gap-1">
-      <ChevronLeft aria-hidden="true" />
-      Back
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className="h-9 w-9 border border-input"
+      aria-label="Back"
+      onClick={() => router.back()}
+    >
+      <ChevronLeft className="h-4 w-4" />
     </Button>
   )
 }

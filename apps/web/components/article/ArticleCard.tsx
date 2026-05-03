@@ -11,21 +11,23 @@
  *     <CardContent>
  *       summary (line-clamp-3 text-sm text-muted-foreground)
  *     <CardFooter>
- *       actions: TileShareButton + StarButton + HideArticleButton
+ *       left: TileShareButton + StarButton
+ *       right: View button (<Link href="/a/<slug>")
  *
- * The whole card wraps in a <Link> for tile-level navigation. Action
- * buttons call stopPropagation + preventDefault so they don't fire the
- * tile's Link navigation.
+ * The card is no longer a <Link> wrapper — navigation is via the explicit
+ * "View" button in the footer. The card body is decorative on hover only.
  *
- * `data-masonry-tile` on the outer Link is preserved for MasonryKeyboardNav.
+ * `data-masonry-tile` lives on the View button's anchor so
+ * MasonryKeyboardNav can focus and activate it via Enter.
  */
 
+import { ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import type { MockArticle } from '@/app/_mock/articles'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { HideArticleButton } from './HideArticleButton'
 import { StarButton } from './StarButton'
 import { TileShareButton } from './TileShareButton'
 
@@ -38,63 +40,68 @@ type Props = {
 
 export function ArticleCard({ article }: Props) {
   return (
-    <Link
-      href={`/a/${article.slug}`}
-      className="block h-full no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
-      data-masonry-tile=""
-    >
-      <Card className="h-full flex flex-col overflow-hidden hover:bg-accent/50 transition-colors">
-        {/* Hero image or skeleton placeholder */}
-        {article.heroImageUrl ? (
-          // biome-ignore lint/performance/noImgElement: dev-only mock heroes
-          <img
-            src={article.heroImageUrl}
-            alt={article.title}
-            className="w-full aspect-video object-cover"
-            loading="lazy"
+    <Card className="h-full flex flex-col overflow-hidden hover:bg-accent/50 transition-colors">
+      {/* Hero image or skeleton placeholder — visual only, not clickable */}
+      {article.heroImageUrl ? (
+        // biome-ignore lint/performance/noImgElement: dev-only mock heroes
+        <img
+          src={article.heroImageUrl}
+          alt={article.title}
+          className="w-full aspect-video object-cover"
+          loading="lazy"
+        />
+      ) : (
+        <Skeleton className="w-full aspect-video" />
+      )}
+
+      <CardHeader className="pb-2">
+        {/* Badges row */}
+        <div className="flex flex-wrap items-center gap-1.5 mb-2">
+          {article.topicBadges.map((badge) => (
+            <Badge key={badge} variant="secondary">
+              {badge}
+            </Badge>
+          ))}
+        </div>
+
+        {/* Title */}
+        <CardTitle className="text-base font-semibold leading-snug line-clamp-2">
+          {article.title}
+        </CardTitle>
+
+        {/* Byline: creator + read time */}
+        <p className="text-xs text-muted-foreground mt-1">
+          {article.creatorLabel ? <span>{article.creatorLabel} &middot; </span> : null}
+          {article.readMinutes} min
+        </p>
+      </CardHeader>
+
+      <CardContent
+        className="flex-1 pb-2 overflow-hidden relative"
+        style={{
+          maskImage: 'linear-gradient(to bottom, black calc(100% - 24px), transparent)',
+          WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 24px), transparent)',
+        }}
+      >
+        <p className="text-sm text-muted-foreground">{article.summary}</p>
+      </CardContent>
+
+      <CardFooter className="pt-4 flex items-center justify-between">
+        <div className="flex gap-1">
+          <TileShareButton url={`${BASE_URL}/a/${article.slug}`} />
+          <StarButton
+            articleId={article.id}
+            slug={article.slug}
+            initialStarred={article.starred ?? false}
           />
-        ) : (
-          <Skeleton className="w-full aspect-video" />
-        )}
-
-        <CardHeader className="pb-2">
-          {/* Badges row */}
-          <div className="flex flex-wrap items-center gap-1.5 mb-2">
-            {article.topicBadges.map((badge) => (
-              <Badge key={badge} variant="secondary">
-                {badge}
-              </Badge>
-            ))}
-          </div>
-
-          {/* Title */}
-          <CardTitle className="text-base font-semibold leading-snug line-clamp-2">
-            {article.title}
-          </CardTitle>
-
-          {/* Byline: creator + read time */}
-          <p className="text-xs text-muted-foreground mt-1">
-            {article.creatorLabel ? <span>{article.creatorLabel} &middot; </span> : null}
-            {article.readMinutes} min
-          </p>
-        </CardHeader>
-
-        <CardContent className="flex-1 pb-2">
-          <p className="line-clamp-3 text-sm text-muted-foreground">{article.summary}</p>
-        </CardContent>
-
-        <CardFooter className="pt-4 flex items-center justify-between">
-          <div className="flex gap-1">
-            <TileShareButton url={`${BASE_URL}/a/${article.slug}`} />
-            <StarButton
-              articleId={article.id}
-              slug={article.slug}
-              initialStarred={article.starred ?? false}
-            />
-          </div>
-          <HideArticleButton articleId={article.id} slug={article.slug} />
-        </CardFooter>
-      </Card>
-    </Link>
+        </div>
+        <Button variant="outline" size="sm" asChild className="border border-foreground">
+          <Link href={`/a/${article.slug}`} data-masonry-tile="">
+            View
+            <ArrowRight className="ml-1 h-4 w-4" />
+          </Link>
+        </Button>
+      </CardFooter>
+    </Card>
   )
 }

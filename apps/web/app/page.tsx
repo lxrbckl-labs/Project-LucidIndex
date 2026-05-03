@@ -103,7 +103,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
       {/* Thin top nav — Settings + Account links. */}
       <TopNav />
 
-      <main className="px-4 md:px-6 lg:px-8 pt-6 pb-16">
+      <main className="px-6 pt-6 pb-16">
         {/* Topic-badge filter pills (Wordmark lives in TopNav). */}
         <div className="mb-6">
           <TopicBadgeFilterRow badges={badgeOptions} />

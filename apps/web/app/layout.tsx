@@ -12,6 +12,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Bebas_Neue, Inter } from 'next/font/google'
 import type { ReactNode } from 'react'
+import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import './globals.css'
 
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" className={`${display.variable} ${body.variable}`}>
       <body className="font-body antialiased">
         <TooltipProvider delayDuration={200}>{children}</TooltipProvider>
+        <Toaster />
       </body>
     </html>
   )
