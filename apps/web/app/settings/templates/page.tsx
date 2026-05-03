@@ -41,7 +41,7 @@ export default async function TemplatesPanelPage() {
           </p>
         </div>
         <Button asChild>
-          <Link href="/settings/templates/new">New template</Link>
+          <Link href="/settings/templates/new">Add Template</Link>
         </Button>
       </div>
 

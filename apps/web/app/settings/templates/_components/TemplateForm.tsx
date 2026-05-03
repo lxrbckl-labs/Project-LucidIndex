@@ -90,7 +90,7 @@ export function TemplateForm(props: TemplateFormProps) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-6 max-w-[720px]">
+    <form onSubmit={onSubmit} className="flex flex-col gap-6">
       {/* Slug */}
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="slug">Slug</Label>
@@ -175,9 +175,9 @@ export function TemplateForm(props: TemplateFormProps) {
         </p>
       )}
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-3">
         <Button type="submit" disabled={submitting}>
-          {submitting ? 'Saving…' : mode === 'create' ? 'Create template' : 'Save changes'}
+          {submitting ? 'Saving…' : 'Save'}
         </Button>
         <Button
           type="button"

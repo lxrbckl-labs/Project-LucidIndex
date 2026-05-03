@@ -16,7 +16,6 @@
  *   - Clicking (or keyboard-selecting) a topic navigates to /?badge=<name>.
  *   - Clicking (or keyboard-selecting) an article navigates to /a/<slug>.
  *   - Clicking (or keyboard-selecting) a settings entry navigates to its href.
- *   - Pressing Enter with no result highlighted falls back to /search?q=<query>.
  *   - Cmd+K / Ctrl+K focuses the input from anywhere on the page.
  *   - In-flight fetches are aborted when the query changes.
  *   - Responses are cached in a module-scope Map (up to 50 entries).
@@ -272,13 +271,9 @@ export function TypeaheadSearch() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  // ── Enter → full-search fallback ────────────────────────────────────────
+  // ── Enter — no-op (no dedicated /search page exists; user picks from dropdown) ──
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const trimmed = query.trim()
-    if (!trimmed) return
-    setOpen(false)
-    router.push(`/search?q=${encodeURIComponent(trimmed)}`)
   }
 
   // ── Article selection ───────────────────────────────────────────────────
