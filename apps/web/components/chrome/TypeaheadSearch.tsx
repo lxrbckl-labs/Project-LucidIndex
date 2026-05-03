@@ -4,9 +4,10 @@
  * TypeaheadSearch — Spotlight-style typeahead for the TopNav.
  *
  * Behaviour:
- *   - Typing 2+ chars fetches /api/search/typeahead?q=<query> (200 ms debounce).
+ *   - Typing 2+ chars fetches /api/search/typeahead?q=<query> (120 ms debounce).
  *   - On /settings/* routes, a "Settings" group is prepended with results from
- *     the static settings index (synchronous, no fetch needed).
+ *     the static settings index (synchronous, no fetch needed). Min length 1
+ *     for settings; 2 for the API.
  *   - Matching creators appear first in a "Creators" group; topics second in a
  *     "Topics" group; starred articles in a "Starred" group; regular articles
  *     below in an "Articles" group. Starred articles are deduplicated out of
@@ -17,6 +18,9 @@
  *   - Clicking (or keyboard-selecting) a settings entry navigates to its href.
  *   - Pressing Enter with no result highlighted falls back to /search?q=<query>.
  *   - Cmd+K / Ctrl+K focuses the input from anywhere on the page.
+ *   - In-flight fetches are aborted when the query changes.
+ *   - Responses are cached in a module-scope Map (up to 50 entries).
+ *   - Matched substrings in titles/descriptions/names are highlighted.
  *
  * Layout: shadcn Popover wrapping a plain Input. The dropdown uses shadcn
  * Command (shouldFilter=false — server already filtered) with CommandGroup
@@ -26,7 +30,7 @@
 import { FileText, Hash, Search, Settings, Star, User } from 'lucide-react'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import type {
   TypeaheadArticle,
   TypeaheadCreator,
@@ -61,8 +65,55 @@ function truncate(str: string, max: number): string {
   return str.length > max ? `${str.slice(0, max)}…` : str
 }
 
-const DEBOUNCE_MS = 200
+/**
+ * Wrap the first occurrence of `query` in `text` with a <mark> element.
+ * Case-insensitive. Returns the plain string if no match.
+ */
+function highlightMatch(text: string, query: string): ReactNode {
+  if (!query) return text
+  const idx = text.toLowerCase().indexOf(query.toLowerCase())
+  if (idx === -1) return text
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="bg-transparent font-semibold text-foreground">
+        {text.slice(idx, idx + query.length)}
+      </mark>
+      {text.slice(idx + query.length)}
+    </>
+  )
+}
+
+const DEBOUNCE_MS = 120
+/** Minimum chars before firing the remote API (articles/creators/topics). */
 const MIN_LENGTH = 2
+/** Minimum chars before searching the settings index. */
+const SETTINGS_MIN_LENGTH = 1
+
+// ─── Module-scope fetch cache ─────────────────────────────────────────────────
+
+type ApiResponse = {
+  articles: TypeaheadArticle[]
+  creators: TypeaheadCreator[]
+  topics: TypeaheadTopic[]
+  starredArticles: TypeaheadArticle[]
+}
+
+const CACHE_MAX = 50
+const fetchCache = new Map<string, ApiResponse>()
+
+function cacheGet(key: string): ApiResponse | undefined {
+  return fetchCache.get(key)
+}
+
+function cacheSet(key: string, value: ApiResponse): void {
+  if (fetchCache.size >= CACHE_MAX) {
+    // Evict the oldest entry (first inserted key)
+    const firstKey = fetchCache.keys().next().value
+    if (firstKey !== undefined) fetchCache.delete(firstKey)
+  }
+  fetchCache.set(key, value)
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -82,21 +133,36 @@ export function TypeaheadSearch() {
 
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** AbortController for the current in-flight fetch. */
+  const abortRef = useRef<AbortController | null>(null)
 
   // ── Fetch typeahead results ──────────────────────────────────────────────
   const fetchResults = useCallback(async (q: string) => {
-    if (q.trim().length < MIN_LENGTH) {
-      setArticles([])
-      setCreators([])
-      setTopics([])
-      setStarredArticles([])
+    const cacheKey = q.trim().toLowerCase()
+
+    // Cache hit — skip the network entirely
+    const cached = cacheGet(cacheKey)
+    if (cached) {
+      setArticles(cached.articles)
+      setCreators(cached.creators)
+      setTopics(cached.topics)
+      setStarredArticles(cached.starredArticles)
       setLoading(false)
       return
     }
+
+    // Abort any previous in-flight request
+    if (abortRef.current) {
+      abortRef.current.abort()
+    }
+    const controller = new AbortController()
+    abortRef.current = controller
+
     setLoading(true)
     try {
       const res = await fetch(`/api/search/typeahead?q=${encodeURIComponent(q.trim())}`, {
         cache: 'no-store',
+        signal: controller.signal,
       })
       if (!res.ok) {
         setArticles([])
@@ -105,17 +171,21 @@ export function TypeaheadSearch() {
         setStarredArticles([])
         return
       }
-      const data = (await res.json()) as {
-        articles: TypeaheadArticle[]
-        creators: TypeaheadCreator[]
-        topics: TypeaheadTopic[]
-        starredArticles: TypeaheadArticle[]
+      const data = (await res.json()) as ApiResponse
+      const result: ApiResponse = {
+        articles: data.articles ?? [],
+        creators: data.creators ?? [],
+        topics: data.topics ?? [],
+        starredArticles: data.starredArticles ?? [],
       }
-      setArticles(data.articles ?? [])
-      setCreators(data.creators ?? [])
-      setTopics(data.topics ?? [])
-      setStarredArticles(data.starredArticles ?? [])
-    } catch {
+      cacheSet(cacheKey, result)
+      setArticles(result.articles)
+      setCreators(result.creators)
+      setTopics(result.topics)
+      setStarredArticles(result.starredArticles)
+    } catch (err) {
+      // Ignore aborted requests — they are intentional (query changed)
+      if (err instanceof DOMException && err.name === 'AbortError') return
       setArticles([])
       setCreators([])
       setTopics([])
@@ -128,7 +198,7 @@ export function TypeaheadSearch() {
   // ── Settings index search (synchronous) ─────────────────────────────────
   const updateSettingsResults = useCallback(
     (q: string) => {
-      if (onSettingsPage && q.trim().length >= MIN_LENGTH) {
+      if (onSettingsPage && q.trim().length >= SETTINGS_MIN_LENGTH) {
         setSettingsResults(searchSettingsIndex(q, 5))
       } else {
         setSettingsResults([])
@@ -146,7 +216,25 @@ export function TypeaheadSearch() {
     // Settings search is synchronous — update immediately (no debounce needed)
     updateSettingsResults(next)
 
-    if (next.trim().length < MIN_LENGTH) {
+    const trimmed = next.trim()
+
+    // On settings pages, short queries (≥1 char) open the dropdown for settings
+    // only — no API fetch needed.
+    if (onSettingsPage) {
+      if (trimmed.length >= SETTINGS_MIN_LENGTH) {
+        setOpen(true)
+      } else {
+        setOpen(false)
+      }
+      setArticles([])
+      setCreators([])
+      setTopics([])
+      setStarredArticles([])
+      return
+    }
+
+    // Non-settings pages: need ≥ MIN_LENGTH to fire the API
+    if (trimmed.length < MIN_LENGTH) {
       setArticles([])
       setCreators([])
       setTopics([])
@@ -157,25 +245,16 @@ export function TypeaheadSearch() {
 
     setOpen(true)
 
-    // On settings pages: only show settings results — skip the typeahead API
-    // (no articles / creators / topics / starred articles).
-    if (onSettingsPage) {
-      setArticles([])
-      setCreators([])
-      setTopics([])
-      setStarredArticles([])
-      return
-    }
-
     debounceRef.current = setTimeout(() => {
       void fetchResults(next)
     }, DEBOUNCE_MS)
   }
 
-  // ── Cleanup debounce on unmount ──────────────────────────────────────────
+  // ── Cleanup debounce + abort on unmount ─────────────────────────────────
   useEffect(
     () => () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
+      if (abortRef.current) abortRef.current.abort()
     },
     [],
   )
@@ -230,13 +309,19 @@ export function TypeaheadSearch() {
     router.push(href)
   }
 
+  const trimmedQuery = query.trim()
+
   const hasResults =
     articles.length > 0 ||
     creators.length > 0 ||
     topics.length > 0 ||
     starredArticles.length > 0 ||
     settingsResults.length > 0
-  const showDropdown = open && (loading || hasResults || query.trim().length >= MIN_LENGTH)
+
+  // Show the dropdown when open and there is something to render or we're
+  // still loading. The effective min-length check differs per page type.
+  const effectiveMinLength = onSettingsPage ? SETTINGS_MIN_LENGTH : MIN_LENGTH
+  const showDropdown = open && (loading || hasResults || trimmedQuery.length >= effectiveMinLength)
 
   return (
     <search aria-label="Site search">
@@ -253,7 +338,15 @@ export function TypeaheadSearch() {
                 value={query}
                 onChange={(e) => handleChange(e.target.value)}
                 onFocus={() => {
-                  if (query.trim().length >= MIN_LENGTH) setOpen(true)
+                  // Open popover on focus when there's already enough input,
+                  // or always on settings pages (browse mode shows all settings).
+                  if (onSettingsPage) {
+                    // Browse mode: even empty query should open to show all settings
+                    updateSettingsResults(query)
+                    setOpen(true)
+                  } else if (trimmedQuery.length >= MIN_LENGTH) {
+                    setOpen(true)
+                  }
                 }}
                 placeholder="Search"
                 autoComplete="off"
@@ -276,7 +369,7 @@ export function TypeaheadSearch() {
                   Searching…
                 </CommandEmpty>
               )}
-              {!loading && !hasResults && query.trim().length >= MIN_LENGTH && (
+              {!loading && !hasResults && trimmedQuery.length >= effectiveMinLength && (
                 <CommandEmpty className="py-3 text-sm text-muted-foreground">
                   No matches for &ldquo;{truncate(query, 40)}&rdquo;
                 </CommandEmpty>
@@ -299,9 +392,11 @@ export function TypeaheadSearch() {
 
                       {/* Title + description */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm leading-tight truncate">{entry.title}</p>
+                        <p className="text-sm leading-tight truncate">
+                          {highlightMatch(entry.title, trimmedQuery)}
+                        </p>
                         <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                          {entry.description}
+                          {highlightMatch(entry.description, trimmedQuery)}
                         </p>
                       </div>
                     </CommandItem>
@@ -326,7 +421,9 @@ export function TypeaheadSearch() {
 
                       {/* Label + article count */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm leading-tight truncate">{truncate(c.label, 60)}</p>
+                        <p className="text-sm leading-tight truncate">
+                          {highlightMatch(truncate(c.label, 60), trimmedQuery)}
+                        </p>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {c.articleCount === 1 ? '1 article' : `${c.articleCount} articles`}
                         </p>
@@ -353,7 +450,9 @@ export function TypeaheadSearch() {
 
                       {/* Name + article count */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm leading-tight truncate">{t.name}</p>
+                        <p className="text-sm leading-tight truncate">
+                          {highlightMatch(t.name, trimmedQuery)}
+                        </p>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {t.articleCount === 1 ? '1 article' : `${t.articleCount} articles`}
                         </p>
@@ -390,10 +489,12 @@ export function TypeaheadSearch() {
 
                       {/* Title + creator */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm leading-tight truncate">{truncate(r.title, 60)}</p>
+                        <p className="text-sm leading-tight truncate">
+                          {highlightMatch(truncate(r.title, 60), trimmedQuery)}
+                        </p>
                         {r.creatorLabel && (
                           <p className="text-xs text-muted-foreground truncate mt-0.5">
-                            {r.creatorLabel}
+                            {highlightMatch(r.creatorLabel, trimmedQuery)}
                           </p>
                         )}
                       </div>
@@ -439,10 +540,12 @@ export function TypeaheadSearch() {
 
                       {/* Title + creator */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm leading-tight truncate">{truncate(r.title, 60)}</p>
+                        <p className="text-sm leading-tight truncate">
+                          {highlightMatch(truncate(r.title, 60), trimmedQuery)}
+                        </p>
                         {r.creatorLabel && (
                           <p className="text-xs text-muted-foreground truncate mt-0.5">
-                            {r.creatorLabel}
+                            {highlightMatch(r.creatorLabel, trimmedQuery)}
                           </p>
                         )}
                       </div>

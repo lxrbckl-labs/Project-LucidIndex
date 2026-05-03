@@ -26,6 +26,7 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useTransition } from 'react'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { useTopicPrefs } from '@/lib/topic-prefs'
 
 export type TopicBadgeOption = {
   /** The canonical badge name as stored in `topic_badges.name`. */
@@ -48,6 +49,7 @@ export function TopicBadgeFilterRow({ badges }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
+  const { starred } = useTopicPrefs()
 
   // Active value: starred → STARRED_VALUE; badge param → that badge name;
   // otherwise "" (= All).
@@ -114,18 +116,25 @@ export function TopicBadgeFilterRow({ badges }: Props) {
         onValueChange={handleValueChange}
         className="flex flex-nowrap items-center gap-2 justify-start"
       >
-        {items.map((item) => (
-          <ToggleGroupItem
-            key={item.key}
-            value={item.value}
-            aria-label={item.label === 'All' ? 'Show all topics' : `Filter by ${item.label}`}
-            variant="outline"
-            size="sm"
-            className="shrink-0 rounded-full px-4 text-xs uppercase tracking-[0.1em] data-[state=on]:bg-zinc-200 data-[state=on]:text-zinc-600"
-          >
-            {item.label}
-          </ToggleGroupItem>
-        ))}
+        {items.map((item) => {
+          const isSentinel = item.value === '' || item.value === STARRED_VALUE
+          const isStarredTopic = !isSentinel && starred.has(item.value)
+          const bold = isSentinel || isStarredTopic
+          return (
+            <ToggleGroupItem
+              key={item.key}
+              value={item.value}
+              aria-label={item.label === 'All' ? 'Show all topics' : `Filter by ${item.label}`}
+              variant="outline"
+              size="sm"
+              className={`shrink-0 rounded-full px-4 text-xs uppercase tracking-[0.1em] data-[state=on]:bg-zinc-200 data-[state=on]:text-zinc-600 ${
+                bold ? 'font-extrabold' : ''
+              }`}
+            >
+              {item.label}
+            </ToggleGroupItem>
+          )
+        })}
       </ToggleGroup>
     </nav>
   )

@@ -80,11 +80,60 @@ export const SETTINGS_INDEX: ReadonlyArray<SettingsIndexEntry> = [
   },
 ]
 
+// ─── Pre-tokenized index (built once at module load) ────────────────────────
+
+type IndexedEntry = {
+  entry: SettingsIndexEntry
+  titleLower: string
+  haystack: string // title + description + all keywords, lowercased
+}
+
+const INDEXED: ReadonlyArray<IndexedEntry> = SETTINGS_INDEX.map((entry) => ({
+  entry,
+  titleLower: entry.title.toLowerCase(),
+  haystack: [entry.title, entry.description, ...entry.keywords].join(' ').toLowerCase(),
+}))
+
+// ─── Scoring ─────────────────────────────────────────────────────────────────
+
+function scoreEntry(indexed: IndexedEntry, q: string): number {
+  const { titleLower, entry, haystack } = indexed
+
+  // Title starts with query
+  if (titleLower.startsWith(q)) return 100
+  // Title contains query as a substring
+  if (titleLower.includes(q)) return 60
+  // Any keyword exactly equals query
+  if (entry.keywords.some((k) => k.toLowerCase() === q)) return 30
+  // Any keyword starts with query
+  if (entry.keywords.some((k) => k.toLowerCase().startsWith(q))) return 20
+  // Full haystack contains query as substring
+  if (haystack.includes(q)) return 10
+
+  return 0
+}
+
+// ─── Public API ──────────────────────────────────────────────────────────────
+
 export function searchSettingsIndex(query: string, limit = 5): SettingsIndexEntry[] {
   const q = query.trim().toLowerCase()
-  if (q.length < 2) return []
-  return SETTINGS_INDEX.filter((entry) => {
-    const haystack = [entry.title, entry.description, ...entry.keywords].join(' ').toLowerCase()
-    return haystack.includes(q)
-  }).slice(0, limit)
+
+  // Browse mode: empty query returns all entries sorted alphabetically
+  if (q.length === 0) {
+    return [...SETTINGS_INDEX].sort((a, b) => a.title.localeCompare(b.title)).slice(0, limit)
+  }
+
+  // Minimum 1 char for settings (the index is tiny — 1-char matches are useful)
+  if (q.length < 1) return []
+
+  return INDEXED.flatMap((indexed) => {
+    const score = scoreEntry(indexed, q)
+    return score > 0 ? [{ score, entry: indexed.entry }] : []
+  })
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score
+      return a.entry.title.localeCompare(b.entry.title)
+    })
+    .slice(0, limit)
+    .map((r) => r.entry)
 }

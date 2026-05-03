@@ -14,7 +14,7 @@
  * `useTopicPrefs()`.
  */
 
-import { ArrowLeft, EyeOff, Star } from 'lucide-react'
+import { ArrowLeft, Star } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { useTopicPrefs } from '@/lib/topic-prefs'
@@ -25,10 +25,9 @@ type Props = {
 
 export function TopicFocusHeader({ topicName }: Props) {
   const router = useRouter()
-  const { starred, notInterested, toggleStar, toggleNotInterested } = useTopicPrefs()
+  const { starred, toggleStar } = useTopicPrefs()
 
   const isStarred = starred.has(topicName)
-  const isNotInterested = notInterested.has(topicName)
 
   return (
     <div className="flex items-center justify-between gap-4 mb-6">
@@ -48,7 +47,7 @@ export function TopicFocusHeader({ topicName }: Props) {
         {topicName}
       </h1>
 
-      {/* Right: star + not-interested toggles */}
+      {/* Right: star toggle */}
       <div className="flex items-center gap-1 shrink-0">
         <Button
           variant="ghost"
@@ -59,24 +58,6 @@ export function TopicFocusHeader({ topicName }: Props) {
           aria-label={isStarred ? `Unstar ${topicName}` : `Star ${topicName}`}
         >
           <Star className={`h-4 w-4 ${isStarred ? 'fill-current' : ''}`} aria-hidden="true" />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-9 w-9 border border-input"
-          onClick={() => toggleNotInterested(topicName)}
-          aria-pressed={isNotInterested}
-          aria-label={
-            isNotInterested
-              ? `Restore ${topicName} (currently hidden)`
-              : `Hide articles tagged ${topicName}`
-          }
-        >
-          <EyeOff
-            className={`h-4 w-4 ${isNotInterested ? 'opacity-100' : 'opacity-50'}`}
-            aria-hidden="true"
-          />
         </Button>
       </div>
     </div>
