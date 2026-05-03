@@ -104,7 +104,7 @@ export function SettingsSidebar() {
   return (
     <Sidebar collapsible="icon">
       {/* Grouped nav */}
-      <SidebarContent>
+      <SidebarContent className="pt-4">
         {NAV_GROUPS.map((group) => (
           <SidebarGroup key={group.label}>
             <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
