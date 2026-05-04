@@ -20,6 +20,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { ComparisonSourceRow } from '../_lib/comparison-sources-repo'
+import { EditComparisonSourceDialog } from './EditComparisonSourceDialog'
 
 type Props = {
   rows: ComparisonSourceRow[]
@@ -30,6 +31,9 @@ export function ComparisonSourcesPanel({ rows }: Props) {
     <Table>
       <TableHeader>
         <TableRow>
+          <TableHead className="w-10">
+            <span className="sr-only">Edit</span>
+          </TableHead>
           <TableHead>Name</TableHead>
           <TableHead>Base URL</TableHead>
           <TableHead>Status</TableHead>
@@ -72,6 +76,9 @@ function SourceRow({ row }: { row: ComparisonSourceRow }) {
 
   return (
     <TableRow>
+      <TableCell className="w-10">
+        <EditComparisonSourceDialog row={row} />
+      </TableCell>
       <TableCell className="font-semibold">{row.name}</TableCell>
       <TableCell className="font-mono text-xs text-muted-foreground max-w-[260px]">
         <span className="block truncate" title={row.baseUrl}>
@@ -99,9 +106,6 @@ function SourceRow({ row }: { row: ComparisonSourceRow }) {
         )}
       </TableCell>
       <TableCell className="text-right whitespace-nowrap">
-        <Button variant="ghost" size="sm" asChild className="mr-2">
-          <a href={`/settings/comparison-sources/${row.id}`}>Edit</a>
-        </Button>
         {row.isActive ? (
           <Button variant="ghost" size="sm" onClick={onDelete} disabled={deleting}>
             {deleting ? 'Deactivating…' : 'Deactivate'}

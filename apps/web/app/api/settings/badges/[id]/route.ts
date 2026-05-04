@@ -21,6 +21,7 @@ type PatchBody = {
   name?: unknown
   color?: unknown
   displayOrder?: unknown
+  hidden?: unknown
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -28,7 +29,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 type PatchUpdate = {
   name?: string
   color?: string | null
-  displayOrder?: number | null
+  displayOrder?: number
+  hidden?: boolean
 }
 
 function parsePatch(
@@ -58,19 +60,19 @@ function parsePatch(
   }
 
   if (body.displayOrder !== undefined) {
-    if (body.displayOrder === null || body.displayOrder === '') {
-      update.displayOrder = null
-    } else {
-      const n =
-        typeof body.displayOrder === 'string' ? Number(body.displayOrder) : body.displayOrder
-      if (typeof n !== 'number' || !Number.isFinite(n) || !Number.isInteger(n)) {
-        return { ok: false, error: 'Display order must be an integer.' }
-      }
-      if (n < -2147483648 || n > 2147483647) {
-        return { ok: false, error: 'Display order is out of range.' }
-      }
-      update.displayOrder = n
+    const n = typeof body.displayOrder === 'string' ? Number(body.displayOrder) : body.displayOrder
+    if (typeof n !== 'number' || !Number.isFinite(n) || !Number.isInteger(n)) {
+      return { ok: false, error: 'Display order must be an integer.' }
     }
+    if (n < -2147483648 || n > 2147483647) {
+      return { ok: false, error: 'Display order is out of range.' }
+    }
+    update.displayOrder = n
+  }
+
+  if (body.hidden !== undefined) {
+    if (typeof body.hidden !== 'boolean') return { ok: false, error: 'Hidden must be a boolean.' }
+    update.hidden = body.hidden
   }
 
   if (Object.keys(update).length === 0) {

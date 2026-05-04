@@ -2,8 +2,6 @@
  * Settings → Templates list view (RSC) — rebuilt on shadcn (Phase 2).
  */
 
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import {
   Table,
@@ -14,6 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { AddTemplateDialog } from './_components/AddTemplateDialog'
+import { EditTemplateDialog } from './_components/EditTemplateDialog'
 import { listTemplates, type TemplateRow } from './_lib/templates-repo'
 
 export const dynamic = 'force-dynamic'
@@ -55,11 +54,13 @@ export default async function TemplatesPanelPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <span className="sr-only">Edit</span>
+                </TableHead>
                 <TableHead>Slug</TableHead>
                 <TableHead className="text-right">Cross-source N</TableHead>
                 <TableHead>Body excerpt</TableHead>
                 <TableHead>Updated</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -77,6 +78,9 @@ export default async function TemplatesPanelPage() {
 function TemplateTableRow({ row }: { row: TemplateRow }) {
   return (
     <TableRow>
+      <TableCell className="w-10">
+        <EditTemplateDialog row={row} />
+      </TableCell>
       <TableCell className="font-mono text-xs font-semibold">{row.slug}</TableCell>
       <TableCell className="text-right tabular-nums">{row.crossSourceN}</TableCell>
       <TableCell className="text-xs text-muted-foreground max-w-[420px]">
@@ -86,11 +90,6 @@ function TemplateTableRow({ row }: { row: TemplateRow }) {
       </TableCell>
       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
         {row.updatedAt.toISOString().replace('T', ' ').slice(0, 16)}
-      </TableCell>
-      <TableCell className="text-right whitespace-nowrap">
-        <Button variant="ghost" size="sm" asChild>
-          <Link href={`/settings/templates/${row.id}`}>Edit</Link>
-        </Button>
       </TableCell>
     </TableRow>
   )

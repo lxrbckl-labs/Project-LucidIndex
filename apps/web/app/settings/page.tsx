@@ -39,7 +39,7 @@ const GROUPS: Group[] = [
       },
       {
         href: '/settings/comparison-sources',
-        title: 'Comparison sources',
+        title: 'Comparison Sources',
         blurb: 'External sources used by the agent when comparing and rating articles.',
         icon: BookOpen,
       },
@@ -62,7 +62,7 @@ const GROUPS: Group[] = [
       },
       {
         href: '/settings/agent-tokens',
-        title: 'Agent tokens',
+        title: 'Agent Tokens',
         blurb: 'Issue, display once, hash, and revoke tokens for headless agents.',
         icon: Key,
       },

@@ -117,26 +117,22 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
       {/* Thin top nav — Settings + Account links. */}
       <TopNav />
 
-      <main className="px-4 pt-4 pb-16">
+      <main className="px-4 pt-4 pb-16 flex flex-col gap-4">
         {/* Topic filter row OR focus card, depending on ?badge */}
-        <div className="mb-6">
-          {badgeFilter ? (
-            /* Focused view: topic card with star + metadata. Back lives in TopNav. */
-            <TopicFocusCard
-              topicName={badgeFilter}
-              articleCount={articles.length}
-              creatorCount={topicFocusCreatorCount}
-            />
-          ) : (
-            /* Default view: topic-badge filter pills */
-            <TopicBadgeFilterRow badges={badgeOptions} />
-          )}
-        </div>
+        {badgeFilter ? (
+          /* Focused view: topic card with star + metadata. Back lives in TopNav. */
+          <TopicFocusCard
+            topicName={badgeFilter}
+            articleCount={articles.length}
+            creatorCount={topicFocusCreatorCount}
+          />
+        ) : (
+          /* Default view: topic-badge filter pills */
+          <TopicBadgeFilterRow badges={badgeOptions} />
+        )}
 
         {/* Live arrivals strip — SSE-driven horizontal scroll. */}
-        <div className="mb-6">
-          <LiveArticleStream badgeFilter={badgeFilter} />
-        </div>
+        <LiveArticleStream badgeFilter={badgeFilter} />
 
         {articles.length === 0 ? (
           <AuthenticatedEmptyState />

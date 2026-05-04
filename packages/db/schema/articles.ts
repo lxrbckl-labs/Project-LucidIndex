@@ -117,7 +117,8 @@ export const topicBadges = pgTable('topic_badges', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   name: text('name').notNull().unique(),
   color: text('color'),
-  displayOrder: integer('display_order'),
+  displayOrder: integer('display_order').notNull().default(0),
+  hidden: boolean('hidden').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
 })
 

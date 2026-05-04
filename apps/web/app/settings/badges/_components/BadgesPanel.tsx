@@ -8,11 +8,30 @@
  *   2. Suggestion inbox — per-row Approve/Reject plus bulk-select actions.
  */
 
+import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { Eye, EyeOff, GripVertical, Pencil } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import {
   type FormEvent,
   type MouseEvent,
   useCallback,
+  useEffect,
   useMemo,
   useState,
   useTransition,
@@ -31,12 +50,21 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 export type BadgeRow = {
   id: string
   name: string
   color: string | null
-  displayOrder: number | null
+  displayOrder: number
+  hidden: boolean
   createdAt: string
 }
 
@@ -68,13 +96,37 @@ export function BadgesPanel(props: BadgesPanelProps) {
     })
   }, [router])
 
+  const [newOpen, setNewOpen] = useState(false)
+
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Badges</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Curated topic badges and the agent suggestion inbox.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Badges</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Curated topic badges and the agent suggestion inbox.
+          </p>
+        </div>
+        <Dialog open={newOpen} onOpenChange={setNewOpen}>
+          <DialogTrigger asChild>
+            <Button>New Badge</Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>New Badge</DialogTitle>
+            </DialogHeader>
+            <BadgeFormContent
+              mode="create"
+              onCancel={() => setNewOpen(false)}
+              onSuccess={() => {
+                setNewOpen(false)
+                toast.success('Badge created.')
+                refresh()
+              }}
+              onError={(error) => toast.error(error)}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Separator />
@@ -97,97 +149,195 @@ export function BadgesPanel(props: BadgesPanelProps) {
 
 function CuratedBadgesSection(props: { initialBadges: BadgeRow[]; onAfterMutate: () => void }) {
   const { initialBadges, onAfterMutate } = props
-  const [newOpen, setNewOpen] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [items, setItems] = useState<BadgeRow[]>(initialBadges)
+
+  // Keep local order in sync when server-driven refresh fires (e.g. after edit / hide).
+  useEffect(() => {
+    setItems(initialBadges)
+  }, [initialBadges])
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  async function persistOrder(orderedIds: string[]) {
+    try {
+      const res = await fetch('/api/settings/badges/reorder', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ids: orderedIds }),
+      })
+      if (!res.ok) {
+        toast.error('Could not save the new order.')
+        onAfterMutate()
+        return
+      }
+    } catch {
+      toast.error('Network error.')
+      onAfterMutate()
+    }
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = items.findIndex((b) => b.id === active.id)
+    const newIndex = items.findIndex((b) => b.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+    const next = arrayMove(items, oldIndex, newIndex)
+    setItems(next)
+    void persistOrder(next.map((b) => b.id))
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+        No curated badges yet. Add one with the &ldquo;New Badge&rdquo; button above, or approve a
+        suggestion below.
+      </div>
+    )
+  }
 
   return (
-    <section className="flex flex-col gap-4">
-      <div className="flex flex-row items-start justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold">Curated badges</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Badges are persistent — there is no delete in v0.1. Edit a badge to rename or restyle
-            it.
-          </p>
-        </div>
-        <Dialog open={newOpen} onOpenChange={setNewOpen}>
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-8">
+              <span className="sr-only">Drag</span>
+            </TableHead>
+            <TableHead className="w-10">
+              <span className="sr-only">Edit</span>
+            </TableHead>
+            <TableHead className="w-10">
+              <span className="sr-only">Show / Hide</span>
+            </TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead>Color</TableHead>
+            <TableHead className="text-right">Added</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <SortableContext items={items.map((b) => b.id)} strategy={verticalListSortingStrategy}>
+            {items.map((badge) => (
+              <BadgeTableRow key={badge.id} badge={badge} onAfterMutate={onAfterMutate} />
+            ))}
+          </SortableContext>
+        </TableBody>
+      </Table>
+    </DndContext>
+  )
+}
+
+function BadgeTableRow(props: { badge: BadgeRow; onAfterMutate: () => void }) {
+  const { badge, onAfterMutate } = props
+  const [editOpen, setEditOpen] = useState(false)
+  const [hideBusy, setHideBusy] = useState(false)
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: badge.id,
+  })
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : undefined,
+  }
+
+  async function toggleHidden() {
+    if (hideBusy) return
+    setHideBusy(true)
+    try {
+      const res = await fetch(`/api/settings/badges/${badge.id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ hidden: !badge.hidden }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
+      if (!res.ok || !data.ok) {
+        toast.error(data.error ?? 'Could not update visibility.')
+        return
+      }
+      toast.success(badge.hidden ? 'Badge shown on dashboard.' : 'Badge hidden from dashboard.')
+      onAfterMutate()
+    } catch {
+      toast.error('Network error.')
+    } finally {
+      setHideBusy(false)
+    }
+  }
+
+  return (
+    <TableRow ref={setNodeRef} style={style} className={badge.hidden ? 'opacity-60' : undefined}>
+      <TableCell className="w-8 cursor-grab touch-none" {...attributes} {...listeners}>
+        <span
+          className="inline-flex items-center justify-center text-muted-foreground"
+          aria-hidden="true"
+        >
+          <GripVertical className="h-4 w-4" />
+        </span>
+      </TableCell>
+      <TableCell className="w-10">
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
           <DialogTrigger asChild>
-            <Button>New Badge</Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={`Edit ${badge.name}`}
+              className="border border-input"
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>New Badge</DialogTitle>
+              <DialogTitle>Edit Badge</DialogTitle>
             </DialogHeader>
             <BadgeFormContent
-              mode="create"
-              onCancel={() => setNewOpen(false)}
+              mode="edit"
+              badge={badge}
+              onCancel={() => setEditOpen(false)}
               onSuccess={() => {
-                setNewOpen(false)
-                toast.success('Badge created.')
+                setEditOpen(false)
+                toast.success('Badge updated.')
                 onAfterMutate()
               }}
               onError={(error) => toast.error(error)}
             />
           </DialogContent>
         </Dialog>
-      </div>
-
-      {initialBadges.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          No curated badges yet. Add one with the &ldquo;New Badge&rdquo; button above, or approve a
-          suggestion below.
-        </div>
-      ) : (
-        <ul className="divide-y border-y">
-          {initialBadges.map((badge) => (
-            <li key={badge.id} className="py-3">
-              {editingId === badge.id ? (
-                <BadgeFormContent
-                  mode="edit"
-                  badge={badge}
-                  onCancel={() => setEditingId(null)}
-                  onSuccess={() => {
-                    setEditingId(null)
-                    toast.success('Badge updated.')
-                    onAfterMutate()
-                  }}
-                  onError={(error) => toast.error(error)}
-                />
-              ) : (
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3 min-w-0">
-                    {badge.color ? (
-                      <span
-                        aria-hidden="true"
-                        className="inline-block h-3 w-3 rounded-sm border shrink-0"
-                        style={{ backgroundColor: badge.color }}
-                      />
-                    ) : (
-                      <span className="inline-block h-3 w-3 shrink-0" aria-hidden="true" />
-                    )}
-                    <span className="text-sm font-semibold truncate">{badge.name}</span>
-                    <span className="text-xs text-muted-foreground shrink-0">
-                      order: {badge.displayOrder ?? '—'}
-                    </span>
-                    <span className="text-xs text-muted-foreground shrink-0 hidden md:inline">
-                      added {formatDate(badge.createdAt)}
-                    </span>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEditingId(badge.id)}
-                  >
-                    Edit
-                  </Button>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+      </TableCell>
+      <TableCell className="w-10">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleHidden}
+          disabled={hideBusy}
+          aria-label={badge.hidden ? `Show ${badge.name}` : `Hide ${badge.name}`}
+          className="border border-input"
+        >
+          {badge.hidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </Button>
+      </TableCell>
+      <TableCell className="font-semibold">{badge.name}</TableCell>
+      <TableCell>
+        {badge.color ? (
+          <span className="inline-flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className="inline-block h-3 w-3 rounded-sm border shrink-0"
+              style={{ backgroundColor: badge.color }}
+            />
+            <span className="font-mono text-xs text-muted-foreground">{badge.color}</span>
+          </span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+      </TableCell>
+      <TableCell className="text-right text-xs text-muted-foreground whitespace-nowrap">
+        {formatDate(badge.createdAt)}
+      </TableCell>
+    </TableRow>
   )
 }
 
@@ -201,11 +351,6 @@ function BadgeFormContent(props: {
   const { mode, badge, onCancel, onSuccess, onError } = props
   const [name, setName] = useState(badge?.name ?? '')
   const [color, setColor] = useState(badge?.color ?? '')
-  const [displayOrder, setDisplayOrder] = useState(
-    badge?.displayOrder !== undefined && badge.displayOrder !== null
-      ? String(badge.displayOrder)
-      : '',
-  )
   const [submitting, setSubmitting] = useState(false)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -217,7 +362,6 @@ function BadgeFormContent(props: {
       const method = mode === 'create' ? 'POST' : 'PATCH'
       const payload: Record<string, unknown> = { name: name.trim() }
       payload.color = color.trim() === '' ? null : color.trim()
-      payload.displayOrder = displayOrder.trim() === '' ? null : Number(displayOrder)
 
       const res = await fetch(url, {
         method,
@@ -254,29 +398,18 @@ function BadgeFormContent(props: {
         />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`badge-color-${badge?.id ?? 'new'}`}>Color</Label>
-          <Input
-            id={`badge-color-${badge?.id ?? 'new'}`}
-            type="text"
-            placeholder="#112233"
-            value={color}
-            onChange={(e) => setColor(e.target.value)}
-          />
-          <p className="text-xs text-muted-foreground">Hex value, optional.</p>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`badge-order-${badge?.id ?? 'new'}`}>Order</Label>
-          <Input
-            id={`badge-order-${badge?.id ?? 'new'}`}
-            type="number"
-            step={1}
-            value={displayOrder}
-            onChange={(e) => setDisplayOrder(e.target.value)}
-          />
-          <p className="text-xs text-muted-foreground">Lower values sort first.</p>
-        </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={`badge-color-${badge?.id ?? 'new'}`}>Color</Label>
+        <Input
+          id={`badge-color-${badge?.id ?? 'new'}`}
+          type="text"
+          placeholder="#112233"
+          value={color}
+          onChange={(e) => setColor(e.target.value)}
+        />
+        <p className="text-xs text-muted-foreground">
+          Hex value, optional. Order is set by drag-and-drop on the table.
+        </p>
       </div>
 
       <DialogFooter className="sm:justify-between">
@@ -436,7 +569,7 @@ function SuggestionInboxSection(props: {
                 disabled={busy || selectedIds.size === 0}
                 onClick={() => handleBulk('approve')}
               >
-                Approve selected
+                Approve
               </Button>
               <Button
                 type="button"
@@ -445,7 +578,7 @@ function SuggestionInboxSection(props: {
                 disabled={busy || selectedIds.size === 0}
                 onClick={() => handleBulk('reject')}
               >
-                Reject selected
+                Reject
               </Button>
             </div>
           </div>

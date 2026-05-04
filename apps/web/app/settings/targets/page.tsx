@@ -2,8 +2,6 @@
  * Settings → Targets list view (RSC) — rebuilt on shadcn (Phase 2).
  */
 
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import {
   Table,
@@ -14,9 +12,11 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { AddTargetDialog } from './_components/AddTargetDialog'
+import { EditTargetDialog } from './_components/EditTargetDialog'
 import { PauseResumeButton } from './_components/PauseResumeButton'
 import {
   CADENCE_PRESETS,
+  type CadencePreset,
   hasAnyPromptTemplates,
   listPromptTemplateOptions,
   listTargets,
@@ -70,6 +70,9 @@ export default async function TargetsPanelPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <span className="sr-only">Edit</span>
+                </TableHead>
                 <TableHead>Label</TableHead>
                 <TableHead>URL / handle</TableHead>
                 <TableHead>Cadence</TableHead>
@@ -81,7 +84,13 @@ export default async function TargetsPanelPage() {
             </TableHeader>
             <TableBody>
               {targets.map((row) => (
-                <TargetTableRow key={row.id} row={row} />
+                <TargetTableRow
+                  key={row.id}
+                  row={row}
+                  cadencePresets={CADENCE_PRESETS}
+                  promptTemplates={promptTemplates}
+                  promptTemplatesAvailable={promptTemplatesAvailable}
+                />
               ))}
             </TableBody>
           </Table>
@@ -91,9 +100,27 @@ export default async function TargetsPanelPage() {
   )
 }
 
-function TargetTableRow({ row }: { row: TargetRow }) {
+function TargetTableRow({
+  row,
+  cadencePresets,
+  promptTemplates,
+  promptTemplatesAvailable,
+}: {
+  row: TargetRow
+  cadencePresets: ReadonlyArray<CadencePreset>
+  promptTemplates: ReadonlyArray<{ id: string; slug: string }>
+  promptTemplatesAvailable: boolean
+}) {
   return (
     <TableRow>
+      <TableCell className="w-10">
+        <EditTargetDialog
+          row={row}
+          cadencePresets={cadencePresets}
+          promptTemplates={promptTemplates}
+          promptTemplatesAvailable={promptTemplatesAvailable}
+        />
+      </TableCell>
       <TableCell className="font-semibold">{row.label}</TableCell>
       <TableCell className="font-mono text-xs text-muted-foreground max-w-[260px]">
         <span className="block truncate" title={row.urlOrHandle}>
@@ -117,9 +144,6 @@ function TargetTableRow({ row }: { row: TargetRow }) {
         <LastRunCell row={row} />
       </TableCell>
       <TableCell className="text-right whitespace-nowrap">
-        <Button variant="ghost" size="sm" asChild className="mr-2">
-          <Link href={`/settings/targets/${row.id}`}>Edit</Link>
-        </Button>
         <PauseResumeButton id={row.id} active={row.active} />
       </TableCell>
     </TableRow>

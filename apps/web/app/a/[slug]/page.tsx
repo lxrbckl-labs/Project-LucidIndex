@@ -224,9 +224,13 @@ export default async function ArticlePage({
                 The filed date moved into the metadata grid below. */}
             <header className="flex flex-wrap items-center gap-3">
               {article.topicBadges.map((badge) => (
-                <Badge key={badge} variant="secondary">
-                  {badge}
-                </Badge>
+                <Link
+                  key={badge}
+                  href={`/?badge=${encodeURIComponent(badge)}`}
+                  className="rounded-md hover:opacity-80 transition-opacity"
+                >
+                  <Badge variant="secondary">{badge}</Badge>
+                </Link>
               ))}
             </header>
 

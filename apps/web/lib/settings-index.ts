@@ -25,7 +25,7 @@ export const SETTINGS_INDEX: ReadonlyArray<SettingsIndexEntry> = [
     keywords: ['source', 'feed', 'rss', 'ingestion', 'crawl', 'creator'],
   },
   {
-    title: 'Comparison sources',
+    title: 'Comparison Sources',
     description: 'External citation pool — Wikipedia, AP, Reuters, etc.',
     href: '/settings/comparison-sources',
     keywords: ['citation', 'reference', 'external', 'compare'],
@@ -43,7 +43,7 @@ export const SETTINGS_INDEX: ReadonlyArray<SettingsIndexEntry> = [
     keywords: ['cron', 'queue', 'drift', 'observability', 'health'],
   },
   {
-    title: 'Agent tokens',
+    title: 'Agent Tokens',
     description: 'Issue, hash, and revoke tokens for headless agents.',
     href: '/settings/agent-tokens',
     keywords: ['api', 'token', 'auth', 'agent', 'mcp'],

@@ -53,6 +53,7 @@ export default async function BadgesPanelPage() {
     name: b.name,
     color: b.color,
     displayOrder: b.displayOrder,
+    hidden: b.hidden,
     createdAt: b.createdAt.toISOString(),
   }))
 

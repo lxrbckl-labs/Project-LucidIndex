@@ -51,7 +51,7 @@ export function TopNav() {
           <Link
             href="/"
             onClick={(e) => {
-              if (pathname === '/') {
+              if (pathname === '/' && !searchParams.get('badge')) {
                 e.preventDefault()
                 window.scrollTo({ top: 0, behavior: 'smooth' })
               }

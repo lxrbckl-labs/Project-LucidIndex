@@ -71,7 +71,7 @@ const NAV_GROUPS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }
     label: 'System',
     items: [
       { href: '/settings/system', label: 'System', icon: Settings2 },
-      { href: '/settings/agent-tokens', label: 'Agent tokens', icon: Key },
+      { href: '/settings/agent-tokens', label: 'Agent Tokens', icon: Key },
     ],
   },
   {

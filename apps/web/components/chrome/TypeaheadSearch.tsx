@@ -346,7 +346,7 @@ export function TypeaheadSearch() {
                 placeholder="Search"
                 autoComplete="off"
                 data-testid="topnav-search-input"
-                className="w-64 pl-8 pr-2 md:w-80 h-9"
+                className="w-96 pl-8 pr-2 md:w-[28rem] h-9 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
               />
             </div>
           </PopoverTrigger>

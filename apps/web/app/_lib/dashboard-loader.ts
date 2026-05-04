@@ -168,6 +168,7 @@ export async function loadDashboardBadges(): Promise<string[]> {
   const rows = await db
     .select({ name: topicBadges.name })
     .from(topicBadges)
+    .where(eq(topicBadges.hidden, false))
     .orderBy(asc(topicBadges.displayOrder), asc(topicBadges.createdAt))
 
   return rows.map((r) => r.name)

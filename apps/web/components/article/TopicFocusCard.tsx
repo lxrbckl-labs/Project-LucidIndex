@@ -18,6 +18,7 @@
  */
 
 import { Star } from 'lucide-react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader } from '@/components/ui/card'
 import { useTopicPrefs } from '@/lib/topic-prefs'
@@ -33,13 +34,19 @@ export function TopicFocusCard({ topicName, articleCount, creatorCount }: Props)
   const isStarred = starred.has(topicName)
 
   return (
-    <Card className="mb-6">
-      <CardHeader className="pb-3">
+    <Card>
+      <CardHeader>
         {/* Title row */}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-foreground">
-              {topicName}
+              <Link
+                href="/"
+                className="hover:opacity-80 transition-opacity"
+                aria-label="Back to dashboard"
+              >
+                {topicName}
+              </Link>
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {articleCount} {articleCount === 1 ? 'article' : 'articles'} from {creatorCount}{' '}

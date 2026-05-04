@@ -85,7 +85,7 @@ export function AgentTokensPanel({ initialTokens }: Props) {
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Agent tokens</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Agent Tokens</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Tokens issued to headless agents. Each token is shown in plaintext exactly once at
             creation. Revoke a token to disable it — revoked tokens are kept for audit purposes.

@@ -51,9 +51,13 @@ export function LargeArticleCard({ article }: Props) {
         {/* Badges row */}
         <div className="flex flex-wrap items-center gap-1.5 mb-2">
           {article.topicBadges.map((badge) => (
-            <Badge key={badge} variant="secondary">
-              {badge}
-            </Badge>
+            <Link
+              key={badge}
+              href={`/?badge=${encodeURIComponent(badge)}`}
+              className="rounded-md hover:opacity-80 transition-opacity"
+            >
+              <Badge variant="secondary">{badge}</Badge>
+            </Link>
           ))}
         </div>
 
