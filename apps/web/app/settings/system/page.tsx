@@ -10,7 +10,7 @@
 
 import Link from 'next/link'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
 import {
   Table,
   TableBody,
@@ -20,6 +20,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { CopyStandingPrompt } from './_components/CopyStandingPrompt'
+import { RemoveQueueItemButton } from './_components/RemoveQueueItemButton'
 import {
   type CronJobSummary,
   type DifficultyHistogram,
@@ -27,8 +28,10 @@ import {
   getCronJobsSummary,
   getDifficultyHistogram,
   getQueueDepth,
+  getQueueItems,
   getSignificanceHistogram,
   LARGE_DRIFT_THRESHOLD_PCT,
+  type QueueItem,
   type SignificanceHistogram,
 } from './_lib/system-stats'
 
@@ -42,15 +45,16 @@ function formatTimestamp(iso: string | null): string {
 
 export default async function SystemPanelPage() {
   // Auth is already handled by the settings layout — no need to re-check here.
-  const [cronJobs, queueDepth, significance, difficulty] = await Promise.all([
+  const [cronJobs, queueDepth, queueItems, significance, difficulty] = await Promise.all([
     getCronJobsSummary(),
     getQueueDepth(),
+    getQueueItems(),
     getSignificanceHistogram(30),
     getDifficultyHistogram(30),
   ])
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">System</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -61,11 +65,17 @@ export default async function SystemPanelPage() {
       {/* Drift warning — at the top so a calibration regression can't be missed. */}
       {significance.driftWarning && <DriftWarningPanel histogram={significance} />}
 
+      <Separator />
+
       {/* ── Section 1: Cron jobs ── */}
       <CronJobsSection rows={cronJobs} />
 
+      <Separator />
+
       {/* ── Section 2: Queue depth ── */}
-      <QueueSection depth={queueDepth} />
+      <QueueSection depth={queueDepth} items={queueItems} />
+
+      <Separator />
 
       {/* ── Section 3: 30-day distribution ── */}
       <DistributionSection significance={significance} difficulty={difficulty} />
@@ -79,63 +89,95 @@ export default async function SystemPanelPage() {
 
 function CronJobsSection({ rows }: { rows: CronJobSummary[] }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Cron jobs</CardTitle>
-        <CardDescription>Per-job last success, last failure, and 24h success rate.</CardDescription>
-      </CardHeader>
-      <CardContent data-testid="cron-jobs-table">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Job</TableHead>
-              <TableHead>Last success</TableHead>
-              <TableHead>Last failure</TableHead>
-              <TableHead>24h success rate</TableHead>
+    <section className="flex flex-col gap-3" data-testid="cron-jobs-table">
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight">Cron jobs</h2>
+        <p className="text-sm text-muted-foreground">
+          Per-job last success, last failure, and 24h success rate.
+        </p>
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Job</TableHead>
+            <TableHead>Last success</TableHead>
+            <TableHead>Last failure</TableHead>
+            <TableHead>24h success rate</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow key={row.job} data-testid={`cron-row-${row.job}`}>
+              <TableCell className="font-mono text-xs">{row.job}</TableCell>
+              <TableCell className="text-sm">{formatTimestamp(row.lastSuccessAt)}</TableCell>
+              <TableCell
+                className={
+                  row.lastFailureAt ? 'text-destructive text-sm' : 'text-muted-foreground text-sm'
+                }
+              >
+                {formatTimestamp(row.lastFailureAt)}
+              </TableCell>
+              <TableCell className="text-sm">{row.successRate24h}</TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.job} data-testid={`cron-row-${row.job}`}>
-                <TableCell className="font-mono text-xs">{row.job}</TableCell>
-                <TableCell className="text-sm">{formatTimestamp(row.lastSuccessAt)}</TableCell>
-                <TableCell
-                  className={
-                    row.lastFailureAt ? 'text-destructive text-sm' : 'text-muted-foreground text-sm'
-                  }
-                >
-                  {formatTimestamp(row.lastFailureAt)}
-                </TableCell>
-                <TableCell className="text-sm">{row.successRate24h}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+          ))}
+        </TableBody>
+      </Table>
+    </section>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Queue depth panel
+// Queue panel (depth summary + item table with remove actions)
 // ---------------------------------------------------------------------------
 
-function QueueSection({ depth }: { depth: number }) {
+function QueueSection({ depth, items }: { depth: number; items: QueueItem[] }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Queue</CardTitle>
-      </CardHeader>
-      <CardContent data-testid="queue-depth-panel">
-        <p className="text-sm">
-          Queue depth:{' '}
-          <span className="font-semibold" data-testid="queue-depth-value">
-            {depth}
-          </span>{' '}
-          {depth === 1 ? 'item' : 'items'} waiting
+    <section className="flex flex-col gap-3" data-testid="queue-depth-panel">
+      <h2 className="text-lg font-semibold tracking-tight">Queue</h2>
+      <p className="text-sm">
+        Queue depth:{' '}
+        <span className="font-semibold" data-testid="queue-depth-value">
+          {depth}
+        </span>{' '}
+        {depth === 1 ? 'item' : 'items'} waiting
+      </p>
+      {items.length === 0 ? (
+        <p className="text-sm text-muted-foreground" data-testid="queue-empty-state">
+          No items waiting in the queue.
         </p>
-      </CardContent>
-    </Card>
+      ) : (
+        <Table data-testid="queue-items-table">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Target</TableHead>
+              <TableHead>Enqueued</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="w-16">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((item) => (
+              <TableRow key={item.id} data-testid={`queue-row-${item.id}`}>
+                <TableCell className="text-sm">{item.targetLabel ?? '—'}</TableCell>
+                <TableCell className="text-sm font-mono text-xs">
+                  {formatTimestamp(item.enqueuedAt.toISOString())}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {item.claimedAt == null ? (
+                    <span className="text-muted-foreground">Pending</span>
+                  ) : (
+                    <span>Claimed</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <RemoveQueueItemButton itemId={item.id} />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </section>
   )
 }
 
@@ -151,69 +193,65 @@ function DistributionSection({
   difficulty: DifficultyHistogram
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>30-day distribution</CardTitle>
-        <CardDescription>
+    <section className="flex flex-col gap-4">
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight">30-day distribution</h2>
+        <p className="text-sm text-muted-foreground">
           {significance.total} article{significance.total === 1 ? '' : 's'} in the last{' '}
           {significance.windowDays} days.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Significance bars */}
-          <div data-testid="significance-histogram">
-            <h3 className="text-xs uppercase tracking-wide text-muted-foreground mb-3">
-              Significance
-            </h3>
-            <HistogramBar
-              label="small"
-              count={significance.small}
-              pct={significance.smallPct}
-              testid="sig-small"
-            />
-            <HistogramBar
-              label="medium"
-              count={significance.medium}
-              pct={significance.mediumPct}
-              testid="sig-medium"
-            />
-            <HistogramBar
-              label="large"
-              count={significance.large}
-              pct={significance.largePct}
-              testid="sig-large"
-              emphasize={significance.driftWarning}
-            />
-          </div>
-
-          {/* Difficulty bars */}
-          <div data-testid="difficulty-histogram">
-            <h3 className="text-xs uppercase tracking-wide text-muted-foreground mb-3">
-              Difficulty
-            </h3>
-            <HistogramBar
-              label="easy"
-              count={difficulty.easy}
-              pct={difficulty.easyPct}
-              testid="diff-easy"
-            />
-            <HistogramBar
-              label="medium"
-              count={difficulty.medium}
-              pct={difficulty.mediumPct}
-              testid="diff-medium"
-            />
-            <HistogramBar
-              label="hard"
-              count={difficulty.hard}
-              pct={difficulty.hardPct}
-              testid="diff-hard"
-            />
-          </div>
+        </p>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Significance bars */}
+        <div data-testid="significance-histogram">
+          <h3 className="text-xs uppercase tracking-wide text-muted-foreground mb-3">
+            Significance
+          </h3>
+          <HistogramBar
+            label="small"
+            count={significance.small}
+            pct={significance.smallPct}
+            testid="sig-small"
+          />
+          <HistogramBar
+            label="medium"
+            count={significance.medium}
+            pct={significance.mediumPct}
+            testid="sig-medium"
+          />
+          <HistogramBar
+            label="large"
+            count={significance.large}
+            pct={significance.largePct}
+            testid="sig-large"
+            emphasize={significance.driftWarning}
+          />
         </div>
-      </CardContent>
-    </Card>
+
+        {/* Difficulty bars */}
+        <div data-testid="difficulty-histogram">
+          <h3 className="text-xs uppercase tracking-wide text-muted-foreground mb-3">Difficulty</h3>
+          <HistogramBar
+            label="easy"
+            count={difficulty.easy}
+            pct={difficulty.easyPct}
+            testid="diff-easy"
+          />
+          <HistogramBar
+            label="medium"
+            count={difficulty.medium}
+            pct={difficulty.mediumPct}
+            testid="diff-medium"
+          />
+          <HistogramBar
+            label="hard"
+            count={difficulty.hard}
+            pct={difficulty.hardPct}
+            testid="diff-hard"
+          />
+        </div>
+      </div>
+    </section>
   )
 }
 

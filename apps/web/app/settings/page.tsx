@@ -3,7 +3,7 @@
  *
  * Grouped grid of shadcn Cards mirroring the sidebar structure:
  *   Agents   — Targets, Comparison sources, Templates
- *   System   — Off-site backup, System, Agent tokens
+ *   System   — System, Agent tokens
  *   Inbox    — Badges
  *   Account  — Account
  *
@@ -11,15 +11,7 @@
  * Each card: icon + title + description, full-card Link, hover lift.
  */
 
-import {
-  BookOpen,
-  FileText,
-  HardDriveDownload,
-  Key,
-  Settings2,
-  ShieldCheck,
-  Tag,
-} from 'lucide-react'
+import { BookOpen, FileText, Key, Settings2, ShieldCheck, Tag } from 'lucide-react'
 import Link from 'next/link'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -62,12 +54,6 @@ const GROUPS: Group[] = [
   {
     label: 'System',
     panels: [
-      {
-        href: '/settings/off-site-backup',
-        title: 'Off-site backup',
-        blurb: 'Configure the rclone remote that receives nightly DB dumps.',
-        icon: HardDriveDownload,
-      },
       {
         href: '/settings/system',
         title: 'System',

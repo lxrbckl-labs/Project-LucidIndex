@@ -28,12 +28,14 @@ export type TemplateFormProps = {
   templateId?: string
   initial: TemplateFormInitial
   lockSlug?: boolean
+  onSuccess?: () => void
+  onCancel?: () => void
 }
 
 type FieldErrors = Partial<Record<keyof TemplateFormInitial | '_form', string>>
 
 export function TemplateForm(props: TemplateFormProps) {
-  const { mode, templateId, initial, lockSlug = false } = props
+  const { mode, templateId, initial, lockSlug = false, onSuccess, onCancel } = props
   const router = useRouter()
 
   const [slug, setSlug] = useState(initial.slug)
@@ -80,8 +82,12 @@ export function TemplateForm(props: TemplateFormProps) {
       }
 
       toast.success(mode === 'create' ? 'Template created.' : 'Template updated.')
-      router.push('/settings/templates')
-      router.refresh()
+      if (onSuccess) {
+        onSuccess()
+      } else {
+        router.push('/settings/templates')
+        router.refresh()
+      }
     } catch {
       setErrors({ _form: 'Network error.' })
     } finally {
@@ -182,7 +188,7 @@ export function TemplateForm(props: TemplateFormProps) {
         <Button
           type="button"
           variant="outline"
-          onClick={() => router.push('/settings/templates')}
+          onClick={() => (onCancel ? onCancel() : router.push('/settings/templates'))}
           disabled={submitting}
         >
           Cancel

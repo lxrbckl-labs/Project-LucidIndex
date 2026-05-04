@@ -4,7 +4,7 @@
  * Settings → Badges interactive panel — rebuilt on shadcn (Phase 2).
  *
  * Two stacked sections:
- *   1. Curated badges — list with inline edit. New badges added via Dialog.
+ *   1. Curated badges — list with inline edit. New Badges added via Dialog.
  *   2. Suggestion inbox — per-row Approve/Reject plus bulk-select actions.
  */
 
@@ -19,12 +19,10 @@ import {
 } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -32,6 +30,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
 
 export type BadgeRow = {
   id: string
@@ -78,7 +77,11 @@ export function BadgesPanel(props: BadgesPanelProps) {
         </p>
       </div>
 
+      <Separator />
+
       <CuratedBadgesSection initialBadges={initialBadges} onAfterMutate={refresh} />
+
+      <Separator />
 
       <SuggestionInboxSection
         initialSuggestions={initialSuggestions}
@@ -98,25 +101,22 @@ function CuratedBadgesSection(props: { initialBadges: BadgeRow[]; onAfterMutate:
   const [editingId, setEditingId] = useState<string | null>(null)
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+    <section className="flex flex-col gap-4">
+      <div className="flex flex-row items-start justify-between gap-4">
         <div>
-          <CardTitle>Curated badges</CardTitle>
-          <CardDescription className="mt-1">
+          <h2 className="text-lg font-semibold">Curated badges</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
             Badges are persistent — there is no delete in v0.1. Edit a badge to rename or restyle
             it.
-          </CardDescription>
+          </p>
         </div>
         <Dialog open={newOpen} onOpenChange={setNewOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline" size="sm">
-              New badge
-            </Button>
+            <Button>New Badge</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>New badge</DialogTitle>
-              <DialogDescription>Create a new topic badge.</DialogDescription>
+              <DialogTitle>New Badge</DialogTitle>
             </DialogHeader>
             <BadgeFormContent
               mode="create"
@@ -130,67 +130,64 @@ function CuratedBadgesSection(props: { initialBadges: BadgeRow[]; onAfterMutate:
             />
           </DialogContent>
         </Dialog>
-      </CardHeader>
-      <CardContent>
-        {initialBadges.length === 0 ? (
-          <Card className="border-dashed">
-            <CardContent className="p-8 text-center text-sm text-muted-foreground">
-              No curated badges yet. Add one with the &ldquo;New badge&rdquo; button above, or
-              approve a suggestion below.
-            </CardContent>
-          </Card>
-        ) : (
-          <ul className="divide-y">
-            {initialBadges.map((badge) => (
-              <li key={badge.id} className="py-3">
-                {editingId === badge.id ? (
-                  <BadgeFormContent
-                    mode="edit"
-                    badge={badge}
-                    onCancel={() => setEditingId(null)}
-                    onSuccess={() => {
-                      setEditingId(null)
-                      toast.success('Badge updated.')
-                      onAfterMutate()
-                    }}
-                    onError={(error) => toast.error(error)}
-                  />
-                ) : (
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3 min-w-0">
-                      {badge.color ? (
-                        <span
-                          aria-hidden="true"
-                          className="inline-block h-3 w-3 rounded-sm border shrink-0"
-                          style={{ backgroundColor: badge.color }}
-                        />
-                      ) : (
-                        <span className="inline-block h-3 w-3 shrink-0" aria-hidden="true" />
-                      )}
-                      <span className="text-sm font-semibold truncate">{badge.name}</span>
-                      <span className="text-xs text-muted-foreground shrink-0">
-                        order: {badge.displayOrder ?? '—'}
-                      </span>
-                      <span className="text-xs text-muted-foreground shrink-0 hidden md:inline">
-                        added {formatDate(badge.createdAt)}
-                      </span>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setEditingId(badge.id)}
-                    >
-                      Edit
-                    </Button>
+      </div>
+
+      {initialBadges.length === 0 ? (
+        <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+          No curated badges yet. Add one with the &ldquo;New Badge&rdquo; button above, or approve a
+          suggestion below.
+        </div>
+      ) : (
+        <ul className="divide-y border-y">
+          {initialBadges.map((badge) => (
+            <li key={badge.id} className="py-3">
+              {editingId === badge.id ? (
+                <BadgeFormContent
+                  mode="edit"
+                  badge={badge}
+                  onCancel={() => setEditingId(null)}
+                  onSuccess={() => {
+                    setEditingId(null)
+                    toast.success('Badge updated.')
+                    onAfterMutate()
+                  }}
+                  onError={(error) => toast.error(error)}
+                />
+              ) : (
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {badge.color ? (
+                      <span
+                        aria-hidden="true"
+                        className="inline-block h-3 w-3 rounded-sm border shrink-0"
+                        style={{ backgroundColor: badge.color }}
+                      />
+                    ) : (
+                      <span className="inline-block h-3 w-3 shrink-0" aria-hidden="true" />
+                    )}
+                    <span className="text-sm font-semibold truncate">{badge.name}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      order: {badge.displayOrder ?? '—'}
+                    </span>
+                    <span className="text-xs text-muted-foreground shrink-0 hidden md:inline">
+                      added {formatDate(badge.createdAt)}
+                    </span>
                   </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditingId(badge.id)}
+                  >
+                    Edit
+                  </Button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }
 
@@ -244,21 +241,22 @@ function BadgeFormContent(props: {
   }
 
   return (
-    <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-        <div className="md:col-span-5 flex flex-col gap-1.5">
-          <Label htmlFor={`badge-name-${badge?.id ?? 'new'}`}>Name</Label>
-          <Input
-            id={`badge-name-${badge?.id ?? 'new'}`}
-            type="text"
-            required
-            maxLength={64}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </div>
-        <div className="md:col-span-3 flex flex-col gap-1.5">
-          <Label htmlFor={`badge-color-${badge?.id ?? 'new'}`}>Color (hex, optional)</Label>
+    <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={`badge-name-${badge?.id ?? 'new'}`}>Name</Label>
+        <Input
+          id={`badge-name-${badge?.id ?? 'new'}`}
+          type="text"
+          required
+          maxLength={64}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={`badge-color-${badge?.id ?? 'new'}`}>Color</Label>
           <Input
             id={`badge-color-${badge?.id ?? 'new'}`}
             type="text"
@@ -266,8 +264,9 @@ function BadgeFormContent(props: {
             value={color}
             onChange={(e) => setColor(e.target.value)}
           />
+          <p className="text-xs text-muted-foreground">Hex value, optional.</p>
         </div>
-        <div className="md:col-span-2 flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5">
           <Label htmlFor={`badge-order-${badge?.id ?? 'new'}`}>Order</Label>
           <Input
             id={`badge-order-${badge?.id ?? 'new'}`}
@@ -276,10 +275,11 @@ function BadgeFormContent(props: {
             value={displayOrder}
             onChange={(e) => setDisplayOrder(e.target.value)}
           />
+          <p className="text-xs text-muted-foreground">Lower values sort first.</p>
         </div>
       </div>
 
-      <DialogFooter>
+      <DialogFooter className="sm:justify-between">
         <Button type="button" variant="outline" onClick={onCancel} disabled={submitting}>
           Cancel
         </Button>
@@ -397,120 +397,117 @@ function SuggestionInboxSection(props: {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Suggestion inbox</CardTitle>
-        <CardDescription>
+    <section className="flex flex-col gap-4">
+      <div>
+        <h2 className="text-lg font-semibold">Suggestion inbox</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
           Agents propose new badges via{' '}
           <code className="bg-muted px-1 rounded">write_articles</code>. Approve to add to the
           curated list, or reject to dismiss.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {suggestions.length === 0 ? (
-          <Card className="border-dashed">
-            <CardContent className="p-8 text-center text-sm text-muted-foreground">
-              No suggestions yet. Suggestions appear here when agents propose new badges via{' '}
-              <code className="bg-muted px-1 rounded">write_articles</code>.
-            </CardContent>
-          </Card>
-        ) : (
-          <>
-            <div className="flex items-center justify-between gap-4 border-b pb-2 mb-2">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Checkbox
-                  id="select-all-suggestions"
-                  checked={allSelected}
-                  onCheckedChange={(val) => toggleAll(!!val)}
-                  aria-label="Select all suggestions"
-                />
-                <Label
-                  htmlFor="select-all-suggestions"
-                  className="font-normal cursor-pointer text-muted-foreground"
-                >
-                  {selectedIds.size === 0 ? 'Select all' : `${selectedIds.size} selected`}
-                </Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={busy || selectedIds.size === 0}
-                  onClick={() => handleBulk('approve')}
-                >
-                  Approve selected
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={busy || selectedIds.size === 0}
-                  onClick={() => handleBulk('reject')}
-                >
-                  Reject selected
-                </Button>
-              </div>
-            </div>
+        </p>
+      </div>
 
-            <ul className="divide-y">
-              {suggestions.map((s) => (
-                <li key={s.id} className="py-3">
-                  <div className="flex items-center gap-3">
-                    <Checkbox
-                      checked={selectedIds.has(s.id)}
-                      onCheckedChange={(val) => toggleOne(s.id, !!val)}
-                      aria-label={`Select suggestion ${s.name}`}
-                      className="shrink-0"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-semibold">{s.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          ×{s.count} article{s.count === 1 ? '' : 's'}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          last seen {formatDate(s.lastSeenAt)}
-                        </span>
-                      </div>
-                      {s.articleSlug && s.articleTitle ? (
-                        <p className="mt-1 text-xs text-muted-foreground truncate">
-                          first triggered by{' '}
-                          <a
-                            href={`/articles/${s.articleSlug}`}
-                            className="underline hover:text-foreground"
-                          >
-                            {s.articleTitle}
-                          </a>
-                        </p>
-                      ) : null}
+      {suggestions.length === 0 ? (
+        <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+          No suggestions yet. Suggestions appear here when agents propose new badges via{' '}
+          <code className="bg-muted px-1 rounded">write_articles</code>.
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center justify-between gap-4 border-b pb-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Checkbox
+                id="select-all-suggestions"
+                checked={allSelected}
+                onCheckedChange={(val) => toggleAll(!!val)}
+                aria-label="Select all suggestions"
+              />
+              <Label
+                htmlFor="select-all-suggestions"
+                className="font-normal cursor-pointer text-muted-foreground"
+              >
+                {selectedIds.size === 0 ? 'Select all' : `${selectedIds.size} selected`}
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                disabled={busy || selectedIds.size === 0}
+                onClick={() => handleBulk('approve')}
+              >
+                Approve selected
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={busy || selectedIds.size === 0}
+                onClick={() => handleBulk('reject')}
+              >
+                Reject selected
+              </Button>
+            </div>
+          </div>
+
+          <ul className="divide-y">
+            {suggestions.map((s) => (
+              <li key={s.id} className="py-3">
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    checked={selectedIds.has(s.id)}
+                    onCheckedChange={(val) => toggleOne(s.id, !!val)}
+                    aria-label={`Select suggestion ${s.name}`}
+                    className="shrink-0"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold">{s.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        ×{s.count} article{s.count === 1 ? '' : 's'}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        last seen {formatDate(s.lastSeenAt)}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={busy}
-                        onClick={(e) => handleSingle(e, s.id, 'approve')}
-                      >
-                        Approve
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={busy}
-                        onClick={(e) => handleSingle(e, s.id, 'reject')}
-                      >
-                        Reject
-                      </Button>
-                    </div>
+                    {s.articleSlug && s.articleTitle ? (
+                      <p className="mt-1 text-xs text-muted-foreground truncate">
+                        first triggered by{' '}
+                        <a
+                          href={`/articles/${s.articleSlug}`}
+                          className="underline hover:text-foreground"
+                        >
+                          {s.articleTitle}
+                        </a>
+                      </p>
+                    ) : null}
                   </div>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-      </CardContent>
-    </Card>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={busy}
+                      onClick={(e) => handleSingle(e, s.id, 'approve')}
+                    >
+                      Approve
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={busy}
+                      onClick={(e) => handleSingle(e, s.id, 'reject')}
+                    >
+                      Reject
+                    </Button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
   )
 }
 

@@ -49,13 +49,23 @@ export type TargetFormProps = {
   cadencePresets: ReadonlyArray<CadencePreset>
   promptTemplates: ReadonlyArray<{ id: string; slug: string }>
   promptTemplatesAvailable: boolean
+  onSuccess?: () => void
+  onCancel?: () => void
 }
 
 type FieldErrors = Partial<Record<keyof TargetFormInitial | '_form', string>>
 
 export function TargetForm(props: TargetFormProps) {
-  const { mode, targetId, initial, cadencePresets, promptTemplates, promptTemplatesAvailable } =
-    props
+  const {
+    mode,
+    targetId,
+    initial,
+    cadencePresets,
+    promptTemplates,
+    promptTemplatesAvailable,
+    onSuccess,
+    onCancel,
+  } = props
   const router = useRouter()
 
   const [label, setLabel] = useState(initial.label)
@@ -99,8 +109,12 @@ export function TargetForm(props: TargetFormProps) {
       }
 
       toast.success(mode === 'create' ? 'Target created.' : 'Target updated.')
-      router.push('/settings/targets')
-      router.refresh()
+      if (onSuccess) {
+        onSuccess()
+      } else {
+        router.push('/settings/targets')
+        router.refresh()
+      }
     } catch {
       setErrors({ _form: 'Network error.' })
     } finally {
@@ -271,7 +285,7 @@ export function TargetForm(props: TargetFormProps) {
         <Button
           type="button"
           variant="outline"
-          onClick={() => router.push('/settings/targets')}
+          onClick={() => (onCancel ? onCancel() : router.push('/settings/targets'))}
           disabled={submitting}
         >
           Cancel

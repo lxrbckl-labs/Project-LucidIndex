@@ -4,14 +4,7 @@
 
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
 import {
   Table,
   TableBody,
@@ -20,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { AddTemplateDialog } from './_components/AddTemplateDialog'
 import { listTemplates, type TemplateRow } from './_lib/templates-repo'
 
 export const dynamic = 'force-dynamic'
@@ -40,55 +34,41 @@ export default async function TemplatesPanelPage() {
             them.
           </p>
         </div>
-        <Button asChild>
-          <Link href="/settings/templates/new">Add Template</Link>
-        </Button>
+        <AddTemplateDialog />
       </div>
 
+      <Separator />
+
       {templates.length === 0 ? (
-        <Card className="border-dashed">
-          <CardHeader className="text-center">
-            <CardTitle>No templates yet</CardTitle>
-          </CardHeader>
-          <CardContent className="pb-4 text-center">
-            <p className="text-sm text-muted-foreground">
+        <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed py-12 text-center">
+          <div>
+            <p className="font-semibold">No templates yet</p>
+            <p className="mt-1 text-sm text-muted-foreground">
               Run <code className="font-mono">pnpm db:seed</code> to seed the 7 starter templates,
               or create your own.
             </p>
-          </CardContent>
-          <CardFooter className="justify-center pb-8">
-            <Button asChild>
-              <Link href="/settings/templates/new">Create your first template</Link>
-            </Button>
-          </CardFooter>
-        </Card>
+          </div>
+          <AddTemplateDialog />
+        </div>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Prompt templates</CardTitle>
-            <CardDescription>
-              {templates.length} template{templates.length === 1 ? '' : 's'} configured.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Slug</TableHead>
-                  <TableHead className="text-right">Cross-source N</TableHead>
-                  <TableHead>Body excerpt</TableHead>
-                  <TableHead>Updated</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {templates.map((row) => (
-                  <TemplateTableRow key={row.id} row={row} />
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col gap-4">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Slug</TableHead>
+                <TableHead className="text-right">Cross-source N</TableHead>
+                <TableHead>Body excerpt</TableHead>
+                <TableHead>Updated</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {templates.map((row) => (
+                <TemplateTableRow key={row.id} row={row} />
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       )}
     </div>
   )

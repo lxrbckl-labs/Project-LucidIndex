@@ -35,7 +35,8 @@
  */
 
 import { db } from '@lucidindex/db/client'
-import { sql } from '@lucidindex/db/query'
+import { asc, isNull, sql } from '@lucidindex/db/query'
+import { queue, targets } from '@lucidindex/db/schema'
 
 // ---------------------------------------------------------------------------
 // Cron jobs summary
@@ -171,6 +172,57 @@ export async function getQueueDepth(): Promise<number> {
   `)
   // Driver may return BIGINT-shaped scalars as strings; coerce defensively.
   return Number(rows[0]?.depth ?? 0)
+}
+
+// ---------------------------------------------------------------------------
+// Queue items
+// ---------------------------------------------------------------------------
+
+export type QueueItem = {
+  id: string
+  targetLabel: string | null
+  enqueuedAt: Date
+  claimedAt: Date | null
+  lockedUntil: Date | null
+  priority: number
+}
+
+const MOCK_MODE = process.env.LUCIDINDEX_MOCK === '1'
+
+/**
+ * Returns up to 100 unacked queue rows (acked_at IS NULL), joined to `targets`
+ * for the label, ordered oldest-first. In mock mode returns an empty array —
+ * there's no in-memory queue to inspect, and the depth is already mocked as 0.
+ */
+export async function getQueueItems(): Promise<QueueItem[]> {
+  if (MOCK_MODE) return []
+
+  const rows = await db
+    .select({
+      id: queue.id,
+      targetLabel: targets.label,
+      enqueuedAt: queue.enqueuedAt,
+      claimedBy: queue.claimedBy,
+      lockedUntil: queue.lockedUntil,
+      priority: queue.priority,
+    })
+    .from(queue)
+    .leftJoin(targets, sql`${targets.id} = ${queue.targetId}`)
+    .where(isNull(queue.ackedAt))
+    .orderBy(asc(queue.enqueuedAt))
+    .limit(100)
+
+  return rows.map((r) => ({
+    id: r.id,
+    targetLabel: r.targetLabel ?? null,
+    enqueuedAt: r.enqueuedAt,
+    // The schema stores claimedBy (agent token UUID) but not a claimedAt
+    // timestamp. We use lockedUntil as the claimed-time proxy: if an agent
+    // holds a lock, the row is "claimed". null = still pending.
+    claimedAt: r.lockedUntil != null ? r.lockedUntil : null,
+    lockedUntil: r.lockedUntil,
+    priority: r.priority,
+  }))
 }
 
 // ---------------------------------------------------------------------------

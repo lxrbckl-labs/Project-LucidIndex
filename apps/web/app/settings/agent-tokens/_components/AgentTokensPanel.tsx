@@ -16,6 +16,7 @@
  *   3. User closes the Alert → state is cleared. Token is gone.
  */
 
+import { Copy } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -33,14 +34,6 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -51,6 +44,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
 import {
   Table,
   TableBody,
@@ -88,7 +82,7 @@ export function AgentTokensPanel({ initialTokens }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Agent tokens</h1>
@@ -99,7 +93,7 @@ export function AgentTokensPanel({ initialTokens }: Props) {
         </div>
         <Dialog open={issueOpen} onOpenChange={setIssueOpen}>
           <DialogTrigger asChild>
-            <Button>Issue new token</Button>
+            <Button>New Token</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <IssueModalContent onIssued={handleIssued} onClose={() => setIssueOpen(false)} />
@@ -109,6 +103,8 @@ export function AgentTokensPanel({ initialTokens }: Props) {
 
       {/* Display-once cleartext banner */}
       {issuedToken && <DisplayOnceToken token={issuedToken} onDismiss={handleDismissToken} />}
+
+      <Separator />
 
       {initialTokens.length === 0 ? (
         <EmptyState onIssue={() => setIssueOpen(true)} />
@@ -130,10 +126,15 @@ function DisplayOnceToken({ token, onDismiss }: { token: string; onDismiss: () =
     try {
       await navigator.clipboard.writeText(token)
       setCopied(true)
-      toast.success('Token copied to clipboard')
-      setTimeout(() => setCopied(false), 2000)
+      toast.success('Token copied to clipboard', {
+        description:
+          "Paste it into your agent's configuration (e.g. MCP_AGENT_TOKEN). Save it somewhere safe — it will not be shown again.",
+        duration: 8000,
+      })
+      // Brief pause so the user sees the "Copied" state before the alert fades.
+      setTimeout(onDismiss, 800)
     } catch {
-      // Clipboard API unavailable in some test envs — show a fallback.
+      // Clipboard API unavailable in some test envs — leave the card up.
     }
   }
 
@@ -144,28 +145,27 @@ function DisplayOnceToken({ token, onDismiss }: { token: string; onDismiss: () =
       </AlertTitle>
       <AlertDescription className="text-amber-800">
         <p className="text-xs mb-4">
-          Copy it to your agent&apos;s configuration. Once you close this notice it is gone.
+          Copy it to your agent&apos;s configuration. This card disappears once you copy.
         </p>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon"
+            onClick={copy}
+            disabled={copied}
+            aria-label={copied ? 'Copied' : 'Copy token to clipboard'}
+            className="h-10 w-10 shrink-0 border border-amber-300 bg-white hover:bg-amber-100"
+          >
+            <Copy className="h-4 w-4" />
+          </Button>
           <code
             className="font-mono text-sm break-all bg-white border border-amber-300 px-3 py-2 flex-1 rounded"
             data-testid="display-once-token"
           >
             {token}
           </code>
-          <Button type="button" variant="secondary" size="sm" onClick={copy} className="shrink-0">
-            {copied ? 'Copied!' : 'Copy to clipboard'}
-          </Button>
         </div>
-        <Button
-          type="button"
-          variant="link"
-          size="sm"
-          onClick={onDismiss}
-          className="mt-2 h-auto p-0 text-xs text-amber-700 underline hover:opacity-70"
-        >
-          I&apos;ve saved it — dismiss
-        </Button>
       </AlertDescription>
     </Alert>
   )
@@ -177,21 +177,15 @@ function DisplayOnceToken({ token, onDismiss }: { token: string; onDismiss: () =
 
 function EmptyState({ onIssue }: { onIssue: () => void }) {
   return (
-    <Card className="border-dashed">
-      <CardHeader className="text-center">
-        <CardTitle>No agent tokens yet</CardTitle>
-      </CardHeader>
-      <CardContent className="pb-6 text-center">
-        <p className="text-sm text-muted-foreground">
-          Tokens are shown in plaintext exactly once at creation.
-        </p>
-      </CardContent>
-      <CardFooter className="justify-center pb-8">
-        <Button type="button" onClick={onIssue}>
-          Issue your first token
-        </Button>
-      </CardFooter>
-    </Card>
+    <div className="flex flex-col items-center gap-4 py-16 text-center">
+      <h2 className="text-lg font-semibold tracking-tight">No agent tokens yet</h2>
+      <p className="max-w-[420px] text-sm text-muted-foreground">
+        Tokens are shown in plaintext exactly once at creation.
+      </p>
+      <Button type="button" onClick={onIssue}>
+        New Token
+      </Button>
+    </div>
   )
 }
 
@@ -201,32 +195,30 @@ function EmptyState({ onIssue }: { onIssue: () => void }) {
 
 function TokensTable({ rows, onRevoked }: { rows: TokenRowClient[]; onRevoked: () => void }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Issued tokens</CardTitle>
-        <CardDescription>
+    <section className="flex flex-col gap-3">
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight">Issued tokens</h2>
+        <p className="text-sm text-muted-foreground">
           Active tokens are used by agents at call time. Revoking is immediate.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Label</TableHead>
-              <TableHead>Hash prefix</TableHead>
-              <TableHead>Issued</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TokenRow key={row.id} row={row} onRevoked={onRevoked} />
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+        </p>
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Label</TableHead>
+            <TableHead>Hash prefix</TableHead>
+            <TableHead>Issued</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row) => (
+            <TokenRow key={row.id} row={row} onRevoked={onRevoked} />
+          ))}
+        </TableBody>
+      </Table>
+    </section>
   )
 }
 
@@ -395,7 +387,7 @@ function IssueModalContent({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Issue new token</DialogTitle>
+        <DialogTitle>New Token</DialogTitle>
         <DialogDescription>
           The token is shown exactly once. Copy it immediately — it cannot be retrieved later.
         </DialogDescription>
@@ -428,12 +420,12 @@ function IssueModalContent({
           </Alert>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="sm:justify-between">
+          <Button type="submit" disabled={pending}>
+            {pending ? 'Saving…' : 'Save'}
+          </Button>
           <Button type="button" variant="outline" onClick={onClose} disabled={pending}>
             Cancel
-          </Button>
-          <Button type="submit" disabled={pending}>
-            {pending ? 'Issuing…' : 'Issue token'}
           </Button>
         </DialogFooter>
       </form>

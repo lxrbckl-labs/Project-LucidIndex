@@ -15,7 +15,6 @@ import * as z from 'zod'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Form,
   FormControl,
@@ -106,66 +105,56 @@ export function RegisterPasskeyForm({
   }
 
   return (
-    <Card className={className}>
-      <CardHeader>
-        <CardTitle>Register a passkey</CardTitle>
-        <CardDescription>
-          Add a passkey from another device so you can sign in from multiple places.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            data-testid="register-passkey-form"
-            className="flex flex-col gap-4"
-          >
-            <FormField
-              control={form.control}
-              name="deviceLabel"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Device label</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="text"
-                      maxLength={100}
-                      placeholder="iPhone Face ID"
-                      data-testid="register-device-label"
-                      disabled={stage === 'working'}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+    <Form {...form}>
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        data-testid="register-passkey-form"
+        className={`flex flex-col gap-4${className ? ` ${className}` : ''}`}
+      >
+        <FormField
+          control={form.control}
+          name="deviceLabel"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Device label</FormLabel>
+              <FormControl>
+                <Input
+                  type="text"
+                  maxLength={100}
+                  placeholder="iPhone Face ID"
+                  data-testid="register-device-label"
+                  disabled={stage === 'working'}
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-            {success && (
-              <Alert>
-                <AlertDescription role="status" data-testid="register-passkey-success">
-                  Passkey registered successfully.
-                </AlertDescription>
-              </Alert>
-            )}
+        {success && (
+          <Alert>
+            <AlertDescription role="status" data-testid="register-passkey-success">
+              Passkey registered successfully.
+            </AlertDescription>
+          </Alert>
+        )}
 
-            <Button
-              type="submit"
-              disabled={stage === 'working'}
-              data-testid="register-passkey-submit"
-              className="self-start"
-            >
-              {stage === 'working' ? 'Registering…' : 'Register passkey'}
-            </Button>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+        <Button
+          type="submit"
+          disabled={stage === 'working'}
+          data-testid="register-passkey-submit"
+          className="self-start"
+        >
+          {stage === 'working' ? 'Registering…' : 'Register passkey'}
+        </Button>
+      </form>
+    </Form>
   )
 }

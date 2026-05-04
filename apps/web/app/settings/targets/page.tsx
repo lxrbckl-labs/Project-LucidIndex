@@ -4,14 +4,7 @@
 
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
 import {
   Table,
   TableBody,
@@ -20,13 +13,24 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { AddTargetDialog } from './_components/AddTargetDialog'
 import { PauseResumeButton } from './_components/PauseResumeButton'
-import { listTargets, type TargetRow } from './_lib/targets-repo'
+import {
+  CADENCE_PRESETS,
+  hasAnyPromptTemplates,
+  listPromptTemplateOptions,
+  listTargets,
+  type TargetRow,
+} from './_lib/targets-repo'
 
 export const dynamic = 'force-dynamic'
 
 export default async function TargetsPanelPage() {
-  const targets = await listTargets()
+  const [targets, promptTemplates, promptTemplatesAvailable] = await Promise.all([
+    listTargets(),
+    listPromptTemplateOptions(),
+    hasAnyPromptTemplates(),
+  ])
 
   return (
     <div className="flex flex-col gap-6">
@@ -38,54 +42,50 @@ export default async function TargetsPanelPage() {
             (Phase 4) — paused targets are skipped.
           </p>
         </div>
-        <Button asChild>
-          <Link href="/settings/targets/new">Add Target</Link>
-        </Button>
+        <AddTargetDialog
+          cadencePresets={CADENCE_PRESETS}
+          promptTemplates={promptTemplates}
+          promptTemplatesAvailable={promptTemplatesAvailable}
+        />
       </div>
 
+      <Separator />
+
       {targets.length === 0 ? (
-        <Card className="border-dashed">
-          <CardHeader className="text-center">
-            <CardTitle>No targets yet</CardTitle>
-          </CardHeader>
-          <CardContent className="pb-4 text-center">
-            <p className="text-sm text-muted-foreground">Add a source to start filing articles.</p>
-          </CardContent>
-          <CardFooter className="justify-center pb-8">
-            <Button asChild>
-              <Link href="/settings/targets/new">Add your first target</Link>
-            </Button>
-          </CardFooter>
-        </Card>
+        <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed py-12 text-center">
+          <div>
+            <p className="font-semibold">No targets yet</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Add a source to start filing articles.
+            </p>
+          </div>
+          <AddTargetDialog
+            cadencePresets={CADENCE_PRESETS}
+            promptTemplates={promptTemplates}
+            promptTemplatesAvailable={promptTemplatesAvailable}
+          />
+        </div>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Configured targets</CardTitle>
-            <CardDescription>
-              {targets.length} target{targets.length === 1 ? '' : 's'} configured.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Label</TableHead>
-                  <TableHead>URL / handle</TableHead>
-                  <TableHead>Cadence</TableHead>
-                  <TableHead>Template</TableHead>
-                  <TableHead>Active</TableHead>
-                  <TableHead>Last run</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {targets.map((row) => (
-                  <TargetTableRow key={row.id} row={row} />
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col gap-4">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Label</TableHead>
+                <TableHead>URL / handle</TableHead>
+                <TableHead>Cadence</TableHead>
+                <TableHead>Template</TableHead>
+                <TableHead>Active</TableHead>
+                <TableHead>Last run</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {targets.map((row) => (
+                <TargetTableRow key={row.id} row={row} />
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       )}
     </div>
   )

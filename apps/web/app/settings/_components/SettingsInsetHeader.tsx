@@ -39,7 +39,6 @@ const PATH_LABELS: Record<string, string> = {
   badges: 'Badges',
   templates: 'Templates',
   'agent-tokens': 'Agent Tokens',
-  'off-site-backup': 'Off-site Backup',
   system: 'System',
   'hidden-articles': 'Hidden Articles',
 }

@@ -27,11 +27,19 @@ export type ComparisonSourceFormProps = {
   mode: 'create' | 'edit'
   sourceId?: string
   initial: ComparisonSourceFormInitial
+  onSuccess?: () => void
+  onCancel?: () => void
 }
 
 type FieldErrors = Partial<Record<keyof ComparisonSourceFormInitial | '_form', string>>
 
-export function ComparisonSourceForm({ mode, sourceId, initial }: ComparisonSourceFormProps) {
+export function ComparisonSourceForm({
+  mode,
+  sourceId,
+  initial,
+  onSuccess,
+  onCancel,
+}: ComparisonSourceFormProps) {
   const router = useRouter()
 
   const [name, setName] = useState(initial.name)
@@ -73,8 +81,12 @@ export function ComparisonSourceForm({ mode, sourceId, initial }: ComparisonSour
       }
 
       toast.success(mode === 'create' ? 'Source created.' : 'Source updated.')
-      router.push('/settings/comparison-sources')
-      router.refresh()
+      if (onSuccess) {
+        onSuccess()
+      } else {
+        router.push('/settings/comparison-sources')
+        router.refresh()
+      }
     } catch {
       setErrors({ _form: 'Network error.' })
     } finally {
@@ -172,7 +184,7 @@ export function ComparisonSourceForm({ mode, sourceId, initial }: ComparisonSour
         <Button
           type="button"
           variant="outline"
-          onClick={() => router.push('/settings/comparison-sources')}
+          onClick={() => (onCancel ? onCancel() : router.push('/settings/comparison-sources'))}
           disabled={submitting}
         >
           Cancel

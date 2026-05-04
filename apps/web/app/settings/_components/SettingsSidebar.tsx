@@ -11,7 +11,7 @@
  * Groups:
  *   OVERVIEW  — Overview
  *   AGENTS    — Targets, Comparison Sources, Templates
- *   SYSTEM    — Off-site Backup, System, Agent Tokens
+ *   SYSTEM    — System, Agent Tokens
  *   INBOX     — Badges
  *   ACCOUNT   — Account
  *
@@ -23,7 +23,6 @@ import {
   BookOpen,
   ChevronsUpDown,
   FileText,
-  HardDriveDownload,
   Key,
   LayoutDashboard,
   LogOut,
@@ -64,14 +63,13 @@ const NAV_GROUPS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }
     label: 'Agents',
     items: [
       { href: '/settings/targets', label: 'Targets', icon: Settings2 },
-      { href: '/settings/comparison-sources', label: 'Comparison sources', icon: BookOpen },
+      { href: '/settings/comparison-sources', label: 'Comparison Sources', icon: BookOpen },
       { href: '/settings/templates', label: 'Templates', icon: FileText },
     ],
   },
   {
     label: 'System',
     items: [
-      { href: '/settings/off-site-backup', label: 'Off-site backup', icon: HardDriveDownload },
       { href: '/settings/system', label: 'System', icon: Settings2 },
       { href: '/settings/agent-tokens', label: 'Agent tokens', icon: Key },
     ],
