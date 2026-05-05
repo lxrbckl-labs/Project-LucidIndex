@@ -1,6 +1,6 @@
 // MCP tool registration for the mcp-store sidecar.
 //
-// All five tools share the same wrapper: pre-admin guard fires first
+// All eight tools share the same wrapper: pre-admin guard fires first
 // (returning `no_admin_enrolled` if the system isn't provisioned yet), then
 // the tool body runs against the authenticated agent's context.
 //
@@ -8,9 +8,10 @@
 // surface. The Streamable HTTP transport sets `req.auth` before delegating
 // to the SDK, which surfaces it as `extra.authInfo` inside tool callbacks.
 // stdio bypasses bearer-auth so `extra.authInfo` is undefined there — tools
-// that need an `agent_token_id` (ack_queue_item, write_articles) require
-// HTTP transport. The two read-only tools (`get_topic_badges`,
-// `get_high_water_mark`) work on either transport.
+// that need an `agent_token_id` (ack_queue_item, write_articles,
+// extend_queue_lock) require HTTP transport. The read-only tools
+// (get_topic_badges, get_high_water_mark, get_comparison_sources,
+// search_articles) work on either transport.
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
@@ -18,9 +19,12 @@ import type { AuthContext } from '../auth.js'
 import { logger } from '../logger.js'
 import { NoAdminEnrolledError, requireAdmin } from '../pre-admin-guard.js'
 import { ackQueueItem, ackQueueItemInputShape } from './ack-queue-item.js'
+import { extendQueueLock, extendQueueLockInputShape } from './extend-queue-lock.js'
+import { getComparisonSources } from './get-comparison-sources.js'
 import { getHighWaterMark, getHighWaterMarkInputShape } from './get-high-water-mark.js'
 import { getTopicBadges } from './get-topic-badges.js'
 import { pullQueueItem } from './pull-queue-item.js'
+import { searchArticles, searchArticlesInputShape } from './search-articles.js'
 import { writeArticles, writeArticlesInputShape } from './write-articles.js'
 
 /**
@@ -158,6 +162,45 @@ export function registerTools(server: McpServer): void {
     },
     async (args, _extra) =>
       runWithGuards('get_high_water_mark', async () => getHighWaterMark(args)),
+  )
+
+  // --- get_comparison_sources -----------------------------------------------
+  server.registerTool(
+    'get_comparison_sources',
+    {
+      title: 'List comparison sources',
+      description:
+        'Return the active comparison-source taxonomy (name, base_url, notes). Citation source_name values must reference one of these.',
+    },
+    async (_extra) => runWithGuards('get_comparison_sources', async () => getComparisonSources()),
+  )
+
+  // --- extend_queue_lock -----------------------------------------------------
+  server.registerTool(
+    'extend_queue_lock',
+    {
+      title: 'Extend a queue-item lock',
+      description:
+        'Push the queue item lock_expires_at out by another MCP_QUEUE_LOCK_TTL_SEC. Caller must hold the claim.',
+      inputSchema: extendQueueLockInputShape,
+    },
+    async (args, extra) =>
+      runWithGuards('extend_queue_lock', async () => {
+        const ctx = requireAuthContext(extra)
+        return extendQueueLock({ ...args, agentTokenId: ctx.agentTokenId })
+      }),
+  )
+
+  // --- search_articles -------------------------------------------------------
+  server.registerTool(
+    'search_articles',
+    {
+      title: 'Full-text search across articles',
+      description:
+        'Search the article corpus by free-text query. Useful for cross-target dedup (has someone else covered this story?). Returns ranked hits with id, slug, title, summary, source_url, target_id, dates.',
+      inputSchema: searchArticlesInputShape,
+    },
+    async (args, _extra) => runWithGuards('search_articles', async () => searchArticles(args)),
   )
 }
 

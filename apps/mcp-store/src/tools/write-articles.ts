@@ -43,7 +43,14 @@
 // strategy has been removed.
 
 import { db } from '@lucidindex/db/client'
-import { articles, queue, runLog, settings, topicBadges } from '@lucidindex/db/schema'
+import {
+  articles,
+  comparisonSources,
+  queue,
+  runLog,
+  settings,
+  topicBadges,
+} from '@lucidindex/db/schema'
 import { disambiguate, generateSlug } from '@lucidindex/shared/slug'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
@@ -51,11 +58,20 @@ import { findExistingArticleId } from '../lib/dedup.js'
 import { fetchAndStoreHeroImage } from '../lib/image-pipeline.js'
 import { ToolError } from './index.js'
 
+const citationSchema = z.object({
+  url: z.string().url(),
+  title: z.string().min(1),
+  source_name: z.string().min(1),
+  accessed_at: z.string().datetime().optional(),
+  image_url: z.string().url().nullable().optional(),
+})
+
 const articleSchema = z.object({
   source_url: z.string().min(1),
   title: z.string().min(1),
   summary: z.string().min(1),
   agent_deep_dive: z.string().optional(),
+  agent_opinion: z.string().optional(),
   topic_badges: z.array(z.string()).default([]),
   significance: z.enum(['small', 'medium', 'large']),
   difficulty: z.enum(['easy', 'medium', 'hard']),
@@ -64,6 +80,7 @@ const articleSchema = z.object({
   source_published_at_estimated: z.boolean().optional(),
   hero_image_url: z.string().url().optional(),
   cross_source: z.array(z.unknown()).optional(),
+  citations: z.array(citationSchema).optional(),
 })
 
 export const writeArticlesInputShape = {
@@ -148,6 +165,39 @@ export async function writeArticles(args: WriteArticlesArgs): Promise<WriteArtic
       'unknown_topic_badge',
       `Strict mode is on and these topic badges are not in the taxonomy: ${unknownBadges.join(', ')}.`,
     )
+  }
+
+  // ---- CITATION SOURCE VALIDATION ----
+  //
+  // Citations reference comparison_sources by `name`. In strict_mode we
+  // refuse the call if any citation names a source not in the active
+  // taxonomy. In default mode citations with unknown source names are
+  // accepted as-is — the article page just won't be able to resolve them
+  // to a known logo / base_url, but the data is still readable.
+  //
+  // Inactive sources (`is_active = false`, soft-archived) are treated as
+  // unknown so deactivating a source halts new citations against it.
+  const allCitationSources = Array.from(
+    new Set(args.articles.flatMap((a) => (a.citations ?? []).map((c) => c.source_name))),
+  )
+  if (allCitationSources.length > 0 && strictMode) {
+    const knownSources = await db
+      .select({ name: comparisonSources.name })
+      .from(comparisonSources)
+      .where(
+        and(
+          inArray(comparisonSources.name, allCitationSources),
+          eq(comparisonSources.isActive, true),
+        ),
+      )
+    const knownSourceSet = new Set(knownSources.map((r) => r.name))
+    const unknownSources = allCitationSources.filter((s) => !knownSourceSet.has(s))
+    if (unknownSources.length > 0) {
+      throw new ToolError(
+        'unknown_comparison_source',
+        `Strict mode is on and these citation source_name values are not active comparison sources: ${unknownSources.join(', ')}.`,
+      )
+    }
   }
 
   // ---- run_log row creation (see file header for the timing change) ----
@@ -240,6 +290,7 @@ export async function writeArticles(args: WriteArticlesArgs): Promise<WriteArtic
         title: a.title,
         summary: a.summary,
         agentDeepDive: a.agent_deep_dive ?? null,
+        agentOpinion: a.agent_opinion ?? null,
         topicBadges: a.topic_badges,
         significance: a.significance,
         difficulty: a.difficulty,
@@ -247,9 +298,11 @@ export async function writeArticles(args: WriteArticlesArgs): Promise<WriteArtic
         sourcePublishedAt: a.source_published_at ? new Date(a.source_published_at) : null,
         sourcePublishedAtEstimated: a.source_published_at_estimated ?? false,
         heroImageHash: heroHashes.get(i) ?? null,
-        // jsonb column — pass the array as-is; drizzle handles the cast.
+        // jsonb columns — pass the arrays as-is; drizzle handles the cast.
         // biome-ignore lint/suspicious/noExplicitAny: jsonb column
         crossSource: (a.cross_source ?? []) as any,
+        // biome-ignore lint/suspicious/noExplicitAny: jsonb column
+        citations: (a.citations ?? []) as any,
       } as const
       try {
         const inserted = await tx

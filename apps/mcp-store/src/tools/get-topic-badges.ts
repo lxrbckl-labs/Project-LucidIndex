@@ -1,15 +1,17 @@
 // `get_topic_badges` — return the curated topic-badge taxonomy.
 //
-// Read-only. Ordered by `display_order` (nulls last) then by `name`.
+// Read-only. Ordered by `display_order`, then by `name`. Hidden badges
+// (`hidden = true`, set via Settings → Badges) are excluded so agents
+// can't attach them to new articles and defeat the hide semantics.
 
 import { db } from '@lucidindex/db/client'
 import { topicBadges } from '@lucidindex/db/schema'
-import { asc, sql } from 'drizzle-orm'
+import { asc, eq } from 'drizzle-orm'
 
 export type TopicBadge = {
   name: string
   color: string | null
-  display_order: number | null
+  display_order: number
 }
 
 export async function getTopicBadges(): Promise<{ badges: TopicBadge[] }> {
@@ -20,7 +22,8 @@ export async function getTopicBadges(): Promise<{ badges: TopicBadge[] }> {
       displayOrder: topicBadges.displayOrder,
     })
     .from(topicBadges)
-    .orderBy(sql`${topicBadges.displayOrder} asc nulls last`, asc(topicBadges.name))
+    .where(eq(topicBadges.hidden, false))
+    .orderBy(asc(topicBadges.displayOrder), asc(topicBadges.name))
 
   return {
     badges: rows.map((r) => ({

@@ -244,7 +244,7 @@ test('3. bearer auth rejection — 401 on missing / wrong / unknown / revoked', 
 // Test 4 — stdio transport happy path (smaller scope: tools/list).
 // ---------------------------------------------------------------------------
 
-test('4. stdio transport — tools/list returns the 5 registered tools', async () => {
+test('4. stdio transport — tools/list returns the 8 registered tools', async () => {
   // Spawn a fresh mcp-store child in stdio mode against the same DB. Stdio
   // bypasses bearer auth (process-local trust) — we verify by sending no
   // headers (which is moot for stdio, since headers don't exist in
@@ -323,9 +323,12 @@ test('4. stdio transport — tools/list returns the 5 registered tools', async (
     const tools = (reply!.result?.tools ?? []).map((t) => t.name).sort()
     expect(tools).toEqual([
       'ack_queue_item',
+      'extend_queue_lock',
+      'get_comparison_sources',
       'get_high_water_mark',
       'get_topic_badges',
       'pull_queue_item',
+      'search_articles',
       'write_articles',
     ])
   } finally {
@@ -428,6 +431,218 @@ test('5. dedup — same (target_id, source_url) twice returns deduped:true with 
     SELECT count(*) FROM articles WHERE source_url = '${sharedSourceUrl}';
   `)
   expect(dbCount).toBe('1')
+})
+
+// ---------------------------------------------------------------------------
+// Test 6 — get_topic_badges excludes hidden badges.
+// ---------------------------------------------------------------------------
+
+test('6. get_topic_badges excludes hidden badges', async () => {
+  const { token } = await mintAndPersistToken('hidden-badge-test')
+
+  // Insert one visible + one hidden badge (idempotent against earlier seeds).
+  execSql(`
+    INSERT INTO topic_badges (name, display_order, hidden) VALUES
+      ('VisibleBadge', 100, false),
+      ('HiddenBadge', 101, true)
+    ON CONFLICT (name) DO UPDATE SET hidden = EXCLUDED.hidden;
+  `)
+
+  const res = await callToolOk(stack.baseURL, token, 'get_topic_badges', {})
+  const out = res.structuredContent as { badges: Array<{ name: string }> }
+  const names = out.badges.map((b) => b.name)
+  expect(names).toContain('VisibleBadge')
+  expect(names).not.toContain('HiddenBadge')
+})
+
+// ---------------------------------------------------------------------------
+// Test 7 — citations + agent_opinion round-trip through write_articles.
+// ---------------------------------------------------------------------------
+
+test('7. write_articles persists citations + agent_opinion', async () => {
+  const { token } = await mintAndPersistToken('citations-test')
+
+  // Seed a comparison source so the citation has a valid source_name.
+  execSql(`
+    INSERT INTO comparison_sources (name, base_url, is_active)
+    VALUES ('Wikipedia', 'https://en.wikipedia.org', true)
+    ON CONFLICT (name) DO UPDATE SET is_active = true;
+  `)
+
+  // Fresh target + queue row dedicated to this test.
+  execSql(`
+    INSERT INTO targets (label, url_or_handle, cadence, prompt_template_id, next_due_at)
+    VALUES (
+      'Phase3 CitationsTarget',
+      'https://example.com/citations',
+      'hourly',
+      (SELECT id FROM prompt_templates WHERE slug = 'website' LIMIT 1),
+      now()
+    );
+  `)
+  execSql(`
+    INSERT INTO queue (target_id)
+    VALUES ((SELECT id FROM targets WHERE label = 'Phase3 CitationsTarget' LIMIT 1));
+  `)
+
+  const pull = await callToolOk(stack.baseURL, token, 'pull_queue_item', {})
+  const queueItemId = (pull.structuredContent as { queue_item_id: string }).queue_item_id
+
+  const sourceUrl = `https://example.com/citations-article?n=${randomUUID()}`
+  const wrote = await callToolOk(stack.baseURL, token, 'write_articles', {
+    queue_item_id: queueItemId,
+    articles: [
+      {
+        source_url: sourceUrl,
+        title: 'Citations test article',
+        summary: 'Validates citations + agent_opinion plumbing.',
+        agent_opinion: 'A measured take on this development.',
+        topic_badges: ['AI'],
+        significance: 'small',
+        difficulty: 'easy',
+        citations: [
+          {
+            url: 'https://en.wikipedia.org/wiki/Test',
+            title: 'Test (Wikipedia)',
+            source_name: 'Wikipedia',
+          },
+        ],
+      },
+    ],
+  })
+  const out = wrote.structuredContent as {
+    accepted: number
+    results: Array<{ id: string }>
+  }
+  expect(out.accepted).toBe(1)
+  // biome-ignore lint/style/noNonNullAssertion: accepted=1 above guarantees results[0]
+  const articleId = out.results[0]!.id
+
+  // DB side-effect: agent_opinion + citations persisted.
+  const opinion = execSql(`SELECT agent_opinion FROM articles WHERE id = '${articleId}';`)
+  expect(opinion).toBe('A measured take on this development.')
+  const citationsCount = execSql(
+    `SELECT jsonb_array_length(citations)::int FROM articles WHERE id = '${articleId}';`,
+  )
+  expect(citationsCount).toBe('1')
+  const sourceName = execSql(
+    `SELECT citations->0->>'source_name' FROM articles WHERE id = '${articleId}';`,
+  )
+  expect(sourceName).toBe('Wikipedia')
+})
+
+// ---------------------------------------------------------------------------
+// Test 8 — get_comparison_sources returns active sources only.
+// ---------------------------------------------------------------------------
+
+test('8. get_comparison_sources returns active sources only', async () => {
+  const { token } = await mintAndPersistToken('comparison-sources-test')
+
+  execSql(`
+    INSERT INTO comparison_sources (name, base_url, is_active) VALUES
+      ('Reuters', 'https://reuters.com', true),
+      ('DeadSource', 'https://dead.example', false)
+    ON CONFLICT (name) DO UPDATE SET is_active = EXCLUDED.is_active;
+  `)
+
+  const res = await callToolOk(stack.baseURL, token, 'get_comparison_sources', {})
+  const out = res.structuredContent as { sources: Array<{ name: string; base_url: string }> }
+  const names = out.sources.map((s) => s.name)
+  expect(names).toContain('Reuters')
+  expect(names).not.toContain('DeadSource')
+})
+
+// ---------------------------------------------------------------------------
+// Test 9 — extend_queue_lock pushes lock_expires_at forward.
+// ---------------------------------------------------------------------------
+
+test('9. extend_queue_lock pushes lock_expires_at forward', async () => {
+  const { token } = await mintAndPersistToken('extend-lock-test')
+
+  execSql(`
+    INSERT INTO targets (label, url_or_handle, cadence, prompt_template_id, next_due_at)
+    VALUES (
+      'Phase3 ExtendLockTarget',
+      'https://example.com/extend',
+      'hourly',
+      (SELECT id FROM prompt_templates WHERE slug = 'website' LIMIT 1),
+      now()
+    );
+  `)
+  execSql(`
+    INSERT INTO queue (target_id)
+    VALUES ((SELECT id FROM targets WHERE label = 'Phase3 ExtendLockTarget' LIMIT 1));
+  `)
+
+  const pull = await callToolOk(stack.baseURL, token, 'pull_queue_item', {})
+  const pulled = pull.structuredContent as {
+    queue_item_id: string
+    lock_expires_at: string
+  }
+
+  // Force the locked_until back in time so we can prove the extend pushed it
+  // forward beyond the original expiry.
+  execSql(`
+    UPDATE queue SET locked_until = now() - interval '60 seconds'
+    WHERE id = '${pulled.queue_item_id}';
+  `)
+
+  const res = await callToolOk(stack.baseURL, token, 'extend_queue_lock', {
+    queue_item_id: pulled.queue_item_id,
+  })
+  const out = res.structuredContent as { ok: boolean; lock_expires_at: string }
+  expect(out.ok).toBe(true)
+  // New expiry should be in the future (we just bumped it by full TTL).
+  expect(new Date(out.lock_expires_at).getTime()).toBeGreaterThan(Date.now())
+})
+
+// ---------------------------------------------------------------------------
+// Test 10 — search_articles ranks matching articles.
+// ---------------------------------------------------------------------------
+
+test('10. search_articles returns ranked hits over the FTS index', async () => {
+  const { token } = await mintAndPersistToken('search-test')
+
+  execSql(`
+    INSERT INTO targets (label, url_or_handle, cadence, prompt_template_id, next_due_at)
+    VALUES (
+      'Phase3 SearchTarget',
+      'https://example.com/search',
+      'hourly',
+      (SELECT id FROM prompt_templates WHERE slug = 'website' LIMIT 1),
+      now()
+    );
+  `)
+  execSql(`
+    INSERT INTO queue (target_id)
+    VALUES ((SELECT id FROM targets WHERE label = 'Phase3 SearchTarget' LIMIT 1));
+  `)
+
+  const pull = await callToolOk(stack.baseURL, token, 'pull_queue_item', {})
+  const queueItemId = (pull.structuredContent as { queue_item_id: string }).queue_item_id
+
+  const uniqueWord = `quokkanaut${randomUUID().slice(0, 8)}`
+  await callToolOk(stack.baseURL, token, 'write_articles', {
+    queue_item_id: queueItemId,
+    articles: [
+      {
+        source_url: `https://example.com/search-article?n=${randomUUID()}`,
+        title: `Story about ${uniqueWord}`,
+        summary: `A summary featuring the ${uniqueWord} keyword for FTS.`,
+        topic_badges: ['AI'],
+        significance: 'small',
+        difficulty: 'easy',
+      },
+    ],
+  })
+
+  const res = await callToolOk(stack.baseURL, token, 'search_articles', { query: uniqueWord })
+  const out = res.structuredContent as { hits: Array<{ title: string; rank: number }> }
+  expect(out.hits.length).toBeGreaterThan(0)
+  // biome-ignore lint/style/noNonNullAssertion: length-checked above
+  expect(out.hits[0]!.title).toContain(uniqueWord)
+  // biome-ignore lint/style/noNonNullAssertion: length-checked above
+  expect(out.hits[0]!.rank).toBeGreaterThan(0)
 })
 
 // ===========================================================================
