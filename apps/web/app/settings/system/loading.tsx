@@ -1,86 +1,113 @@
 /**
- * System page skeleton — shown while the 4 concurrent stat queries run
- * (cron job summary, queue depth, significance histogram, difficulty histogram).
- *
- * Matches the three-card layout: Cron jobs table, Queue, 30-day distribution.
+ * System page skeleton — flat layout (no Cards) matching page.tsx:
+ *   header → Separator → Cron jobs section → Separator → Queue section
+ *   → Separator → 30-day distribution section.
  */
 
+import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
+
+const CRON_ROWS = 4
+const QUEUE_ROWS = 4
 
 export default function SystemLoading() {
   return (
-    <div className="flex flex-col gap-6 p-6">
-      {/* Page heading */}
-      <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-8 p-6">
+      <div className="flex flex-col gap-2">
         <Skeleton className="h-9 w-28" />
         <Skeleton className="h-4 w-80" />
       </div>
 
-      {/* Cron jobs card */}
-      <div className="rounded-xl border bg-card p-6 flex flex-col gap-3">
-        <Skeleton className="h-5 w-24" />
-        <Skeleton className="h-4 w-64" />
-        <div className="mt-2 flex flex-col gap-2">
-          {/* Header row */}
-          <div className="flex gap-4">
-            <Skeleton className="h-4 flex-1" />
-            <Skeleton className="h-4 flex-1" />
-            <Skeleton className="h-4 flex-1" />
-            <Skeleton className="h-4 flex-1" />
-          </div>
-          {/* Data rows */}
-          <div className="flex gap-4">
-            <Skeleton className="h-8 flex-1" />
-            <Skeleton className="h-8 flex-1" />
-            <Skeleton className="h-8 flex-1" />
-            <Skeleton className="h-8 flex-1" />
-          </div>
-          <div className="flex gap-4">
-            <Skeleton className="h-8 flex-1" />
-            <Skeleton className="h-8 flex-1" />
-            <Skeleton className="h-8 flex-1" />
-            <Skeleton className="h-8 flex-1" />
-          </div>
-          <div className="flex gap-4">
-            <Skeleton className="h-8 flex-1" />
-            <Skeleton className="h-8 flex-1" />
-            <Skeleton className="h-8 flex-1" />
-            <Skeleton className="h-8 flex-1" />
-          </div>
-          <div className="flex gap-4">
-            <Skeleton className="h-8 flex-1" />
-            <Skeleton className="h-8 flex-1" />
-            <Skeleton className="h-8 flex-1" />
-            <Skeleton className="h-8 flex-1" />
-          </div>
-        </div>
-      </div>
+      <Separator />
 
-      {/* Queue depth card */}
-      <div className="rounded-xl border bg-card p-6 flex flex-col gap-3">
+      {/* Cron jobs */}
+      <section className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-4 w-72" />
+        </div>
+        <div className="flex flex-col gap-2">
+          {/* header row */}
+          <div className="flex gap-4 px-2 py-2">
+            <Skeleton className="h-4 flex-1" />
+            <Skeleton className="h-4 flex-1" />
+            <Skeleton className="h-4 flex-1" />
+            <Skeleton className="h-4 flex-1" />
+          </div>
+          {Array.from({ length: CRON_ROWS }).map((_, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: skeleton placeholders
+            <div key={i} className="flex gap-4 px-2 py-3">
+              <Skeleton className="h-4 flex-1" />
+              <Skeleton className="h-4 flex-1" />
+              <Skeleton className="h-4 flex-1" />
+              <Skeleton className="h-4 flex-1" />
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <Separator />
+
+      {/* Queue */}
+      <section className="flex flex-col gap-3">
         <Skeleton className="h-5 w-16" />
-        <Skeleton className="h-4 w-48" />
-      </div>
+        <Skeleton className="h-4 w-56" />
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-4 px-2 py-2">
+            <Skeleton className="h-4 flex-1" />
+            <Skeleton className="h-4 flex-1" />
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-16" />
+          </div>
+          {Array.from({ length: QUEUE_ROWS }).map((_, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: skeleton placeholders
+            <div key={i} className="flex items-center gap-4 px-2 py-3">
+              <Skeleton className="h-4 flex-1" />
+              <Skeleton className="h-4 flex-1" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-8 w-8 rounded-md" />
+            </div>
+          ))}
+        </div>
+      </section>
 
-      {/* 30-day distribution card */}
-      <div className="rounded-xl border bg-card p-6 flex flex-col gap-3">
-        <Skeleton className="h-5 w-40" />
-        <Skeleton className="h-4 w-32" />
-        <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+      <Separator />
+
+      {/* 30-day distribution */}
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-5 w-44" />
+          <Skeleton className="h-4 w-56" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="flex flex-col gap-3">
             <Skeleton className="h-3 w-24" />
-            <Skeleton className="h-6 w-full" />
-            <Skeleton className="h-6 w-full" />
-            <Skeleton className="h-6 w-full" />
+            {Array.from({ length: 3 }).map((_, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: skeleton placeholders
+              <div key={i} className="flex flex-col gap-1.5">
+                <div className="flex justify-between">
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-3 w-12" />
+                </div>
+                <Skeleton className="h-2 w-full rounded-full" />
+              </div>
+            ))}
           </div>
           <div className="flex flex-col gap-3">
             <Skeleton className="h-3 w-24" />
-            <Skeleton className="h-6 w-full" />
-            <Skeleton className="h-6 w-full" />
-            <Skeleton className="h-6 w-full" />
+            {Array.from({ length: 3 }).map((_, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: skeleton placeholders
+              <div key={i} className="flex flex-col gap-1.5">
+                <div className="flex justify-between">
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-3 w-12" />
+                </div>
+                <Skeleton className="h-2 w-full rounded-full" />
+              </div>
+            ))}
           </div>
         </div>
-      </div>
+      </section>
     </div>
   )
 }
