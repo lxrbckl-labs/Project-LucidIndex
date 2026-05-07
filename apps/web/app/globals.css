@@ -245,3 +245,33 @@
   --sidebar-border: hsl(240 3.7% 15.9%);
   --sidebar-ring: hsl(217.2 91.2% 59.8%);
 }
+
+/* -----------------------------------------------------------------------------
+ * Creator-card identicon — per-creator hue with light/dark lightness ramps.
+ * The component sets `--id-hue` and `--id-hue-shift` inline; this rule layers
+ * theme-correct lightness on top so the gradient + initial stay legible in
+ * both modes.
+ * --------------------------------------------------------------------------- */
+.identicon {
+  background: linear-gradient(
+    135deg,
+    hsl(var(--id-hue), 70%, 88%),
+    hsl(var(--id-hue-shift), 70%, 78%)
+  );
+}
+
+.identicon-letter {
+  color: hsl(var(--id-hue), 60%, 30%);
+}
+
+.dark .identicon {
+  background: linear-gradient(
+    135deg,
+    hsl(var(--id-hue), 45%, 22%),
+    hsl(var(--id-hue-shift), 45%, 14%)
+  );
+}
+
+.dark .identicon-letter {
+  color: hsl(var(--id-hue), 70%, 75%);
+}

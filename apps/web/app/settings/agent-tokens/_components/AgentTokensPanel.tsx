@@ -155,12 +155,12 @@ function DisplayOnceToken({ token, onDismiss }: { token: string; onDismiss: () =
             onClick={copy}
             disabled={copied}
             aria-label={copied ? 'Copied' : 'Copy token to clipboard'}
-            className="h-10 w-10 shrink-0 border border-amber-300 bg-white hover:bg-amber-100"
+            className="h-10 w-10 shrink-0 border border-amber-300 bg-background hover:bg-amber-100 dark:hover:bg-amber-900/40"
           >
             <Copy className="h-4 w-4" />
           </Button>
           <code
-            className="font-mono text-sm break-all bg-white border border-amber-300 px-3 py-2 flex-1 rounded"
+            className="font-mono text-sm break-all bg-background border border-amber-300 px-3 py-2 flex-1 rounded"
             data-testid="display-once-token"
           >
             {token}

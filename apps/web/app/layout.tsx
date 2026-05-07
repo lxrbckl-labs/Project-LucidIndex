@@ -12,6 +12,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Bebas_Neue, Inter } from 'next/font/google'
 import type { ReactNode } from 'react'
+import { ThemeProvider } from '@/components/chrome/ThemeProvider'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import './globals.css'
@@ -53,10 +54,12 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable}`}>
+    <html lang="en" className={`${display.variable} ${body.variable}`} suppressHydrationWarning>
       <body className="font-body antialiased">
-        <TooltipProvider delayDuration={200}>{children}</TooltipProvider>
-        <Toaster />
+        <ThemeProvider>
+          <TooltipProvider delayDuration={200}>{children}</TooltipProvider>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   )

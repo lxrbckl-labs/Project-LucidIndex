@@ -65,16 +65,16 @@ export function CreatorProfileTile({
         />
       ) : (
         <div
-          className="w-full aspect-video flex items-center justify-center"
-          style={{
-            background: `linear-gradient(135deg, hsl(${hue}, 70%, 88%), hsl(${(hue + 40) % 360}, 70%, 78%))`,
-          }}
+          className="w-full aspect-video flex items-center justify-center identicon"
+          style={
+            {
+              '--id-hue': hue,
+              '--id-hue-shift': (hue + 40) % 360,
+            } as React.CSSProperties
+          }
           aria-hidden="true"
         >
-          <span
-            className="font-display text-7xl font-bold tracking-tight"
-            style={{ color: `hsl(${hue}, 60%, 30%)` }}
-          >
+          <span className="font-display text-7xl font-bold tracking-tight identicon-letter">
             {initial}
           </span>
         </div>

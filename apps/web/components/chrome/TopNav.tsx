@@ -26,6 +26,7 @@ import { EscapeToBack } from '@/components/article/EscapeToBack'
 import { Button } from '@/components/ui/button'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { ThemeToggle } from './ThemeToggle'
 import { TypeaheadSearch } from './TypeaheadSearch'
 
 export function TopNav() {
@@ -41,7 +42,7 @@ export function TopNav() {
   const isDashboard = pathname === '/' && !isTopicFocus
 
   return (
-    <header className="sticky top-0 z-50 border-b bg-background/70 backdrop-blur-lg supports-[backdrop-filter]:bg-background/50">
+    <header className="sticky top-0 z-50 border-b bg-background/70 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/50">
       <div className="grid grid-cols-3 items-center p-4">
         {/* Left cluster: sidebar collapse (settings only) + back button (article/topic-focus) + Forum (dashboard) / Dashboard (forum) */}
         <div className="flex items-center justify-start gap-2">
@@ -101,9 +102,11 @@ export function TopNav() {
           </Link>
         </div>
 
-        {/* Right cluster: search + settings/dashboard toggle */}
+        {/* Right cluster: search + theme toggle + settings/dashboard toggle */}
         <div className="flex items-center justify-end gap-2">
           <TypeaheadSearch />
+
+          <ThemeToggle />
 
           {isSettingsPage ? (
             <Tooltip>
