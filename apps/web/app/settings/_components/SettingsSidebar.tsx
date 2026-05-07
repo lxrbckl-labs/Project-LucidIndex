@@ -29,6 +29,7 @@ import {
   Settings2,
   ShieldCheck,
   Tag,
+  Ticket,
   User,
 } from 'lucide-react'
 import Link from 'next/link'
@@ -77,6 +78,10 @@ const NAV_GROUPS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }
   {
     label: 'Inbox',
     items: [{ href: '/settings/badges', label: 'Badges', icon: Tag }],
+  },
+  {
+    label: 'Forum',
+    items: [{ href: '/settings/forum-invites', label: 'Forum Invites', icon: Ticket }],
   },
   {
     label: 'Account',

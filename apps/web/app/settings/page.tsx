@@ -11,7 +11,7 @@
  * Each card: icon + title + description, full-card Link, hover lift.
  */
 
-import { BookOpen, FileText, Key, Settings2, ShieldCheck, Tag } from 'lucide-react'
+import { BookOpen, FileText, Key, Settings2, ShieldCheck, Tag, Ticket } from 'lucide-react'
 import Link from 'next/link'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -76,6 +76,17 @@ const GROUPS: Group[] = [
         title: 'Badges',
         blurb: 'Curated badges, agent-suggested badge inbox, and bulk actions.',
         icon: Tag,
+      },
+    ],
+  },
+  {
+    label: 'Forum',
+    panels: [
+      {
+        href: '/settings/forum-invites',
+        title: 'Forum Invites',
+        blurb: 'Generate single-use invite codes that gate forum signup.',
+        icon: Ticket,
       },
     ],
   },

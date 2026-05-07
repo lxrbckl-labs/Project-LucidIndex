@@ -49,10 +49,8 @@ import { notFound } from 'next/navigation'
 import { findMockArticlesByCreatorSlug, findMockCreatorBySlug } from '@/app/_mock/articles'
 import { ArticleMasonry } from '@/components/article/ArticleMasonry'
 import { TopNav } from '@/components/chrome/TopNav'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { CreatorStarButton } from './CreatorStarButton'
-import { loadCreatorArticles, loadCreatorBySlug } from './loader'
+import { CreatorProfileTile } from './CreatorProfileTile'
+import { loadCreatorArticles, loadCreatorBySlug, loadCreatorSentiment } from './loader'
 
 // DB-backed (loadCreatorBySlug, loadCreatorArticles) — never statically
 // renderable. The lazy slug-backfill side-effect inside loadCreatorBySlug
@@ -94,18 +92,21 @@ export default async function CreatorPage({ params }: { params: Promise<{ slug: 
 
     const articles = findMockArticlesByCreatorSlug(slug)
 
-    return (
-      <CreatorPageLayout
+    const profileTile = (
+      <CreatorProfileTile
         slug={slug}
         label={creator.label}
-        handle={creator.handle}
+        description={null}
+        socialUrl={null}
+        photoUrl={null}
         articleCount={articles.length}
-      >
-        {articles.length === 0 ? (
-          <CreatorEmptyState label={creator.label} />
-        ) : (
-          <ArticleMasonry articles={articles} />
-        )}
+        sentiment={null}
+      />
+    )
+
+    return (
+      <CreatorPageLayout label={creator.label}>
+        <ArticleMasonry articles={articles} prefix={profileTile} />
       </CreatorPageLayout>
     )
   }
@@ -117,20 +118,26 @@ export default async function CreatorPage({ params }: { params: Promise<{ slug: 
   const creator = await loadCreatorBySlug(slug)
   if (!creator) notFound()
 
-  const articles = await loadCreatorArticles(creator.id)
+  const [articles, sentiment] = await Promise.all([
+    loadCreatorArticles(creator.id),
+    loadCreatorSentiment(creator.id),
+  ])
 
-  return (
-    <CreatorPageLayout
+  const profileTile = (
+    <CreatorProfileTile
       slug={slug}
       label={creator.label}
-      handle={creator.urlOrHandle}
+      description={creator.description}
+      socialUrl={creator.socialUrl}
+      photoUrl={creator.photoUrl}
       articleCount={articles.length}
-    >
-      {articles.length === 0 ? (
-        <CreatorEmptyState label={creator.label} />
-      ) : (
-        <ArticleMasonry articles={articles} />
-      )}
+      sentiment={sentiment}
+    />
+  )
+
+  return (
+    <CreatorPageLayout label={creator.label}>
+      <ArticleMasonry articles={articles} prefix={profileTile} />
     </CreatorPageLayout>
   )
 }
@@ -140,64 +147,16 @@ export default async function CreatorPage({ params }: { params: Promise<{ slug: 
 // ---------------------------------------------------------------------------
 
 function CreatorPageLayout({
-  slug,
-  label,
-  handle,
-  articleCount,
+  label: _label,
   children,
 }: {
-  slug: string
   label: string
-  handle: string
-  articleCount: number
   children: React.ReactNode
 }) {
   return (
     <div className="min-h-screen bg-background">
       <TopNav />
-
-      <main className="px-4 pt-4 pb-16">
-        {/* Creator header — shadcn <Card> with label, handle, article count, star. */}
-        <Card className="mb-4">
-          <CardHeader className="pb-3">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <CardTitle className="font-display text-2xl font-bold uppercase tracking-tight text-foreground">
-                  {label}
-                </CardTitle>
-                <p className="mt-2 text-sm text-muted-foreground">{handle}</p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Badge variant="secondary">
-                  {articleCount} {articleCount === 1 ? 'article' : 'articles'}
-                </Badge>
-                <CreatorStarButton slug={slug} label={label} />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-0" />
-        </Card>
-
-        {/* Article content — masonry or empty state. */}
-        {children}
-      </main>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Empty state — rendered when the creator has no published articles yet.
-// ---------------------------------------------------------------------------
-
-function CreatorEmptyState({ label }: { label: string }) {
-  return (
-    <div className="flex flex-col items-center py-24 text-center">
-      <p className="font-display text-2xl font-bold uppercase tracking-tight text-foreground">
-        Nothing from {label} yet.
-      </p>
-      <p className="mt-6 max-w-[480px] text-base leading-relaxed text-muted-foreground">
-        Your agents haven't filed any articles from this creator. Check back once a run completes.
-      </p>
+      <main className="px-4 pt-4 pb-16">{children}</main>
     </div>
   )
 }

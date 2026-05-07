@@ -33,7 +33,7 @@
  */
 
 import { db } from '@lucidindex/db/client'
-import { and, desc, eq } from '@lucidindex/db/query'
+import { and, desc, eq, sql } from '@lucidindex/db/query'
 import { agentTokens, articles, targets } from '@lucidindex/db/schema'
 import { generateSlug } from '@lucidindex/shared/slug'
 import type { MockArticle } from '@/app/_mock/articles'
@@ -46,6 +46,19 @@ export type CreatorViewModel = {
   label: string
   slug: string
   urlOrHandle: string
+  description: string | null
+  socialUrl: string | null
+  photoUrl: string | null
+}
+
+/**
+ * Aggregate sentiment summary for a creator. Hidden behind the
+ * `count >= MIN_COUNT` gate in the UI so a one-off rating doesn't
+ * render a misleading gauge.
+ */
+export type CreatorSentiment = {
+  averageSentiment: number
+  count: number
 }
 
 /**
@@ -62,6 +75,9 @@ export async function loadCreatorBySlug(slug: string): Promise<CreatorViewModel 
       label: targets.label,
       slug: targets.slug,
       urlOrHandle: targets.urlOrHandle,
+      description: targets.description,
+      socialUrl: targets.socialUrl,
+      photoUrl: targets.photoUrl,
       createdAt: targets.createdAt,
     })
     .from(targets)
@@ -70,7 +86,15 @@ export async function loadCreatorBySlug(slug: string): Promise<CreatorViewModel 
 
   const row = rows[0]
   if (row?.slug) {
-    return { id: row.id, label: row.label, slug: row.slug, urlOrHandle: row.urlOrHandle }
+    return {
+      id: row.id,
+      label: row.label,
+      slug: row.slug,
+      urlOrHandle: row.urlOrHandle,
+      description: row.description,
+      socialUrl: row.socialUrl,
+      photoUrl: row.photoUrl,
+    }
   }
 
   // Not found by slug — this slug may belong to a target whose `slug`
@@ -83,6 +107,9 @@ export async function loadCreatorBySlug(slug: string): Promise<CreatorViewModel 
       id: targets.id,
       label: targets.label,
       urlOrHandle: targets.urlOrHandle,
+      description: targets.description,
+      socialUrl: targets.socialUrl,
+      photoUrl: targets.photoUrl,
       createdAt: targets.createdAt,
     })
     .from(targets)
@@ -96,11 +123,48 @@ export async function loadCreatorBySlug(slug: string): Promise<CreatorViewModel 
         .update(targets)
         .set({ slug: candidate })
         .where(and(eq(targets.id, t.id), eq(targets.slug, null as unknown as string)))
-      return { id: t.id, label: t.label, slug: candidate, urlOrHandle: t.urlOrHandle }
+      return {
+        id: t.id,
+        label: t.label,
+        slug: candidate,
+        urlOrHandle: t.urlOrHandle,
+        description: t.description,
+        socialUrl: t.socialUrl,
+        photoUrl: t.photoUrl,
+      }
     }
   }
 
   return null
+}
+
+/**
+ * Average sentiment across a creator's non-hidden articles, with a count
+ * so the UI can decide whether to render the gauge (`count >= 3`).
+ *
+ * Skips rows with NULL sentiment so the average reflects only articles
+ * the agent actually scored.
+ */
+export async function loadCreatorSentiment(targetId: string): Promise<CreatorSentiment> {
+  const rows = await db
+    .select({
+      avg: sql<string | null>`avg(${articles.sentiment})::text`,
+      count: sql<number>`count(${articles.sentiment})::int`,
+    })
+    .from(articles)
+    .where(
+      and(
+        eq(articles.targetId, targetId),
+        eq(articles.hidden, false),
+        // Drizzle 0.45 doesn't expose isNotNull from our re-export surface;
+        // emit raw SQL to keep the slice tight.
+        sql`${articles.sentiment} is not null`,
+      ),
+    )
+  const row = rows[0]
+  const avg = row?.avg ? Number(row.avg) : 0
+  const count = row?.count ?? 0
+  return { averageSentiment: avg, count }
 }
 
 /**

@@ -83,6 +83,12 @@ export const articles = pgTable(
     significance: text('significance').notNull(),
     difficulty: text('difficulty').notNull(),
     reasonablenessRating: smallint('reasonableness_rating'),
+    /**
+     * Bearish→bullish sentiment the agent assigns at write time.
+     * -5 = strongly bearish, 0 = neutral, +5 = strongly bullish.
+     * Aggregated per-author on /c/[slug] for a sentiment gauge.
+     */
+    sentiment: smallint('sentiment'),
     sourcePublishedAt: timestamp('source_published_at', { withTimezone: true }),
     sourcePublishedAtEstimated: boolean('source_published_at_estimated').notNull().default(false),
     heroImageHash: text('hero_image_hash'),
@@ -103,6 +109,10 @@ export const articles = pgTable(
     unique('articles_target_id_source_url_unique').on(t.targetId, t.sourceUrl),
     check('articles_significance_check', sql`${t.significance} in ('small', 'medium', 'large')`),
     check('articles_difficulty_check', sql`${t.difficulty} in ('easy', 'medium', 'hard')`),
+    check(
+      'articles_sentiment_check',
+      sql`${t.sentiment} is null or (${t.sentiment} >= -5 and ${t.sentiment} <= 5)`,
+    ),
     index('articles_tsvector_gin_idx').using('gin', t.tsvector),
   ],
 )

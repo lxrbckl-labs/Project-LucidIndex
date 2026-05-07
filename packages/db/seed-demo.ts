@@ -343,6 +343,27 @@ export async function shouldSkipDemoSeed(): Promise<{
  * the volume is also mounted on web. Operators who want demo images in
  * the dashboard should mount the volume on both web and mcp-store.
  */
+/**
+ * Demo creator bios. Picks a source-shape-aware template and rolls a
+ * couple of topical adjectives in. Realistic enough to render — not
+ * intended to ship to production.
+ */
+function buildTargetDescription(t: { label: string; source: SourceType }, faker: Faker): string {
+  const TONE = ['rigorous', 'opinionated', 'pragmatic', 'contrarian', 'measured', 'sharp']
+  const TOPICS: Record<SourceType, string[]> = {
+    youtube: ['explainer videos', 'long-form essays', 'studio interviews'],
+    blog: ['short-form essays', 'long-running threads', 'longform notes'],
+    newsletter: ['weekly briefings', 'analysis dispatches', 'subscriber-only deep dives'],
+    news: ['daily reporting', 'breaking-story coverage', 'wire copy with context'],
+    instagram: ['visual essays', 'short-form posts', 'curated photo sets'],
+    x: ['running threads', 'real-time commentary', 'one-line takes'],
+    website: ['archived essays', 'longform pieces', 'reference posts'],
+  }
+  const tone = faker.helpers.arrayElement(TONE)
+  const topic = faker.helpers.arrayElement(TOPICS[t.source])
+  return `${t.label} publishes ${tone} ${topic} on technology, markets, and the broader trends that move them.`
+}
+
 function imagePipelineConfig() {
   return {
     imageDir: process.env.MCP_IMAGE_DIR ?? 'data/images',
@@ -495,6 +516,22 @@ export async function seedDemo(): Promise<SeedDemoResult> {
           : `@${faker.internet.username().toLowerCase()}`
         : `https://${faker.internet.domainName()}/`
     const nextDueAt = faker.date.soon({ days: 7 })
+    // 70% of demo targets get a bio so the creator-card description path
+    // is exercised; 30% stay null so the agent's first-encounter path
+    // (write_target_description) has something to do in dev.
+    const description =
+      faker.number.float({ min: 0, max: 1 }) < 0.7 ? buildTargetDescription(t, faker) : null
+    // 70% also get a social URL so the external-link icon renders in dev.
+    const socialUrl =
+      faker.number.float({ min: 0, max: 1 }) < 0.7
+        ? `https://${faker.internet.domainName()}/`
+        : null
+    // 60% get a deterministic photo URL (seeded by faker so reseeds reproduce);
+    // the rest stay null so the gradient-initial fallback is exercised.
+    const photoUrl =
+      faker.number.float({ min: 0, max: 1 }) < 0.6
+        ? `https://picsum.photos/seed/${faker.string.alphanumeric(12)}/640/360`
+        : null
     const [row] = await db
       .insert(targets)
       .values({
@@ -504,6 +541,9 @@ export async function seedDemo(): Promise<SeedDemoResult> {
         promptTemplateId,
         active,
         nextDueAt,
+        description,
+        socialUrl,
+        photoUrl,
       })
       .returning({ id: targets.id })
     if (!row) continue
@@ -579,6 +619,7 @@ export async function seedDemo(): Promise<SeedDemoResult> {
     significance: 'small' | 'medium' | 'large'
     difficulty: 'easy' | 'medium' | 'hard'
     reasonablenessRating: number | null
+    sentiment: number | null
     sourcePublishedAt: Date
     dashboardVisible: boolean
     hidden: boolean
@@ -648,6 +689,11 @@ export async function seedDemo(): Promise<SeedDemoResult> {
       significance,
       difficulty,
       reasonablenessRating: faker.number.int({ min: 1, max: 10 }),
+      // Bearish→bullish: roughly normal-ish around 0 (mildly bullish). 90%
+      // get a score; 10% are null so the gauge gate (count >= 3) gets
+      // exercised both ways across creators.
+      sentiment:
+        faker.number.float({ min: 0, max: 1 }) < 0.9 ? faker.number.int({ min: -5, max: 5 }) : null,
       sourcePublishedAt,
       dashboardVisible: faker.number.float({ min: 0, max: 1 }) < 0.85,
       hidden: faker.number.float({ min: 0, max: 1 }) < 0.05,
@@ -712,6 +758,7 @@ export async function seedDemo(): Promise<SeedDemoResult> {
           significance: plan.significance,
           difficulty: plan.difficulty,
           reasonablenessRating: plan.reasonablenessRating,
+          sentiment: plan.sentiment,
           sourcePublishedAt: plan.sourcePublishedAt,
           sourcePublishedAtEstimated: false,
           heroImageHash: heroHash,

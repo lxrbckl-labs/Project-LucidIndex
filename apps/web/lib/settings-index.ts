@@ -54,6 +54,12 @@ export const SETTINGS_INDEX: ReadonlyArray<SettingsIndexEntry> = [
     href: '/settings/badges',
     keywords: ['topic', 'tag', 'category', 'badge'],
   },
+  {
+    title: 'Forum Invites',
+    description: 'Generate single-use invite codes that gate forum signup.',
+    href: '/settings/forum-invites',
+    keywords: ['forum', 'invite', 'code', 'signup', 'gate'],
+  },
 ]
 
 // ─── Pre-tokenized index (built once at module load) ────────────────────────

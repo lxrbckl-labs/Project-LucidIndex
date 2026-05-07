@@ -54,6 +54,9 @@ export type PullQueueItemResult =
       target_id: string
       url_or_handle: string
       label: string
+      target_description: string | null
+      target_social_url: string | null
+      target_photo_url: string | null
       prompt_template_id: string
       rendered_prompt: string
       high_water_mark: unknown
@@ -117,6 +120,9 @@ export async function pullQueueItem(args: PullQueueItemArgs): Promise<PullQueueI
       promptTemplateId: targets.promptTemplateId,
       urlOrHandle: targets.urlOrHandle,
       label: targets.label,
+      description: targets.description,
+      socialUrl: targets.socialUrl,
+      photoUrl: targets.photoUrl,
       cadence: targets.cadence,
       highWaterMark: targets.highWaterMark,
       crossSourceN: promptTemplates.crossSourceN,
@@ -165,6 +171,9 @@ export async function pullQueueItem(args: PullQueueItemArgs): Promise<PullQueueI
     target_id: claimed.target_id,
     url_or_handle: m.urlOrHandle,
     label: m.label,
+    target_description: m.description,
+    target_social_url: m.socialUrl,
+    target_photo_url: m.photoUrl,
     prompt_template_id: m.promptTemplateId,
     rendered_prompt: renderedPrompt,
     high_water_mark: m.highWaterMark ?? null,

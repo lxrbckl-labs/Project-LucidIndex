@@ -55,6 +55,39 @@ export function appendOpinionInstruction(body: string): string {
   return body + AGENT_OPINION_INSTRUCTION
 }
 
+/**
+ * Author-hygiene block — appended to every starter so the agent fills in
+ * `targets.description` and `targets.social_url` on first encounter.
+ *
+ * The block is wrapped in a stable HTML comment marker so we can detect
+ * existing-body patches without false positives, mirroring the opinion
+ * instruction's idempotency strategy.
+ */
+export const AUTHOR_HYGIENE_INSTRUCTION = `
+
+**Author hygiene (call before \`ack_queue_item\`):**
+
+1. Cross-reference: call \`list_targets\` once per session and use its presence flags to avoid duplicate effort. If a target with the same author already exists under a different label, surface that in your \`agent_opinion\` rather than re-describing them.
+2. Description: if the queue-pull metadata shows \`target_description\` is empty AND no equivalent target carries one, call \`write_target_description({ target_id, description })\` with a 1–2 sentence bio (≤ 500 chars) describing who this creator is, what they cover, and what perspective they bring. Write-once-when-null — admin curation is preserved.
+3. Social URL: if \`target_social_url\` is empty, look on the source page for a canonical author/personal/social link (homepage, X profile, LinkedIn, GitHub, Substack — whichever is most representative). When found, call \`write_target_social_url({ target_id, social_url })\` with the absolute http(s) URL. Same write-once-when-null contract — do not call when one already exists.
+4. Photograph: if \`target_photo_url\` is empty, look for a representative photograph or avatar of the creator — author headshot on the source site, profile picture on the social link from step 3, or an "About" page portrait. When found, call \`write_target_photo_url({ target_id, photo_url })\` with the absolute http(s) URL of the image (not the page that hosts it). Prefer stable host URLs (CDN-served originals) over short-lived share URLs. Same write-once-when-null contract.
+<!-- AUTHOR_HYGIENE_INSTRUCTION -->`
+
+/**
+ * Returns true when a template body already contains the hygiene block.
+ */
+export function hasHygieneInstruction(body: string): boolean {
+  return body.includes('<!-- AUTHOR_HYGIENE_INSTRUCTION -->')
+}
+
+/**
+ * Append the author-hygiene block if not already present. Idempotent.
+ */
+export function appendHygieneInstruction(body: string): string {
+  if (hasHygieneInstruction(body)) return body
+  return body + AUTHOR_HYGIENE_INSTRUCTION
+}
+
 const youtubeBody = `You are watching {{ creator_name }}'s YouTube channel at {{ target_url }}.
 
 Pull the most recent uploads. The high_water_mark for this target is:
@@ -244,11 +277,39 @@ Cadence: {{ cadence }}. Stop once every new piece past the high_water_mark
 is filed.`
 
 export const STARTER_TEMPLATES: ReadonlyArray<Starter> = [
-  { slug: 'youtube', body: youtubeBody + AGENT_OPINION_INSTRUCTION, cross_source_n: 3 },
-  { slug: 'blog', body: blogBody + AGENT_OPINION_INSTRUCTION, cross_source_n: 3 },
-  { slug: 'newsletter', body: newsletterBody + AGENT_OPINION_INSTRUCTION, cross_source_n: 3 },
-  { slug: 'news', body: newsBody + AGENT_OPINION_INSTRUCTION, cross_source_n: 3 },
-  { slug: 'instagram', body: instagramBody + AGENT_OPINION_INSTRUCTION, cross_source_n: 3 },
-  { slug: 'x', body: xBody + AGENT_OPINION_INSTRUCTION, cross_source_n: 3 },
-  { slug: 'website', body: websiteBody + AGENT_OPINION_INSTRUCTION, cross_source_n: 3 },
+  {
+    slug: 'youtube',
+    body: youtubeBody + AGENT_OPINION_INSTRUCTION + AUTHOR_HYGIENE_INSTRUCTION,
+    cross_source_n: 3,
+  },
+  {
+    slug: 'blog',
+    body: blogBody + AGENT_OPINION_INSTRUCTION + AUTHOR_HYGIENE_INSTRUCTION,
+    cross_source_n: 3,
+  },
+  {
+    slug: 'newsletter',
+    body: newsletterBody + AGENT_OPINION_INSTRUCTION + AUTHOR_HYGIENE_INSTRUCTION,
+    cross_source_n: 3,
+  },
+  {
+    slug: 'news',
+    body: newsBody + AGENT_OPINION_INSTRUCTION + AUTHOR_HYGIENE_INSTRUCTION,
+    cross_source_n: 3,
+  },
+  {
+    slug: 'instagram',
+    body: instagramBody + AGENT_OPINION_INSTRUCTION + AUTHOR_HYGIENE_INSTRUCTION,
+    cross_source_n: 3,
+  },
+  {
+    slug: 'x',
+    body: xBody + AGENT_OPINION_INSTRUCTION + AUTHOR_HYGIENE_INSTRUCTION,
+    cross_source_n: 3,
+  },
+  {
+    slug: 'website',
+    body: websiteBody + AGENT_OPINION_INSTRUCTION + AUTHOR_HYGIENE_INSTRUCTION,
+    cross_source_n: 3,
+  },
 ]

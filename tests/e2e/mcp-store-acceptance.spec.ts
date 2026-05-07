@@ -244,7 +244,7 @@ test('3. bearer auth rejection — 401 on missing / wrong / unknown / revoked', 
 // Test 4 — stdio transport happy path (smaller scope: tools/list).
 // ---------------------------------------------------------------------------
 
-test('4. stdio transport — tools/list returns the 8 registered tools', async () => {
+test('4. stdio transport — tools/list returns the 12 registered tools', async () => {
   // Spawn a fresh mcp-store child in stdio mode against the same DB. Stdio
   // bypasses bearer auth (process-local trust) — we verify by sending no
   // headers (which is moot for stdio, since headers don't exist in
@@ -327,9 +327,13 @@ test('4. stdio transport — tools/list returns the 8 registered tools', async (
       'get_comparison_sources',
       'get_high_water_mark',
       'get_topic_badges',
+      'list_targets',
       'pull_queue_item',
       'search_articles',
       'write_articles',
+      'write_target_description',
+      'write_target_photo_url',
+      'write_target_social_url',
     ])
   } finally {
     child.kill('SIGTERM')
@@ -643,6 +647,204 @@ test('10. search_articles returns ranked hits over the FTS index', async () => {
   expect(out.hits[0]!.title).toContain(uniqueWord)
   // biome-ignore lint/style/noNonNullAssertion: length-checked above
   expect(out.hits[0]!.rank).toBeGreaterThan(0)
+})
+
+// ---------------------------------------------------------------------------
+// Test 11 — write_target_description: write-once-when-null semantics.
+// ---------------------------------------------------------------------------
+
+test('11. write_target_description writes once, then returns written:false', async () => {
+  const { token } = await mintAndPersistToken('target-description-test')
+
+  // Insert a fresh target with description = null so the first write lands.
+  execSql(`
+    INSERT INTO targets (label, url_or_handle, cadence, prompt_template_id, next_due_at, description)
+    VALUES (
+      'Phase3 DescriptionTarget',
+      'https://example.com/description',
+      'hourly',
+      (SELECT id FROM prompt_templates WHERE slug = 'website' LIMIT 1),
+      now(),
+      NULL
+    );
+  `)
+  const targetId = execSql(
+    `SELECT id::text FROM targets WHERE label = 'Phase3 DescriptionTarget' LIMIT 1;`,
+  )
+
+  // First call should land — written:true.
+  const first = await callToolOk(stack.baseURL, token, 'write_target_description', {
+    target_id: targetId,
+    description: 'Pragmatic essays on distributed systems and operational realism.',
+  })
+  expect((first.structuredContent as { written: boolean }).written).toBe(true)
+
+  // Confirm the description landed in the row.
+  const persisted = execSql(`SELECT description FROM targets WHERE id = '${targetId}';`)
+  expect(persisted).toBe('Pragmatic essays on distributed systems and operational realism.')
+
+  // Second call must be a no-op — written:false, original text untouched.
+  const second = await callToolOk(stack.baseURL, token, 'write_target_description', {
+    target_id: targetId,
+    description: 'Different text — must not overwrite.',
+  })
+  expect((second.structuredContent as { written: boolean }).written).toBe(false)
+
+  const stillOriginal = execSql(`SELECT description FROM targets WHERE id = '${targetId}';`)
+  expect(stillOriginal).toBe('Pragmatic essays on distributed systems and operational realism.')
+})
+
+// ---------------------------------------------------------------------------
+// Test 12 — write_target_social_url: write-once-when-null + URL validation.
+// ---------------------------------------------------------------------------
+
+test('12. write_target_social_url writes once, rejects bad URLs, no overwrite', async () => {
+  const { token } = await mintAndPersistToken('target-social-url-test')
+
+  execSql(`
+    INSERT INTO targets (label, url_or_handle, cadence, prompt_template_id, next_due_at, social_url)
+    VALUES (
+      'Phase3 SocialUrlTarget',
+      'https://example.com/social',
+      'hourly',
+      (SELECT id FROM prompt_templates WHERE slug = 'website' LIMIT 1),
+      now(),
+      NULL
+    );
+  `)
+  const targetId = execSql(
+    `SELECT id::text FROM targets WHERE label = 'Phase3 SocialUrlTarget' LIMIT 1;`,
+  )
+
+  // Reject non-http(s).
+  const bad = await callTool(stack.baseURL, token, 'write_target_social_url', {
+    target_id: targetId,
+    social_url: 'mailto:foo@bar.com',
+  })
+  expect(bad.body.result?.isError).toBe(true)
+  expect(
+    (bad.body.result?.structuredContent as { error?: { code?: string } } | undefined)?.error?.code,
+  ).toBe('invalid_social_url')
+
+  // First valid write — written:true.
+  const first = await callToolOk(stack.baseURL, token, 'write_target_social_url', {
+    target_id: targetId,
+    social_url: 'https://author.example.com/',
+  })
+  expect((first.structuredContent as { written: boolean }).written).toBe(true)
+
+  // DB confirms.
+  const persisted = execSql(`SELECT social_url FROM targets WHERE id = '${targetId}';`)
+  expect(persisted).toBe('https://author.example.com/')
+
+  // Second call — written:false, original untouched.
+  const second = await callToolOk(stack.baseURL, token, 'write_target_social_url', {
+    target_id: targetId,
+    social_url: 'https://different.example.com/',
+  })
+  expect((second.structuredContent as { written: boolean }).written).toBe(false)
+
+  const stillOriginal = execSql(`SELECT social_url FROM targets WHERE id = '${targetId}';`)
+  expect(stillOriginal).toBe('https://author.example.com/')
+})
+
+// ---------------------------------------------------------------------------
+// Test 13 — list_targets exposes presence flags for cross-reference.
+// ---------------------------------------------------------------------------
+
+test('13. list_targets returns presence flags for description + social_url', async () => {
+  const { token } = await mintAndPersistToken('list-targets-test')
+
+  execSql(`
+    INSERT INTO targets (label, url_or_handle, cadence, prompt_template_id, next_due_at, description, social_url)
+    VALUES (
+      'Phase3 ListTargetsBoth',
+      'https://example.com/both',
+      'hourly',
+      (SELECT id FROM prompt_templates WHERE slug = 'website' LIMIT 1),
+      now(),
+      'Has both fields.',
+      'https://author-both.example.com/'
+    );
+  `)
+  execSql(`
+    INSERT INTO targets (label, url_or_handle, cadence, prompt_template_id, next_due_at, description, social_url)
+    VALUES (
+      'Phase3 ListTargetsNeither',
+      'https://example.com/neither',
+      'hourly',
+      (SELECT id FROM prompt_templates WHERE slug = 'website' LIMIT 1),
+      now(),
+      NULL,
+      NULL
+    );
+  `)
+
+  const res = await callToolOk(stack.baseURL, token, 'list_targets', {})
+  const out = res.structuredContent as {
+    targets: Array<{ label: string; has_description: boolean; has_social_url: boolean }>
+  }
+  const both = out.targets.find((t) => t.label === 'Phase3 ListTargetsBoth')
+  const neither = out.targets.find((t) => t.label === 'Phase3 ListTargetsNeither')
+  expect(both).toBeDefined()
+  expect(neither).toBeDefined()
+  expect(both?.has_description).toBe(true)
+  expect(both?.has_social_url).toBe(true)
+  expect(neither?.has_description).toBe(false)
+  expect(neither?.has_social_url).toBe(false)
+})
+
+// ---------------------------------------------------------------------------
+// Test 14 — write_target_photo_url: write-once-when-null + URL validation.
+// ---------------------------------------------------------------------------
+
+test('14. write_target_photo_url writes once, rejects bad URLs, no overwrite', async () => {
+  const { token } = await mintAndPersistToken('target-photo-url-test')
+
+  execSql(`
+    INSERT INTO targets (label, url_or_handle, cadence, prompt_template_id, next_due_at, photo_url)
+    VALUES (
+      'Phase3 PhotoUrlTarget',
+      'https://example.com/photo',
+      'hourly',
+      (SELECT id FROM prompt_templates WHERE slug = 'website' LIMIT 1),
+      now(),
+      NULL
+    );
+  `)
+  const targetId = execSql(
+    `SELECT id::text FROM targets WHERE label = 'Phase3 PhotoUrlTarget' LIMIT 1;`,
+  )
+
+  // Reject non-http(s).
+  const bad = await callTool(stack.baseURL, token, 'write_target_photo_url', {
+    target_id: targetId,
+    photo_url: 'data:image/png;base64,abc',
+  })
+  expect(bad.body.result?.isError).toBe(true)
+  expect(
+    (bad.body.result?.structuredContent as { error?: { code?: string } } | undefined)?.error?.code,
+  ).toBe('invalid_photo_url')
+
+  // First valid write — written:true.
+  const first = await callToolOk(stack.baseURL, token, 'write_target_photo_url', {
+    target_id: targetId,
+    photo_url: 'https://images.example.com/author.jpg',
+  })
+  expect((first.structuredContent as { written: boolean }).written).toBe(true)
+
+  const persisted = execSql(`SELECT photo_url FROM targets WHERE id = '${targetId}';`)
+  expect(persisted).toBe('https://images.example.com/author.jpg')
+
+  // Second call — written:false, original untouched.
+  const second = await callToolOk(stack.baseURL, token, 'write_target_photo_url', {
+    target_id: targetId,
+    photo_url: 'https://images.example.com/different.jpg',
+  })
+  expect((second.structuredContent as { written: boolean }).written).toBe(false)
+
+  const stillOriginal = execSql(`SELECT photo_url FROM targets WHERE id = '${targetId}';`)
+  expect(stillOriginal).toBe('https://images.example.com/author.jpg')
 })
 
 // ===========================================================================

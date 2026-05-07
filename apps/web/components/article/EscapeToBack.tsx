@@ -55,7 +55,7 @@ export function EscapeToBack() {
       type="button"
       variant="ghost"
       size="icon"
-      className="h-9 w-9 border border-input"
+      className="h-9 w-9 border border-input bg-background"
       aria-label="Back"
       onClick={() => router.back()}
     >

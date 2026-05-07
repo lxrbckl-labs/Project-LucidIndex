@@ -1,0 +1,1 @@
+ALTER TABLE "targets" ADD COLUMN "photo_url" text;

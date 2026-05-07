@@ -49,6 +49,28 @@ export const targets = pgTable(
      * Unique so `/c/<slug>` lookups resolve to exactly one creator.
      */
     slug: text('slug').unique(),
+    /**
+     * Short bio for the creator/source — populated by the agent on first
+     * encounter via `write_target_description` (write-once-when-null
+     * semantics so admin curation can't be overwritten). Rendered on
+     * `/c/[slug]` under the handle.
+     */
+    description: text('description'),
+    /**
+     * Supplemental link the agent finds on the source page — typically
+     * the author's personal site / primary social where users can learn
+     * more about them. Distinct from `url_or_handle` (which is what we
+     * crawl). Same write-once-when-null contract as `description`.
+     * Rendered as an external-link icon on the creator card.
+     */
+    socialUrl: text('social_url'),
+    /**
+     * Photograph / avatar URL the agent finds when researching the
+     * creator — rendered in the hero band of `/c/[slug]`'s profile tile.
+     * Same write-once-when-null contract as `description`. Stored as a
+     * raw URL (no local image pipeline yet — v2 could hash + serve).
+     */
+    photoUrl: text('photo_url'),
     cadence: text('cadence').notNull(),
     promptTemplateId: uuid('prompt_template_id')
       .notNull()

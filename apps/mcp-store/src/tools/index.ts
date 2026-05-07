@@ -1,6 +1,6 @@
 // MCP tool registration for the mcp-store sidecar.
 //
-// All eight tools share the same wrapper: pre-admin guard fires first
+// All twelve tools share the same wrapper: pre-admin guard fires first
 // (returning `no_admin_enrolled` if the system isn't provisioned yet), then
 // the tool body runs against the authenticated agent's context.
 //
@@ -11,7 +11,7 @@
 // that need an `agent_token_id` (ack_queue_item, write_articles,
 // extend_queue_lock) require HTTP transport. The read-only tools
 // (get_topic_badges, get_high_water_mark, get_comparison_sources,
-// search_articles) work on either transport.
+// search_articles, write_target_description) work on either transport.
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
@@ -23,9 +23,16 @@ import { extendQueueLock, extendQueueLockInputShape } from './extend-queue-lock.
 import { getComparisonSources } from './get-comparison-sources.js'
 import { getHighWaterMark, getHighWaterMarkInputShape } from './get-high-water-mark.js'
 import { getTopicBadges } from './get-topic-badges.js'
+import { listTargets } from './list-targets.js'
 import { pullQueueItem } from './pull-queue-item.js'
 import { searchArticles, searchArticlesInputShape } from './search-articles.js'
 import { writeArticles, writeArticlesInputShape } from './write-articles.js'
+import {
+  writeTargetDescription,
+  writeTargetDescriptionInputShape,
+} from './write-target-description.js'
+import { writeTargetPhotoUrl, writeTargetPhotoUrlInputShape } from './write-target-photo-url.js'
+import { writeTargetSocialUrl, writeTargetSocialUrlInputShape } from './write-target-social-url.js'
 
 /**
  * Application-level errors raised by tool handlers. The wrapper turns these
@@ -201,6 +208,56 @@ export function registerTools(server: McpServer): void {
       inputSchema: searchArticlesInputShape,
     },
     async (args, _extra) => runWithGuards('search_articles', async () => searchArticles(args)),
+  )
+
+  // --- write_target_description ---------------------------------------------
+  server.registerTool(
+    'write_target_description',
+    {
+      title: 'Write a one-time target/creator description',
+      description:
+        'Set a short bio for the target/creator. Write-once-when-null: returns { written: true } on first set, { written: false } on subsequent calls (admin curation is preserved). Max 500 chars.',
+      inputSchema: writeTargetDescriptionInputShape,
+    },
+    async (args, _extra) =>
+      runWithGuards('write_target_description', async () => writeTargetDescription(args)),
+  )
+
+  // --- write_target_social_url ----------------------------------------------
+  server.registerTool(
+    'write_target_social_url',
+    {
+      title: 'Write a one-time author social URL',
+      description:
+        "Set the author's personal/social URL on a target. Write-once-when-null: returns { written: true } on first set, { written: false } afterward. Must be a valid http(s) URL.",
+      inputSchema: writeTargetSocialUrlInputShape,
+    },
+    async (args, _extra) =>
+      runWithGuards('write_target_social_url', async () => writeTargetSocialUrl(args)),
+  )
+
+  // --- write_target_photo_url -----------------------------------------------
+  server.registerTool(
+    'write_target_photo_url',
+    {
+      title: 'Write a one-time author photograph URL',
+      description:
+        "Set the author's photograph/avatar URL on a target. Write-once-when-null: returns { written: true } on first set, { written: false } afterward. Must be a valid http(s) URL. Rendered as the hero band of the creator profile tile.",
+      inputSchema: writeTargetPhotoUrlInputShape,
+    },
+    async (args, _extra) =>
+      runWithGuards('write_target_photo_url', async () => writeTargetPhotoUrl(args)),
+  )
+
+  // --- list_targets ----------------------------------------------------------
+  server.registerTool(
+    'list_targets',
+    {
+      title: 'List all targets',
+      description:
+        'Return every target on file with presence flags for description, social_url, and photo_url. Use this to cross-reference whether an author is already covered (under any label) before writing redundant info.',
+    },
+    async (_extra) => runWithGuards('list_targets', async () => listTargets()),
   )
 }
 

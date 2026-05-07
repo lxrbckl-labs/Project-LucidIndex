@@ -19,12 +19,13 @@
  * isn't required — this is in every authenticated layout.
  */
 
-import { LayoutDashboard, Settings } from 'lucide-react'
+import { LayoutDashboard, MessagesSquare, Settings } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { EscapeToBack } from '@/components/article/EscapeToBack'
 import { Button } from '@/components/ui/button'
 import { SidebarTrigger } from '@/components/ui/sidebar'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { TypeaheadSearch } from './TypeaheadSearch'
 
 export function TopNav() {
@@ -34,16 +35,54 @@ export function TopNav() {
   const isArticlePage = pathname.startsWith('/a/')
   const isCreatorPage = pathname.startsWith('/c/')
   const isSettingsPage = pathname.startsWith('/settings')
+  const isForumPage = pathname.startsWith('/forum')
   const isTopicFocus = pathname === '/' && Boolean(searchParams.get('badge'))
   const showBack = isArticlePage || isCreatorPage || isTopicFocus
+  const isDashboard = pathname === '/' && !isTopicFocus
 
   return (
     <header className="sticky top-0 z-50 border-b bg-background/70 backdrop-blur-lg supports-[backdrop-filter]:bg-background/50">
       <div className="grid grid-cols-3 items-center p-4">
-        {/* Left cluster: sidebar collapse (settings only) + back button (article only) */}
+        {/* Left cluster: sidebar collapse (settings only) + back button (article/topic-focus) + Forum (dashboard) / Dashboard (forum) */}
         <div className="flex items-center justify-start gap-2">
-          {isSettingsPage && <SidebarTrigger className="h-9 w-9 border border-input" />}
+          {isSettingsPage && (
+            <SidebarTrigger className="h-9 w-9 border border-input bg-background" />
+          )}
           {showBack && <EscapeToBack />}
+          {isDashboard && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 border border-input bg-background"
+                  asChild
+                >
+                  <Link href="/forum" aria-label="Forum">
+                    <MessagesSquare className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Forum</TooltipContent>
+            </Tooltip>
+          )}
+          {isForumPage && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 border border-input bg-background"
+                  asChild
+                >
+                  <Link href="/" aria-label="Dashboard">
+                    <LayoutDashboard className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Dashboard</TooltipContent>
+            </Tooltip>
+          )}
         </div>
 
         {/* Center: wordmark */}
@@ -67,17 +106,37 @@ export function TopNav() {
           <TypeaheadSearch />
 
           {isSettingsPage ? (
-            <Button variant="ghost" size="icon" className="h-9 w-9 border border-input" asChild>
-              <Link href="/" aria-label="Dashboard">
-                <LayoutDashboard className="h-4 w-4" />
-              </Link>
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 border border-input bg-background"
+                  asChild
+                >
+                  <Link href="/" aria-label="Dashboard">
+                    <LayoutDashboard className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Dashboard</TooltipContent>
+            </Tooltip>
           ) : (
-            <Button variant="ghost" size="icon" className="h-9 w-9 border border-input" asChild>
-              <Link href="/settings" aria-label="Settings">
-                <Settings className="h-4 w-4" />
-              </Link>
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 border border-input bg-background"
+                  asChild
+                >
+                  <Link href="/settings" aria-label="Settings">
+                    <Settings className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Settings</TooltipContent>
+            </Tooltip>
           )}
         </div>
       </div>

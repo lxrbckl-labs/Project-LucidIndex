@@ -25,12 +25,20 @@
  */
 
 import { effectiveCardSize } from '@lucidindex/shared/article-density'
+import type { ReactNode } from 'react'
 import type { MockArticle } from '@/app/_mock/articles'
 import { ArticleCard } from './ArticleCard'
 import { LargeArticleCard } from './LargeArticleCard'
 
 type Props = {
   articles: MockArticle[]
+  /**
+   * Optional tile to render at index 0 of the grid (e.g. the creator
+   * profile on /c/[slug]). Renders before the article tiles and shares
+   * the same column rules. Hero-candidate logic is unaffected — the
+   * first article still gets the hero check.
+   */
+  prefix?: ReactNode
 }
 
 /**
@@ -66,11 +74,12 @@ function heroColStartClasses(heroIndex: number): string {
   return HERO_COL_STARTS[heroIndex % HERO_COL_STARTS.length] ?? HERO_COL_STARTS[0]
 }
 
-export function ArticleMasonry({ articles }: Props) {
+export function ArticleMasonry({ articles, prefix }: Props) {
   let heroSeq = 0
 
   return (
     <div className="grid grid-flow-dense grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {prefix && <div>{prefix}</div>}
       {articles.map((article, index) => {
         const candidate = isHeroCandidate(index) ? 'large' : 'small'
         const size = effectiveCardSize(article, candidate)
