@@ -16,9 +16,9 @@ export const metadata: Metadata = {
 
 export default function ForumPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen overflow-hidden bg-background flex flex-col">
       <TopNav />
-      <main className="px-4 pt-4 pb-16">
+      <main className="flex-1 overflow-hidden px-4 pt-4">
         <ForumGate>
           {/* Phase B placeholder — fills with real forum content in later phases. */}
           <div className="flex flex-col gap-4 max-w-3xl mx-auto">

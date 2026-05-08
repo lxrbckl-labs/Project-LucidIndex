@@ -32,7 +32,7 @@ export function SentimentGauge({ averageSentiment, count: _count }: Props) {
         <span>Bearish</span>
         <span>Bullish</span>
       </div>
-      <div className="relative h-2 w-full rounded-full bg-gradient-to-r from-emerald-500 via-zinc-300 to-rose-400 dark:via-zinc-700">
+      <div className="relative h-2 w-full rounded-full bg-muted">
         <div
           className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 h-4 w-0.5 bg-foreground rounded-full shadow-sm"
           style={{ left: `${offsetPct}%` }}

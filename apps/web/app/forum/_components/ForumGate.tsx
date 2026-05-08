@@ -29,7 +29,7 @@ type Props = {
 
 export function ForumGate({ children }: Props) {
   return (
-    <div className="relative min-h-[calc(100vh-6rem)]">
+    <div className="relative h-full overflow-hidden">
       {/* Blurred + click-locked content underneath */}
       <div className="pointer-events-none select-none blur-md opacity-60" aria-hidden="true">
         {children}
@@ -69,7 +69,7 @@ function IdleView({ onSignUp }: { onSignUp: () => void }) {
   return (
     <>
       <div className="flex flex-col gap-2">
-        <h2 className="text-xl font-semibold tracking-tight">Sign in to join the Forum</h2>
+        <h2 className="text-xl font-semibold tracking-tight">Stay Informed.</h2>
         <p className="text-sm text-muted-foreground">
           Pick a username and register a passkey to post. No email, no password.
         </p>
