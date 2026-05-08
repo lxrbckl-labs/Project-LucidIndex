@@ -132,6 +132,9 @@ export function SettingsSidebar() {
         ))}
       </SidebarContent>
 
+      {/* Hairline divider between nav and account footer — solid white. */}
+      <div className="h-px bg-white" aria-hidden="true" />
+
       {/* Footer: user dropdown */}
       <SidebarFooter>
         <SidebarMenu>
@@ -140,9 +143,9 @@ export function SettingsSidebar() {
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton
                   size="lg"
-                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:!justify-center"
                 >
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-muted">
+                  <div className="flex aspect-square size-9 items-center justify-center rounded-md border border-input bg-background text-foreground shrink-0">
                     <User className="size-4" />
                   </div>
                   <div className="grid flex-1 text-left text-sm leading-tight">

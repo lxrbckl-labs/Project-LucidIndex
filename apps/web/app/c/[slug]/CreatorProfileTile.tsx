@@ -91,13 +91,7 @@ export function CreatorProfileTile({
         </div>
       </CardHeader>
 
-      <CardContent
-        className="flex-1 pb-2 overflow-hidden relative"
-        style={{
-          maskImage: 'linear-gradient(to bottom, black calc(100% - 24px), transparent)',
-          WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 24px), transparent)',
-        }}
-      >
+      <CardContent className="flex-1 pb-2 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {description ? (
           <p className="text-sm text-muted-foreground text-justify">{description}</p>
         ) : (
@@ -107,9 +101,9 @@ export function CreatorProfileTile({
         )}
       </CardContent>
 
-      {/* Sentiment band — its own section. */}
+      {/* Sentiment band — divider above, sits directly under the description. */}
       {showGauge && sentiment && (
-        <div className="px-6 py-4">
+        <div className="px-6 py-4 border-t border-border/40">
           <SentimentGauge averageSentiment={sentiment.averageSentiment} count={sentiment.count} />
         </div>
       )}
