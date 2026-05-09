@@ -1,10 +1,12 @@
 /**
  * Single-invite endpoint.
  *
- *   POST /api/settings/forum-invites/:id  { action: 'revoke' }
- *     → mark an unredeemed invite as revoked. Idempotent — re-revoking a
- *       revoked row is fine. Already-redeemed rows are refused (redemption
- *       is the stronger terminal state).
+ *   POST /api/settings/forum-invites/:id  { action: 'revoke' | 'unrevoke' }
+ *     → 'revoke':   stamp `revoked_at = now()`. Works on unredeemed AND
+ *                   redeemed rows (revoke is the kill-switch on the
+ *                   linked forum user's login). Idempotent.
+ *     → 'unrevoke': clear `revoked_at` back to NULL — restores access.
+ *                   Idempotent on already-active rows.
  *
  * Per the NO DELETIONS posture there is no DELETE endpoint — admins
  * revoke rather than remove.
@@ -12,7 +14,10 @@
 
 import { requireAdmin } from '@lucidindex/auth'
 import { NextResponse } from 'next/server'
-import { revokeForumInvite } from '../../../../settings/forum-invites/_lib/forum-invites-repo'
+import {
+  revokeForumInvite,
+  unrevokeForumInvite,
+} from '../../../../settings/forum-invites/_lib/forum-invites-repo'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,22 +39,30 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     return NextResponse.json({ ok: false, error: 'Invalid JSON.' }, { status: 400 })
   }
   const action = (raw as { action?: unknown } | null)?.action
-  if (action !== 'revoke') {
-    return NextResponse.json({ ok: false, error: "action must be 'revoke'." }, { status: 400 })
+  if (action !== 'revoke' && action !== 'unrevoke') {
+    return NextResponse.json(
+      { ok: false, error: "action must be 'revoke' or 'unrevoke'." },
+      { status: 400 },
+    )
   }
 
-  const result = await revokeForumInvite(id)
+  if (action === 'revoke') {
+    const result = await revokeForumInvite(id)
+    if (!result.ok) {
+      if (result.reason === 'not_found') {
+        return NextResponse.json({ ok: false, error: 'Invite not found.' }, { status: 404 })
+      }
+      return NextResponse.json({ ok: false, error: 'Could not revoke.' }, { status: 500 })
+    }
+    return NextResponse.json({ ok: true, alreadyRevoked: result.alreadyRevoked })
+  }
+
+  const result = await unrevokeForumInvite(id)
   if (!result.ok) {
     if (result.reason === 'not_found') {
       return NextResponse.json({ ok: false, error: 'Invite not found.' }, { status: 404 })
     }
-    if (result.reason === 'already_redeemed') {
-      return NextResponse.json(
-        { ok: false, error: 'Invite has already been redeemed and cannot be revoked.' },
-        { status: 409 },
-      )
-    }
-    return NextResponse.json({ ok: false, error: 'Could not revoke.' }, { status: 500 })
+    return NextResponse.json({ ok: false, error: 'Could not restore.' }, { status: 500 })
   }
-  return NextResponse.json({ ok: true, alreadyRevoked: result.alreadyRevoked })
+  return NextResponse.json({ ok: true, alreadyActive: result.alreadyActive })
 }

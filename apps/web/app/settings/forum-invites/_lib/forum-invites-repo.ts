@@ -37,10 +37,14 @@ export type IssueInviteResult =
 export type InviteStatus = 'available' | 'redeemed' | 'expired' | 'revoked'
 
 export function deriveInviteStatus(row: ForumInviteRow, now: Date = new Date()): InviteStatus {
-  // Redemption is the strongest terminal state — if the invite was used,
-  // surface that even if it was later revoked.
-  if (row.redeemedAt) return 'redeemed'
+  // Revocation wins over redemption — the invite acts as a persistent
+  // permission anchor for the user it minted, so revoking a redeemed
+  // invite is the admin's kill-switch on that user's login. The
+  // redeemed_at timestamp stays in the row for audit (surfaced in the
+  // "Redeemed" column) — we just stop reporting the row as 'redeemed'
+  // because access is now denied.
   if (row.revokedAt) return 'revoked'
+  if (row.redeemedAt) return 'redeemed'
   if (row.expiresAt && row.expiresAt.getTime() <= now.getTime()) return 'expired'
   return 'available'
 }
@@ -64,21 +68,25 @@ export async function listForumInvites(): Promise<ForumInviteRow[]> {
 }
 
 /**
- * Revoke an unredeemed invite. Idempotent in the sense that calling it
- * twice on an already-revoked row is a no-op (returns ok: true). If the
- * invite is already redeemed we leave revoked_at null and return an error
- * — redemption is the stronger terminal state and shouldn't be papered
- * over.
+ * Revoke an invite — the admin's kill-switch. Idempotent: calling twice
+ * on an already-revoked row is a no-op. Works whether or not the invite
+ * has been redeemed:
+ *   - Unredeemed → the signup link stops working.
+ *   - Redeemed   → the linked forum_user is locked out of login. Their
+ *     account row, posts, and replies stay (audit), but auth must check
+ *     `forum_invites.revoked_at IS NULL` for the user's invite on every
+ *     request to enforce the lockout.
+ * No "unrevoke" — to re-grant access, issue a fresh invite and have the
+ * user sign up again.
  */
 export type RevokeInviteResult =
   | { ok: true; alreadyRevoked: boolean }
-  | { ok: false; reason: 'not_found' | 'already_redeemed' }
+  | { ok: false; reason: 'not_found' }
 
 export async function revokeForumInvite(id: string): Promise<RevokeInviteResult> {
   const rows = await db
     .select({
       id: forumInvites.id,
-      redeemedAt: forumInvites.redeemedAt,
       revokedAt: forumInvites.revokedAt,
     })
     .from(forumInvites)
@@ -87,11 +95,41 @@ export async function revokeForumInvite(id: string): Promise<RevokeInviteResult>
 
   const row = rows[0]
   if (!row) return { ok: false, reason: 'not_found' }
-  if (row.redeemedAt) return { ok: false, reason: 'already_redeemed' }
   if (row.revokedAt) return { ok: true, alreadyRevoked: true }
 
   await db.update(forumInvites).set({ revokedAt: sql`now()` }).where(eq(forumInvites.id, id))
   return { ok: true, alreadyRevoked: false }
+}
+
+/**
+ * Restore a revoked invite — clears `revoked_at` back to NULL. Idempotent
+ * on a row that's already active. The row's `redeemed_at` is preserved
+ * if set, so a redeemed-then-revoked-then-restored invite returns to its
+ * 'redeemed' status (and the linked user's login works again).
+ *
+ * Note: this leaves no trace in the row itself that a revoke→restore
+ * round-trip happened. Daily logs are the audit surface for that.
+ */
+export type UnrevokeInviteResult =
+  | { ok: true; alreadyActive: boolean }
+  | { ok: false; reason: 'not_found' }
+
+export async function unrevokeForumInvite(id: string): Promise<UnrevokeInviteResult> {
+  const rows = await db
+    .select({
+      id: forumInvites.id,
+      revokedAt: forumInvites.revokedAt,
+    })
+    .from(forumInvites)
+    .where(eq(forumInvites.id, id))
+    .limit(1)
+
+  const row = rows[0]
+  if (!row) return { ok: false, reason: 'not_found' }
+  if (!row.revokedAt) return { ok: true, alreadyActive: true }
+
+  await db.update(forumInvites).set({ revokedAt: null }).where(eq(forumInvites.id, id))
+  return { ok: true, alreadyActive: false }
 }
 
 /**
