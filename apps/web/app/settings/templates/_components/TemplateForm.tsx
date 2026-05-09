@@ -142,7 +142,7 @@ export function TemplateForm(props: TemplateFormProps) {
           <code className="font-mono">target_url</code>,{' '}
           <code className="font-mono">high_water_mark</code>,{' '}
           <code className="font-mono">cadence</code>,{' '}
-          <code className="font-mono">cross_source_n</code>.
+          <code className="font-mono">cross_references</code>.
         </p>
         {errors.body && (
           <span className="text-xs text-destructive whitespace-pre-wrap" role="alert">
@@ -151,9 +151,9 @@ export function TemplateForm(props: TemplateFormProps) {
         )}
       </div>
 
-      {/* Cross-source N */}
+      {/* Cross-references — how many independent coverage entries the agent should aim for. */}
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="crossSourceN">Cross-source N</Label>
+        <Label htmlFor="crossSourceN">Cross-references</Label>
         <Input
           id="crossSourceN"
           name="crossSourceN"

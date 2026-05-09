@@ -9,7 +9,7 @@
 import { randomBytes } from 'node:crypto'
 import { hashCode as argonHash, verifyHash as argonVerify } from '@lucidindex/auth'
 import { db } from '@lucidindex/db/client'
-import { and, desc, gt, isNull, or } from '@lucidindex/db/query'
+import { and, desc, eq, gt, isNull, or, sql } from '@lucidindex/db/query'
 import { forumInvites } from '@lucidindex/db/schema'
 
 export const LABEL_MAX = 100
@@ -22,22 +22,25 @@ export type ForumInviteRow = {
   expiresAt: Date | null
   redeemedAt: Date | null
   redeemedByUserId: string | null
+  revokedAt: Date | null
 }
 
 export type IssueInviteInput = {
   label: string
-  expiresAt?: Date | null
-  adminId: string
+  adminId: string | null
 }
 
 export type IssueInviteResult =
   | { ok: true; code: string; row: ForumInviteRow }
   | { ok: false; error: string }
 
-export type InviteStatus = 'available' | 'redeemed' | 'expired'
+export type InviteStatus = 'available' | 'redeemed' | 'expired' | 'revoked'
 
 export function deriveInviteStatus(row: ForumInviteRow, now: Date = new Date()): InviteStatus {
+  // Redemption is the strongest terminal state — if the invite was used,
+  // surface that even if it was later revoked.
   if (row.redeemedAt) return 'redeemed'
+  if (row.revokedAt) return 'revoked'
   if (row.expiresAt && row.expiresAt.getTime() <= now.getTime()) return 'expired'
   return 'available'
 }
@@ -53,10 +56,42 @@ export async function listForumInvites(): Promise<ForumInviteRow[]> {
       expiresAt: forumInvites.expiresAt,
       redeemedAt: forumInvites.redeemedAt,
       redeemedByUserId: forumInvites.redeemedByUserId,
+      revokedAt: forumInvites.revokedAt,
     })
     .from(forumInvites)
     .orderBy(desc(forumInvites.createdAt))
   return rows
+}
+
+/**
+ * Revoke an unredeemed invite. Idempotent in the sense that calling it
+ * twice on an already-revoked row is a no-op (returns ok: true). If the
+ * invite is already redeemed we leave revoked_at null and return an error
+ * — redemption is the stronger terminal state and shouldn't be papered
+ * over.
+ */
+export type RevokeInviteResult =
+  | { ok: true; alreadyRevoked: boolean }
+  | { ok: false; reason: 'not_found' | 'already_redeemed' }
+
+export async function revokeForumInvite(id: string): Promise<RevokeInviteResult> {
+  const rows = await db
+    .select({
+      id: forumInvites.id,
+      redeemedAt: forumInvites.redeemedAt,
+      revokedAt: forumInvites.revokedAt,
+    })
+    .from(forumInvites)
+    .where(eq(forumInvites.id, id))
+    .limit(1)
+
+  const row = rows[0]
+  if (!row) return { ok: false, reason: 'not_found' }
+  if (row.redeemedAt) return { ok: false, reason: 'already_redeemed' }
+  if (row.revokedAt) return { ok: true, alreadyRevoked: true }
+
+  await db.update(forumInvites).set({ revokedAt: sql`now()` }).where(eq(forumInvites.id, id))
+  return { ok: true, alreadyRevoked: false }
 }
 
 /**
@@ -84,7 +119,6 @@ export async function issueForumInvite(input: IssueInviteInput): Promise<IssueIn
         label,
         codeHash,
         createdByAdminId: input.adminId,
-        expiresAt: input.expiresAt ?? null,
       })
       .returning({
         id: forumInvites.id,
@@ -94,6 +128,7 @@ export async function issueForumInvite(input: IssueInviteInput): Promise<IssueIn
         expiresAt: forumInvites.expiresAt,
         redeemedAt: forumInvites.redeemedAt,
         redeemedByUserId: forumInvites.redeemedByUserId,
+        revokedAt: forumInvites.revokedAt,
       })
     const row = inserted[0]
     if (!row) return { ok: false, error: 'Insert returned no row.' }
@@ -124,6 +159,7 @@ export async function checkInviteCode(code: string): Promise<CheckInviteResult> 
     .where(
       and(
         isNull(forumInvites.redeemedAt),
+        isNull(forumInvites.revokedAt),
         or(isNull(forumInvites.expiresAt), gt(forumInvites.expiresAt, new Date())),
       ),
     )

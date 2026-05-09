@@ -13,11 +13,15 @@ import { Toaster as Sonner } from "sonner"
 type ToasterProps = React.ComponentProps<typeof Sonner>
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+  // resolvedTheme is the *applied* theme ('light' | 'dark') — `theme` can be
+  // 'system' which sonner doesn't always interpret the same way next-themes
+  // does. Passing the resolved value keeps sonner's internal palette in
+  // sync with the rest of the app.
+  const { resolvedTheme } = useTheme()
 
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      theme={(resolvedTheme as ToasterProps["theme"]) ?? "system"}
       className="toaster group"
       icons={{
         success: <CircleCheck className="h-4 w-4" />,
@@ -26,6 +30,17 @@ const Toaster = ({ ...props }: ToasterProps) => {
         error: <OctagonX className="h-4 w-4" />,
         loading: <LoaderCircle className="h-4 w-4 animate-spin" />,
       }}
+      // Force sonner's per-toast CSS variables to our brand tokens. Without
+      // this, sonner's defaults (--normal-bg / --normal-text / --normal-border)
+      // win over our Tailwind classes due to selector specificity, and the
+      // toasts always read as dark regardless of the body theme.
+      style={
+        {
+          "--normal-bg": "hsl(var(--background))",
+          "--normal-text": "hsl(var(--foreground))",
+          "--normal-border": "hsl(var(--border))",
+        } as React.CSSProperties
+      }
       toastOptions={{
         classNames: {
           toast:

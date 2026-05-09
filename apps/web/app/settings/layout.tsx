@@ -27,7 +27,6 @@ import { redirect } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { TopNav } from '@/components/chrome/TopNav'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
-import { Toaster } from '@/components/ui/sonner'
 import { SettingsSidebar } from './_components/SettingsSidebar'
 
 // The settings shell decides routing per-request based on the admins table
@@ -90,7 +89,6 @@ export default async function SettingsLayout({ children }: { children: ReactNode
           </SidebarInset>
         </div>
       </div>
-      <Toaster />
     </SidebarProvider>
   )
 }

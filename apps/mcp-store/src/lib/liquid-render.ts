@@ -9,7 +9,9 @@
 //   target_url        — from target.url_or_handle
 //   high_water_mark   — opaque jsonb from target.high_water_mark (may be null)
 //   cadence           — from target.cadence
-//   cross_source_n    — from prompt_template.cross_source_n
+//   cross_references  — from prompt_template.cross_source_n (clean name)
+//   cross_source_n    — alias of cross_references for back-compat with
+//                       admin-edited templates that use the older name
 //
 // strictFilters mirrors `validateLiquidSyntax` — a typo in a filter name is
 // a hard error rather than a silent empty render. strictVariables is left
@@ -26,6 +28,12 @@ export type RenderContext = {
   target_url: string
   high_water_mark: unknown
   cadence: string
+  /**
+   * Number of independent cross-coverage entries the agent should aim for.
+   * Both `cross_references` (new clean name) and `cross_source_n` (legacy
+   * alias) are provided in the render context so admin-edited templates
+   * using the older variable name keep rendering.
+   */
   cross_source_n: number
 }
 
@@ -44,5 +52,12 @@ export type RenderContext = {
  * see WHICH template broke instead of "internal_error".
  */
 export async function renderPromptBody(body: string, ctx: RenderContext): Promise<string> {
-  return engine.parseAndRender(body, ctx as unknown as Record<string, unknown>)
+  // Expose `cross_references` as the canonical name; keep `cross_source_n`
+  // as an alias so admin-edited templates using the older variable name
+  // keep rendering against the same source field.
+  const expanded = {
+    ...ctx,
+    cross_references: ctx.cross_source_n,
+  }
+  return engine.parseAndRender(body, expanded as unknown as Record<string, unknown>)
 }

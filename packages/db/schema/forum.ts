@@ -56,8 +56,13 @@ export const forumUsers = pgTable(
  * signup flow refuses redemption past that timestamp.
  *
  * `redeemed_at` + `redeemed_by_user_id` are stamped atomically in the
- * same transaction that creates the forum_user. A row is "available"
- * when `redeemed_at IS NULL AND (expires_at IS NULL OR expires_at > now())`.
+ * same transaction that creates the forum_user.
+ *
+ * `revoked_at` is set when an admin manually invalidates an unredeemed
+ * invite. A row is "available" when ALL of:
+ *   redeemed_at IS NULL
+ *   AND revoked_at IS NULL
+ *   AND (expires_at IS NULL OR expires_at > now())
  */
 export const forumInvites = pgTable('forum_invites', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
@@ -65,14 +70,20 @@ export const forumInvites = pgTable('forum_invites', {
   codeHash: text('code_hash').notNull().unique(),
   /** Admin-supplied descriptor ("for Alice", "discord drop 2026-05", ...). */
   label: text('label').notNull(),
-  createdByAdminId: uuid('created_by_admin_id')
-    .notNull()
-    .references(() => admins.id, { onDelete: 'cascade' }),
+  /**
+   * Admin who issued the invite. Nullable so the dev-bypass path
+   * (LUCIDINDEX_DEV_SKIP_AUTH=1, no real admin row in DB) can still
+   * record audit data without failing the FK.
+   */
+  createdByAdminId: uuid('created_by_admin_id').references(() => admins.id, {
+    onDelete: 'set null',
+  }),
   expiresAt: timestamp('expires_at', { withTimezone: true }),
   redeemedAt: timestamp('redeemed_at', { withTimezone: true }),
   redeemedByUserId: uuid('redeemed_by_user_id').references(() => forumUsers.id, {
     onDelete: 'set null',
   }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
 })
 

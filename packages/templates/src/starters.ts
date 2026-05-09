@@ -7,7 +7,7 @@
  *   2. Use its own web tools to fetch the target's source
  *   3. Summarize what's new since `high_water_mark`
  *   4. Classify with `topic_badges`
- *   5. Cross-source N entries and call `write_articles`
+ *   5. Cross-reference N entries and call `write_articles`
  *
  * — but with source-shaped guidance for each surface (YouTube, blog, etc).
  *
@@ -18,7 +18,10 @@
  *   target_url        — the URL or @handle the agent is watching
  *   high_water_mark   — opaque jsonb; whatever the agent stashed last pass
  *   cadence           — the schedule preset/cron string for this target
- *   cross_source_n    — how many "other coverage" entries to aim for
+ *   cross_references  — how many "other coverage" entries to aim for
+ *   cross_source_n    — alias of cross_references (legacy name, still
+ *                       resolved by the renderer for back-compat with
+ *                       admin-edited templates)
  *
  * Editorial note: bodies should be clear and instructive, not chatty.
  * Admins are expected to fork and tune them per target after seeing how
@@ -106,7 +109,7 @@ For each new upload:
     "you'll learn".
   - Classify the upload with one or more topic_badges. Prefer existing badges
     when they fit; only suggest new ones when nothing existing applies.
-  - Cross-source roughly {{ cross_source_n }} other recent entries that cover
+  - Cross-source roughly {{ cross_references }} other recent entries that cover
     the same story or topic. Independent outlets only — no aggregators, no
     other uploads from this same channel.
   - Call write_articles with the summary, topic_badges, significance,
@@ -132,7 +135,7 @@ For each new post:
     it's a release note or changelog, keep it short and structural.
   - Classify with topic_badges. Prefer existing badges; suggest new ones
     only when nothing existing fits.
-  - Cross-source about {{ cross_source_n }} independent entries that cover
+  - Cross-source about {{ cross_references }} independent entries that cover
     the same idea, release, or controversy from a different angle. Skip
     syndicated copies of this exact post.
   - Call write_articles with summary, deep_dive, topic_badges,
@@ -159,7 +162,7 @@ For each new issue:
   - For each filed item: 3-6 sentence summary, topic_badges, significance,
     difficulty, source_published_at (use the issue's publish date for all
     sections from that issue).
-  - Cross-source roughly {{ cross_source_n }} independent entries per filed
+  - Cross-source roughly {{ cross_references }} independent entries per filed
     item that cover the same story from a different outlet.
   - Call write_articles with the full payload.
 
@@ -183,7 +186,7 @@ For each new story:
     the substance, not the editorial voice.
   - Classify with topic_badges. News stories often span multiple badges
     (e.g. politics + economics) — apply all that fit.
-  - Cross-source about {{ cross_source_n }} entries from DIFFERENT outlets
+  - Cross-source about {{ cross_references }} entries from DIFFERENT outlets
     covering the same story. The whole point of cross-sourcing news is
     triangulation — duplicates from the same outlet add no signal.
   - Call write_articles with summary, topic_badges, significance, difficulty,
@@ -211,7 +214,7 @@ For each new post:
     image with a short caption, the summary can be a single sentence.
   - Classify with topic_badges based on what the post is actually about,
     not the platform itself.
-  - Cross-source roughly {{ cross_source_n }} independent entries
+  - Cross-source roughly {{ cross_references }} independent entries
     discussing the same thing from non-Instagram surfaces.
   - Call write_articles with summary, topic_badges, significance,
     difficulty, source_published_at, and cross_source.
@@ -240,7 +243,7 @@ For each new post worth filing:
     "worth filing" should be roughly: would a reasonable person remember
     this in a week.
   - Classify with topic_badges.
-  - Cross-source about {{ cross_source_n }} independent entries discussing
+  - Cross-source about {{ cross_references }} independent entries discussing
     the same topic from outlets other than X.
   - Call write_articles.
 
@@ -264,7 +267,7 @@ For each new piece of content:
   - Summarize in 3-6 sentences. Lead with what the update IS, not what the
     site is. Readers already know the site; they're here for what changed.
   - Classify with topic_badges that describe the CONTENT, not the site.
-  - Cross-source roughly {{ cross_source_n }} independent entries covering
+  - Cross-source roughly {{ cross_references }} independent entries covering
     the same announcement, release, or topic from a different source.
   - Call write_articles with summary, topic_badges, significance,
     difficulty, source_published_at, and cross_source.

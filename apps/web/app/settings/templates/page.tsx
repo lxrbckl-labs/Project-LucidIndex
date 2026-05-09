@@ -55,7 +55,7 @@ export default async function TemplatesPanelPage() {
                   <span className="sr-only">Edit</span>
                 </TableHead>
                 <TableHead>Slug</TableHead>
-                <TableHead className="text-right">Cross-source N</TableHead>
+                <TableHead className="text-right">Cross-references</TableHead>
                 <TableHead>Body excerpt</TableHead>
                 <TableHead>Updated</TableHead>
               </TableRow>

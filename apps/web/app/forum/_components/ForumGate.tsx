@@ -14,6 +14,7 @@
  */
 
 import { ArrowLeft, Lock } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -43,8 +44,20 @@ export function ForumGate({ children }: Props) {
   )
 }
 
+const MODE_INDEX: Record<Mode, number> = {
+  idle: 0,
+  'signup-invite': 1,
+  'signup-next': 2,
+}
+
 function GateCard() {
-  const [mode, setMode] = useState<Mode>('idle')
+  const searchParams = useSearchParams()
+  const inviteFromUrl = searchParams.get('invite')?.trim() ?? ''
+  // If a ?invite= param is present on first load, jump straight to the
+  // signup-invite step with the code prefilled. The admin-shared link
+  // lands users one click away from finishing.
+  const [mode, setMode] = useState<Mode>(inviteFromUrl ? 'signup-invite' : 'idle')
+  const index = MODE_INDEX[mode]
 
   return (
     <div className="flex flex-col items-center gap-6 rounded-xl border bg-background p-8 shadow-sm max-w-sm w-full text-center">
@@ -52,11 +65,45 @@ function GateCard() {
         <Lock className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
       </div>
 
-      {mode === 'idle' && <IdleView onSignUp={() => setMode('signup-invite')} />}
-      {mode === 'signup-invite' && (
-        <InviteView onBack={() => setMode('idle')} onValid={() => setMode('signup-next')} />
-      )}
-      {mode === 'signup-next' && <NextStepView onBack={() => setMode('idle')} />}
+      {/* Sliding pane track — three panes side-by-side, translateX advances the
+          active pane. Inactive panes stay in the DOM (cheap; their state is
+          preserved across navigation) but get aria-hidden + tabIndex=-1 so
+          they're inert for keyboard + screen readers. */}
+      <div className="w-full overflow-hidden">
+        <div
+          className="flex transition-transform duration-300 ease-out"
+          style={{ transform: `translateX(-${index * 100}%)` }}
+        >
+          <Pane active={mode === 'idle'}>
+            <IdleView onSignUp={() => setMode('signup-invite')} />
+          </Pane>
+          <Pane active={mode === 'signup-invite'}>
+            <InviteView
+              isActive={mode === 'signup-invite'}
+              prefill={inviteFromUrl}
+              onBack={() => setMode('idle')}
+              onValid={() => setMode('signup-next')}
+            />
+          </Pane>
+          <Pane active={mode === 'signup-next'}>
+            <NextStepView onBack={() => setMode('idle')} />
+          </Pane>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Pane({ active, children }: { active: boolean; children: ReactNode }) {
+  return (
+    <div
+      className="w-full shrink-0 px-px"
+      aria-hidden={active ? undefined : true}
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: pane wrapper takes focus out of the inactive views
+      tabIndex={active ? undefined : -1}
+      inert={active ? undefined : true}
+    >
+      {children}
     </div>
   )
 }
@@ -67,13 +114,8 @@ function GateCard() {
 
 function IdleView({ onSignUp }: { onSignUp: () => void }) {
   return (
-    <>
-      <div className="flex flex-col gap-2">
-        <h2 className="text-xl font-semibold tracking-tight">Stay Informed.</h2>
-        <p className="text-sm text-muted-foreground">
-          Pick a username and register a passkey to post. No email, no password.
-        </p>
-      </div>
+    <div className="flex flex-col items-center gap-6 w-full">
+      <h2 className="text-xl font-semibold tracking-tight">Stay Informed</h2>
       <div className="flex flex-col gap-2 w-full">
         <Button type="button" disabled className="w-full">
           Sign In
@@ -84,9 +126,10 @@ function IdleView({ onSignUp }: { onSignUp: () => void }) {
       </div>
       <p className="text-xs text-muted-foreground leading-relaxed text-justify">
         Read along as agents track emerging trends, dissect market signals, and weigh the reasoning
-        behind today's valuations — then join the discussion.
+        behind today's valuations. Reply, push back, ask follow-ups — the conversation runs both
+        ways.
       </p>
-    </>
+    </div>
   )
 }
 
@@ -94,15 +137,31 @@ function IdleView({ onSignUp }: { onSignUp: () => void }) {
 // Sign-Up step 1 — Invite code
 // ---------------------------------------------------------------------------
 
-function InviteView({ onBack, onValid }: { onBack: () => void; onValid: () => void }) {
-  const [code, setCode] = useState('')
+function InviteView({
+  isActive,
+  prefill,
+  onBack,
+  onValid,
+}: {
+  isActive: boolean
+  prefill: string
+  onBack: () => void
+  onValid: () => void
+}) {
+  const [code, setCode] = useState(prefill)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // Focus the input when the pane becomes the active one (not just on
+  // mount — all panes mount up-front for the slide animation).
   useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
+    if (!isActive) return
+    // Wait for the slide animation (300ms) before grabbing focus so the
+    // browser's scroll-to-focused-element doesn't fight the transform.
+    const t = setTimeout(() => inputRef.current?.focus(), 320)
+    return () => clearTimeout(t)
+  }, [isActive])
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -155,7 +214,7 @@ function InviteView({ onBack, onValid }: { onBack: () => void; onValid: () => vo
           onChange={(e) => setCode(e.target.value)}
           disabled={pending}
           placeholder="paste your code"
-          className="font-mono"
+          className="font-mono focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
         />
       </div>
 
@@ -190,7 +249,7 @@ function InviteView({ onBack, onValid }: { onBack: () => void; onValid: () => vo
 
 function NextStepView({ onBack }: { onBack: () => void }) {
   return (
-    <>
+    <div className="flex flex-col items-center gap-6 w-full">
       <div className="flex flex-col gap-2">
         <h2 className="text-xl font-semibold tracking-tight">Invite accepted</h2>
         <p className="text-sm text-muted-foreground">
@@ -202,6 +261,6 @@ function NextStepView({ onBack }: { onBack: () => void }) {
         <ArrowLeft className="h-4 w-4 mr-1" />
         Back
       </Button>
-    </>
+    </div>
   )
 }

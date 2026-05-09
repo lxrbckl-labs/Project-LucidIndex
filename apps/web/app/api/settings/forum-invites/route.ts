@@ -10,7 +10,7 @@
  * Auth: passkey-gated via `requireAdmin()`. 401 when session is missing.
  */
 
-import { requireAdmin } from '@lucidindex/auth'
+import { DEV_BYPASS_ADMIN_ID, requireAdmin } from '@lucidindex/auth'
 import { NextResponse } from 'next/server'
 import {
   issueForumInvite,
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
       { status: 400 },
     )
   }
-  const body = raw as { label?: unknown; expiresAt?: unknown }
+  const body = raw as { label?: unknown }
 
   if (typeof body.label !== 'string') {
     return NextResponse.json({ ok: false, error: 'Label is required.' }, { status: 400 })
@@ -63,30 +63,17 @@ export async function POST(req: Request) {
     )
   }
 
-  let expiresAt: Date | null = null
-  if (body.expiresAt !== undefined && body.expiresAt !== null && body.expiresAt !== '') {
-    if (typeof body.expiresAt !== 'string') {
-      return NextResponse.json(
-        { ok: false, error: 'expiresAt must be an ISO date string or null.' },
-        { status: 400 },
-      )
-    }
-    const parsed = new Date(body.expiresAt)
-    if (Number.isNaN(parsed.getTime())) {
-      return NextResponse.json(
-        { ok: false, error: 'expiresAt must be a valid ISO date.' },
-        { status: 400 },
-      )
-    }
-    expiresAt = parsed
-  }
-
-  const adminId = session.adminId as string | undefined
-  if (!adminId) {
+  const sessionAdminId = session.adminId as string | undefined
+  if (!sessionAdminId) {
     return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 })
   }
+  // Under LUCIDINDEX_DEV_SKIP_AUTH the session.adminId is a synthetic
+  // sentinel with no row in the admins table. Persist null so the FK
+  // doesn't reject the insert; the audit field re-attaches on a real
+  // admin claim.
+  const adminId: string | null = sessionAdminId === DEV_BYPASS_ADMIN_ID ? null : sessionAdminId
 
-  const result = await issueForumInvite({ label, expiresAt, adminId })
+  const result = await issueForumInvite({ label, adminId })
   if (!result.ok) {
     return NextResponse.json({ ok: false, error: result.error }, { status: 500 })
   }

@@ -1,0 +1,1 @@
+ALTER TABLE "forum_invites" ADD COLUMN "revoked_at" timestamp with time zone;

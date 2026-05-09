@@ -161,7 +161,7 @@ export async function validateTemplateInput(
     input.crossSourceN < CROSS_SOURCE_N_MIN ||
     input.crossSourceN > CROSS_SOURCE_N_MAX
   ) {
-    errors.crossSourceN = `Cross-source N must be an integer between ${CROSS_SOURCE_N_MIN} and ${CROSS_SOURCE_N_MAX}.`
+    errors.crossSourceN = `Cross-references must be an integer between ${CROSS_SOURCE_N_MIN} and ${CROSS_SOURCE_N_MAX}.`
   }
 
   return errors

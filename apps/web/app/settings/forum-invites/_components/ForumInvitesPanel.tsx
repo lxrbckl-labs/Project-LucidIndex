@@ -1,21 +1,30 @@
 'use client'
 
 /**
- * Settings → Forum Invites client panel. Mirrors AgentTokensPanel:
- *   - List view → Table of invites with status (available/redeemed/expired)
- *   - Issue modal → label + optional expiry-days input → POST → display-once card
- *
- * Cleartext invite code lifecycle:
- *   1. POST /api/settings/forum-invites → { ok: true, code, row }
- *   2. Stored in React state for display ONLY. Never leaves the browser tab.
- *   3. Copy → toast → state cleared after a brief pause.
+ * Settings → Forum Invites client panel.
+ *   - List view → Table of invites with status (available / redeemed / expired)
+ *   - Issue modal → label-only form → POST → cleartext code is auto-copied
+ *     as a shareable /forum?invite=<code> link to the clipboard, with a
+ *     bottom-right toast confirming both. The cleartext never lands in the
+ *     DOM — sonner is the single ephemeral disclosure surface.
  */
 
-import { Copy } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -27,7 +36,6 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Table,
   TableBody,
@@ -45,14 +53,16 @@ export type InviteRowClient = {
   expiresAt: string | null
   redeemedAt: string | null
   redeemedByUserId: string | null
+  revokedAt: string | null
 }
 
 type Props = { initialInvites: InviteRowClient[] }
 
-type Status = 'available' | 'redeemed' | 'expired'
+type Status = 'available' | 'redeemed' | 'expired' | 'revoked'
 
 function deriveStatus(row: InviteRowClient): Status {
   if (row.redeemedAt) return 'redeemed'
+  if (row.revokedAt) return 'revoked'
   if (row.expiresAt && new Date(row.expiresAt).getTime() <= Date.now()) return 'expired'
   return 'available'
 }
@@ -60,10 +70,12 @@ function deriveStatus(row: InviteRowClient): Status {
 export function ForumInvitesPanel({ initialInvites }: Props) {
   const router = useRouter()
   const [issueOpen, setIssueOpen] = useState(false)
-  const [issuedCode, setIssuedCode] = useState<string | null>(null)
 
-  function handleIssued(code: string) {
-    setIssuedCode(code)
+  // After a successful issue: just close the dialog and refresh the list.
+  // Clipboard + toast are handled INSIDE the form's submit handler so
+  // they run while the form is still mounted and the click's user
+  // activation hasn't expired.
+  function handleIssued() {
     setIssueOpen(false)
     router.refresh()
   }
@@ -88,67 +100,12 @@ export function ForumInvitesPanel({ initialInvites }: Props) {
         </Dialog>
       </div>
 
-      {issuedCode && <DisplayOnceInvite code={issuedCode} onDismiss={() => setIssuedCode(null)} />}
-
       {initialInvites.length === 0 ? (
         <EmptyState onIssue={() => setIssueOpen(true)} />
       ) : (
-        <InvitesTable rows={initialInvites} />
+        <InvitesTable rows={initialInvites} onRevoked={() => router.refresh()} />
       )}
     </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Display-once cleartext banner
-// ---------------------------------------------------------------------------
-
-function DisplayOnceInvite({ code, onDismiss }: { code: string; onDismiss: () => void }) {
-  const [copied, setCopied] = useState(false)
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(code)
-      setCopied(true)
-      toast.success('Invite code copied to clipboard', {
-        description:
-          'Send it to the person you want to invite. Save it somewhere safe — it will not be shown again.',
-        duration: 8000,
-      })
-      setTimeout(onDismiss, 800)
-    } catch {
-      // Clipboard API unavailable in some test envs — leave the card up.
-    }
-  }
-
-  return (
-    <Alert className="border-amber-400 bg-amber-50" role="alert" aria-live="assertive">
-      <AlertTitle className="text-amber-900">
-        Save this code now — it will not be shown again.
-      </AlertTitle>
-      <AlertDescription className="text-amber-800">
-        <p className="text-xs mb-4">Share it out-of-band. This card disappears once you copy.</p>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            size="icon"
-            onClick={copy}
-            disabled={copied}
-            aria-label={copied ? 'Copied' : 'Copy invite code to clipboard'}
-            className="h-10 w-10 shrink-0 border border-amber-300 bg-background hover:bg-amber-100 dark:hover:bg-amber-900/40"
-          >
-            <Copy className="h-4 w-4" />
-          </Button>
-          <code
-            className="font-mono text-sm break-all bg-background border border-amber-300 px-3 py-2 flex-1 rounded"
-            data-testid="display-once-invite"
-          >
-            {code}
-          </code>
-        </div>
-      </AlertDescription>
-    </Alert>
   )
 }
 
@@ -174,13 +131,14 @@ function EmptyState({ onIssue }: { onIssue: () => void }) {
 // Invites table
 // ---------------------------------------------------------------------------
 
-function InvitesTable({ rows }: { rows: InviteRowClient[] }) {
+function InvitesTable({ rows, onRevoked }: { rows: InviteRowClient[]; onRevoked: () => void }) {
   return (
     <section className="flex flex-col gap-3">
       <div>
         <h2 className="text-lg font-semibold tracking-tight">Issued invites</h2>
         <p className="text-sm text-muted-foreground">
-          Available codes can still be redeemed. Redeemed and expired codes are kept for audit.
+          Available codes can still be redeemed. Revoked / redeemed / expired codes are kept for
+          audit.
         </p>
       </div>
       <Table>
@@ -189,13 +147,13 @@ function InvitesTable({ rows }: { rows: InviteRowClient[] }) {
             <TableHead>Label</TableHead>
             <TableHead>Hash prefix</TableHead>
             <TableHead>Issued</TableHead>
-            <TableHead>Expires</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.map((row) => (
-            <InviteRow key={row.id} row={row} />
+            <InviteRow key={row.id} row={row} onRevoked={onRevoked} />
           ))}
         </TableBody>
       </Table>
@@ -203,7 +161,7 @@ function InvitesTable({ rows }: { rows: InviteRowClient[] }) {
   )
 }
 
-function InviteRow({ row }: { row: InviteRowClient }) {
+function InviteRow({ row, onRevoked }: { row: InviteRowClient; onRevoked: () => void }) {
   const status = deriveStatus(row)
 
   return (
@@ -215,62 +173,106 @@ function InviteRow({ row }: { row: InviteRowClient }) {
       <TableCell className="text-xs text-muted-foreground">
         {new Date(row.createdAt).toISOString().replace('T', ' ').slice(0, 16)}
       </TableCell>
-      <TableCell className="text-xs text-muted-foreground">
-        {row.expiresAt ? new Date(row.expiresAt).toISOString().replace('T', ' ').slice(0, 16) : '—'}
-      </TableCell>
       <TableCell>
-        <StatusBadge status={status} redeemedAt={row.redeemedAt} expiresAt={row.expiresAt} />
+        <StatusBadge status={status} />
+      </TableCell>
+      <TableCell className="text-right whitespace-nowrap">
+        {status === 'available' && (
+          <RevokeButton id={row.id} label={row.label} onRevoked={onRevoked} />
+        )}
       </TableCell>
     </TableRow>
   )
 }
 
-function StatusBadge({
-  status,
-  redeemedAt,
-  expiresAt,
-}: {
-  status: Status
-  redeemedAt: string | null
-  expiresAt: string | null
-}) {
-  if (status === 'redeemed') {
+function StatusBadge({ status }: { status: Status }) {
+  if (status === 'available') {
     return (
-      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-        <span
-          className="inline-block w-2 h-2 rounded-full bg-muted-foreground/30"
-          aria-hidden="true"
-        />
-        Redeemed{' '}
-        {redeemedAt && (
-          <span className="text-muted-foreground/70">
-            {new Date(redeemedAt).toISOString().replace('T', ' ').slice(0, 16)}
-          </span>
-        )}
-      </span>
+      <Badge variant="secondary" className="text-emerald-600">
+        Available
+      </Badge>
     )
   }
-  if (status === 'expired') {
+  if (status === 'redeemed') {
     return (
-      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-        <span
-          className="inline-block w-2 h-2 rounded-full bg-muted-foreground/30"
-          aria-hidden="true"
-        />
-        Expired{' '}
-        {expiresAt && (
-          <span className="text-muted-foreground/70">
-            {new Date(expiresAt).toISOString().replace('T', ' ').slice(0, 16)}
-          </span>
-        )}
-      </span>
+      <Badge variant="outline" className="text-muted-foreground">
+        Redeemed
+      </Badge>
+    )
+  }
+  if (status === 'revoked') {
+    return (
+      <Badge variant="outline" className="text-muted-foreground">
+        Revoked
+      </Badge>
     )
   }
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700">
-      <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" aria-hidden="true" />
-      Available
-    </span>
+    <Badge variant="outline" className="text-muted-foreground">
+      Expired
+    </Badge>
+  )
+}
+
+function RevokeButton({
+  id,
+  label,
+  onRevoked,
+}: {
+  id: string
+  label: string
+  onRevoked: () => void
+}) {
+  const [pending, setPending] = useState(false)
+
+  async function handleRevoke() {
+    setPending(true)
+    try {
+      const res = await fetch(`/api/settings/forum-invites/${id}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'revoke' }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
+      if (!res.ok || !data.ok) {
+        toast.error(data.error ?? 'Revoke failed.')
+        return
+      }
+      toast.success(`Invite "${label}" revoked.`)
+      onRevoked()
+    } catch {
+      toast.error('Network error.')
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="destructive" size="sm" disabled={pending}>
+          {pending ? '…' : 'Revoke'}
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Revoke invite &ldquo;{label}&rdquo;?</AlertDialogTitle>
+          <AlertDialogDescription>
+            The link will stop working immediately. Anyone who already received it won't be able to
+            sign up. The invite record is kept for audit purposes.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleRevoke}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Revoke
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }
 
@@ -278,15 +280,8 @@ function StatusBadge({
 // Issue modal content
 // ---------------------------------------------------------------------------
 
-function IssueModalContent({
-  onIssued,
-  onClose,
-}: {
-  onIssued: (code: string) => void
-  onClose: () => void
-}) {
+function IssueModalContent({ onIssued, onClose }: { onIssued: () => void; onClose: () => void }) {
   const [label, setLabel] = useState('')
-  const [expiryDays, setExpiryDays] = useState<string>('30')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -304,24 +299,13 @@ function IssueModalContent({
       return
     }
 
-    let expiresAt: string | null = null
-    const trimmedDays = expiryDays.trim()
-    if (trimmedDays !== '') {
-      const n = Number(trimmedDays)
-      if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1 || n > 3650) {
-        setError('Expiry days must be a positive integer (1–3650), or blank for no expiry.')
-        return
-      }
-      expiresAt = new Date(Date.now() + n * 24 * 60 * 60 * 1000).toISOString()
-    }
-
     setPending(true)
     setError(null)
     try {
       const res = await fetch('/api/settings/forum-invites', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ label: trimmed, expiresAt }),
+        body: JSON.stringify({ label: trimmed }),
       })
       const data = (await res.json()) as { ok: true; code: string } | { ok: false; error?: string }
       if (!res.ok || !data.ok) {
@@ -330,7 +314,26 @@ function IssueModalContent({
         )
         return
       }
-      onIssued(data.code)
+
+      // Build the shareable link, copy it to clipboard, and toast — all
+      // BEFORE closing the dialog, while the form is still mounted and the
+      // click's user activation hasn't expired.
+      const link = `${window.location.origin}/forum?invite=${encodeURIComponent(data.code)}`
+      let copied = false
+      try {
+        await navigator.clipboard.writeText(link)
+        copied = true
+      } catch {
+        // Clipboard unavailable — fall through to inline toast.
+      }
+      toast.success('Invite generated', {
+        description: copied
+          ? 'Link copied to clipboard. Send it to the person you want to invite.'
+          : link,
+        duration: copied ? 8000 : 12000,
+      })
+
+      onIssued()
     } catch {
       setError('Network error — invite was not issued.')
     } finally {
@@ -343,18 +346,12 @@ function IssueModalContent({
       <DialogHeader>
         <DialogTitle>New Invite</DialogTitle>
         <DialogDescription>
-          The code is shown exactly once. Copy it immediately — it cannot be retrieved later.
+          The shareable invite link will be copied to your clipboard automatically.
         </DialogDescription>
       </DialogHeader>
 
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
-          <Label htmlFor="invite-label">
-            Label <span className="font-normal text-muted-foreground">(≤ 100 chars)</span>
-          </Label>
-          <p className="text-xs text-muted-foreground">
-            Visible to admin only. e.g. <em>for Alice</em>, <em>discord drop 2026-05</em>.
-          </p>
           <Input
             ref={inputRef}
             id="invite-label"
@@ -364,24 +361,6 @@ function IssueModalContent({
             maxLength={100}
             required
             placeholder="for Alice"
-          />
-          <p className="text-xs text-muted-foreground text-right">{label.length}/100</p>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="invite-expiry">Expires in (days)</Label>
-          <p className="text-xs text-muted-foreground">
-            Leave blank for no expiry. Defaults to 30 days.
-          </p>
-          <Input
-            id="invite-expiry"
-            type="number"
-            min={1}
-            max={3650}
-            step={1}
-            value={expiryDays}
-            onChange={(e) => setExpiryDays(e.target.value)}
-            placeholder="30"
           />
         </div>
 

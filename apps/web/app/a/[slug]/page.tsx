@@ -229,7 +229,9 @@ export default async function ArticlePage({
                   href={`/?badge=${encodeURIComponent(badge)}`}
                   className="rounded-md hover:opacity-80 transition-opacity"
                 >
-                  <Badge variant="secondary">{badge}</Badge>
+                  <Badge variant="outline" className="border-foreground">
+                    {badge}
+                  </Badge>
                 </Link>
               ))}
             </header>

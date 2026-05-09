@@ -21,6 +21,7 @@ export default async function ForumInvitesPage() {
     expiresAt: r.expiresAt ? r.expiresAt.toISOString() : null,
     redeemedAt: r.redeemedAt ? r.redeemedAt.toISOString() : null,
     redeemedByUserId: r.redeemedByUserId,
+    revokedAt: r.revokedAt ? r.revokedAt.toISOString() : null,
   }))
 
   return <ForumInvitesPanel initialInvites={initialInvites} />
