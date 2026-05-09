@@ -150,11 +150,8 @@ export async function loadDashboardArticles(
 /**
  * Load the curated topic-badge list for the filter pill row.
  *
- * Real-DB path reads `topic_badges` table ordered by `display_order` (NULLs
- * last — they sort to the end naturally with `asc`) then by `created_at`
- * for a stable secondary order. Returns badge names only; the pill row
- * doesn't render colors today (Visual Identity uses one style for all
- * badges in v0.1 — see the comment on the `color` column).
+ * Real-DB path reads `topic_badges` table ordered by `display_order` then
+ * by `created_at` for a stable secondary order. Returns badge names only.
  *
  * Mock mode delegates to the existing mock helper, which derives badges
  * from the mock article set by first-appearance.

@@ -62,7 +62,6 @@ import {
 export type BadgeRow = {
   id: string
   name: string
-  color: string | null
   displayOrder: number
   hidden: boolean
   createdAt: string
@@ -100,7 +99,7 @@ export function BadgesPanel(props: BadgesPanelProps) {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex items-start justify-between gap-4">
+      <div className="-mx-6 px-6 pb-6 border-b flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Badges</h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -128,8 +127,6 @@ export function BadgesPanel(props: BadgesPanelProps) {
           </DialogContent>
         </Dialog>
       </div>
-
-      <Separator />
 
       <CuratedBadgesSection initialBadges={initialBadges} onAfterMutate={refresh} />
 
@@ -214,7 +211,6 @@ function CuratedBadgesSection(props: { initialBadges: BadgeRow[]; onAfterMutate:
               <span className="sr-only">Show / Hide</span>
             </TableHead>
             <TableHead>Name</TableHead>
-            <TableHead>Color</TableHead>
             <TableHead className="text-right">Added</TableHead>
           </TableRow>
         </TableHeader>
@@ -320,20 +316,6 @@ function BadgeTableRow(props: { badge: BadgeRow; onAfterMutate: () => void }) {
         </Button>
       </TableCell>
       <TableCell className="font-semibold">{badge.name}</TableCell>
-      <TableCell>
-        {badge.color ? (
-          <span className="inline-flex items-center gap-2">
-            <span
-              aria-hidden="true"
-              className="inline-block h-3 w-3 rounded-sm border shrink-0"
-              style={{ backgroundColor: badge.color }}
-            />
-            <span className="font-mono text-xs text-muted-foreground">{badge.color}</span>
-          </span>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
-      </TableCell>
       <TableCell className="text-right text-xs text-muted-foreground whitespace-nowrap">
         {formatDate(badge.createdAt)}
       </TableCell>
@@ -350,7 +332,6 @@ function BadgeFormContent(props: {
 }) {
   const { mode, badge, onCancel, onSuccess, onError } = props
   const [name, setName] = useState(badge?.name ?? '')
-  const [color, setColor] = useState(badge?.color ?? '')
   const [submitting, setSubmitting] = useState(false)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -361,7 +342,6 @@ function BadgeFormContent(props: {
         mode === 'create' ? '/api/settings/badges' : `/api/settings/badges/${badge?.id ?? ''}`
       const method = mode === 'create' ? 'POST' : 'PATCH'
       const payload: Record<string, unknown> = { name: name.trim() }
-      payload.color = color.trim() === '' ? null : color.trim()
 
       const res = await fetch(url, {
         method,
@@ -398,19 +378,7 @@ function BadgeFormContent(props: {
         />
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor={`badge-color-${badge?.id ?? 'new'}`}>Color</Label>
-        <Input
-          id={`badge-color-${badge?.id ?? 'new'}`}
-          type="text"
-          placeholder="#112233"
-          value={color}
-          onChange={(e) => setColor(e.target.value)}
-        />
-        <p className="text-xs text-muted-foreground">
-          Hex value, optional. Order is set by drag-and-drop on the table.
-        </p>
-      </div>
+      <p className="text-xs text-muted-foreground">Order is set by drag-and-drop on the table.</p>
 
       <DialogFooter className="sm:justify-between">
         <Button type="button" variant="outline" onClick={onCancel} disabled={submitting}>

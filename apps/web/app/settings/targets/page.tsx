@@ -2,7 +2,7 @@
  * Settings → Targets list view (RSC) — rebuilt on shadcn (Phase 2).
  */
 
-import { Separator } from '@/components/ui/separator'
+import { Badge } from '@/components/ui/badge'
 import {
   Table,
   TableBody,
@@ -34,7 +34,7 @@ export default async function TargetsPanelPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="-mx-6 px-6 pb-6 border-b flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Targets</h1>
           <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
@@ -48,8 +48,6 @@ export default async function TargetsPanelPage() {
           promptTemplatesAvailable={promptTemplatesAvailable}
         />
       </div>
-
-      <Separator />
 
       {targets.length === 0 ? (
         <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed py-12 text-center">
@@ -77,7 +75,7 @@ export default async function TargetsPanelPage() {
                 <TableHead>URL / handle</TableHead>
                 <TableHead>Cadence</TableHead>
                 <TableHead>Template</TableHead>
-                <TableHead>Active</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Last run</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -130,15 +128,15 @@ function TargetTableRow({
       <TableCell>{row.cadence}</TableCell>
       <TableCell className="font-mono text-xs">{row.promptTemplateSlug ?? '—'}</TableCell>
       <TableCell>
-        <span className="inline-flex items-center gap-1.5 text-xs">
-          <span
-            className={`inline-block w-2 h-2 rounded-full ${
-              row.active ? 'bg-emerald-500' : 'bg-muted-foreground/30'
-            }`}
-            aria-hidden="true"
-          />
-          {row.active ? 'Active' : 'Paused'}
-        </span>
+        {row.active ? (
+          <Badge variant="secondary" className="text-emerald-600">
+            Active
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="text-muted-foreground">
+            Paused
+          </Badge>
+        )}
       </TableCell>
       <TableCell>
         <LastRunCell row={row} />

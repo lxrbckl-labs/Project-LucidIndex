@@ -2,7 +2,6 @@
  * Settings → Comparison Sources — list view (RSC).
  */
 
-import { Separator } from '@/components/ui/separator'
 import { AddComparisonSourceDialog } from './_components/AddComparisonSourceDialog'
 import { ComparisonSourcesPanel } from './_components/ComparisonSourcesPanel'
 import { listComparisonSources } from './_lib/comparison-sources-repo'
@@ -14,7 +13,7 @@ export default async function ComparisonSourcesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="-mx-6 px-6 pb-6 border-b flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Comparison Sources</h1>
           <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
@@ -24,8 +23,6 @@ export default async function ComparisonSourcesPage() {
         </div>
         <AddComparisonSourceDialog />
       </div>
-
-      <Separator />
 
       {sources.length === 0 ? (
         <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed py-12 text-center">

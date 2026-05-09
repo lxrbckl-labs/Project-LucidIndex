@@ -2,7 +2,7 @@
  * Curated topic-badge collection endpoints.
  *
  *   GET  /api/settings/badges  → list curated badges
- *   POST /api/settings/badges  → create a new badge { name, color?, displayOrder? }
+ *   POST /api/settings/badges  → create a new badge { name }
  *
  * Both gated by `requireAdmin()` — no admin session, no access. Errors
  * are deliberately non-revealing: a duplicate name surfaces as a 409 with
@@ -21,27 +21,15 @@ export const dynamic = 'force-dynamic'
 
 type CreateBody = {
   name?: unknown
-  color?: unknown
 }
 
 function parseCreate(
   body: CreateBody,
-): { ok: true; value: { name: string; color: string | null } } | { ok: false; error: string } {
+): { ok: true; value: { name: string } } | { ok: false; error: string } {
   const name = typeof body.name === 'string' ? body.name.trim() : ''
   if (!name) return { ok: false, error: 'Name is required.' }
   if (name.length > 64) return { ok: false, error: 'Name must be 64 characters or fewer.' }
-
-  let color: string | null = null
-  if (body.color !== undefined && body.color !== null && body.color !== '') {
-    if (typeof body.color !== 'string') return { ok: false, error: 'Color must be a string.' }
-    const c = body.color.trim()
-    if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(c)) {
-      return { ok: false, error: 'Color must be a hex value like #112233 or #abc.' }
-    }
-    color = c
-  }
-
-  return { ok: true, value: { name, color } }
+  return { ok: true, value: { name } }
 }
 
 export async function GET() {
@@ -77,7 +65,6 @@ export async function POST(request: Request) {
       .insert(topicBadges)
       .values({
         name: parsed.value.name,
-        color: parsed.value.color,
         displayOrder: sql`(SELECT COALESCE(MAX(display_order), -1) + 1 FROM topic_badges)`,
       })
       .returning()

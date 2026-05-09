@@ -153,7 +153,7 @@ export function registerTools(server: McpServer): void {
     'get_topic_badges',
     {
       title: 'List topic badges',
-      description: 'Return the curated topic-badge taxonomy (name, color, display_order).',
+      description: 'Return the curated topic-badge taxonomy (name, display_order).',
     },
     async (_extra) => runWithGuards('get_topic_badges', async () => getTopicBadges()),
   )

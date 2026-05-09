@@ -1,7 +1,7 @@
 /**
  * Single-badge endpoint.
  *
- *   PATCH /api/settings/badges/:id → update name / color / displayOrder
+ *   PATCH /api/settings/badges/:id → update name / displayOrder / hidden
  *
  * Per the v0.1 design (`topic_badges` has no `active` flag), there is no
  * delete endpoint — admins curate the list and live with what's there.
@@ -19,7 +19,6 @@ export const dynamic = 'force-dynamic'
 
 type PatchBody = {
   name?: unknown
-  color?: unknown
   displayOrder?: unknown
   hidden?: unknown
 }
@@ -28,7 +27,6 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 type PatchUpdate = {
   name?: string
-  color?: string | null
   displayOrder?: number
   hidden?: boolean
 }
@@ -44,19 +42,6 @@ function parsePatch(
     if (!name) return { ok: false, error: 'Name is required.' }
     if (name.length > 64) return { ok: false, error: 'Name must be 64 characters or fewer.' }
     update.name = name
-  }
-
-  if (body.color !== undefined) {
-    if (body.color === null || body.color === '') {
-      update.color = null
-    } else {
-      if (typeof body.color !== 'string') return { ok: false, error: 'Color must be a string.' }
-      const c = body.color.trim()
-      if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(c)) {
-        return { ok: false, error: 'Color must be a hex value like #112233 or #abc.' }
-      }
-      update.color = c
-    }
   }
 
   if (body.displayOrder !== undefined) {

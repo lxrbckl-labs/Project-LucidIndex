@@ -119,14 +119,12 @@ export const articles = pgTable(
 
 /**
  * Curated list of topic badges. `name` is case-sensitive ("AI" not "ai").
- * `color` is reserved for any future visual treatment; v0.1 uses a single
- * style for all badges per `[[Visual Identity]]`. `display_order` is for
- * explicit badge-row ordering — null = creation order.
+ * `display_order` is for explicit badge-row ordering. `hidden` removes
+ * the badge from the dashboard topic-filter without deleting it.
  */
 export const topicBadges = pgTable('topic_badges', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   name: text('name').notNull().unique(),
-  color: text('color'),
   displayOrder: integer('display_order').notNull().default(0),
   hidden: boolean('hidden').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),

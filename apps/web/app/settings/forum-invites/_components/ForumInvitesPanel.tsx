@@ -71,7 +71,7 @@ export function ForumInvitesPanel({ initialInvites }: Props) {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex items-center justify-between gap-4">
+      <div className="-mx-6 px-6 pb-6 border-b flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Forum Invites</h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -90,8 +90,6 @@ export function ForumInvitesPanel({ initialInvites }: Props) {
       </div>
 
       {issuedCode && <DisplayOnceInvite code={issuedCode} onDismiss={() => setIssuedCode(null)} />}
-
-      <Separator />
 
       {initialInvites.length === 0 ? (
         <EmptyState onIssue={() => setIssueOpen(true)} />

@@ -2,7 +2,6 @@
  * Settings → Templates list view (RSC) — rebuilt on shadcn (Phase 2).
  */
 
-import { Separator } from '@/components/ui/separator'
 import {
   Table,
   TableBody,
@@ -24,7 +23,7 @@ export default async function TemplatesPanelPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="-mx-6 px-6 pb-6 border-b flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Templates</h1>
           <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
@@ -35,8 +34,6 @@ export default async function TemplatesPanelPage() {
         </div>
         <AddTemplateDialog />
       </div>
-
-      <Separator />
 
       {templates.length === 0 ? (
         <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed py-12 text-center">

@@ -132,8 +132,9 @@ export function SettingsSidebar() {
         ))}
       </SidebarContent>
 
-      {/* Hairline divider between nav and account footer — solid white. */}
-      <div className="h-px bg-white" aria-hidden="true" />
+      {/* Hairline divider between nav and account footer — uses the same
+          --sidebar-border token as the sidebar's own right edge. */}
+      <div className="h-px bg-sidebar-border" aria-hidden="true" />
 
       {/* Footer: user dropdown */}
       <SidebarFooter>
@@ -145,14 +146,14 @@ export function SettingsSidebar() {
                   size="lg"
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:!justify-center"
                 >
-                  <div className="flex aspect-square size-9 items-center justify-center rounded-md border border-input bg-background text-foreground shrink-0">
+                  <div className="flex aspect-square size-8 items-center justify-center rounded-md border border-input bg-background text-foreground shrink-0">
                     <User className="size-4" />
                   </div>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
+                  <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                     <span className="truncate font-semibold">Admin</span>
                     <span className="truncate text-xs text-muted-foreground">Signed in</span>
                   </div>
-                  <ChevronsUpDown className="ml-auto size-4" />
+                  <ChevronsUpDown className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent

@@ -10,7 +10,6 @@ import { asc, eq } from 'drizzle-orm'
 
 export type TopicBadge = {
   name: string
-  color: string | null
   display_order: number
 }
 
@@ -18,7 +17,6 @@ export async function getTopicBadges(): Promise<{ badges: TopicBadge[] }> {
   const rows = await db
     .select({
       name: topicBadges.name,
-      color: topicBadges.color,
       displayOrder: topicBadges.displayOrder,
     })
     .from(topicBadges)
@@ -28,7 +26,6 @@ export async function getTopicBadges(): Promise<{ badges: TopicBadge[] }> {
   return {
     badges: rows.map((r) => ({
       name: r.name,
-      color: r.color,
       display_order: r.displayOrder,
     })),
   }

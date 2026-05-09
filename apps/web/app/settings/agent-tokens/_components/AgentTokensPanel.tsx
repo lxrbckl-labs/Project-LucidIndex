@@ -32,6 +32,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -83,7 +84,7 @@ export function AgentTokensPanel({ initialTokens }: Props) {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex items-center justify-between gap-4">
+      <div className="-mx-6 px-6 pb-6 border-b flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Agent Tokens</h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -103,8 +104,6 @@ export function AgentTokensPanel({ initialTokens }: Props) {
 
       {/* Display-once cleartext banner */}
       {issuedToken && <DisplayOnceToken token={issuedToken} onDismiss={handleDismissToken} />}
-
-      <Separator />
 
       {initialTokens.length === 0 ? (
         <EmptyState onIssue={() => setIssueOpen(true)} />
@@ -236,21 +235,13 @@ function TokenRow({ row, onRevoked }: { row: TokenRowClient; onRevoked: () => vo
       </TableCell>
       <TableCell>
         {revokedAt !== null ? (
-          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span
-              className="inline-block w-2 h-2 rounded-full bg-muted-foreground/30"
-              aria-hidden="true"
-            />
-            Revoked{' '}
-            <span className="text-muted-foreground/70">
-              {new Date(revokedAt).toISOString().replace('T', ' ').slice(0, 16)}
-            </span>
-          </span>
+          <Badge variant="outline" className="text-muted-foreground">
+            Revoked
+          </Badge>
         ) : (
-          <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700">
-            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" aria-hidden="true" />
+          <Badge variant="secondary" className="text-emerald-600">
             Active
-          </span>
+          </Badge>
         )}
       </TableCell>
       <TableCell className="text-right whitespace-nowrap">

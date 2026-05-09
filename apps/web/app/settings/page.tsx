@@ -105,15 +105,15 @@ const GROUPS: Group[] = [
 
 export default function SettingsHubPage() {
   return (
-    <div className="max-w-[960px]">
-      <div className="mb-8">
+    <>
+      <div className="-mx-6 px-6 pb-6 border-b">
         <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
           Configure LucidIndex — pick a panel to get started.
         </p>
       </div>
 
-      <div className="space-y-10">
+      <div className="max-w-[960px] space-y-10">
         {GROUPS.map((group) => (
           <section key={group.label}>
             <h2 className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -144,6 +144,6 @@ export default function SettingsHubPage() {
           </section>
         ))}
       </div>
-    </div>
+    </>
   )
 }
