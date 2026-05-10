@@ -97,7 +97,10 @@ export function TopicBadgeFilterRow({ badges }: Props) {
   )
 
   return (
-    <Card className="border-foreground overflow-hidden" data-pending={isPending ? '' : undefined}>
+    <Card
+      className="border-foreground overflow-hidden -mt-4"
+      data-pending={isPending ? '' : undefined}
+    >
       <nav aria-label="Topic filter" className="flex items-stretch pl-4">
         {/* Pinned cluster — always visible, never scrolls. */}
         <ToggleGroup
