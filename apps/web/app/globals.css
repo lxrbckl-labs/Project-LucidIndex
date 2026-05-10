@@ -221,23 +221,56 @@
 }
 
 /* -----------------------------------------------------------------------------
- * Phase 8 #82 — visually hidden scrollbar for the topic-filter pill row.
+ * TopicBadgeFilterRow — infinite-scroll belt.
  *
- * The pill row scrolls horizontally on mobile/tablet (≤1023px) but the
- * native scrollbar reads as visual chrome that fights the magazine vibe.
- * We hide it via Firefox's `scrollbar-width: none` and the WebKit
- * pseudo-element. The element remains scrollable (touch + wheel + key);
- * only the bar itself is suppressed.
+ * The belt-track contains the topic list rendered three times. The
+ * animation translates it left by 33.33% of total width (= one copy
+ * width) per cycle, then loops; because copies 1 and 2 are identical to
+ * copy 0, the wrap is visually seamless. Hover pauses the animation.
  *
- * Scoped to `.lucidindex-pill-row` so we don't accidentally hide
- * scrollbars elsewhere on the page.
+ * On touch / coarse-pointer devices and for users who've opted into
+ * reduced motion, we disable the animation entirely and let the belt
+ * scroll horizontally on its own (native overflow-x: auto, scrollbar
+ * suppressed). Duplicate copies are hidden in that mode — they only
+ * exist to enable the seamless desktop loop and would just be redundant
+ * tap targets otherwise.
  * --------------------------------------------------------------------------- */
-.lucidindex-pill-row {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* legacy Edge */
+.lucidindex-belt-mask {
+  overflow: hidden;
 }
-.lucidindex-pill-row::-webkit-scrollbar {
-  display: none; /* WebKit (Chromium / Safari) */
+.lucidindex-belt-track {
+  animation: lucidindex-belt-scroll 35s linear infinite;
+  will-change: transform;
+}
+.lucidindex-belt-track:hover {
+  animation-play-state: paused;
+}
+@keyframes lucidindex-belt-scroll {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-33.3333%, 0, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce), (hover: none), (pointer: coarse) {
+  .lucidindex-belt-mask {
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .lucidindex-belt-mask::-webkit-scrollbar {
+    display: none;
+  }
+  .lucidindex-belt-track {
+    animation: none;
+    transform: none;
+  }
+  .lucidindex-belt-track > [data-belt-copy='duplicate'] {
+    display: none;
+  }
 }
 
 :root {

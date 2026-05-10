@@ -4,7 +4,7 @@
  * TopNav — shadcn-aesthetic app header (Phase 3 rebuild).
  *
  * Layout:
- *   <header bg-background border-b>
+ *   <header bg-background>
  *     [Back button]       ← far left, only on /a/* article pages
  *     [Wordmark]          ← left
  *     [SearchInput]       ← right cluster
@@ -42,7 +42,7 @@ export function TopNav() {
   const isDashboard = pathname === '/' && !isTopicFocus
 
   return (
-    <header className="sticky top-0 z-50 border-b bg-background/70 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/50">
+    <header className="sticky top-0 z-50 bg-background/70 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/50">
       <div className="grid grid-cols-3 items-center p-4">
         {/* Left cluster: sidebar collapse (settings only) + back button (article/topic-focus) + Forum (dashboard) / Dashboard (forum) */}
         <div className="flex items-center justify-start gap-2">

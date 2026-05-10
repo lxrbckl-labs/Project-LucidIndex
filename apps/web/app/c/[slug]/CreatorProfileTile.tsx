@@ -53,7 +53,7 @@ export function CreatorProfileTile({
   const hue = hueFromString(label)
 
   return (
-    <Card className="h-full flex flex-col overflow-hidden">
+    <Card className="h-full flex flex-col overflow-hidden border-foreground">
       {/* Hero band — photo when available, gradient identicon as fallback. */}
       {photoUrl ? (
         // biome-ignore lint/performance/noImgElement: external creator photos served as-is for v1

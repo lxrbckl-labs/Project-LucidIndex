@@ -33,7 +33,7 @@ type Props = {
 
 export function LargeArticleCard({ article }: Props) {
   return (
-    <Card className="h-full flex flex-col overflow-hidden hover:bg-accent/50 transition-colors">
+    <Card className="h-full flex flex-col overflow-hidden border-foreground hover:bg-accent/50 transition-colors">
       {/* Hero image — wider aspect for the hero variant; visual only */}
       {article.heroImageUrl ? (
         // biome-ignore lint/performance/noImgElement: dev-only mock heroes

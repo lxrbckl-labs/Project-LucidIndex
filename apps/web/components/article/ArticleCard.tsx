@@ -40,7 +40,7 @@ type Props = {
 
 export function ArticleCard({ article }: Props) {
   return (
-    <Card className="h-full flex flex-col overflow-hidden hover:bg-accent/50 transition-colors">
+    <Card className="h-full flex flex-col overflow-hidden border-foreground hover:bg-accent/50 transition-colors">
       {/* Hero image or skeleton placeholder — visual only, not clickable */}
       {article.heroImageUrl ? (
         // biome-ignore lint/performance/noImgElement: dev-only mock heroes
