@@ -106,7 +106,7 @@ const GROUPS: Group[] = [
 export default function SettingsHubPage() {
   return (
     <>
-      <div className="-mx-6 px-6 pb-6 border-b">
+      <div className="-mx-6 -mt-6 px-6 pt-6 pb-6 border-t border-b">
         <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
           Configure LucidIndex — pick a panel to get started.

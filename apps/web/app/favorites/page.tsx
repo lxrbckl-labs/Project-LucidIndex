@@ -14,6 +14,7 @@ import { requireAdmin } from '@lucidindex/auth'
 import { redirect } from 'next/navigation'
 import { loadStarredArticles } from '@/app/starred/loader'
 import { ArticleMasonry } from '@/components/article/ArticleMasonry'
+import { SiteFooter } from '@/components/chrome/SiteFooter'
 import { TopNav } from '@/components/chrome/TopNav'
 import { NotInterestedTopicsList } from './NotInterestedTopicsList'
 import { StarredCreatorsList } from './StarredCreatorsList'
@@ -36,7 +37,7 @@ export default async function FavoritesPage() {
     <div className="min-h-screen bg-background">
       <TopNav />
 
-      <main className="px-4 pt-4 pb-16">
+      <main className="px-4 pt-4 pb-4">
         {/* ----------------------------------------------------------------
             Section 1 — Starred articles (server-rendered)
         ---------------------------------------------------------------- */}
@@ -74,6 +75,7 @@ export default async function FavoritesPage() {
           <NotInterestedTopicsList />
         </section>
       </main>
+      <SiteFooter />
     </div>
   )
 }

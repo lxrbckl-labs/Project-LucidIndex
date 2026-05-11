@@ -23,7 +23,7 @@ export default async function TemplatesPanelPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="-mx-6 px-6 pb-6 border-b flex items-center justify-between gap-4">
+      <div className="-mx-6 -mt-6 px-6 pt-6 pb-6 border-t border-b flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Templates</h1>
           <p className="mt-1 text-sm text-muted-foreground leading-relaxed">

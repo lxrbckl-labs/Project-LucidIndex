@@ -65,6 +65,17 @@ type Props = {
   badgeFilter?: string | null
 }
 
+/**
+ * Cap on how many live tiles we keep in state. Older arrivals fall off
+ * the tail. Each tile is an `ArticleCard` with a hero <img>; Safari
+ * holds the decoded bitmap of every mounted image, so an uncapped list
+ * eats hundreds of MB on a long-lived tab and trips the "this webpage
+ * was reloaded because it was using significant memory" auto-reload.
+ * 50 is generous — anything beyond that has scrolled off the visible
+ * strip long ago.
+ */
+const MAX_LIVE_TILES = 50
+
 export function LiveArticleStream({ badgeFilter }: Props) {
   const [live, setLive] = useState<LiveArticle[]>([])
 
@@ -76,7 +87,8 @@ export function LiveArticleStream({ badgeFilter }: Props) {
         const payload = JSON.parse(e.data) as ArticleNewPayload
         setLive((prev) => {
           if (prev.some((a) => a.id === payload.id)) return prev
-          return [payloadToArticle(payload), ...prev]
+          const next = [payloadToArticle(payload), ...prev]
+          return next.length > MAX_LIVE_TILES ? next.slice(0, MAX_LIVE_TILES) : next
         })
       } catch {
         // Malformed payload — ignore.

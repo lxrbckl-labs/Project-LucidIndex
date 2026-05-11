@@ -32,6 +32,7 @@ import { FilteredArticleMasonry } from '@/components/article/FilteredArticleMaso
 import { LiveArticleStream } from '@/components/article/LiveArticleStream'
 import { MasonryKeyboardNav } from '@/components/article/MasonryKeyboardNav'
 import { TopicFocusCard } from '@/components/article/TopicFocusCard'
+import { SiteFooter } from '@/components/chrome/SiteFooter'
 import { TopicBadgeFilterRow } from '@/components/chrome/TopicBadgeFilterRow'
 import { TopNav } from '@/components/chrome/TopNav'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -117,7 +118,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
       {/* Thin top nav — Settings + Account links. */}
       <TopNav />
 
-      <main className="px-4 pt-4 pb-16 flex flex-col gap-4">
+      <main className="px-4 pt-4 pb-4 flex flex-col gap-4">
         {/* Topic filter row OR focus card, depending on ?badge */}
         {badgeFilter ? (
           /* Focused view: topic card with star + metadata. Back lives in TopNav. */
@@ -155,6 +156,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
           </>
         )}
       </main>
+      <SiteFooter />
     </div>
   )
 }

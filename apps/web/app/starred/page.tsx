@@ -27,6 +27,7 @@ import { redirect } from 'next/navigation'
 import { StarredCreatorsList } from '@/app/favorites/StarredCreatorsList'
 import { StarredTopicsList } from '@/app/favorites/StarredTopicsList'
 import { ArticleMasonry } from '@/components/article/ArticleMasonry'
+import { SiteFooter } from '@/components/chrome/SiteFooter'
 import { TopNav } from '@/components/chrome/TopNav'
 import { Button } from '@/components/ui/button'
 import { loadStarredArticles } from './loader'
@@ -48,7 +49,7 @@ export default async function StarredPage() {
     <div className="min-h-screen bg-background">
       <TopNav />
 
-      <main className="px-4 pt-4 pb-16">
+      <main className="px-4 pt-4 pb-4">
         <div className="mb-6 flex items-center gap-3">
           <Button
             variant="ghost"
@@ -106,6 +107,7 @@ export default async function StarredPage() {
           )}
         </section>
       </main>
+      <SiteFooter />
     </div>
   )
 }

@@ -240,7 +240,12 @@
 }
 .lucidindex-belt-track {
   animation: lucidindex-belt-scroll 35s linear infinite;
-  will-change: transform;
+  /*
+   * No `will-change: transform` here. It pins a GPU compositor layer
+   * for the lifetime of the page, which is fine for short transitions
+   * but wasteful for an infinite-loop animation — we'd be holding ~30
+   * to 80 MB hostage 24/7 for no rendering benefit.
+   */
 }
 .lucidindex-belt-track:hover {
   animation-play-state: paused;

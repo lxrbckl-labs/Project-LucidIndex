@@ -34,7 +34,7 @@ export function TopicFocusCard({ topicName, articleCount, creatorCount }: Props)
   const isStarred = starred.has(topicName)
 
   return (
-    <Card className="border-foreground">
+    <Card className="border-foreground -mt-4">
       <CardHeader>
         {/* Title row */}
         <div className="flex flex-wrap items-start justify-between gap-4">

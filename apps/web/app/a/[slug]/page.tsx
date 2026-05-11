@@ -52,6 +52,7 @@ import { MarkSeenOnMount } from '@/components/article/MarkSeenOnMount'
 import { ShareLinkButton } from '@/components/article/ShareLinkButton'
 import { SourcesSection } from '@/components/article/SourcesSection'
 import { StarButton } from '@/components/article/StarButton'
+import { SiteFooter } from '@/components/chrome/SiteFooter'
 import { TopNav } from '@/components/chrome/TopNav'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
@@ -214,7 +215,7 @@ export default async function ArticlePage({
           mobile traffic lands here, so polish matters. Px-4 on mobile
           tightens up the page edges; px-6 / md:px-18 picks back up at
           tablet+. */}
-      <main className="px-4 pt-4 pb-20 sm:px-6 sm:pt-6 sm:pb-24 md:px-18">
+      <main className="px-4 pt-4 pb-4 sm:px-6 sm:pt-6 sm:pb-6 md:px-18">
         {/* Reading column — max-w-4xl per assignment spec; preserved
             narrower 640px inner column for prose readability. */}
         <div className="mx-auto max-w-4xl px-0">
@@ -371,6 +372,7 @@ export default async function ArticlePage({
           </article>
         </div>
       </main>
+      <SiteFooter />
     </div>
   )
 }

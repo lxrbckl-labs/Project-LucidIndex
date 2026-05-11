@@ -105,7 +105,7 @@ export function SettingsSidebar() {
   }
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" className="border-t">
       {/* Grouped nav */}
       <SidebarContent className="pt-4">
         {NAV_GROUPS.map((group) => (
@@ -118,7 +118,15 @@ export function SettingsSidebar() {
                   return (
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton asChild isActive={isActive(item)} tooltip={item.label}>
-                        <Link href={item.href}>
+                        {/*
+                          `prefetch` defaults to "auto" which only prefetches the layout
+                          for force-dynamic pages — every settings sub-page is dynamic,
+                          so without explicit `prefetch={true}` each first click is a
+                          cold server roundtrip. Forcing it here pre-warms the RSC
+                          payload on hover / viewport entry; subsequent nav reads from
+                          the App Router cache and feels instant.
+                        */}
+                        <Link href={item.href} prefetch>
                           <Icon />
                           <span>{item.label}</span>
                         </Link>

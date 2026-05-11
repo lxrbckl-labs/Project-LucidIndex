@@ -244,7 +244,10 @@ const Sidebar = React.forwardRef<
         />
         <div
           className={cn(
-            "fixed inset-y-0 top-[61px] z-10 hidden h-[calc(100svh-61px)] w-[var(--sidebar-width)] transition-[left,right,width] duration-200 ease-linear md:flex",
+            // Anchor the sidebar to the bottom of TopNav (68px = p-4 + h-9 button row).
+            // shadcn's default 61px assumed a thinner header — our chrome is taller, so without this
+            // the sidebar slid 7px underneath TopNav (z-50) and any `border-t` on it was occluded.
+            "fixed inset-y-0 top-[68px] z-10 hidden h-[calc(100svh-68px)] w-[var(--sidebar-width)] transition-[left,right,width] duration-200 ease-linear md:flex",
             side === "left"
               ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
               : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",

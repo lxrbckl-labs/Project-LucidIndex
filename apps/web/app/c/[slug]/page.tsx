@@ -48,6 +48,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { findMockArticlesByCreatorSlug, findMockCreatorBySlug } from '@/app/_mock/articles'
 import { ArticleMasonry } from '@/components/article/ArticleMasonry'
+import { SiteFooter } from '@/components/chrome/SiteFooter'
 import { TopNav } from '@/components/chrome/TopNav'
 import { CreatorProfileTile } from './CreatorProfileTile'
 import { loadCreatorArticles, loadCreatorBySlug, loadCreatorSentiment } from './loader'
@@ -156,7 +157,8 @@ function CreatorPageLayout({
   return (
     <div className="min-h-screen bg-background">
       <TopNav />
-      <main className="px-4 pt-4 pb-16">{children}</main>
+      <main className="px-4 pb-4">{children}</main>
+      <SiteFooter />
     </div>
   )
 }

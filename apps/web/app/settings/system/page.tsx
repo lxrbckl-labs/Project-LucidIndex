@@ -55,7 +55,7 @@ export default async function SystemPanelPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="-mx-6 px-6 pb-6 border-b">
+      <div className="-mx-6 -mt-6 px-6 pt-6 pb-6 border-t border-b">
         <h1 className="text-3xl font-bold tracking-tight">System</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Cron run history, queue depth, and calibration drift read-outs.

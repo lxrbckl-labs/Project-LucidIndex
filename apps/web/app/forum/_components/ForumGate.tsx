@@ -9,14 +9,21 @@
  *   'signup-next'  — Placeholder confirming a valid invite (Phase D will
  *                    swap this for the username + passkey ceremony)
  *
+ * Auth: when `username` is non-null (server-resolved forum session), the
+ * gate steps aside and renders children directly. Sign In runs the
+ * WebAuthn discoverable-credential ceremony; on success the page
+ * reloads so the server-rendered session pickup runs again.
+ *
  * The header (TopNav) is rendered as a sibling of this component in the
  * page so the chrome stays fully interactive even while the body is gated.
  */
 
+import { startAuthentication } from '@simplewebauthn/browser'
 import { ArrowLeft, Lock } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { type FormEvent, useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,10 +32,18 @@ import { Label } from '@/components/ui/label'
 type Mode = 'idle' | 'signup-invite' | 'signup-next'
 
 type Props = {
+  /** Resolved forum username from the server-side session, or null if unauthenticated. */
+  username: string | null
   children: ReactNode
 }
 
-export function ForumGate({ children }: Props) {
+export function ForumGate({ username, children }: Props) {
+  // Authenticated: get out of the way. The server-rendered children
+  // surface unblurred and the gate UI doesn't render at all.
+  if (username) {
+    return <>{children}</>
+  }
+
   return (
     <div className="relative h-full overflow-hidden">
       {/* Blurred + click-locked content underneath */}
@@ -113,14 +128,85 @@ function Pane({ active, children }: { active: boolean; children: ReactNode }) {
 // ---------------------------------------------------------------------------
 
 function IdleView({ onSignUp }: { onSignUp: () => void }) {
+  const [pending, setPending] = useState(false)
+
+  async function handleSignIn() {
+    if (pending) return
+    setPending(true)
+    try {
+      // 1. Ask the server for authentication options + a challenge token.
+      const startRes = await fetch('/api/forum/auth/login/start', { method: 'POST' })
+      const startData = (await startRes.json()) as
+        | {
+            ok: true
+            options: Parameters<typeof startAuthentication>[0]['optionsJSON']
+            challengeToken: string
+          }
+        | { ok: false }
+      if (!startData.ok) {
+        toast.error("Sign in isn't available right now.")
+        return
+      }
+
+      // 2. Run the WebAuthn ceremony — browser prompts the user for a
+      //    passkey via the platform UI (Touch ID, Windows Hello, etc.).
+      let assertion: Awaited<ReturnType<typeof startAuthentication>>
+      try {
+        assertion = await startAuthentication({ optionsJSON: startData.options })
+      } catch (err) {
+        // User cancelled or no matching passkey — silent fail is fine,
+        // the platform UI already explained.
+        if (err instanceof Error && err.name === 'NotAllowedError') return
+        toast.error("Couldn't read a passkey for this site.")
+        return
+      }
+
+      // 3. Hand the assertion back to the server for verification +
+      //    session minting.
+      const finishRes = await fetch('/api/forum/auth/login/finish', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ challengeToken: startData.challengeToken, assertion }),
+      })
+      const finishData = (await finishRes.json()) as
+        | { ok: true; username: string }
+        | { ok: false; reason?: string }
+      if (!finishData.ok) {
+        if (finishData.reason === 'access_revoked') {
+          toast.error('Access to this account has been revoked.')
+        } else if (finishData.reason === 'expired_challenge') {
+          toast.error('Sign in timed out. Please try again.')
+        } else {
+          toast.error("That passkey doesn't sign you in here.")
+        }
+        return
+      }
+
+      toast.success(`Welcome back, @${finishData.username}.`)
+      // Reload so the server re-renders the page with the now-set
+      // forum session cookie picked up.
+      window.location.reload()
+    } catch {
+      toast.error('Network error — please try again.')
+    } finally {
+      setPending(false)
+    }
+  }
+
   return (
     <div className="flex flex-col items-center gap-6 w-full">
       <h2 className="text-xl font-semibold tracking-tight">Stay Informed</h2>
       <div className="flex flex-col gap-2 w-full">
-        <Button type="button" disabled className="w-full">
-          Sign In
+        <Button type="button" onClick={handleSignIn} disabled={pending} className="w-full">
+          {pending ? 'Signing in…' : 'Sign In'}
         </Button>
-        <Button type="button" variant="outline" onClick={onSignUp} className="w-full">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onSignUp}
+          disabled={pending}
+          className="w-full"
+        >
           Sign Up
         </Button>
       </div>

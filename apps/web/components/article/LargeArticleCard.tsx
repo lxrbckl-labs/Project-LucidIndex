@@ -33,7 +33,7 @@ type Props = {
 
 export function LargeArticleCard({ article }: Props) {
   return (
-    <Card className="h-full flex flex-col overflow-hidden border-foreground hover:bg-accent/50 transition-colors">
+    <Card className="h-full flex flex-col overflow-hidden border-foreground">
       {/* Hero image — wider aspect for the hero variant; visual only */}
       {article.heroImageUrl ? (
         // biome-ignore lint/performance/noImgElement: dev-only mock heroes
@@ -68,9 +68,25 @@ export function LargeArticleCard({ article }: Props) {
           {article.title}
         </CardTitle>
 
-        {/* Byline: creator + read time */}
+        {/* Byline: creator + read time. Creator name links to /c/<slug>
+            when the article carries a creatorSlug; falls back to plain
+            text otherwise (no slug = no destination). */}
         <p className="text-xs text-muted-foreground mt-1">
-          {article.creatorLabel ? <span>{article.creatorLabel} &middot; </span> : null}
+          {article.creatorLabel ? (
+            article.creatorSlug ? (
+              <>
+                <Link
+                  href={`/c/${article.creatorSlug}`}
+                  className="font-medium text-foreground hover:underline underline-offset-2"
+                >
+                  {article.creatorLabel}
+                </Link>
+                {' · '}
+              </>
+            ) : (
+              <span>{article.creatorLabel} &middot; </span>
+            )
+          ) : null}
           {article.readMinutes} min
         </p>
       </CardHeader>

@@ -25,6 +25,7 @@ import { isFoundingFlowAvailable, requireAdmin } from '@lucidindex/auth'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import type { ReactNode } from 'react'
+import { SiteFooter } from '@/components/chrome/SiteFooter'
 import { TopNav } from '@/components/chrome/TopNav'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { SettingsSidebar } from './_components/SettingsSidebar'
@@ -54,9 +55,16 @@ async function currentPath(): Promise<string> {
 }
 
 export default async function SettingsLayout({ children }: { children: ReactNode }) {
-  const path = await currentPath()
-  const foundingAvailable = await isFoundingFlowAvailable()
-  const session = await requireAdmin()
+  // The three checks are independent — `currentPath()` reads request headers,
+  // `isFoundingFlowAvailable()` hits the admins table, `requireAdmin()` reads
+  // the iron-session cookie. Running them in parallel cuts the layout's TTFB
+  // from "sum of all three" to "max of all three". Cheap win, no semantic
+  // change.
+  const [path, foundingAvailable, session] = await Promise.all([
+    currentPath(),
+    isFoundingFlowAvailable(),
+    requireAdmin(),
+  ])
 
   if (foundingAvailable) {
     if (path !== FOUND_PATH) {
@@ -86,6 +94,7 @@ export default async function SettingsLayout({ children }: { children: ReactNode
           <SettingsSidebar />
           <SidebarInset>
             <div className="flex flex-1 flex-col gap-4 p-6">{children}</div>
+            <SiteFooter />
           </SidebarInset>
         </div>
       </div>

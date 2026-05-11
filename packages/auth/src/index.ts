@@ -12,6 +12,21 @@ export {
 } from './account.js'
 export { DEV_BYPASS_ADMIN_ID, isDevAuthBypassActive } from './dev-bypass.js'
 export {
+  type FinishForumLoginInput,
+  type FinishForumLoginResult,
+  finishForumLogin,
+  type StartForumLoginResult,
+  startForumLogin,
+} from './forum-login.js'
+export {
+  destroyForumSession,
+  establishForumSession,
+  FORUM_SESSION_COOKIE_NAME,
+  type ForumSessionData,
+  getForumSession,
+  requireForumUser,
+} from './forum-session.js'
+export {
   type FinalizeFoundingSessionResult,
   type FinishFoundingEnrollmentInput,
   type FinishFoundingEnrollmentResult,
