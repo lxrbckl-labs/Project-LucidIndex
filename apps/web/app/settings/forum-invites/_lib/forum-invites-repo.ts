@@ -133,6 +133,66 @@ export async function unrevokeForumInvite(id: string): Promise<UnrevokeInviteRes
 }
 
 /**
+ * Hard-delete an invite row. Refuses if the invite is still "available"
+ * (could still be redeemed) — admins must revoke first to put the row
+ * into a deletable terminal state.
+ *
+ * Side-effect to be aware of: deleting a *redeemed* invite removes the
+ * `forum_invites` row that `finishForumLogin` uses as the kill-switch
+ * anchor. The linked forum_user's row stays (and so do their posts /
+ * replies via FK preservation), but login refuses with `no_invite_anchor`
+ * — effectively a permanent lockout. The UI confirm dialog calls this
+ * out for redeemed rows.
+ */
+export type DeleteInviteResult = { ok: true } | { ok: false; reason: 'not_found' | 'still_active' }
+
+export async function deleteForumInvite(id: string): Promise<DeleteInviteResult> {
+  const rows = await db
+    .select({
+      id: forumInvites.id,
+      redeemedAt: forumInvites.redeemedAt,
+      revokedAt: forumInvites.revokedAt,
+      expiresAt: forumInvites.expiresAt,
+    })
+    .from(forumInvites)
+    .where(eq(forumInvites.id, id))
+    .limit(1)
+  const row = rows[0]
+  if (!row) return { ok: false, reason: 'not_found' }
+
+  const expired = row.expiresAt !== null && row.expiresAt.getTime() <= Date.now()
+  const inactive = row.redeemedAt !== null || row.revokedAt !== null || expired
+  if (!inactive) return { ok: false, reason: 'still_active' }
+
+  await db.delete(forumInvites).where(eq(forumInvites.id, id))
+  return { ok: true }
+}
+
+/**
+ * Bulk delete every invite that isn't currently available. Matches the
+ * "inactive" predicate the Delete button uses on individual rows:
+ *   redeemed_at IS NOT NULL OR revoked_at IS NOT NULL
+ *     OR (expires_at IS NOT NULL AND expires_at <= now())
+ *
+ * Same kill-switch caveat as the single-row delete — any redeemed
+ * invites swept up here will lock out their linked forum_users on
+ * next sign-in.
+ */
+export type CleanInvitesResult = { ok: true; deleted: number }
+
+export async function cleanInactiveForumInvites(): Promise<CleanInvitesResult> {
+  const result = await db
+    .delete(forumInvites)
+    .where(
+      sql`(${forumInvites.redeemedAt} IS NOT NULL
+        OR ${forumInvites.revokedAt} IS NOT NULL
+        OR (${forumInvites.expiresAt} IS NOT NULL AND ${forumInvites.expiresAt} <= now()))`,
+    )
+    .returning({ id: forumInvites.id })
+  return { ok: true, deleted: result.length }
+}
+
+/**
  * Generate a fresh invite code, hash it, persist the row, and return the
  * cleartext + the row to the caller. The cleartext is the ONLY moment it
  * exists outside of memory; if the DB insert fails we return `ok: false`

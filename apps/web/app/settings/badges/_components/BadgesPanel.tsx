@@ -108,7 +108,7 @@ export function BadgesPanel(props: BadgesPanelProps) {
         </div>
         <Dialog open={newOpen} onOpenChange={setNewOpen}>
           <DialogTrigger asChild>
-            <Button>New Badge</Button>
+            <Button size="sm">New Badge</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -381,10 +381,10 @@ function BadgeFormContent(props: {
       <p className="text-xs text-muted-foreground">Order is set by drag-and-drop on the table.</p>
 
       <DialogFooter className="sm:justify-between">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={submitting}>
+        <Button size="sm" type="button" variant="outline" onClick={onCancel} disabled={submitting}>
           Cancel
         </Button>
-        <Button type="submit" disabled={submitting}>
+        <Button size="sm" type="submit" disabled={submitting}>
           {submitting ? 'Saving…' : mode === 'create' ? 'Create' : 'Save'}
         </Button>
       </DialogFooter>

@@ -22,7 +22,9 @@ export function AddComparisonSourceDialog() {
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>Add Source</Button>
+      <Button size="sm" onClick={() => setOpen(true)}>
+        Add Source
+      </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>

@@ -224,6 +224,7 @@ export function TargetForm(props: TargetFormProps) {
         <Popover open={templatePickerOpen} onOpenChange={setTemplatePickerOpen}>
           <PopoverTrigger asChild>
             <Button
+              size="sm"
               id="promptTemplateId"
               type="button"
               variant="outline"
@@ -279,10 +280,11 @@ export function TargetForm(props: TargetFormProps) {
       )}
 
       <div className="flex items-center justify-between gap-3">
-        <Button type="submit" disabled={!promptTemplatesAvailable || submitting}>
+        <Button size="sm" type="submit" disabled={!promptTemplatesAvailable || submitting}>
           {submitting ? 'Saving…' : 'Save'}
         </Button>
         <Button
+          size="sm"
           type="button"
           variant="outline"
           onClick={() => (onCancel ? onCancel() : router.push('/settings/targets'))}

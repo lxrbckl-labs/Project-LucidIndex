@@ -182,10 +182,11 @@ export function TemplateForm(props: TemplateFormProps) {
       )}
 
       <div className="flex items-center justify-between gap-3">
-        <Button type="submit" disabled={submitting}>
+        <Button size="sm" type="submit" disabled={submitting}>
           {submitting ? 'Saving…' : 'Save'}
         </Button>
         <Button
+          size="sm"
           type="button"
           variant="outline"
           onClick={() => (onCancel ? onCancel() : router.push('/settings/templates'))}

@@ -93,7 +93,7 @@ export function AgentTokensPanel({ initialTokens }: Props) {
         </div>
         <Dialog open={issueOpen} onOpenChange={setIssueOpen}>
           <DialogTrigger asChild>
-            <Button>New Token</Button>
+            <Button size="sm">New Token</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <IssueModalContent onIssued={handleIssued} onClose={() => setIssueOpen(false)} />
@@ -153,7 +153,7 @@ function DisplayOnceToken({ token, onDismiss }: { token: string; onDismiss: () =
             onClick={copy}
             disabled={copied}
             aria-label={copied ? 'Copied' : 'Copy token to clipboard'}
-            className="h-10 w-10 shrink-0 border border-amber-300 bg-background hover:bg-amber-100 dark:hover:bg-amber-900/40"
+            className="h-9 w-9 shrink-0 border border-amber-300 bg-background hover:bg-amber-100 dark:hover:bg-amber-900/40"
           >
             <Copy className="h-4 w-4" />
           </Button>
@@ -180,7 +180,7 @@ function EmptyState({ onIssue }: { onIssue: () => void }) {
       <p className="max-w-[420px] text-sm text-muted-foreground">
         Tokens are shown in plaintext exactly once at creation.
       </p>
-      <Button type="button" onClick={onIssue}>
+      <Button size="sm" type="button" onClick={onIssue}>
         New Token
       </Button>
     </div>
@@ -411,10 +411,10 @@ function IssueModalContent({
         )}
 
         <DialogFooter className="sm:justify-between">
-          <Button type="submit" disabled={pending}>
+          <Button size="sm" type="submit" disabled={pending}>
             {pending ? 'Saving…' : 'Save'}
           </Button>
-          <Button type="button" variant="outline" onClick={onClose} disabled={pending}>
+          <Button size="sm" type="button" variant="outline" onClick={onClose} disabled={pending}>
             Cancel
           </Button>
         </DialogFooter>

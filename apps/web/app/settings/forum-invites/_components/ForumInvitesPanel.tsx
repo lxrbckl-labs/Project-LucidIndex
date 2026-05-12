@@ -9,7 +9,7 @@
  *     DOM — sonner is the single ephemeral disclosure surface.
  */
 
-import { Copy, Mail } from 'lucide-react'
+import { Copy, Mail, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -106,14 +106,21 @@ export function ForumInvitesPanel({ initialInvites }: Props) {
             once at creation. Codes are kept for audit even after redemption or expiry.
           </p>
         </div>
-        <Dialog open={issueOpen} onOpenChange={setIssueOpen}>
-          <DialogTrigger asChild>
-            <Button>New Invite</Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <IssueModalContent onIssued={handleIssued} onClose={() => setIssueOpen(false)} />
-          </DialogContent>
-        </Dialog>
+        <div className="flex items-center gap-2">
+          <ClearButton
+            inactiveCount={initialInvites.filter((r) => deriveStatus(r) !== 'available').length}
+            redeemedCount={initialInvites.filter((r) => deriveStatus(r) === 'redeemed').length}
+            onCleared={() => router.refresh()}
+          />
+          <Dialog open={issueOpen} onOpenChange={setIssueOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm">New Invite</Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <IssueModalContent onIssued={handleIssued} onClose={() => setIssueOpen(false)} />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {initialInvites.length === 0 ? (
@@ -160,6 +167,7 @@ function InvitesTable({ rows, onRevoked }: { rows: InviteRowClient[]; onRevoked:
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-12" aria-label="Delete" />
             <TableHead>Label</TableHead>
             <TableHead>Hash prefix</TableHead>
             <TableHead>Issued</TableHead>
@@ -183,6 +191,15 @@ function InviteRow({ row, onRevoked }: { row: InviteRowClient; onRevoked: () => 
 
   return (
     <TableRow>
+      <TableCell className="w-12 pr-0">
+        <DeleteButton
+          id={row.id}
+          label={row.label}
+          status={status}
+          wasRedeemed={!!row.redeemedAt}
+          onDeleted={onRevoked}
+        />
+      </TableCell>
       <TableCell className="font-semibold">{row.label}</TableCell>
       <TableCell className="font-mono text-xs text-muted-foreground">
         {row.codeHash.slice(0, 20)}…
@@ -358,6 +375,194 @@ function RestoreButton({
     <Button variant="outline" size="sm" disabled={pending} onClick={handleRestore}>
       {pending ? '…' : 'Restore'}
     </Button>
+  )
+}
+
+/**
+ * Per-row hard-delete. Disabled on `available` rows — admins must
+ * revoke first. Confirm-dialog copy is context-aware: redeemed rows
+ * spell out the kill-switch consequence (deleting the invite removes
+ * the anchor `finishForumLogin` checks, so the linked user can never
+ * log in again).
+ */
+function DeleteButton({
+  id,
+  label,
+  status,
+  wasRedeemed,
+  onDeleted,
+}: {
+  id: string
+  label: string
+  status: Status
+  wasRedeemed: boolean
+  onDeleted: () => void
+}) {
+  const [pending, setPending] = useState(false)
+  const disabled = status === 'available'
+
+  async function handleDelete() {
+    setPending(true)
+    try {
+      const res = await fetch(`/api/settings/forum-invites/${id}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'delete' }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
+      if (!res.ok || !data.ok) {
+        toast.error(data.error ?? 'Delete failed.')
+        return
+      }
+      toast.success(`Invite "${label}" deleted.`)
+      onDeleted()
+    } catch {
+      toast.error('Network error.')
+    } finally {
+      setPending(false)
+    }
+  }
+
+  if (disabled) {
+    // Disabled triggers don't open the AlertDialog — render a bare
+    // disabled Button without the dialog wrapper.
+    return (
+      <Button
+        variant="destructive"
+        size="icon"
+        className="h-9 w-9"
+        disabled
+        aria-label="Delete (available invites must be revoked first)"
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    )
+  }
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          variant="destructive"
+          size="icon"
+          className="h-9 w-9"
+          disabled={pending}
+          aria-label={`Delete invite "${label}"`}
+        >
+          {pending ? <span className="text-xs">…</span> : <Trash2 className="h-4 w-4" />}
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete invite &ldquo;{label}&rdquo;?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {wasRedeemed
+              ? "This invite was redeemed by a forum user. Deleting it removes the kill-switch anchor login checks against — the user will never be able to sign in again, even though their account, posts, and replies will remain. This action is permanent and can't be undone."
+              : "This permanently removes the invite record. The action can't be undone."}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleDelete}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
+/**
+ * Header-level "Clear" — bulk-delete every inactive invite. Disabled
+ * when there's nothing to clear. Confirm dialog spells out the count
+ * plus the redeemed-row lockout warning (same caveat as the per-row
+ * delete, but in aggregate).
+ */
+function ClearButton({
+  inactiveCount,
+  redeemedCount,
+  onCleared,
+}: {
+  inactiveCount: number
+  redeemedCount: number
+  onCleared: () => void
+}) {
+  const [pending, setPending] = useState(false)
+
+  async function handleClear() {
+    setPending(true)
+    try {
+      const res = await fetch('/api/settings/forum-invites/clean', { method: 'POST' })
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean
+        deleted?: number
+        error?: string
+      }
+      if (!res.ok || !data.ok) {
+        toast.error(data.error ?? 'Clear failed.')
+        return
+      }
+      toast.success(
+        data.deleted === 1 ? '1 invite cleared.' : `${data.deleted ?? 0} invites cleared.`,
+      )
+      onCleared()
+    } catch {
+      toast.error('Network error.')
+    } finally {
+      setPending(false)
+    }
+  }
+
+  if (inactiveCount === 0) {
+    return (
+      <Button variant="outline" size="sm" disabled aria-label="No inactive invites to clear">
+        Clear
+      </Button>
+    )
+  }
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="outline" size="sm" disabled={pending}>
+          {pending ? '…' : 'Clear'}
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            Delete {inactiveCount} inactive {inactiveCount === 1 ? 'invite' : 'invites'}?
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {redeemedCount > 0 ? (
+              <>
+                This sweeps every redeemed, revoked, and expired row from the table.{' '}
+                <span className="font-semibold text-foreground">
+                  {redeemedCount} of those {redeemedCount === 1 ? 'is' : 'are'} redeemed
+                </span>{' '}
+                — deleting them removes the kill-switch anchor login checks against, so those forum
+                users will lose access permanently. Available invites are untouched. This action
+                can't be undone.
+              </>
+            ) : (
+              "This sweeps every revoked and expired row from the table. Available invites are untouched. This action can't be undone."
+            )}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleClear}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Delete all inactive
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }
 

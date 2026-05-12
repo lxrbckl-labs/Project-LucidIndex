@@ -22,7 +22,9 @@ export function AddTemplateDialog() {
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>Add Template</Button>
+      <Button size="sm" onClick={() => setOpen(true)}>
+        Add Template
+      </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>

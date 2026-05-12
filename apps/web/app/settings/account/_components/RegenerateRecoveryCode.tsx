@@ -83,6 +83,7 @@ export function RegenerateRecoveryCode() {
       </p>
 
       <Button
+        size="sm"
         type="button"
         variant="outline"
         onClick={handleRegenerate}
@@ -133,7 +134,12 @@ export function RegenerateRecoveryCode() {
           </div>
 
           <DialogFooter>
-            <Button type="button" onClick={handleDismiss} data-testid="recovery-code-dismiss">
+            <Button
+              size="sm"
+              type="button"
+              onClick={handleDismiss}
+              data-testid="recovery-code-dismiss"
+            >
               I've saved it — dismiss
             </Button>
           </DialogFooter>

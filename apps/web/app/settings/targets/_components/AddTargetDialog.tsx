@@ -33,7 +33,9 @@ export function AddTargetDialog({
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>Add Target</Button>
+      <Button size="sm" onClick={() => setOpen(true)}>
+        Add Target
+      </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
