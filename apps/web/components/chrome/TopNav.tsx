@@ -5,7 +5,7 @@
  *
  * Layout:
  *   <header bg-background>
- *     [SidebarTrigger]    ← far left, settings shell only
+ *     [SidebarTrigger]    ← far left, on settings + authenticated forum
  *     [Forum/Dashboard]   ← left cluster on every page (Dashboard on /forum)
  *     [Back button]       ← left cluster, article/creator/topic-focus only
  *     [Wordmark]          ← center
@@ -24,9 +24,10 @@
 import { LayoutDashboard, MessagesSquare, Settings } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
+import { useContext } from 'react'
 import { EscapeToBack } from '@/components/article/EscapeToBack'
 import { Button } from '@/components/ui/button'
-import { SidebarTrigger } from '@/components/ui/sidebar'
+import { SidebarContext, SidebarTrigger } from '@/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ThemeToggle } from './ThemeToggle'
 import { TypeaheadSearch } from './TypeaheadSearch'
@@ -41,6 +42,12 @@ export function TopNav() {
   const isForumPage = pathname.startsWith('/forum')
   const isTopicFocus = pathname === '/' && Boolean(searchParams.get('badge'))
   const showBack = isArticlePage || isCreatorPage || isTopicFocus
+  // SidebarTrigger requires a SidebarProvider in the tree (its
+  // `useSidebar` hook throws otherwise). The forum layout only mounts
+  // the provider for authenticated users; on the gate there's no
+  // sidebar at all. Reading the context directly lets us render the
+  // trigger iff we're actually inside a shell.
+  const hasSidebarShell = useContext(SidebarContext) !== null
 
   return (
     <header className="sticky top-0 z-50 bg-background/70 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/50">
@@ -54,7 +61,7 @@ export function TopNav() {
                  Forum to itself).
               3. EscapeToBack — article / creator / topic-focus only. */}
         <div className="flex items-center justify-start gap-2">
-          {isSettingsPage && (
+          {(isSettingsPage || isForumPage) && hasSidebarShell && (
             <SidebarTrigger className="h-9 w-9 border border-input bg-background" />
           )}
           {isForumPage ? (
@@ -67,7 +74,7 @@ export function TopNav() {
                   asChild
                 >
                   <Link href="/" aria-label="Dashboard">
-                    <LayoutDashboard className="h-4 w-4" />
+                    <LayoutDashboard className="h-4 w-4 rotate-90" />
                   </Link>
                 </Button>
               </TooltipTrigger>
@@ -125,7 +132,7 @@ export function TopNav() {
                   asChild
                 >
                   <Link href="/" aria-label="Dashboard">
-                    <LayoutDashboard className="h-4 w-4" />
+                    <LayoutDashboard className="h-4 w-4 rotate-90" />
                   </Link>
                 </Button>
               </TooltipTrigger>

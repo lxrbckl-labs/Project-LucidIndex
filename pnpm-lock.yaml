@@ -37,6 +37,31 @@ importers:
         specifier: 4.20.6
         version: 4.20.6
 
+  apps/mcp-forum:
+    dependencies:
+      '@lucidindex/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@modelcontextprotocol/sdk':
+        specifier: 1.29.0
+        version: 1.29.0(zod@4.3.6)
+      '@node-rs/argon2':
+        specifier: 2.0.2
+        version: 2.0.2
+      drizzle-orm:
+        specifier: 0.45.2
+        version: 0.45.2(postgres@3.4.9)
+      zod:
+        specifier: 4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@types/node':
+        specifier: 25.6.0
+        version: 25.6.0
+      tsx:
+        specifier: 4.20.6
+        version: 4.20.6
+
   apps/mcp-store:
     dependencies:
       '@lucidindex/db':

@@ -42,7 +42,11 @@ type SidebarContextProps = {
   toggleSidebar: () => void
 }
 
-const SidebarContext = React.createContext<SidebarContextProps | null>(null)
+// Exported so consumers (e.g. TopNav) can detect whether they're
+// inside a SidebarProvider without throwing — `useSidebar` throws when
+// the context is missing, which is fine for sidebar internals but
+// hostile to "render trigger only if a sidebar shell exists" logic.
+export const SidebarContext = React.createContext<SidebarContextProps | null>(null)
 
 function useSidebar() {
   const context = React.useContext(SidebarContext)

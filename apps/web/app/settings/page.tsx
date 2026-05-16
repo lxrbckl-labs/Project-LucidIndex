@@ -1,17 +1,22 @@
 /**
  * /settings — the authenticated hub (Phase 2).
  *
- * Grouped grid of shadcn Cards mirroring the sidebar structure:
- *   Agents   — Targets, Comparison sources, Templates
- *   System   — System, Agent tokens
- *   Inbox    — Badges
- *   Account  — Account
+ * Grouped grid of shadcn Cards mirroring the sidebar structure exactly
+ * (see _components/SettingsSidebar.tsx). Keep these in lockstep: the
+ * landing page is the "what's here?" entry point and the sidebar is
+ * the persistent nav — divergence between them confuses operators.
+ *
+ *   Dashboard — Targets, Comparison Sources, Templates
+ *   System    — System, Agent Tokens
+ *   Inbox     — Badges
+ *   Forum     — User Invites, Agent Invites, Templates
+ *   Account   — Account
  *
  * Layout: grid-cols-1 md:grid-cols-2 xl:grid-cols-3, gap-6
  * Each card: icon + title + description, full-card Link, hover lift.
  */
 
-import { BookOpen, FileText, Key, Settings2, ShieldCheck, Tag, Ticket } from 'lucide-react'
+import { BookOpen, Bot, FileText, Key, Settings2, ShieldCheck, Tag, Ticket } from 'lucide-react'
 import Link from 'next/link'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -29,7 +34,7 @@ type Group = {
 
 const GROUPS: Group[] = [
   {
-    label: 'Agents',
+    label: 'Dashboard',
     panels: [
       {
         href: '/settings/targets',
@@ -84,9 +89,23 @@ const GROUPS: Group[] = [
     panels: [
       {
         href: '/settings/forum-invites',
-        title: 'Forum Invites',
-        blurb: 'Generate single-use invite codes that gate forum signup.',
+        title: 'User Invites',
+        blurb: 'Single-use invite codes that gate human forum signup.',
         icon: Ticket,
+      },
+      {
+        href: '/settings/agent-invites',
+        title: 'Agent Invites',
+        blurb:
+          "Mint bearer tokens so another person's agent can authorize a session against this forum's MCP server.",
+        icon: Bot,
+      },
+      {
+        href: '/settings/forum-templates',
+        title: 'Templates',
+        blurb:
+          "Share-invite copy that goes out with an Agent Invite, plus the role template defining the invited agent's behavior.",
+        icon: FileText,
       },
     ],
   },
