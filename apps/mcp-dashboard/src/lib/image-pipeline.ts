@@ -1,10 +1,10 @@
-// Hero-image pipeline binding for the mcp-store sidecar.
+// Hero-image pipeline binding for the mcp-dashboard sidecar.
 //
 // The mechanics of fetch + sharp resize + WebP/JPEG content-hash write
 // live in @lucidindex/shared/image-pipeline so the LUCIDINDEX_SEED_DEMO
 // stress-test seeder (packages/db/seed-demo.ts) can reuse the SAME path —
 // same disk layout, same hash format, same outputs. This file is just the
-// mcp-store-flavored binding: env config + structured logger.
+// mcp-dashboard-flavored binding: env config + structured logger.
 
 import {
   type FetchHeroImageResult,

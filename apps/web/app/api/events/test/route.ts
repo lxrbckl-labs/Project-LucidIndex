@@ -5,7 +5,7 @@
  *
  * Gated to non-production via `NODE_ENV !== 'production'`. Outside dev
  * this route always returns 404 — the live SSE channel in production
- * is meant to receive events from the agent / mcp-store pipeline (a
+ * is meant to receive events from the agent / mcp-dashboard pipeline (a
  * future ticket; see the TODO in `lib/sse/article-bus.ts`).
  *
  * Why this exists:

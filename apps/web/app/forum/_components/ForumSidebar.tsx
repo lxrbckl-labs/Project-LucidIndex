@@ -184,10 +184,7 @@ export function ForumSidebar({ username, hasAvatar = false }: Props) {
                 sideOffset={4}
               >
                 <DropdownMenuItem asChild>
-                  <a href="/forum/account">Account</a>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <a href="/">← Back to Dashboard</a>
+                  <a href="/forum/account">My Account</a>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

@@ -4,7 +4,7 @@
 // matches the convention expected by container log aggregators (Docker,
 // journald, Loki, etc.) — no parser needed, every field is queryable.
 //
-// Mirrors apps/mcp-store/src/logger.ts. The two sidecars are independent
+// Mirrors apps/mcp-dashboard/src/logger.ts. The two sidecars are independent
 // processes; the duplication is trivial and keeps each app self-contained.
 // If a third consumer shows up we'll factor this into packages/shared.
 //

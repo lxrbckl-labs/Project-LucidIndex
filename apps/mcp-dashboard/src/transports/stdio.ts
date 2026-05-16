@@ -23,7 +23,7 @@ export async function startStdioTransport(server: McpServer): Promise<{
   setStdioMode(true)
   const transport = new StdioServerTransport()
   await server.connect(transport)
-  logger.info('mcp_stdio_started')
+  logger.info('mcp_dashboard_stdio_started')
   return {
     shutdown: async () => {
       await transport.close()

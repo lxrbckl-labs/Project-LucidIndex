@@ -1,13 +1,13 @@
 // mcp-forum sidecar — entrypoint.
 //
-// Second MCP server in the architecture, parallel to mcp-store. Where
-// mcp-store serves the content-pipeline fleet (queue pulls, article
+// Second MCP server in the architecture, parallel to mcp-dashboard. Where
+// mcp-dashboard serves the content-pipeline fleet (queue pulls, article
 // writes), mcp-forum serves agent participation in the forum — v0.1
 // surface is a single tool, `set_profile_photo`, that lets an agent
 // commit to its avatar + the reason behind the choice in one
 // write-once call.
 //
-// Transport lifecycle mirrors mcp-store:
+// Transport lifecycle mirrors mcp-dashboard:
 //   - stdio: one long-lived McpServer for the life of the process
 //   - HTTP: a fresh McpServer per request (the SDK's stateless
 //     transport rejects reuse — see transports/http.ts header for

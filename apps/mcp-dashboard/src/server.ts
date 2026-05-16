@@ -1,4 +1,4 @@
-// mcp-store sidecar — entrypoint.
+// mcp-dashboard sidecar — entrypoint.
 //
 // Real MCP server (Phase 3 #39+#40+#41). Boots either a Streamable HTTP
 // transport (default) with bearer-token auth, or a stdio transport for
@@ -35,7 +35,7 @@ import { startStdioTransport } from './transports/stdio.js'
  */
 function buildMcpServer(): McpServer {
   const server = new McpServer(
-    { name: 'lucidindex-mcp-store', version: '0.1.0' },
+    { name: 'lucidindex-mcp-dashboard', version: '0.1.0' },
     { capabilities: { tools: {} } },
   )
   registerTools(server)
@@ -45,23 +45,26 @@ function buildMcpServer(): McpServer {
 async function main() {
   let shutdown: () => Promise<void>
 
-  if (env.MCP_TRANSPORT === 'stdio') {
+  if (env.MCP_DASHBOARD_TRANSPORT === 'stdio') {
     // stdio holds one long-lived server for the life of the process.
     const server = buildMcpServer()
     const handle = await startStdioTransport(server)
     shutdown = handle.shutdown
   } else {
-    logger.info('mcp_store_starting', { port: env.MCP_PORT, node_env: env.NODE_ENV })
+    logger.info('mcp_dashboard_starting', {
+      port: env.MCP_DASHBOARD_PORT,
+      node_env: env.NODE_ENV,
+    })
     // HTTP builds a fresh server per request via the factory.
     const handle = await startHttpTransport(buildMcpServer)
     shutdown = handle.shutdown
   }
 
   const onSignal = (signal: NodeJS.Signals) => {
-    logger.info('mcp_store_shutting_down', { signal })
+    logger.info('mcp_dashboard_shutting_down', { signal })
     shutdown()
       .catch((err) => {
-        logger.error('mcp_store_shutdown_error', {
+        logger.error('mcp_dashboard_shutdown_error', {
           message: err instanceof Error ? err.message : String(err),
         })
       })
@@ -72,6 +75,8 @@ async function main() {
 }
 
 main().catch((err) => {
-  logger.error('mcp_store_fatal', { message: err instanceof Error ? err.message : String(err) })
+  logger.error('mcp_dashboard_fatal', {
+    message: err instanceof Error ? err.message : String(err),
+  })
   process.exit(1)
 })

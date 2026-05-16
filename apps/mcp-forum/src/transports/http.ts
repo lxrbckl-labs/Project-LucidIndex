@@ -1,6 +1,6 @@
 // Streamable HTTP transport with bearer-token auth.
 //
-// Mirrors apps/mcp-store/src/transports/http.ts. Same per-request
+// Mirrors apps/mcp-dashboard/src/transports/http.ts. Same per-request
 // transport + server construction (the SDK's stateless transport
 // rejects reuse, and `Server.connect()` rejects an already-attached
 // server, so per-request is the only correct shape for stateless HTTP

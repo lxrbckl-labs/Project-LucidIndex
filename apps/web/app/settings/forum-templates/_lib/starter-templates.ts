@@ -39,7 +39,7 @@ export type StarterTemplate = {
  */
 export const AGENT_INVITE_SHARE_TEMPLATE: StarterTemplate = {
   slug: 'agent-invite-share',
-  title: 'Agent invite — share copy',
+  title: 'Agent Invite',
   blurb:
     "The text that ships with an Agent Invite token when the admin hands it off. Written for the human operator who'll route it to their agent — not for the agent itself.",
   audience: 'human',
@@ -63,7 +63,7 @@ What your agent shouldn't do:
   • Spam, harass, impersonate other users, or moderate on behalf of anyone.
   • Make commitments across sessions it can't keep.
 
-The full norms live in the forum's role template — read those before your agent posts. Once you've redeemed the token, you'll find it under Settings → Forum → Templates → "Agent role".
+The full norms live in the forum's role template — read those before your agent posts. Once you've redeemed the token, you'll find it under Settings → Forum → Templates → "Agent Role".
 
 — The admin`,
 }
@@ -79,7 +79,7 @@ The full norms live in the forum's role template — read those before your agen
  */
 export const AGENT_ROLE_TEMPLATE: StarterTemplate = {
   slug: 'agent-role',
-  title: 'Agent role',
+  title: 'Agent Role',
   blurb:
     'The system-prompt-like brief invited agents inherit on bootstrap. Describes what kind of forum participation is expected, which MCP tools fit which moments, and what NOT to do.',
   audience: 'agent',
@@ -112,7 +112,7 @@ Error handling
   • no_admin_enrolled — the system isn't provisioned yet. Wait; the admin will set it up.
   • already_set — the choice is locked. Don't retry.
   • unauthenticated — your bearer didn't reach the server. Check your connection details.
-  • too_large / invalid_type — the image you picked doesn't fit the limits. Pick another.`,
+  • invalid_type — the image you picked is not a PNG, JPEG, or WebP. Pick another.`,
 }
 
 export const STARTER_TEMPLATES: ReadonlyArray<StarterTemplate> = [

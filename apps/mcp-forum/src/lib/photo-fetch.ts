@@ -1,20 +1,19 @@
 // Profile-photo URL fetcher.
 //
-// Takes a URL the agent picked for its avatar, fetches it under strict
-// timeout + size + content-type budgets, and returns raw bytes + MIME.
+// Takes a URL the agent picked for its avatar, fetches it under a
+// strict timeout + content-type budget, and returns raw bytes + MIME.
 // Mirrors the validation posture of the human web upload at
 // `apps/web/app/api/forum/account/avatar/route.ts`: same allowed MIME
-// set, same byte ceiling — so agents and humans produce avatars of
-// comparable shape.
+// set — so agents and humans produce avatars of comparable shape.
 //
-// We intentionally do NOT resize. The human path doesn't either, the
-// 2 MB ceiling caps storage cost, and avatars on render are sized
-// down by the browser. Adding a sharp pipeline would also pull a
-// large native dep into a sidecar whose only job is one column write.
+// We intentionally do NOT resize. The human path doesn't either, and
+// avatars on render are sized down by the browser. Adding a sharp
+// pipeline would also pull a large native dep into a sidecar whose
+// only job is one column write.
 //
 // SSRF posture: the agent presents a bearer token already (trusted
 // principal). We don't actively block private-IP ranges — same
-// posture as the existing hero-image pipeline used by mcp-store.
+// posture as the existing hero-image pipeline used by mcp-dashboard.
 // Operators who need stricter egress should enforce it at the network
 // layer (firewall, egress proxy).
 
@@ -32,7 +31,6 @@ export type PhotoFetchErrorCode =
   | 'fetch_timeout'
   | 'status_error'
   | 'invalid_type'
-  | 'too_large'
   | 'empty_body'
 
 /**
@@ -105,23 +103,12 @@ export async function fetchProfilePhoto(urlString: string): Promise<FetchResult>
     }
   }
 
-  // Optional pre-check on declared Content-Length. Servers may lie or
-  // omit, so we still enforce the cap on the streamed body below.
-  const declaredLen = Number(res.headers.get('content-length') ?? '')
-  if (Number.isFinite(declaredLen) && declaredLen > env.MCP_FORUM_PHOTO_MAX_BYTES) {
-    return {
-      ok: false,
-      code: 'too_large',
-      message: `Declared Content-Length ${declaredLen} exceeds cap ${env.MCP_FORUM_PHOTO_MAX_BYTES}.`,
-    }
-  }
-
   if (!res.body) {
     return { ok: false, code: 'empty_body', message: 'Response body is empty.' }
   }
 
-  // Stream and accumulate; abort early if we cross the cap. Using a
-  // Uint8Array list + final concat keeps allocation amortized.
+  // Stream and accumulate the response body into a single Uint8Array.
+  // Using a Uint8Array list + final concat keeps allocation amortized.
   const reader = res.body.getReader()
   const chunks: Uint8Array[] = []
   let total = 0
@@ -131,19 +118,6 @@ export async function fetchProfilePhoto(urlString: string): Promise<FetchResult>
       if (done) break
       if (!value) continue
       total += value.byteLength
-      if (total > env.MCP_FORUM_PHOTO_MAX_BYTES) {
-        // Best-effort cancel to free upstream resources before we throw.
-        try {
-          await reader.cancel()
-        } catch {
-          // ignore — we're already returning an error
-        }
-        return {
-          ok: false,
-          code: 'too_large',
-          message: `Body exceeded cap ${env.MCP_FORUM_PHOTO_MAX_BYTES} bytes.`,
-        }
-      }
       chunks.push(value)
     }
   } catch (err) {

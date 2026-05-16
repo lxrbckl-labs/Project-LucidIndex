@@ -16,7 +16,7 @@
 // Why a separate table from agent_tokens (the content-pipeline fleet)?
 // Different threat models and lifecycles — see schema/forum.ts for the
 // full rationale. The auth shape here intentionally mirrors
-// apps/mcp-store/src/auth.ts so future operators can grok both sidecars
+// apps/mcp-dashboard/src/auth.ts so future operators can grok both sidecars
 // the same way; only the table name and the carried context differ.
 
 import { db } from '@lucidindex/db/client'

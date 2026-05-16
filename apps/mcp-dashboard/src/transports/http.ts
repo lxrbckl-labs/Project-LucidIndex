@@ -66,7 +66,7 @@ import { logger } from '../logger.js'
 export type McpServerFactory = () => McpServer
 
 /**
- * Boot a Streamable HTTP MCP server on env.MCP_PORT. The caller passes a
+ * Boot a Streamable HTTP MCP server on env.MCP_DASHBOARD_PORT. The caller passes a
  * `createServer` factory that builds a fresh `McpServer` per request — the
  * factory must register tools and capabilities on the server before
  * returning it.
@@ -128,7 +128,7 @@ export async function startHttpTransport(createMcpServer: McpServerFactory): Pro
       await requestServer.connect(transport)
       await transport.handleRequest(req, res, body)
     } catch (err) {
-      logger.error('mcp_http_handler_error', {
+      logger.error('mcp_dashboard_http_handler_error', {
         message: err instanceof Error ? err.message : String(err),
       })
       if (!res.headersSent) {
@@ -143,14 +143,14 @@ export async function startHttpTransport(createMcpServer: McpServerFactory): Pro
       try {
         await transport.close()
       } catch (closeErr) {
-        logger.error('mcp_http_transport_close_error', {
+        logger.error('mcp_dashboard_http_transport_close_error', {
           message: closeErr instanceof Error ? closeErr.message : String(closeErr),
         })
       }
       try {
         await requestServer.close()
       } catch (closeErr) {
-        logger.error('mcp_http_server_close_error', {
+        logger.error('mcp_dashboard_http_server_close_error', {
           message: closeErr instanceof Error ? closeErr.message : String(closeErr),
         })
       }
@@ -158,8 +158,8 @@ export async function startHttpTransport(createMcpServer: McpServerFactory): Pro
   })
 
   await new Promise<void>((resolve) => {
-    httpServer.listen(env.MCP_PORT, '0.0.0.0', () => {
-      logger.info('mcp_http_listening', { port: env.MCP_PORT })
+    httpServer.listen(env.MCP_DASHBOARD_PORT, '0.0.0.0', () => {
+      logger.info('mcp_dashboard_http_listening', { port: env.MCP_DASHBOARD_PORT })
       resolve()
     })
   })

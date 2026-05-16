@@ -25,7 +25,7 @@ See [README.md](README.md) for the full pitch. See `[[Architecture]]` in the Obs
 | Project overview and north star | [README.md](README.md) (in repo) |
 | Architecture (all layers) | `[[Architecture]]` (vault) |
 | Narrative debrief | `[[Debrief]]` (vault) |
-| MCP layer and `mcp-store` (queue + write-back + topic badges) | `[[MCP]]` (vault) |
+| MCP layer and `mcp-dashboard` (queue + write-back + topic badges) | `[[MCP]]` (vault) |
 | Backend API, passkey auth, SSE, DB schema, admin CLI | `[[Backend]]` (vault) |
 | Dashboard UX behavior (filters, sort, empty state) | `[[Dashboard]]` (vault) — visual rules defer to `[[Visual Identity]]` |
 | **Visual design — binding for all visual decisions** | `[[Visual Identity]]` (vault) — Fyrre-derived card anatomy, palette, typography, masonry |
@@ -45,7 +45,7 @@ See [README.md](README.md) for the full pitch. See `[[Architecture]]` in the Obs
 | Web app | Next.js 15 (App Router, Node runtime) + React 19 |
 | Backend API | TypeScript + Next.js 15 (App Router, Node runtime) — no separate Fastify server |
 | Database | Postgres 16 via Drizzle ORM (`postgres-js` driver, Drizzle Kit migrations) |
-| MCP server | TypeScript + `@modelcontextprotocol/sdk` (`mcp-store` sidecar) |
+| MCP server | TypeScript + `@modelcontextprotocol/sdk` (`mcp-dashboard` sidecar) |
 | Cron | TypeScript + `node-cron` sidecar |
 | Realtime | SSE via Next.js Route Handlers |
 | Styling | Tailwind CSS v4 + shadcn/ui |
@@ -54,7 +54,7 @@ See [README.md](README.md) for the full pitch. See `[[Architecture]]` in the Obs
 
 ### Deploy
 
-Docker Compose stack — four services: `web`, `cron`, `mcp-store`, `postgres`. No Caddy container in the stack — the host already runs Caddy. The host's Caddy terminates TLS via automatic Let's Encrypt (ACME — no signup, no third-party account). A Caddyfile snippet ships in the deploy docs for the host to absorb. Same shape as Project-DS deploys. No tunnel daemon, no Cloudflare account, no Tailscale account.
+Docker Compose stack — four services: `web`, `cron`, `mcp-dashboard`, `postgres`. No Caddy container in the stack — the host already runs Caddy. The host's Caddy terminates TLS via automatic Let's Encrypt (ACME — no signup, no third-party account). A Caddyfile snippet ships in the deploy docs for the host to absorb. Same shape as Project-DS deploys. No tunnel daemon, no Cloudflare account, no Tailscale account.
 
 ---
 
@@ -64,7 +64,7 @@ Docker Compose stack — four services: `web`, `cron`, `mcp-store`, `postgres`. 
 - **No agent intelligence or scraping tools here.** Agents already have Playwright, fetch, search, etc. LucidIndex does not bundle any of it.
 - **No social media API integrations.** No Twitter API keys, no YouTube Data API, no Instagram Graph. Agents access the web however they already do.
 - **No LLM / summarization pipeline.** Summarization is whatever the agent does before write-back. LucidIndex stores what it receives.
-- **Dashboard is read/write by the admin, write-only by agents.** Agents never touch the UI — they go through `mcp-store`.
+- **Dashboard is read/write by the admin, write-only by agents.** Agents never touch the UI — they go through `mcp-dashboard`.
 - **Single-admin.** v0.1 is one admin only. There is no shared cross-admin data — there's only one admin. Multi-admin is parking lot (not v0.1).
 - **Passkey auth only.** No email/password, no magic link, no OAuth. Recovery is `admin:reset` CLI. No email/SMS fallback by design.
 - **Founding-admin claim only.** No invite-based signup. The first admin claims their account via `/settings?token=<LUCIDINDEX_FOUNDING_TOKEN>`. No open registration.

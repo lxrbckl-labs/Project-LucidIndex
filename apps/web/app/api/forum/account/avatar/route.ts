@@ -3,7 +3,7 @@
  *
  * Auth-gated avatar upload for the currently signed-in forum user.
  * Multipart body with a single `file` field. Validates the image's
- * declared MIME + size, stores the bytes inline on `forum_users`
+ * declared MIME, stores the bytes inline on `forum_users`
  * (bytea), and stamps `photo_set_at` if it's still NULL.
  *
  * Humans editing their own avatar are *not* gated by `photo_set_at` —
@@ -22,7 +22,6 @@ import { NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic'
 
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp'])
-const MAX_BYTES = 2 * 1024 * 1024 // 2 MB
 
 export async function POST(req: Request) {
   const session = await requireForumUser()
@@ -45,12 +44,6 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { ok: false, reason: 'invalid_type', allowed: Array.from(ALLOWED_MIME) },
       { status: 415 },
-    )
-  }
-  if (file.size > MAX_BYTES) {
-    return NextResponse.json(
-      { ok: false, reason: 'too_large', maxBytes: MAX_BYTES },
-      { status: 413 },
     )
   }
   if (file.size === 0) {

@@ -1,9 +1,9 @@
 // Structured JSON logging for the mcp-forum sidecar.
 //
 // One log line === one JSON object on stdout (or stderr for `error`).
-// Matches apps/mcp-store/src/logger.ts so operators can grep both
+// Matches apps/mcp-dashboard/src/logger.ts so operators can grep both
 // sidecars' output the same way. The `msg` prefixes differ
-// (`mcp_forum_*` vs `mcp_store_*`) so log routes can split on source.
+// (`mcp_forum_*` vs `mcp_dashboard_*`) so log routes can split on source.
 //
 // stdio caveat: when the transport is stdio, stdout is reserved for
 // JSON-RPC and any stray write corrupts the protocol. In that mode

@@ -1,7 +1,7 @@
 // Hero image fetch + sharp resize + WebP/JPEG fallback.
 //
-// Originally lived in apps/mcp-store/src/lib/image-pipeline.ts and is owned
-// by #45. Lifted into @lucidindex/shared so both mcp-store (production
+// Originally lived in apps/mcp-dashboard/src/lib/image-pipeline.ts and is owned
+// by #45. Lifted into @lucidindex/shared so both mcp-dashboard (production
 // agent writes) and packages/db/seed-demo.ts (LUCIDINDEX_SEED_DEMO stress-
 // test seeder) write hero images via the SAME path — same disk layout,
 // same hash format, same WebP/JPEG outputs. Demo data going through a

@@ -1,4 +1,4 @@
-# LucidIndex mcp-store — multi-stage Docker build.
+# LucidIndex mcp-dashboard — multi-stage Docker build.
 #
 # Stages:
 #   base    : node:22-alpine + pnpm via corepack
@@ -21,7 +21,7 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY tsconfig.base.json tsconfig.json ./
 
-COPY apps/mcp-store/package.json ./apps/mcp-store/package.json
+COPY apps/mcp-dashboard/package.json ./apps/mcp-dashboard/package.json
 COPY packages/db/package.json ./packages/db/package.json
 COPY packages/shared/package.json ./packages/shared/package.json
 COPY packages/templates/package.json ./packages/templates/package.json
@@ -43,7 +43,7 @@ WORKDIR /app
 
 # Bring in installed node_modules from the deps stage.
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/mcp-store/node_modules ./apps/mcp-store/node_modules
+COPY --from=deps /app/apps/mcp-dashboard/node_modules ./apps/mcp-dashboard/node_modules
 COPY --from=deps /app/packages/db/node_modules ./packages/db/node_modules
 COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
 COPY --from=deps /app/packages/templates/node_modules ./packages/templates/node_modules
@@ -51,20 +51,20 @@ COPY --from=deps /app/packages/templates/node_modules ./packages/templates/node_
 # Copy full source.
 COPY . .
 
-# Compile workspace packages first so their dist/ is ready for the mcp-store
-# consumer. Without this, compiled mcp-store resolves workspace imports via
+# Compile workspace packages first so their dist/ is ready for the mcp-dashboard
+# consumer. Without this, compiled mcp-dashboard resolves workspace imports via
 # Node's package exports (which point at dist/) but dist/ won't exist, causing
 # ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING at runtime.
 RUN pnpm --filter @lucidindex/shared build && pnpm --filter @lucidindex/db build
 
-# Compile the TypeScript sources to apps/mcp-store/dist/.
-RUN pnpm --filter @lucidindex/mcp-store build
+# Compile the TypeScript sources to apps/mcp-dashboard/dist/.
+RUN pnpm --filter @lucidindex/mcp-dashboard build
 
 # Drop devDeps from the resolved workspace tree before we ship it. CI=true
 # silences pnpm's interactive "remove modules dir?" prompt, which otherwise
 # aborts in non-TTY builds.
 ENV CI=true
-RUN pnpm --filter @lucidindex/mcp-store --prod --legacy --ignore-scripts deploy /app/deploy
+RUN pnpm --filter @lucidindex/mcp-dashboard --prod --legacy --ignore-scripts deploy /app/deploy
 
 # ---- runner ----
 FROM node:22-alpine AS runner
@@ -82,7 +82,7 @@ WORKDIR /app
 # points at dist/. Without this COPY the runtime would throw
 # ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING on the raw .ts files.
 COPY --from=builder /app/deploy ./
-COPY --from=builder /app/apps/mcp-store/dist ./dist
+COPY --from=builder /app/apps/mcp-dashboard/dist ./dist
 COPY --from=builder /app/packages/db/dist ./node_modules/@lucidindex/db/dist
 COPY --from=builder /app/packages/shared/dist ./node_modules/@lucidindex/shared/dist
 

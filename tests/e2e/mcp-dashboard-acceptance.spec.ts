@@ -1,7 +1,7 @@
 /**
- * Phase 3 acceptance test — mcp-store sidecar end-to-end (#47).
+ * Phase 3 acceptance test — mcp-dashboard sidecar end-to-end (#47).
  *
- * Boots a fresh Postgres + a fresh `mcp-store` HTTP-transport sidecar via
+ * Boots a fresh Postgres + a fresh `mcp-dashboard` HTTP-transport sidecar via
  * `support/mcp-server.ts`, then drives the 5-tool surface end-to-end as
  * an MCP client would. Captures the Plan-of-Attack "Done when" for Phase
  * 3:
@@ -13,8 +13,8 @@
  *      → write_articles (accepted, deduped:false) → ack_queue_item.
  *   3. Bearer auth rejection — missing header / wrong scheme / unknown
  *      token / revoked token all return HTTP 401.
- *   4. stdio transport happy path — spawn `mcp-store` with
- *      `MCP_TRANSPORT=stdio`, send `tools/list` over stdin, read 5 tools
+ *   4. stdio transport happy path — spawn `mcp-dashboard` with
+ *      `MCP_DASHBOARD_TRANSPORT=stdio`, send `tools/list` over stdin, read 5 tools
  *      back from stdout. Stdio bypasses bearer auth (process-local
  *      trust) — verified by sending no auth at all.
  *   5. Dedup — write_articles twice with the same `(target_id,
@@ -85,7 +85,7 @@ test('1. pre-admin guard — empty admins table refuses with no_admin_enrolled',
 // ---------------------------------------------------------------------------
 
 test('2. bearer auth happy path — pull/write/ack via Streamable HTTP', async () => {
-  // Insert founding admin so the pre-admin guard stops firing. The mcp-store
+  // Insert founding admin so the pre-admin guard stops firing. The mcp-dashboard
   // caches "admins exist" for 5s once true — we never delete admins (NO
   // DELETIONS) so re-inserting is safe; existing rows are tolerated.
   execSql(`INSERT INTO admins (name) VALUES ('AcceptanceAdmin') ON CONFLICT DO NOTHING;`)
@@ -245,16 +245,16 @@ test('3. bearer auth rejection — 401 on missing / wrong / unknown / revoked', 
 // ---------------------------------------------------------------------------
 
 test('4. stdio transport — tools/list returns the 12 registered tools', async () => {
-  // Spawn a fresh mcp-store child in stdio mode against the same DB. Stdio
+  // Spawn a fresh mcp-dashboard child in stdio mode against the same DB. Stdio
   // bypasses bearer auth (process-local trust) — we verify by sending no
   // headers (which is moot for stdio, since headers don't exist in
   // JSON-RPC over stdin/stdout anyway).
   const child: ChildProcessWithoutNullStreams = spawn(
     'pnpm',
-    ['--filter', '@lucidindex/mcp-store', 'exec', 'tsx', 'src/server.ts'],
+    ['--filter', '@lucidindex/mcp-dashboard', 'exec', 'tsx', 'src/server.ts'],
     {
       cwd: REPO_ROOT,
-      env: { ...stack.mcpEnv, MCP_TRANSPORT: 'stdio' },
+      env: { ...stack.mcpEnv, MCP_DASHBOARD_TRANSPORT: 'stdio' },
       stdio: ['pipe', 'pipe', 'pipe'],
     },
   ) as ChildProcessWithoutNullStreams
@@ -266,7 +266,7 @@ test('4. stdio transport — tools/list returns the 12 registered tools', async 
   child.stdout.on('data', (chunk: Buffer) => {
     stdoutBuf += chunk.toString('utf8')
   })
-  // Forward stderr for debugging (mcp-store redirects all logs to stderr
+  // Forward stderr for debugging (mcp-dashboard redirects all logs to stderr
   // in stdio mode).
   child.stderr.on('data', (chunk: Buffer) => {
     process.stderr.write(`[mcp-stdio] ${chunk}`)
@@ -872,7 +872,7 @@ async function mintAndPersistToken(label: string): Promise<{ token: string; toke
 }
 
 /**
- * Wait for the mcp-store's pre-admin guard cache to expire (5s TTL). Used
+ * Wait for the mcp-dashboard's pre-admin guard cache to expire (5s TTL). Used
  * exactly once, after seeding the founding admin in test 2 — the cache may
  * still hold a "false" reading from test 1's pre-admin call.
  */
@@ -913,7 +913,7 @@ type ToolCallResult = {
 }
 
 /**
- * POST a JSON-RPC `tools/call` to the mcp-store and return parsed body +
+ * POST a JSON-RPC `tools/call` to the mcp-dashboard and return parsed body +
  * HTTP status. Bearer header is included if `token` is non-null.
  */
 async function callTool(

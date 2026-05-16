@@ -24,7 +24,7 @@
  *
  * Why split into two functions instead of always disambiguating: the
  * dashboard slug should read as a clean URL by default; only collisions
- * pay the readability cost of a hash suffix. And callers (mcp-store
+ * pay the readability cost of a hash suffix. And callers (mcp-dashboard
  * `write_articles`) do their own DB-level retry — they need both the
  * "first try" form and the "retry" form distinct.
  *

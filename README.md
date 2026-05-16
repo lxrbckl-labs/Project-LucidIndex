@@ -18,11 +18,11 @@ A reference agent ships in lockstep as a sibling repo: [`Project-LucidIndex-Agen
 
 ## What LucidIndex is NOT building
 
-- **The agents themselves** — external, bring-your-own. Wire up Claude Code (or anything else MCP-speaking) and point it at your `mcp-store`.
+- **The agents themselves** — external, bring-your-own. Wire up Claude Code (or anything else MCP-speaking) and point it at your `mcp-dashboard`.
 - **Scraping tools or LLM intelligence** — agents already have Playwright, fetch, search, summarization. LucidIndex stores what comes back; it does not generate it.
 - **Social-media API integrations** — no Twitter API keys, no YouTube Data API, no Instagram Graph. Agents access the web however they already do.
 - **Multi-user / co-admin / team mode** — single-admin forever in v0.1.
-- **A slash-command surface inside Claude Code** — the reference agent talks to `mcp-store` directly via MCP.
+- **A slash-command surface inside Claude Code** — the reference agent talks to `mcp-dashboard` directly via MCP.
 
 ---
 
@@ -34,10 +34,10 @@ LucidIndex deploys as four containerized services plus a host-resident reverse p
 |---|---|
 | **`web`** | Next.js 15 app (App Router, RSC, Server Actions, Route Handlers). Owns the dashboard, article pages, settings, passkey auth, and the SSE stream. |
 | **`cron`** | Sidecar Node process running `node-cron`. Sweeps targets due for re-enqueue, reaps stale claim-locks, runs retention purge, runs nightly local + off-site backups. Decoupled from web so cron lifecycle doesn't ride on HTTP request handling. |
-| **`mcp-store`** | Sidecar MCP server (`@modelcontextprotocol/sdk`). Exposes the agent surface over **Streamable HTTP** (bearer-token auth) and **stdio** (process-local trust). Decoupled because MCP transport lifecycle is different from HTTP. |
+| **`mcp-dashboard`** | Sidecar MCP server (`@modelcontextprotocol/sdk`). Exposes the agent surface over **Streamable HTTP** (bearer-token auth) and **stdio** (process-local trust). Decoupled because MCP transport lifecycle is different from HTTP. |
 | **`postgres`** | Postgres 16. Source of truth for everything — articles, queue, targets, badges, templates, agent tokens, sessions, credentials. |
 
-**Reverse proxy is host-resident.** TLS termination + public reach is handled by an existing Caddy on the host — **NOT shipped in this repo's `docker-compose.yml`** (same shape as Project-DS). Compose binds `web` and `mcp-store` to `127.0.0.1:PORT` so only the host (and therefore Caddy) can reach them; Caddy fronts both behind a single hostname and routes `/mcp/*` to `mcp-store`, everything else to `web`. Public reach is a DNS A record + port 443 forwarded to the host. **No tunnel daemon, no Cloudflare account, no Tailscale account.**
+**Reverse proxy is host-resident.** TLS termination + public reach is handled by an existing Caddy on the host — **NOT shipped in this repo's `docker-compose.yml`** (same shape as Project-DS). Compose binds `web` and `mcp-dashboard` to `127.0.0.1:PORT` so only the host (and therefore Caddy) can reach them; Caddy fronts both behind a single hostname and routes `/mcp/*` to `mcp-dashboard`, everything else to `web`. Public reach is a DNS A record + port 443 forwarded to the host. **No tunnel daemon, no Cloudflare account, no Tailscale account.**
 
 LucidIndex is **infrastructure only** — there are no agents, no scrapers, and no LLM/summarization pipeline anywhere in this stack. Those live in (or with) the reference agent repo.
 
@@ -69,7 +69,7 @@ For a deeper look at the as-built implementation — service responsibilities, s
 | Lint + format | **Biome** |
 | Pre-commit | **`lefthook`** |
 | Testing | **Vitest** (unit/integration) + **Playwright** (E2E) |
-| Container | **Docker Compose** — services: `web`, `cron`, `mcp-store`, `postgres` |
+| Container | **Docker Compose** — services: `web`, `cron`, `mcp-dashboard`, `postgres` |
 | Reverse proxy | **Host-resident Caddy** with **automatic Let's Encrypt** via ACME — not shipped in our stack |
 
 See `<vault>/Projects/Project-LucidIndex/Tech Stack.md` for the binding picks and the rationale behind each.
@@ -93,7 +93,7 @@ Single-admin enrollment is gated by an environment variable so the deploy window
    - The passkey-registration ceremony runs (SimpleWebAuthn).
    - On success: a one-time recovery code is displayed (copy it now — it's never shown again, and it's stored hashed).
    - The token is invalidated server-side. Subsequent visits to `/settings?token=...` with the same value are rejected.
-3. After enrollment, `/settings` is **passkey-gated** — you sign in with your registered passkey. Dashboard and article pages stay public so share links unfurl for anyone; only `/settings` is gated. `mcp-store` over HTTP is bearer-token gated; over stdio it relies on process-local trust.
+3. After enrollment, `/settings` is **passkey-gated** — you sign in with your registered passkey. Dashboard and article pages stay public so share links unfurl for anyone; only `/settings` is gated. `mcp-dashboard` over HTTP is bearer-token gated; over stdio it relies on process-local trust.
 
 **Recovery is the `admin:reset` CLI** run directly on the server (truncates sessions + credentials so the next visit re-claims via passkey re-registration). **No email/SMS fallback by design** — single-admin, homelab, you control the box. Same recovery posture as Project-DS and Project-Showalter.
 
@@ -101,7 +101,7 @@ Single-admin enrollment is gated by an environment variable so the deploy window
 
 ## Reverse-proxy with host Caddy
 
-LucidIndex deploys behind the **homelab's existing Caddy** — we do not ship a Caddy container. The host Caddy terminates TLS via automatic Let's Encrypt (ACME) and routes incoming traffic: `/mcp/*` goes to `mcp-store` (port 4000), everything else goes to `web` (port 3000). There is **no tunnel daemon, no Cloudflare account, and no Tailscale account** in this picture — a public DNS A record, port 443 forwarded at the router, and Caddy's built-in ACME client are the entire public-reach stack.
+LucidIndex deploys behind the **homelab's existing Caddy** — we do not ship a Caddy container. The host Caddy terminates TLS via automatic Let's Encrypt (ACME) and routes incoming traffic: `/mcp/*` goes to `mcp-dashboard` (port 4000), everything else goes to `web` (port 3000). There is **no tunnel daemon, no Cloudflare account, and no Tailscale account** in this picture — a public DNS A record, port 443 forwarded at the router, and Caddy's built-in ACME client are the entire public-reach stack.
 
 ### Caddyfile snippet
 
@@ -126,17 +126,17 @@ Pick `<web-target>` and `<mcp-target>` based on how Caddy runs on your host:
 |---|---|---|
 | **Native binary or systemd on the host** | `localhost` | `localhost` |
 | **Docker container on the same host** (macOS / Docker Desktop) | `host.docker.internal` | `host.docker.internal` |
-| **Docker container in the same network as this stack** | `web` | `mcp-store` |
+| **Docker container in the same network as this stack** | `web` | `mcp-dashboard` |
 
 Details on each shape:
 
 - **Caddy on the host directly** (native binary or systemd): use `localhost:3000` / `localhost:4000`. The Compose stack binds both services to `127.0.0.1:<port>`, so Caddy running on the same host can reach them at `localhost`.
 - **Caddy in a Docker container on the same host** (most common self-hosted setup on macOS / Docker Desktop): use `host.docker.internal:3000` / `host.docker.internal:4000`. `localhost` inside the Caddy container points at the Caddy container itself, not the host — using `localhost` here will give you HTTP 502s.
-- **Caddy in the same Docker network as the LucidIndex stack**: use the container names `web:3000` / `mcp-store:4000`. This requires either attaching Caddy explicitly to this stack's Compose network, or adding `web` and `mcp-store` to Caddy's network in `docker-compose.yml`.
+- **Caddy in the same Docker network as the LucidIndex stack**: use the container names `web:3000` / `mcp-dashboard:4000`. This requires either attaching Caddy explicitly to this stack's Compose network, or adding `web` and `mcp-dashboard` to Caddy's network in `docker-compose.yml`.
 
 ### Compose port-binding posture
 
-The Compose file already binds `web` to `127.0.0.1:3000` and `mcp-store` to `127.0.0.1:4000`. This means only Caddy (running on the same host) can reach the services directly — the public internet sees them only through the reverse proxy. **Do not change these to `0.0.0.0:<port>` bindings** — that would expose the services directly on the public interface and defeat the security model.
+The Compose file already binds `web` to `127.0.0.1:3000` and `mcp-dashboard` to `127.0.0.1:4000`. This means only Caddy (running on the same host) can reach the services directly — the public internet sees them only through the reverse proxy. **Do not change these to `0.0.0.0:<port>` bindings** — that would expose the services directly on the public interface and defeat the security model.
 
 ### Reload Caddy after editing
 
@@ -186,13 +186,13 @@ Then visit `/settings?token=<LUCIDINDEX_FOUNDING_TOKEN>` to claim founding-admin
 
 ### Migrations on startup (production)
 
-The web container runs Drizzle migrations + the idempotent seed before binding port 3000. The runner image bundles `drizzle-kit`, the SQL files under `packages/db/migrations/`, and the compiled `packages/db/dist/seed.js`. On a fresh database this materialises the schema; on a populated database the migration journal makes it a no-op. The healthcheck on `web` doubles as a "schema is ready" signal — `mcp-store` and `cron` `depends_on: web → service_healthy` so they never query an unmigrated DB. There is no host-side `pnpm db:migrate` step in production.
+The web container runs Drizzle migrations + the idempotent seed before binding port 3000. The runner image bundles `drizzle-kit`, the SQL files under `packages/db/migrations/`, and the compiled `packages/db/dist/seed.js`. On a fresh database this materialises the schema; on a populated database the migration journal makes it a no-op. The healthcheck on `web` doubles as a "schema is ready" signal — `mcp-dashboard` and `cron` `depends_on: web → service_healthy` so they never query an unmigrated DB. There is no host-side `pnpm db:migrate` step in production.
 
 Concrete commands, env var list, and the admin CLI surface (`admin:reset`) get written into this section once the scaffold exists.
 
 ### Demo data (`LUCIDINDEX_SEED_DEMO`)
 
-Set `LUCIDINDEX_SEED_DEMO=true` (or `1` / `yes`, case-insensitive) on the `web` service to populate an **empty** database with a large synthetic fixture for stress-testing — ~50–80 targets across all source types, 15–25 topic badges, **800–1200 articles** with realistic titles, summaries, and recency-weighted publish dates, plus pending topic-badge suggestions, queue items, run-log entries, and cron-run history. Hero images are fetched from `picsum.photos` and run through the **same production image-pipeline** (`@lucidindex/shared/image-pipeline`) that `mcp-store` uses for real agent writes — disk layout, content hashes, and WebP+JPEG outputs match exactly, so the dashboard's image route resolves seeded and real images identically.
+Set `LUCIDINDEX_SEED_DEMO=true` (or `1` / `yes`, case-insensitive) on the `web` service to populate an **empty** database with a large synthetic fixture for stress-testing — ~50–80 targets across all source types, 15–25 topic badges, **800–1200 articles** with realistic titles, summaries, and recency-weighted publish dates, plus pending topic-badge suggestions, queue items, run-log entries, and cron-run history. Hero images are fetched from `picsum.photos` and run through the **same production image-pipeline** (`@lucidindex/shared/image-pipeline`) that `mcp-dashboard` uses for real agent writes — disk layout, content hashes, and WebP+JPEG outputs match exactly, so the dashboard's image route resolves seeded and real images identically.
 
 The seeder hooks into the web entrypoint **after migrations apply** and is **fully idempotent**: it skips silently if `targets` or `articles` already has any row, so it's safe to leave on across container restarts. To re-seed a fresh fixture, tear down the volume (`docker compose down -v`) and bring the stack back up.
 
@@ -212,4 +212,4 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the quick-start, local dev loop, te
 
 ## Status
 
-Spec locked at v0.1 (single-admin, Fyrre-magazine masonry, Postgres + Drizzle, single Next.js app + cron + mcp-store sidecars, host Caddy + Let's Encrypt deploy). Design notes and the build plan live in Alex's Obsidian vault at `<vault>/Projects/Project-LucidIndex/`. **No code yet** — Phase 0 (this docs rewrite) precedes Phase 1 (foundation scaffold). See `<vault>/Projects/Project-LucidIndex/Plan of Attack.md` for the full phase-by-phase build sequence.
+Spec locked at v0.1 (single-admin, Fyrre-magazine masonry, Postgres + Drizzle, single Next.js app + cron + mcp-dashboard sidecars, host Caddy + Let's Encrypt deploy). Design notes and the build plan live in Alex's Obsidian vault at `<vault>/Projects/Project-LucidIndex/`. **No code yet** — Phase 0 (this docs rewrite) precedes Phase 1 (foundation scaffold). See `<vault>/Projects/Project-LucidIndex/Plan of Attack.md` for the full phase-by-phase build sequence.

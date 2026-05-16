@@ -43,7 +43,7 @@
  * Hero images:
  *   - Fetched via picsum.photos (the standard "lorem ipsum for images"
  *     service) and run through the SAME `@lucidindex/shared/image-pipeline`
- *     module that mcp-store uses for production agent writes. Disk
+ *     module that mcp-dashboard uses for production agent writes. Disk
  *     layout and content-hash format are identical, so the dashboard's
  *     image-serve route resolves seeded and real images via the same
  *     code path. Images take time — we batch concurrency to 12 and log
@@ -331,17 +331,17 @@ export async function shouldSkipDemoSeed(): Promise<{
 // --------------------------- Image-pipeline glue ---------------------------
 
 /**
- * Resolve image-pipeline config from env, mirroring the mcp-store sidecar's
+ * Resolve image-pipeline config from env, mirroring the mcp-dashboard sidecar's
  * defaults. The seeder runs in the web container after migrations apply,
- * NOT in the mcp-store container — so we read MCP_IMAGE_DIR ourselves
+ * NOT in the mcp-dashboard container — so we read MCP_IMAGE_DIR ourselves
  * (default `data/images`, which the docker-compose volume mount makes
  * shared between containers if both are mapped to the same volume).
  *
  * For the docker-compose stack as it stands today, the web container does
  * NOT mount mcp_images, so demo images land at /app/data/images inside
- * the web container and serve via mcp-store's image-serve route only if
+ * the web container and serve via mcp-dashboard's image-serve route only if
  * the volume is also mounted on web. Operators who want demo images in
- * the dashboard should mount the volume on both web and mcp-store.
+ * the dashboard should mount the volume on both web and mcp-dashboard.
  */
 /**
  * Demo creator bios. Picks a source-shape-aware template and rolls a
@@ -705,7 +705,7 @@ export async function seedDemo(): Promise<SeedDemoResult> {
 
   // Slug uniqueness: generate per article, salt with index on conflict.
   // For demo data we don't run through @lucidindex/shared/slug — that
-  // module is a hot dependency of mcp-store and we'd rather keep db clean
+  // module is a hot dependency of mcp-dashboard and we'd rather keep db clean
   // of the shared/slug dependency cycle. Instead, the seeder uses a
   // simple deterministic slug from the article index. Production code
   // path is unaffected.

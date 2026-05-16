@@ -2,13 +2,13 @@
  * In-process article event bus (#60).
  *
  * Phase 5 ships SSE for the dashboard so newly-filed articles fade in
- * without a full grid reflow. The cross-process story (mcp-store →
+ * without a full grid reflow. The cross-process story (mcp-dashboard →
  * apps/web) is OUT OF SCOPE for this PR — that's a future ticket and
  * will probably be implemented via Postgres LISTEN/NOTIFY (free with
  * the existing DB connection) or a Redis pub/sub channel.
  *
- *   TODO(future ticket): cross-process SSE between mcp-store and web.
- *   Likely Postgres LISTEN/NOTIFY: `mcp-store` issues `NOTIFY
+ *   TODO(future ticket): cross-process SSE between mcp-dashboard and web.
+ *   Likely Postgres LISTEN/NOTIFY: `mcp-dashboard` issues `NOTIFY
  *   article_new, '<json>'` after a successful insert; the web process
  *   keeps a long-lived `LISTEN` connection and forwards every
  *   notification onto this same in-process bus. That keeps THIS module

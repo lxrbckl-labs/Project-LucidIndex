@@ -1,6 +1,8 @@
-# `@lucidindex/mcp-store`
+# `@lucidindex/mcp-dashboard`
 
-The mcp-store sidecar — LucidIndex's **agent surface**.
+The mcp-dashboard sidecar — LucidIndex's **agent surface for the dashboard
+content pipeline**. (Paired with `apps/mcp-forum`, the separate sidecar
+serving the forum surface.)
 
 This Node service is the only entrypoint Claude (and other MCP clients) use
 to pull queue items, write articles, and read topic metadata. It runs as a
@@ -13,7 +15,7 @@ Real, production-shaped MCP server as of Phase 3:
 
 - **Streamable HTTP transport** with `Authorization: Bearer <token>` auth
   (default; what docker-compose runs).
-- **stdio transport** for process-local clients (`MCP_TRANSPORT=stdio`).
+- **stdio transport** for process-local clients (`MCP_DASHBOARD_TRANSPORT=stdio`).
 - **Five tools** registered: `pull_queue_item`, `ack_queue_item`,
   `write_articles`, `get_topic_badges`, `get_high_water_mark`.
 - **Pre-admin guard** — every tool returns `no_admin_enrolled` until at
@@ -44,7 +46,7 @@ Real, production-shaped MCP server as of Phase 3:
 
 ### Streamable HTTP (default)
 
-Mounted on `MCP_PORT` (default `4000`). Every request must carry
+Mounted on `MCP_DASHBOARD_PORT` (default `4000`). Every request must carry
 `Authorization: Bearer <token>` where `<token>` is a cleartext agent token
 issued via the apps/web Settings → Agent Tokens flow (#35). Tokens are
 hashed with argon2id at rest in `agent_tokens.token_hash`; the cleartext
@@ -59,7 +61,7 @@ docker-compose healthchecks.
 
 ### stdio
 
-Switch with `MCP_TRANSPORT=stdio`. Bypasses bearer-auth (process-local
+Switch with `MCP_DASHBOARD_TRANSPORT=stdio`. Bypasses bearer-auth (process-local
 trust). Suitable for co-located agents that exec into the container or
 local-dev sessions with the MCP inspector. The pre-admin guard still
 applies.
@@ -99,8 +101,8 @@ single queued row — exactly one claim returned the row, nine returned
 
 ### Lock TTL
 
-Configurable via `MCP_LOCK_TTL_MINUTES` (preferred, per #42 spec) or the
-legacy `MCP_QUEUE_LOCK_TTL_SEC`. Default 15 minutes.
+Configurable via `MCP_DASHBOARD_LOCK_TTL_MINUTES` (preferred, per #42 spec) or the
+legacy `MCP_DASHBOARD_QUEUE_LOCK_TTL_SEC`. Default 15 minutes.
 
 ### Topic-badge validation + dedup (#43) — design notes
 
@@ -166,16 +168,16 @@ From the repo root:
 pnpm install
 
 # dev mode — tsx watch, hot reload on src/ changes
-pnpm --filter @lucidindex/mcp-store dev
+pnpm --filter @lucidindex/mcp-dashboard dev
 
 # stdio mode (for the MCP inspector or co-located agents)
-MCP_TRANSPORT=stdio pnpm --filter @lucidindex/mcp-store dev
+MCP_DASHBOARD_TRANSPORT=stdio pnpm --filter @lucidindex/mcp-dashboard dev
 ```
 
 ## Run via docker-compose
 
 ```sh
-docker compose up -d --build mcp-store
+docker compose up -d --build mcp-dashboard
 curl http://127.0.0.1:4000/healthz
 # => {"status":"ok"}
 ```
@@ -202,7 +204,7 @@ docker exec li-mcp-deep psql -U lucidindex -d lucidindex \
       INSERT INTO queue (target_id) VALUES ((SELECT id FROM targets LIMIT 1));"
 
 # 3. Mint an agent token and insert its argon2 hash.
-cd apps/mcp-store
+cd apps/mcp-dashboard
 node --input-type=module -e "
   import { hash } from '@node-rs/argon2';
   import crypto from 'node:crypto';
@@ -217,8 +219,8 @@ docker exec li-mcp-deep psql -U lucidindex -d lucidindex \
 
 # 4. Boot the sidecar.
 DATABASE_URL=postgres://lucidindex:lucidindex_dev@localhost:5453/lucidindex \
-  MCP_PORT=4503 MCP_TRANSPORT=http \
-  pnpm --filter @lucidindex/mcp-store dev > /tmp/qa-deep.log 2>&1 &
+  MCP_DASHBOARD_PORT=4503 MCP_DASHBOARD_TRANSPORT=http \
+  pnpm --filter @lucidindex/mcp-dashboard dev > /tmp/qa-deep.log 2>&1 &
 sleep 5
 
 TOKEN=<cleartext>
@@ -253,7 +255,7 @@ curl -sS -X POST http://localhost:4503/mcp \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -d '{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"write_articles","arguments":{"queue_item_id":"<QID>","articles":[{"source_url":"https://example.com/img","title":"t","summary":"s","topic_badges":["AI"],"significance":"medium","difficulty":"easy","hero_image_url":"https://picsum.photos/1200/800"}]}}}'
-ls -la apps/mcp-store/data/images/
+ls -la apps/mcp-dashboard/data/images/
 
 # 12. Image pipeline failure path — 404 URL.
 #     Article still inserts; hero_image_hash = null; structured warn log.
@@ -280,18 +282,24 @@ docker stop li-mcp-deep
 
 ## Environment variables
 
-| Var                          | Required | Default       | Notes                                                                          |
-| ---------------------------- | -------- | ------------- | ------------------------------------------------------------------------------ |
-| `DATABASE_URL`               | yes      | —             | Shared with `apps/web`. Same Postgres, same schema.                            |
-| `MCP_PORT`                   | no       | `4000`        | Listen port (HTTP transport only). Bound to `127.0.0.1` in docker-compose.     |
-| `MCP_TRANSPORT`              | no       | `http`        | `http` (Streamable HTTP) or `stdio`.                                           |
-| `MCP_LOCK_TTL_MINUTES`       | no       | `15`          | Claim-lock TTL for `pull_queue_item`. Wins over `MCP_QUEUE_LOCK_TTL_SEC`.      |
-| `MCP_QUEUE_LOCK_TTL_SEC`     | no       | —             | Legacy seconds-form of the lock TTL. Kept for back-compat.                     |
-| `MCP_IMAGE_DIR`              | no       | `data/images` | Where the hero-image pipeline writes WebP+JPEG outputs.                        |
-| `MCP_IMAGE_FETCH_TIMEOUT_MS` | no       | `10000`       | Hero-image fetch budget (abort-on-timeout).                                    |
-| `MCP_IMAGE_MAX_BYTES`        | no       | `26214400`    | Hero-image fetch byte cap (abort-on-overrun). 25 MB default.                   |
-| `MCP_IMAGE_MAX_WIDTH`        | no       | `1600`        | Hero-image resize target. Wider images are scaled down; narrower pass through. |
-| `NODE_ENV`                   | no       | `production`  | Standard Node env flag.                                                        |
+| Var                                | Required | Default       | Notes                                                                          |
+| ---------------------------------- | -------- | ------------- | ------------------------------------------------------------------------------ |
+| `DATABASE_URL`                     | yes      | —             | Shared with `apps/web`. Same Postgres, same schema.                            |
+| `MCP_DASHBOARD_PORT`               | no       | `4000`        | Listen port (HTTP transport only). Bound to `127.0.0.1` in docker-compose.     |
+| `MCP_DASHBOARD_TRANSPORT`          | no       | `http`        | `http` (Streamable HTTP) or `stdio`.                                           |
+| `MCP_DASHBOARD_LOCK_TTL_MINUTES`   | no       | `15`          | Claim-lock TTL for `pull_queue_item`. Wins over `MCP_DASHBOARD_QUEUE_LOCK_TTL_SEC`. |
+| `MCP_DASHBOARD_QUEUE_LOCK_TTL_SEC` | no       | —             | Legacy seconds-form of the lock TTL. Kept for back-compat.                     |
+| `MCP_IMAGE_DIR`                    | no       | `data/images` | Shared with apps/web + apps/cron. Where the hero-image pipeline writes WebP+JPEG outputs. |
+| `MCP_IMAGE_FETCH_TIMEOUT_MS`       | no       | `10000`       | Hero-image fetch budget (abort-on-timeout).                                    |
+| `MCP_IMAGE_MAX_BYTES`              | no       | `26214400`    | Hero-image fetch byte cap (abort-on-overrun). 25 MB default.                   |
+| `MCP_IMAGE_MAX_WIDTH`              | no       | `1600`        | Hero-image resize target. Wider images are scaled down; narrower pass through. |
+| `NODE_ENV`                         | no       | `production`  | Standard Node env flag.                                                        |
+
+> **`MCP_IMAGE_*` are intentionally NOT namespaced.** They describe the on-disk
+> image store shared by apps/mcp-dashboard (writer), apps/web (image-serve
+> route reader), apps/cron (retention purge + local backup reader), and the
+> demo seeder (writer). All four point at the same volume and same
+> content-hash layout, so one name keeps them in lock-step.
 
 ## Logging
 

@@ -1,11 +1,11 @@
 // Environment variable validation for the mcp-forum sidecar.
 //
-// Mirrors apps/mcp-store/src/env.ts in shape and posture (fail-fast at
+// Mirrors apps/mcp-dashboard/src/env.ts in shape and posture (fail-fast at
 // module-load time, sensible production defaults). Diverges where the
 // forum MCP's surface differs: no queue-lock TTL (no claim-based queue
 // in forum MCP), no on-disk image directory (avatars are stored inline
 // as bytea on forum_users), and the default HTTP port is 4100 so it
-// doesn't collide with mcp-store on 4000.
+// doesn't collide with mcp-dashboard on 4000.
 
 type Transport = 'http' | 'stdio'
 
@@ -18,12 +18,12 @@ if (rawTransport !== 'http' && rawTransport !== 'stdio') {
 }
 
 const env = {
-  // Shared with apps/web and apps/mcp-store — points at the same
+  // Shared with apps/web and apps/mcp-dashboard — points at the same
   // Postgres instance so the sidecar can read/write forum_users and
   // forum_agent_tokens via @lucidindex/db.
   DATABASE_URL: process.env.DATABASE_URL,
 
-  // Sidecar listen port. Default 4100 to stay clear of mcp-store on
+  // Sidecar listen port. Default 4100 to stay clear of mcp-dashboard on
   // 4000 and the web app on 3000. Only consulted when transport=http.
   MCP_FORUM_PORT: Number(process.env.MCP_FORUM_PORT ?? 4100),
 
@@ -31,13 +31,10 @@ const env = {
   // story; `stdio` is for local dev / MCP inspector.
   MCP_FORUM_TRANSPORT: rawTransport as Transport,
 
-  // Per-fetch budgets for the agent-supplied profile-photo URL. Failure
-  // to satisfy either budget aborts the fetch — the agent gets a
+  // Per-fetch budget for the agent-supplied profile-photo URL. Failure
+  // to satisfy the budget aborts the fetch — the agent gets a
   // structured error and no row is updated.
   MCP_FORUM_PHOTO_FETCH_TIMEOUT_MS: Number(process.env.MCP_FORUM_PHOTO_FETCH_TIMEOUT_MS ?? 10_000),
-  // 2 MiB cap — matches the human web upload's MAX_BYTES so agent + human
-  // paths produce avatars of comparable weight.
-  MCP_FORUM_PHOTO_MAX_BYTES: Number(process.env.MCP_FORUM_PHOTO_MAX_BYTES ?? 2 * 1024 * 1024),
 
   NODE_ENV: process.env.NODE_ENV ?? 'production',
 }
@@ -64,13 +61,6 @@ if (
 ) {
   console.error(
     `FATAL: MCP_FORUM_PHOTO_FETCH_TIMEOUT_MS must be a positive number: ${process.env.MCP_FORUM_PHOTO_FETCH_TIMEOUT_MS}`,
-  )
-  process.exit(1)
-}
-
-if (!Number.isFinite(env.MCP_FORUM_PHOTO_MAX_BYTES) || env.MCP_FORUM_PHOTO_MAX_BYTES <= 0) {
-  console.error(
-    `FATAL: MCP_FORUM_PHOTO_MAX_BYTES must be a positive number: ${process.env.MCP_FORUM_PHOTO_MAX_BYTES}`,
   )
   process.exit(1)
 }

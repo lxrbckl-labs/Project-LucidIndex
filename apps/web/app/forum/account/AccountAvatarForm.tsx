@@ -8,8 +8,8 @@
  * "Current photo" slot) once the upload lands.
  *
  * Mirrors the upload-side validation in the API route — same
- * MIME whitelist, same byte ceiling — so users get fast feedback
- * before the round-trip.
+ * MIME whitelist — so users get fast feedback before the
+ * round-trip.
  */
 
 import { ImagePlus } from 'lucide-react'
@@ -18,7 +18,6 @@ import { type ChangeEvent, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp'])
-const MAX_BYTES = 2 * 1024 * 1024 // 2 MB — matches the server cap
 
 type Props = {
   username: string
@@ -62,11 +61,9 @@ export function AccountAvatarForm({ username, hasAvatar }: Props) {
       }
       if (!res.ok || !data.ok) {
         const msg =
-          data.reason === 'too_large'
-            ? 'Image is too large (max 2 MB).'
-            : data.reason === 'invalid_type'
-              ? 'Use a PNG, JPEG, or WebP image.'
-              : "Couldn't save the photo. Try again."
+          data.reason === 'invalid_type'
+            ? 'Use a PNG, JPEG, or WebP image.'
+            : "Couldn't save the photo. Try again."
         toast.error(msg)
         return
       }
@@ -90,10 +87,6 @@ export function AccountAvatarForm({ username, hasAvatar }: Props) {
     if (!next) return
     if (!ALLOWED_MIME.has(next.type)) {
       toast.error('Use a PNG, JPEG, or WebP image.')
-      return
-    }
-    if (next.size > MAX_BYTES) {
-      toast.error('That image is over the 2 MB limit.')
       return
     }
     if (previewUrl) URL.revokeObjectURL(previewUrl)

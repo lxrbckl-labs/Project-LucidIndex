@@ -1,7 +1,7 @@
-# LucidIndex — local / production stack: Postgres 16 + Next.js web + mcp-store + cron.
+# LucidIndex — local / production stack: Postgres 16 + Next.js web + mcp-dashboard + cron.
 #
 # Phase 1: postgres + web.
-# Phase 3: mcp-store sidecar (full MCP server — see apps/mcp-store/README.md).
+# Phase 3: mcp-dashboard sidecar (full MCP server — see apps/mcp-dashboard/README.md).
 # Phase 4: cron sidecar (scheduled jobs — see apps/cron/README.md). The
 #          sidecar has no HTTP surface; it writes to cron_runs and reads
 #          targets / settings via @lucidindex/db.
@@ -46,7 +46,7 @@ services:
         condition: service_healthy
     # Healthcheck doubles as a "web has finished migrations" signal — the
     # entrypoint runs `drizzle-kit migrate` and seed before binding port 3000,
-    # so a TCP listener on 3000 means the schema is ready. mcp-store + cron
+    # so a TCP listener on 3000 means the schema is ready. mcp-dashboard + cron
     # use this via `service_healthy` so they don't try to query a half-
     # migrated DB. We probe with `nc -z` (BusyBox built-in) rather than wget
     # because we only care that the listener is up — HTTP status is irrelevant
@@ -80,8 +80,8 @@ services:
       # IDEMPOTENT — only fires when targets/articles are empty. Default off.
       # See apps/web/.env.example for the full description.
       LUCIDINDEX_SEED_DEMO: ${LUCIDINDEX_SEED_DEMO:-false}
-      # Hero-image pipeline config (mirrors mcp-store env). Demo data writes
-      # through the same image-pipeline used by mcp-store — disk layout and
+      # Hero-image pipeline config (mirrors mcp-dashboard env). Demo data writes
+      # through the same image-pipeline used by mcp-dashboard — disk layout and
       # content-hash format match — so the dashboard's image route resolves
       # seeded and real images identically. Operators who want demo images
       # served by the image route should mount the mcp_images volume on web
@@ -100,11 +100,11 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
 
-  mcp-store:
-    image: lxrbckl/lucidindex-mcp-store:main
+  mcp-dashboard:
+    image: lxrbckl/lucidindex-mcp-dashboard:main
     build:
       context: .
-      dockerfile: apps/mcp-store/Dockerfile
+      dockerfile: apps/mcp-dashboard/Dockerfile
     restart: unless-stopped
     depends_on:
       postgres:
@@ -115,7 +115,7 @@ services:
     environment:
       DATABASE_URL: postgres://lucidindex:${POSTGRES_PASSWORD:-lucidindex_dev}@postgres:5432/lucidindex
       NODE_ENV: production
-      MCP_PORT: "4000"
+      MCP_DASHBOARD_PORT: "4000"
       # Hero-image pipeline (#45) writes WebP+JPEG outputs here. Path is
       # resolved relative to the workdir inside the container; the
       # `mcp_images` named volume below persists the files across restarts.

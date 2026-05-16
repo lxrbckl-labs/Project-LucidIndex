@@ -11,7 +11,7 @@
  *
  * — but with source-shaped guidance for each surface (YouTube, blog, etc).
  *
- * Bodies are LiquidJS templates rendered by `mcp-store` (Phase 3) at
+ * Bodies are LiquidJS templates rendered by `mcp-dashboard` (Phase 3) at
  * queue-pull time with these context vars:
  *
  *   creator_name      — the human-readable label of the target

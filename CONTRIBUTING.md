@@ -25,7 +25,7 @@ build step before starting the dev server.
 apps/
   web/          Next.js 15 app (dashboard, article pages, settings, auth, SSE)
   cron/         node-cron sidecar — 7 scheduled jobs
-  mcp-store/    MCP server sidecar — 5 agent tools over Streamable HTTP + stdio
+  mcp-dashboard/    MCP server sidecar — 5 agent tools over Streamable HTTP + stdio
 packages/
   db/           Drizzle schema, migrations, seed, Postgres client
   auth/         WebAuthn + iron-session (ported from Project-Showalter)
@@ -99,7 +99,7 @@ articles. Useful for UI work when you don't want to spin up a database.
 pnpm test:e2e
 ```
 
-Playwright starts its own stack (Postgres + web + mcp-store) via a test
+Playwright starts its own stack (Postgres + web + mcp-dashboard) via a test
 fixture. Make sure nothing is already occupying port 3000 or 4000.
 
 ### Vitest unit tests

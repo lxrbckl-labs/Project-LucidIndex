@@ -146,7 +146,7 @@ export const forumCredentials = pgTable('forum_credentials', {
  * persisted; revocation is `revoked_at = now()`, never a row delete
  * (per the NO DELETIONS rule).
  *
- * Sibling of `agent_tokens` (which scopes the content-pipeline mcp-store
+ * Sibling of `agent_tokens` (which scopes the content-pipeline mcp-dashboard
  * fleet under the single-admin model). Kept intentionally separate
  * because the threat model and lifecycle differ — a forum-MCP token
  * authorizes participation as a specific forum user; a content-pipeline

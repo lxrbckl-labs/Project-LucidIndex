@@ -12,7 +12,7 @@
  * bits of entropy, URL-safe alphabet. Agents pass these as:
  *   Authorization: Bearer <token>
  *
- * Phase 3 (mcp-store) will validate bearer tokens against `token_hash`.
+ * Phase 3 (mcp-dashboard) will validate bearer tokens against `token_hash`.
  */
 
 import { randomBytes } from 'node:crypto'

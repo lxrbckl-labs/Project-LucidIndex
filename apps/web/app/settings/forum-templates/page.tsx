@@ -22,7 +22,8 @@
 
 import { Bot, User } from 'lucide-react'
 import type { Metadata } from 'next'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { CopyBodyButton } from './_components/CopyBodyButton'
 import { STARTER_TEMPLATES, type StarterTemplate } from './_lib/starter-templates'
 
 export const metadata: Metadata = {
@@ -32,6 +33,8 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic'
 
 export default function ForumTemplatesPage() {
+  const defaultSlug = STARTER_TEMPLATES[0]?.slug
+
   return (
     <div className="flex flex-col gap-8">
       <div className="-mx-6 -mt-6 px-6 pt-6 pb-6 border-t border-b">
@@ -40,57 +43,48 @@ export default function ForumTemplatesPage() {
           The share-invite copy that goes out with an Agent Invite, plus the role brief that defines
           what an invited agent does and which MCP tools it reaches for.
         </p>
-        <p className="mt-3 text-xs text-muted-foreground">
-          Starter content — these values are shown verbatim. The edit surface lands when the
-          forum_templates schema does; for now, treat these as the canonical defaults.
-        </p>
       </div>
 
-      <div className="flex flex-col gap-6 max-w-3xl">
+      <Tabs defaultValue={defaultSlug} className="flex flex-col gap-4">
+        <TabsList className="self-start">
+          {STARTER_TEMPLATES.map((tpl) => {
+            const Icon = tpl.audience === 'agent' ? Bot : User
+            return (
+              <TabsTrigger key={tpl.slug} value={tpl.slug} className="gap-2">
+                <Icon className="size-4" aria-hidden="true" />
+                {tpl.title}
+              </TabsTrigger>
+            )
+          })}
+        </TabsList>
+
         {STARTER_TEMPLATES.map((tpl) => (
-          <TemplateCard key={tpl.slug} tpl={tpl} />
+          <TabsContent key={tpl.slug} value={tpl.slug} className="flex flex-col gap-4">
+            <TemplatePane tpl={tpl} />
+          </TabsContent>
         ))}
-      </div>
+      </Tabs>
     </div>
   )
 }
 
-function TemplateCard({ tpl }: { tpl: StarterTemplate }) {
-  const Icon = tpl.audience === 'agent' ? Bot : User
-  const audienceLabel = tpl.audience === 'agent' ? 'Agent reads this' : 'Human reads this'
+function TemplatePane({ tpl }: { tpl: StarterTemplate }) {
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-3">
-          <div
-            className="flex size-8 items-center justify-center rounded-md bg-muted text-muted-foreground"
-            aria-hidden="true"
-          >
-            <Icon className="size-4" />
-          </div>
-          <div className="flex flex-col">
-            <CardTitle className="text-base font-semibold">{tpl.title}</CardTitle>
-            <span className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
-              {audienceLabel} · slug:{' '}
-              <code className="font-mono normal-case tracking-normal">{tpl.slug}</code>
-            </span>
-          </div>
-        </div>
-        <CardDescription className="mt-2 text-sm text-muted-foreground">
-          {tpl.blurb}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {/*
-          The body is intentionally preformatted so bullet lists and
-          line-broken sections render exactly as they'll be shipped /
-          read by the agent. `whitespace-pre-wrap` preserves newlines
-          and `break-words` keeps long URLs from blowing past the card.
-        */}
-        <pre className="whitespace-pre-wrap break-words rounded-md border bg-muted/30 p-4 text-xs leading-relaxed font-mono text-foreground">
+    <>
+      <p className="text-sm text-muted-foreground">{tpl.blurb}</p>
+      {/*
+        The body is intentionally preformatted so bullet lists and
+        line-broken sections render exactly as they'll be shipped /
+        read by the agent. `whitespace-pre-wrap` preserves newlines
+        and `break-words` keeps long URLs from blowing past the pane.
+        The copy button is positioned absolutely against this wrapper.
+      */}
+      <div className="relative">
+        <CopyBodyButton text={tpl.body} label={`${tpl.title} template`} />
+        <pre className="whitespace-pre-wrap break-words rounded-md border bg-muted/30 p-4 pr-20 text-xs leading-relaxed font-mono text-foreground">
           {tpl.body}
         </pre>
-      </CardContent>
-    </Card>
+      </div>
+    </>
   )
 }

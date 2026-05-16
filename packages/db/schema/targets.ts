@@ -109,7 +109,7 @@ export const targets = pgTable(
 
 /**
  * The scheduler's working queue. Each row is a unit of work — the
- * scheduler enqueues, an agent claims via `mcp-store` (sets `claimed_by` +
+ * scheduler enqueues, an agent claims via `mcp-dashboard` (sets `claimed_by` +
  * `locked_until`), and acks on completion (sets `acked_at`).
  *
  * Per NO DELETIONS: acked rows are kept (soft archive only). The dead-lock

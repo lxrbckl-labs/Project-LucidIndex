@@ -4,7 +4,7 @@ This guide walks you through deploying LucidIndex on your homelab, fronted by
 your existing host Caddy. Same shape as Project-DS deploys — if you've done
 that, most of this will look familiar.
 
-**What you'll end up with:** four Docker containers (`web`, `cron`, `mcp-store`,
+**What you'll end up with:** four Docker containers (`web`, `cron`, `mcp-dashboard`,
 `postgres`) running on your homelab, reachable over HTTPS at a domain you own,
 fully automated TLS via Let's Encrypt, no tunnel daemon, no Cloudflare account.
 
@@ -93,11 +93,11 @@ Pick `<web-target>` and `<mcp-target>` based on how Caddy runs:
 |---|---|---|
 | Native binary or systemd on the host | `localhost` | `localhost` |
 | Docker container on the same host (macOS / Docker Desktop) | `host.docker.internal` | `host.docker.internal` |
-| Docker container in the same Compose network as LucidIndex | `web` | `mcp-store` |
+| Docker container in the same Compose network as LucidIndex | `web` | `mcp-dashboard` |
 
 **Why this matters:** if Caddy is in a container, `localhost` resolves to the
 Caddy container itself, not the host. Using `localhost` in that case gives you
-502s. The Compose file already binds `web` to `127.0.0.1:3000` and `mcp-store`
+502s. The Compose file already binds `web` to `127.0.0.1:3000` and `mcp-dashboard`
 to `127.0.0.1:4000` — only the host (and therefore Caddy) can reach them. Do
 not change these to `0.0.0.0:PORT` bindings.
 
@@ -137,7 +137,7 @@ This builds and starts all four services in dependency order:
 
 1. `postgres` boots and becomes healthy (schema not yet migrated)
 2. `web` runs Drizzle migrations + idempotent seed, then binds port 3000
-3. `mcp-store` and `cron` wait for `web` to report healthy before starting
+3. `mcp-dashboard` and `cron` wait for `web` to report healthy before starting
 
 Watch startup with:
 
@@ -158,7 +158,7 @@ Once you see those lines, the stack is ready. Verify all four services are up:
 
 ```sh
 docker compose ps
-# All four services: postgres, web, mcp-store, cron — status "healthy" or "running"
+# All four services: postgres, web, mcp-dashboard, cron — status "healthy" or "running"
 ```
 
 Quick health checks:
@@ -173,7 +173,7 @@ curl http://127.0.0.1:4000/healthz  # should return {"status":"ok"}
 ## Step 5: Claim founding admin
 
 This step closes the enrollment window. Until you complete it, the app is in a
-"no admin enrolled" state and `mcp-store` tools return `no_admin_enrolled`.
+"no admin enrolled" state and `mcp-dashboard` tools return `no_admin_enrolled`.
 
 Open a browser and navigate to:
 
@@ -327,7 +327,7 @@ A 500 on the very first visit almost always means migrations didn't complete.
 If you see `[entrypoint] migrations complete.` in the logs, the schema is fine —
 check the application logs for a different root cause (e.g. missing env var).
 
-### `mcp-store` returns 401
+### `mcp-dashboard` returns 401
 
 The agent token you're presenting doesn't match any row in `agent_tokens`. Verify:
 
@@ -423,7 +423,7 @@ Drizzle migrations apply automatically on `web` boot — the entrypoint runs
 migration journal makes it a no-op if nothing new landed.
 
 Zero-downtime rolling updates are not a v0.1 goal. Expect a brief outage
-(typically under 60 seconds) while `web` restarts and re-migrates. `mcp-store`
+(typically under 60 seconds) while `web` restarts and re-migrates. `mcp-dashboard`
 and `cron` wait for `web` to become healthy before accepting connections, so
 no service ever queries an unmigrated schema.
 

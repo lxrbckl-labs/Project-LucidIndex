@@ -1,7 +1,7 @@
 // `extend_queue_lock` — push out the lock expiry on an in-flight claim.
 //
 // An agent doing slow work (long fetch, expensive analysis) can blow past
-// `MCP_QUEUE_LOCK_TTL_SEC`; once `locked_until < now()` the cron reaper
+// `MCP_DASHBOARD_QUEUE_LOCK_TTL_SEC`; once `locked_until < now()` the cron reaper
 // will unstick the row and a second agent can claim it — duplicate work,
 // FK contention on run_log, the works. This tool lets the caller push
 // `locked_until` forward by another TTL window without touching anything
@@ -32,7 +32,7 @@ export type ExtendQueueLockArgs = z.infer<typeof extendQueueLockArgs> & {
 export async function extendQueueLock(
   args: ExtendQueueLockArgs,
 ): Promise<{ ok: true; lock_expires_at: string }> {
-  const ttlSec = env.MCP_QUEUE_LOCK_TTL_SEC
+  const ttlSec = env.MCP_DASHBOARD_QUEUE_LOCK_TTL_SEC
 
   const rows = await db
     .select({

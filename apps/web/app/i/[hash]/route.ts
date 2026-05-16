@@ -1,7 +1,7 @@
 /**
  * Hero-image serve route — `/i/<hash>` (#74).
  *
- * Resolves a content-hash filename written by `mcp-store`'s `write_articles`
+ * Resolves a content-hash filename written by `mcp-dashboard`'s `write_articles`
  * tool (#45) under `<MCP_IMAGE_DIR>/<hash>.{webp,jpg}` and streams it back
  * with a forever cache. Two assets are written per article:
  *
@@ -41,7 +41,7 @@
  *   the only sensible target.
  *
  * Why we don't stream:
- *   `mcp-store/src/lib/image-pipeline.ts` resizes hero images to 1600px
+ *   `mcp-dashboard/src/lib/image-pipeline.ts` resizes hero images to 1600px
  *   wide before encoding — finished WebP files end up in the ~50-200 KB
  *   range. `readFile` into a single Response body is fine at that size and
  *   keeps the handler trivial. If image budgets ever get into the MB range
@@ -58,7 +58,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /**
- * Same default as `apps/mcp-store/src/env.ts` — keep the two in lock-step
+ * Same default as `apps/mcp-dashboard/src/env.ts` — keep the two in lock-step
  * so a deployment that overrides one and not the other is the only way to
  * see a mismatch (the Compose file mounts the same `mcp_images` volume on
  * both services). Resolved once at module load; the env var is never going
@@ -109,7 +109,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ hash
   // produced by `Buffer` is structurally narrower than the `Uint8Array`
   // overload `BodyInit` accepts. Reconstruct as a fresh ArrayBuffer-backed
   // Uint8Array — `Uint8Array.from(buf)` copies the bytes once (negligible
-  // for the 50-200 KB hero sizes capped by mcp-store's image pipeline).
+  // for the 50-200 KB hero sizes capped by mcp-dashboard's image pipeline).
   const body = Uint8Array.from(buf)
 
   return new Response(body, {

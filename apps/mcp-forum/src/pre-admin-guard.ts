@@ -1,6 +1,6 @@
 // Pre-admin guard for the mcp-forum sidecar.
 //
-// Same posture as mcp-store: until at least one row exists in `admins`,
+// Same posture as mcp-dashboard: until at least one row exists in `admins`,
 // every MCP tool call returns `no_admin_enrolled`. The forum is a
 // downstream surface of the same LucidIndex instance — there's no
 // scenario where the forum MCP should accept agent traffic before the

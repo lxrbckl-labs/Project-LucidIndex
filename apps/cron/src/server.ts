@@ -38,7 +38,7 @@
 // programmatically). If local_backup runs long, off_site_backup picks up
 // the most recent files it can find.
 //
-// Runs as a separate Node container from apps/web and apps/mcp-store;
+// Runs as a separate Node container from apps/web and apps/mcp-dashboard;
 // shares Postgres via @lucidindex/db. No HTTP surface — cron is internal-
 // only, nothing connects to it.
 

@@ -110,7 +110,7 @@ COPY --from=builder /app/packages/db/dist ./packages/db/dist
 # Node's production resolver picks the `default` condition which points at
 # dist/, so without this COPY the runtime would fail with
 # ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING on the raw .ts files.
-# Mirrors the same pattern in apps/mcp-store/Dockerfile.
+# Mirrors the same pattern in apps/mcp-dashboard/Dockerfile.
 COPY --from=builder /app/packages/shared/dist \
     ./packages/db/node_modules/@lucidindex/shared/dist
 

@@ -86,7 +86,7 @@ export function registerTools(server: McpServer): void {
 }
 
 // -----------------------------------------------------------------------------
-// Auth context plumbing — identical shape to mcp-store so future tools
+// Auth context plumbing — identical shape to mcp-dashboard so future tools
 // can copy/paste.
 
 function readAuthContext(extra: unknown): AuthContext | null {

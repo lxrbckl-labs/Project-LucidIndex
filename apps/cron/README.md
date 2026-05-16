@@ -7,7 +7,7 @@ keeps the system honest: the scheduler that re-enqueues due targets, the
 dead-lock reaper that releases stuck queue rows, the high-water-mark hard
 reset on pause/unpause, and (from Phase 7 onward) retention pruning and
 local/off-site backups. It runs as a separate container from the Next.js
-web app and the mcp-store sidecar, and shares the Postgres database via
+web app and the mcp-dashboard sidecar, and shares the Postgres database via
 [`@lucidindex/db`](../../packages/db).
 
 No HTTP surface. The sidecar reads its configuration from `targets` /
@@ -129,7 +129,7 @@ Same heartbeat behaviour — one row per minute in `cron_runs`.
 
 | Var             | Required | Default      | Notes                                                              |
 | --------------- | -------- | ------------ | ------------------------------------------------------------------ |
-| `DATABASE_URL`  | yes      | —            | Shared with `apps/web` and `apps/mcp-store`. Same Postgres.        |
+| `DATABASE_URL`  | yes      | —            | Shared with `apps/web` and `apps/mcp-dashboard`. Same Postgres.        |
 | `CRON_TIMEZONE` | no       | `UTC`        | Timezone for cron-expression evaluation (e.g. `America/New_York`). |
 | `NODE_ENV`      | no       | `production` | Standard Node env flag.                                            |
 

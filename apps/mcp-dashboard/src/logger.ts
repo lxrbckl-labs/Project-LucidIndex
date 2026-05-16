@@ -1,13 +1,14 @@
-// Structured JSON logging for the mcp-store sidecar.
+// Structured JSON logging for the mcp-dashboard sidecar.
 //
 // One log line === one JSON object on stdout (or stderr for `error`). This
 // matches the convention expected by container log aggregators (Docker,
 // journald, Loki, etc.) — no parser needed, every field is queryable.
 //
-// stdio-transport caveat: when MCP_TRANSPORT=stdio, stdout is reserved for
-// the JSON-RPC stream and ANY stray write corrupts the protocol. In that
-// mode we redirect every log level to stderr. Call `setStdioMode(true)`
-// from the stdio transport bootstrap before any tool calls happen.
+// stdio-transport caveat: when MCP_DASHBOARD_TRANSPORT=stdio, stdout is
+// reserved for the JSON-RPC stream and ANY stray write corrupts the protocol.
+// In that mode we redirect every log level to stderr. Call
+// `setStdioMode(true)` from the stdio transport bootstrap before any tool
+// calls happen.
 //
 // HARD RULE: never log secrets. Token cleartext, session cookies, or env
 // values should never reach `fields`. Reference rows by their database id

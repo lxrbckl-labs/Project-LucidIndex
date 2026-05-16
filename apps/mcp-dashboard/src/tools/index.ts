@@ -1,4 +1,4 @@
-// MCP tool registration for the mcp-store sidecar.
+// MCP tool registration for the mcp-dashboard sidecar.
 //
 // All twelve tools share the same wrapper: pre-admin guard fires first
 // (returning `no_admin_enrolled` if the system isn't provisioned yet), then
@@ -188,7 +188,7 @@ export function registerTools(server: McpServer): void {
     {
       title: 'Extend a queue-item lock',
       description:
-        'Push the queue item lock_expires_at out by another MCP_QUEUE_LOCK_TTL_SEC. Caller must hold the claim.',
+        'Push the queue item lock_expires_at out by another MCP_DASHBOARD_QUEUE_LOCK_TTL_SEC. Caller must hold the claim.',
       inputSchema: extendQueueLockInputShape,
     },
     async (args, extra) =>

@@ -44,7 +44,7 @@ export type ArticleCitation = {
 }
 
 /**
- * Articles produced by agents via `mcp-store` `write_articles`. The dashboard,
+ * Articles produced by agents via `mcp-dashboard` `write_articles`. The dashboard,
  * article page, and creator page all read from here.
  *
  * Round-7 surfaces baked into the columns:
@@ -57,7 +57,7 @@ export type ArticleCitation = {
  *   indexed with GIN for FTS.
  *
  * Constraints:
- * - `(target_id, source_url)` unique — drives `mcp-store`'s dedup at write time.
+ * - `(target_id, source_url)` unique — drives `mcp-dashboard`'s dedup at write time.
  * - `significance` and `difficulty` constrained via CHECK (not enum) to keep
  *   future additions to a one-line migration.
  */

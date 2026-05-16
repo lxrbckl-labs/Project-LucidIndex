@@ -6,7 +6,7 @@
  * both the RSC page and the API routes share the same invariants.
  *
  * Liquid validation lives in `@lucidindex/templates`; we only call it here.
- * mcp-store (Phase 3) and the cron sidecar (Phase 4) will use the same
+ * mcp-dashboard (Phase 3) and the cron sidecar (Phase 4) will use the same
  * helper at render time.
  *
  * This module imports `@lucidindex/db/client`, which throws at module-load

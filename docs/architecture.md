@@ -44,7 +44,7 @@
                        │  ┌──── docker-compose stack ──────────────────┐    │
                        │  │                                             │    │
                        │  │  web          127.0.0.1:3000:3000          │    │
-                       │  │  mcp-store    127.0.0.1:4000:4000          │    │
+                       │  │  mcp-dashboard    127.0.0.1:4000:4000          │    │
                        │  │  cron         (no HTTP surface)            │    │
                        │  │  postgres     127.0.0.1:5432:5432          │    │
                        │  │                                             │    │
@@ -52,7 +52,7 @@
                        └─────────────────────────────────────────────────────┘
 
   Agent (Claude Code / any MCP client)
-    └── HTTPS POST /mcp/*  →  Caddy  →  mcp-store:4000 (bearer-token auth)
+    └── HTTPS POST /mcp/*  →  Caddy  →  mcp-dashboard:4000 (bearer-token auth)
 ```
 
 Caddy is **not shipped** in this repo. It is the existing homelab reverse proxy,
@@ -77,7 +77,7 @@ Next.js 15 App Router application. The human-facing half of the product.
   via `getOrSetTargetSlug()` on first visit and persisted; `app/c/[slug]/loader.ts` owns this.
 - **Search** (`/search`) — full-text search over `tsvector` generated column.
 - **Image route** (`/i/[hash]`) — serves hero images from disk. Content-negotiates WebP vs JPEG
-  from the `Accept` header. Reads from `MCP_IMAGE_DIR` (shared volume with `mcp-store`).
+  from the `Accept` header. Reads from `MCP_IMAGE_DIR` (shared volume with `mcp-dashboard`).
 - **Settings** — passkey-gated admin UI at `/settings/*`:
   - `account` — passkey management, recovery code regeneration
   - `agent-tokens` — create / revoke tokens; byline labels
@@ -91,10 +91,10 @@ Next.js 15 App Router application. The human-facing half of the product.
   session probe. Thin wrappers over `@lucidindex/auth`.
 - **SSE** (`/api/events`) — `text/event-stream`, `event: article:new` payloads. Authenticated
   admin only. 25-second `: ping` heartbeat. In-process bus via `lib/sse/article-bus.ts`
-  (cross-process SSE from `mcp-store` is a future ticket, likely Postgres LISTEN/NOTIFY).
+  (cross-process SSE from `mcp-dashboard` is a future ticket, likely Postgres LISTEN/NOTIFY).
 - **Auto-migrate on startup** — `entrypoint.sh` runs `drizzle-kit migrate` then `seed.ts` before
   binding port 3000. The `web` service's Docker healthcheck therefore doubles as a "schema is ready"
-  signal; `mcp-store` and `cron` use `depends_on: web: condition: service_healthy` so they never
+  signal; `mcp-dashboard` and `cron` use `depends_on: web: condition: service_healthy` so they never
   query an un-migrated DB.
 - **Mock mode** — `LUCIDINDEX_MOCK=1` bypasses the session gate and renders fixture articles from
   `app/_mock/articles.ts`. Used for UI development without a live Postgres.
@@ -119,13 +119,13 @@ Seven scheduled jobs:
 
 Schedules use `CRON_TIMEZONE` (default UTC) for the nightly jobs.
 
-### `apps/mcp-store`
+### `apps/mcp-dashboard`
 
 MCP server. The agent-facing half of the product.
 
 Transports:
-- **Streamable HTTP** (default, `MCP_TRANSPORT=http`, port 4000) — bearer-token auth via argon2id lookup against `agent_tokens.token_hash`. Per-request stateless: a fresh `McpServer` + `StreamableHTTPServerTransport` is constructed for each incoming request.
-- **stdio** (`MCP_TRANSPORT=stdio`) — process-local trust; no bearer auth. Used for co-located agents or the MCP inspector in dev.
+- **Streamable HTTP** (default, `MCP_DASHBOARD_TRANSPORT=http`, port 4000) — bearer-token auth via argon2id lookup against `agent_tokens.token_hash`. Per-request stateless: a fresh `McpServer` + `StreamableHTTPServerTransport` is constructed for each incoming request.
+- **stdio** (`MCP_DASHBOARD_TRANSPORT=stdio`) — process-local trust; no bearer auth. Used for co-located agents or the MCP inspector in dev.
 
 Five tools, registered in `src/tools/index.ts`:
 
@@ -180,7 +180,7 @@ WebAuthn + iron-session port from Project-Showalter.
 
 LiquidJS helpers + 7 starter prompt templates (youtube, blog, newsletter, news,
 instagram, x, website). Templates are seeded into `prompt_templates` on first
-boot; admins can edit them in Settings → Templates. `mcp-store` renders the
+boot; admins can edit them in Settings → Templates. `mcp-dashboard` renders the
 relevant template at `pull_queue_item` time with target context variables
 (`creator_name`, `target_url`, `high_water_mark`, `cadence`, `cross_source_n`).
 

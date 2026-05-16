@@ -78,7 +78,7 @@ type ClaimedRow = {
 }
 
 export async function pullQueueItem(args: PullQueueItemArgs): Promise<PullQueueItemResult> {
-  const ttlSec = env.MCP_QUEUE_LOCK_TTL_SEC
+  const ttlSec = env.MCP_DASHBOARD_QUEUE_LOCK_TTL_SEC
 
   // ATOMIC CLAIM-LOCK (#42). The interval expression uses `make_interval`
   // so we can parameterize the seconds count — Postgres won't accept a
