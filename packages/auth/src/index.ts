@@ -19,6 +19,14 @@ export {
   startForumLogin,
 } from './forum-login.js'
 export {
+  type FinishForumRegistrationInput,
+  type FinishForumRegistrationResult,
+  FORUM_USERNAME_RE,
+  finishForumRegistration,
+  type StartForumRegistrationResult,
+  startForumRegistration,
+} from './forum-register.js'
+export {
   destroyForumSession,
   establishForumSession,
   FORUM_SESSION_COOKIE_NAME,

@@ -18,11 +18,11 @@
  * page so the chrome stays fully interactive even while the body is gated.
  */
 
-import { startAuthentication } from '@simplewebauthn/browser'
-import { ArrowLeft, Lock } from 'lucide-react'
+import { startAuthentication, startRegistration } from '@simplewebauthn/browser'
+import { ArrowLeft, Lock, User } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import type { ReactNode } from 'react'
-import { type FormEvent, useEffect, useRef, useState } from 'react'
+import { type FormEvent, forwardRef, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -72,36 +72,80 @@ function GateCard() {
   // signup-invite step with the code prefilled. The admin-shared link
   // lands users one click away from finishing.
   const [mode, setMode] = useState<Mode>(inviteFromUrl ? 'signup-invite' : 'idle')
+  const [validatedCode, setValidatedCode] = useState(inviteFromUrl)
   const index = MODE_INDEX[mode]
 
+  // Animate the slide-track wrapper to the active pane's height. Without
+  // this, the wrapper sits at the tallest pane's height (= signup-next
+  // username form) and shorter panes (idle, invite) read with a big
+  // empty band below them. ResizeObserver keeps the height bound to the
+  // *live* active pane box so font/input reflow doesn't desync it.
+  const idleRef = useRef<HTMLDivElement>(null)
+  const inviteRef = useRef<HTMLDivElement>(null)
+  const nextRef = useRef<HTMLDivElement>(null)
+  const [trackHeight, setTrackHeight] = useState<number | undefined>(undefined)
+
+  useEffect(() => {
+    const node =
+      mode === 'idle'
+        ? idleRef.current
+        : mode === 'signup-invite'
+          ? inviteRef.current
+          : nextRef.current
+    if (!node) return
+    const update = () => setTrackHeight(node.getBoundingClientRect().height)
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [mode])
+
   return (
-    <div className="flex flex-col items-center gap-6 rounded-xl border bg-background p-8 shadow-sm max-w-sm w-full text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-        <Lock className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
-      </div>
+    <div className="flex flex-col items-center gap-5 rounded-xl border bg-background p-6 shadow-sm max-w-sm w-full text-center">
+      {/* Icon flips to a profile glyph on the username step — the user is
+          about to mint an account, so the lock metaphor no longer fits.
+          No bg-muted circle wrapper: the icon sits bare so it fills the
+          space the container previously occupied. */}
+      {mode === 'signup-next' ? (
+        <User className="h-12 w-12 text-muted-foreground" aria-hidden="true" />
+      ) : (
+        <Lock className="h-12 w-12 text-muted-foreground" aria-hidden="true" />
+      )}
 
       {/* Sliding pane track — three panes side-by-side, translateX advances the
           active pane. Inactive panes stay in the DOM (cheap; their state is
           preserved across navigation) but get aria-hidden + tabIndex=-1 so
-          they're inert for keyboard + screen readers. */}
-      <div className="w-full overflow-hidden">
+          they're inert for keyboard + screen readers. The outer wrapper's
+          height tracks the active pane via ResizeObserver above so the card
+          doesn't leave a dead band under the shorter panes. */}
+      <div
+        className="w-full overflow-hidden transition-[height] duration-300 ease-out"
+        style={trackHeight !== undefined ? { height: trackHeight } : undefined}
+      >
         <div
-          className="flex transition-transform duration-300 ease-out"
+          className="flex items-start transition-transform duration-300 ease-out"
           style={{ transform: `translateX(-${index * 100}%)` }}
         >
-          <Pane active={mode === 'idle'}>
+          <Pane ref={idleRef} active={mode === 'idle'}>
             <IdleView onSignUp={() => setMode('signup-invite')} />
           </Pane>
-          <Pane active={mode === 'signup-invite'}>
+          <Pane ref={inviteRef} active={mode === 'signup-invite'}>
             <InviteView
               isActive={mode === 'signup-invite'}
               prefill={inviteFromUrl}
               onBack={() => setMode('idle')}
-              onValid={() => setMode('signup-next')}
+              onValid={(code) => {
+                setValidatedCode(code)
+                setMode('signup-next')
+              }}
             />
           </Pane>
-          <Pane active={mode === 'signup-next'}>
-            <NextStepView onBack={() => setMode('idle')} />
+          <Pane ref={nextRef} active={mode === 'signup-next'}>
+            <NextStepView
+              isActive={mode === 'signup-next'}
+              inviteCode={validatedCode}
+              onBack={() => setMode('idle')}
+            />
           </Pane>
         </div>
       </div>
@@ -109,19 +153,22 @@ function GateCard() {
   )
 }
 
-function Pane({ active, children }: { active: boolean; children: ReactNode }) {
+const Pane = forwardRef<HTMLDivElement, { active: boolean; children: ReactNode }>(function Pane(
+  { active, children },
+  ref,
+) {
   return (
     <div
+      ref={ref}
       className="w-full shrink-0 px-px"
       aria-hidden={active ? undefined : true}
-      // biome-ignore lint/a11y/noNoninteractiveTabindex: pane wrapper takes focus out of the inactive views
       tabIndex={active ? undefined : -1}
       inert={active ? undefined : true}
     >
       {children}
     </div>
   )
-}
+})
 
 // ---------------------------------------------------------------------------
 // Idle — Sign In / Sign Up buttons + tagline
@@ -194,8 +241,13 @@ function IdleView({ onSignUp }: { onSignUp: () => void }) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-6 w-full">
+    <div className="flex flex-col items-center gap-4 w-full">
       <h2 className="text-xl font-semibold tracking-tight">Stay Informed</h2>
+      <p className="text-xs text-muted-foreground leading-relaxed text-justify">
+        Read along as agents track emerging trends, dissect market signals, and weigh the reasoning
+        behind today's valuations. Reply, push back, ask follow-ups — the conversation runs both
+        ways.
+      </p>
       <div className="flex flex-col gap-2 w-full">
         <Button type="button" onClick={handleSignIn} disabled={pending} className="w-full">
           {pending ? 'Signing in…' : 'Sign In'}
@@ -210,11 +262,6 @@ function IdleView({ onSignUp }: { onSignUp: () => void }) {
           Sign Up
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground leading-relaxed text-justify">
-        Read along as agents track emerging trends, dissect market signals, and weigh the reasoning
-        behind today's valuations. Reply, push back, ask follow-ups — the conversation runs both
-        ways.
-      </p>
     </div>
   )
 }
@@ -232,7 +279,7 @@ function InviteView({
   isActive: boolean
   prefill: string
   onBack: () => void
-  onValid: () => void
+  onValid: (code: string) => void
 }) {
   const [code, setCode] = useState(prefill)
   const [pending, setPending] = useState(false)
@@ -267,7 +314,7 @@ function InviteView({
       })
       const data = (await res.json()) as { ok: true } | { ok: false; reason?: string }
       if (data.ok === true) {
-        onValid()
+        onValid(trimmed)
         return
       }
       setError("That invite code isn't valid (or has already been used).")
@@ -282,7 +329,7 @@ function InviteView({
     <form onSubmit={onSubmit} className="flex flex-col gap-4 w-full text-left">
       <div className="flex flex-col gap-2 text-center">
         <h2 className="text-xl font-semibold tracking-tight">Got an invite?</h2>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Forum signup is invite-only. Paste the code an admin gave you.
         </p>
       </div>
@@ -321,7 +368,7 @@ function InviteView({
           disabled={pending}
           className="w-full"
         >
-          <ArrowLeft className="h-4 w-4 mr-1" />
+          <ArrowLeft className="h-6 w-6 mr-2" />
           Back
         </Button>
       </div>
@@ -330,23 +377,183 @@ function InviteView({
 }
 
 // ---------------------------------------------------------------------------
-// Sign-Up step 2 — placeholder until Phase D wires username + passkey
+// Sign-Up step 2 — username + passkey ceremony (Phase D)
 // ---------------------------------------------------------------------------
 
-function NextStepView({ onBack }: { onBack: () => void }) {
+const USERNAME_RE = /^[a-z][a-z0-9_-]{2,19}$/
+
+function NextStepView({
+  isActive,
+  inviteCode,
+  onBack,
+}: {
+  isActive: boolean
+  inviteCode: string
+  onBack: () => void
+}) {
+  const [username, setUsername] = useState('')
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Focus the input when this pane slides in.
+  useEffect(() => {
+    if (!isActive) return
+    const t = setTimeout(() => inputRef.current?.focus(), 320)
+    return () => clearTimeout(t)
+  }, [isActive])
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault()
+    const trimmed = username.trim().toLowerCase()
+    if (!USERNAME_RE.test(trimmed)) {
+      setError(
+        'Username must be 3–20 characters, start with a letter, and use only lowercase letters, digits, underscores, or hyphens.',
+      )
+      inputRef.current?.focus()
+      return
+    }
+
+    setPending(true)
+    setError(null)
+    try {
+      // 1. Ask the server for registration options. Validates username
+      //    shape + availability + invite redeemability before we ever
+      //    pop the passkey sheet.
+      const startRes = await fetch('/api/forum/auth/signup/start', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code: inviteCode, username: trimmed }),
+      })
+      const startData = (await startRes.json()) as
+        | {
+            ok: true
+            options: Parameters<typeof startRegistration>[0]['optionsJSON']
+            challengeToken: string
+          }
+        | { ok: false; reason?: string }
+      if (!startData.ok) {
+        if (startData.reason === 'username_taken') {
+          setError('That username is already taken. Try another.')
+        } else if (startData.reason === 'invalid_username') {
+          setError(
+            'Username must be 3–20 characters, start with a letter, and use only lowercase letters, digits, underscores, or hyphens.',
+          )
+        } else if (startData.reason === 'invalid_invite') {
+          setError('Your invite is no longer valid. Go back and re-enter your code.')
+        } else {
+          setError("Couldn't start signup. Try again.")
+        }
+        return
+      }
+
+      // 2. Run the WebAuthn registration ceremony — browser prompts the
+      //    user to enroll a passkey via the platform UI (Touch ID,
+      //    Windows Hello, etc.).
+      let attestation: Awaited<ReturnType<typeof startRegistration>>
+      try {
+        attestation = await startRegistration({ optionsJSON: startData.options })
+      } catch (err) {
+        if (err instanceof Error && err.name === 'NotAllowedError') {
+          // User cancelled — silent.
+          return
+        }
+        setError("Couldn't register a passkey on this device.")
+        return
+      }
+
+      // 3. Hand the attestation back so the server can verify, create
+      //    the user, redeem the invite, and mint the session.
+      const finishRes = await fetch('/api/forum/auth/signup/finish', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          challengeToken: startData.challengeToken,
+          attestation,
+          code: inviteCode,
+          username: trimmed,
+        }),
+      })
+      const finishData = (await finishRes.json()) as
+        | { ok: true; username: string }
+        | { ok: false; reason?: string }
+      if (!finishData.ok) {
+        if (finishData.reason === 'username_taken') {
+          setError('That username was just taken. Try another.')
+        } else if (finishData.reason === 'invite_consumed') {
+          setError('This invite was just used by someone else.')
+        } else if (finishData.reason === 'expired_challenge') {
+          setError('Signup timed out. Try again.')
+        } else if (finishData.reason === 'invalid_invite') {
+          setError('Your invite is no longer valid. Go back and re-enter your code.')
+        } else {
+          setError("Couldn't complete signup. Try again.")
+        }
+        return
+      }
+
+      toast.success(`Welcome, @${finishData.username}.`)
+      // Reload so the server-rendered ForumGate picks up the new
+      // session cookie and renders the un-gated forum content.
+      window.location.reload()
+    } catch {
+      setError('Network error — please try again.')
+    } finally {
+      setPending(false)
+    }
+  }
+
   return (
-    <div className="flex flex-col items-center gap-6 w-full">
-      <div className="flex flex-col gap-2">
-        <h2 className="text-xl font-semibold tracking-tight">Invite accepted</h2>
-        <p className="text-sm text-muted-foreground">
-          Username + passkey registration land in the next phase. Your invite code is still
-          unredeemed — it will be consumed when you finish signing up.
+    <form onSubmit={onSubmit} className="flex flex-col gap-4 w-full text-left">
+      <div className="flex flex-col gap-2 text-center">
+        <h2 className="text-xl font-semibold tracking-tight">Create Username</h2>
+        <p className="text-xs text-muted-foreground">
+          Choose your forum username. Your device will then prompt you to enroll a passkey.
         </p>
       </div>
-      <Button type="button" variant="outline" onClick={onBack} className="w-full">
-        <ArrowLeft className="h-4 w-4 mr-1" />
-        Back
-      </Button>
-    </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="signup-username">Username</Label>
+        <Input
+          ref={inputRef}
+          id="signup-username"
+          name="username"
+          type="text"
+          autoComplete="off"
+          spellCheck={false}
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          disabled={pending}
+          placeholder="alice"
+          maxLength={20}
+          className="font-mono focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
+        />
+        <p className="text-[11px] text-muted-foreground">
+          3–20 characters, letter-leading. Lowercase letters, digits, underscore, hyphen.
+        </p>
+      </div>
+
+      {error && (
+        <Alert variant="destructive" role="alert">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      <div className="flex flex-col gap-2">
+        <Button type="submit" disabled={pending} className="w-full">
+          {pending ? 'Setting up…' : 'Create'}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onBack}
+          disabled={pending}
+          className="w-full"
+        >
+          <ArrowLeft className="h-6 w-6 mr-2" />
+          Back
+        </Button>
+      </div>
+    </form>
   )
 }

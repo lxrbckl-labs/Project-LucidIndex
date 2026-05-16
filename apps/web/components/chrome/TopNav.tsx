@@ -5,11 +5,13 @@
  *
  * Layout:
  *   <header bg-background>
- *     [Back button]       ← far left, only on /a/* article pages
- *     [Wordmark]          ← left
+ *     [SidebarTrigger]    ← far left, settings shell only
+ *     [Forum/Dashboard]   ← left cluster on every page (Dashboard on /forum)
+ *     [Back button]       ← left cluster, article/creator/topic-focus only
+ *     [Wordmark]          ← center
  *     [SearchInput]       ← right cluster
- *     [Settings icon]     ← right cluster (ghost button)
- *     [User dropdown]     ← right cluster (account / logout)
+ *     [ThemeToggle]       ← right cluster
+ *     [Settings/Dashboard]← right cluster (Dashboard icon on /settings)
  *
  * Logout calls /api/auth/logout via fetch (POST) then reloads to /
  * so the server session is cleared before any redirect.
@@ -39,18 +41,39 @@ export function TopNav() {
   const isForumPage = pathname.startsWith('/forum')
   const isTopicFocus = pathname === '/' && Boolean(searchParams.get('badge'))
   const showBack = isArticlePage || isCreatorPage || isTopicFocus
-  const isDashboard = pathname === '/' && !isTopicFocus
 
   return (
     <header className="sticky top-0 z-50 bg-background/70 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/50">
       <div className="grid grid-cols-3 items-center p-4">
-        {/* Left cluster: sidebar collapse (settings only) + back button (article/topic-focus) + Forum (dashboard) / Dashboard (forum) */}
+        {/* Left cluster. Order from left to right:
+              1. SidebarTrigger — settings shell only; needs to be leftmost
+                 so the collapse affordance lives flush against the sidebar
+                 it controls.
+              2. Forum / Dashboard toggle — on every page; on /forum the
+                 same slot becomes a Dashboard button (you can't jump from
+                 Forum to itself).
+              3. EscapeToBack — article / creator / topic-focus only. */}
         <div className="flex items-center justify-start gap-2">
           {isSettingsPage && (
             <SidebarTrigger className="h-9 w-9 border border-input bg-background" />
           )}
-          {showBack && <EscapeToBack />}
-          {isDashboard && (
+          {isForumPage ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 border border-input bg-background"
+                  asChild
+                >
+                  <Link href="/" aria-label="Dashboard">
+                    <LayoutDashboard className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Dashboard</TooltipContent>
+            </Tooltip>
+          ) : (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -67,23 +90,7 @@ export function TopNav() {
               <TooltipContent>Forum</TooltipContent>
             </Tooltip>
           )}
-          {isForumPage && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 border border-input bg-background"
-                  asChild
-                >
-                  <Link href="/" aria-label="Dashboard">
-                    <LayoutDashboard className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Dashboard</TooltipContent>
-            </Tooltip>
-          )}
+          {showBack && <EscapeToBack />}
         </div>
 
         {/* Center: wordmark */}
