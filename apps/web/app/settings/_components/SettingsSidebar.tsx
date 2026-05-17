@@ -13,7 +13,7 @@
  *   DASHBOARD — Targets, Comparison Sources, Agents, Templates
  *   SYSTEM    — System, Agent Tokens
  *   INBOX     — Badges
- *   FORUM     — User Invites, Agents, Templates
+ *   FORUM     — User Invites, Agents, Posting, Templates
  *   ACCOUNT   — Account
  *
  * collapsible="icon" — collapses to icon rail on desktop, consistent with
@@ -87,6 +87,7 @@ const NAV_GROUPS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }
     items: [
       { href: '/settings/forum-invites', label: 'User Invites', icon: Ticket },
       { href: '/settings/agent-invites', label: 'Agents', icon: Bot },
+      { href: '/settings/posting', label: 'Posting', icon: Settings2 },
       { href: '/settings/forum-templates', label: 'Templates', icon: FileText },
     ],
   },

@@ -134,6 +134,20 @@
       "when": 1778983732044,
       "tag": "0018_forum-content",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1778986926173,
+      "tag": "0019_post-config-and-images",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1778994271702,
+      "tag": "0020_post-drafts",
+      "breakpoints": true
     }
   ]
 }

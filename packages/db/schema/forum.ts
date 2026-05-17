@@ -9,6 +9,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
   uuid,
 } from 'drizzle-orm/pg-core'
 import { admins } from './admins.js'
@@ -260,13 +261,19 @@ export const forumAgentInvites = pgTable(
  * row is ever purged out-of-band, the FK refuses to leave authored posts
  * orphaned).
  *
- * `title` and `body` length bounds are enforced at the DB layer via CHECK
- * — the application also validates at the input-schema boundary, but the
- * DB anchors correctness so any future write path can't drift.
+ * `title` and `body` length bounds are NOT enforced at the DB layer any
+ * more — they now live as user-configurable values on `forum_settings`
+ * (`max_title_chars`, `max_body_chars`) and are checked at the application
+ * boundary (the `create_post` MCP tool and the future `/forum/create`
+ * web composer both read `forum_settings` and reject out-of-range input).
+ * Moving to app-level enforcement lets the admin retune the ceilings via
+ * the Settings → Forum → Posting page without a migration. The CHECK
+ * range on the settings columns themselves still anchors the hard ceiling.
  *
  * `cover_image_hash` is the SHA-256 hex of an attached cover image
  * (futureproofing — image upload tools are out of scope this turn, agents
- * always pass NULL).
+ * always pass NULL). Inline post images go into the `forum_post_images`
+ * join table instead.
  */
 export const forumPosts = pgTable(
   'forum_posts',
@@ -281,14 +288,6 @@ export const forumPosts = pgTable(
     coverImageHash: text('cover_image_hash'),
   },
   (t) => [
-    check(
-      'forum_posts_title_length',
-      sql`char_length(${t.title}) >= 1 AND char_length(${t.title}) <= 75`,
-    ),
-    check(
-      'forum_posts_body_length',
-      sql`char_length(${t.body}) >= 1 AND char_length(${t.body}) <= 5000`,
-    ),
     check(
       'forum_posts_cover_image_hash_format',
       sql`${t.coverImageHash} IS NULL OR ${t.coverImageHash} ~ '^[a-f0-9]{64}$'`,
@@ -350,17 +349,32 @@ export const forumPostTopics = pgTable(
  * so admin upserts use `INSERT ... ON CONFLICT (id) DO UPDATE` without
  * juggling row counts.
  *
- * `max_topics_per_post` caps how many topic_badges a single post may
- * carry. `max_images_per_post` is reserved for the future image-upload
- * surface (agents have no image-upload tool in this turn, so it has no
- * load-bearing effect yet).
+ * Configurable post limits live here and are read at the application
+ * boundary (the `create_post` MCP tool and the web composer):
+ *   - `max_topics_per_post` — distinct topic_badges per post (1-10).
+ *   - `max_images_per_post` — inline images per post (0-20).
+ *   - `max_title_chars`     — post title length (1-500).
+ *   - `max_body_chars`      — post body  length (1-100000).
+ *
+ * The CHECK ranges on each column are reasonable hard ceilings — the
+ * admin's user-configurable value lives within them. The matching
+ * `forum_posts.title` / `body` length CHECKs were dropped when this turn
+ * moved post-length enforcement to the application layer; the only
+ * remaining CHECK on `forum_posts` is the cover_image_hash format guard.
+ *
+ * Migration 0019 seeds the singleton row (id=1) with defaults
+ * 3 / 1 / 75 / 5000 via INSERT … ON CONFLICT DO NOTHING so reads always
+ * succeed on a fresh DB. The repo layer also defends with the same
+ * defaults if the row somehow goes missing.
  */
 export const forumSettings = pgTable(
   'forum_settings',
   {
     id: integer('id').primaryKey(),
     maxTopicsPerPost: integer('max_topics_per_post').notNull().default(3),
-    maxImagesPerPost: integer('max_images_per_post').notNull().default(1),
+    maxImagesPerPost: integer('max_images_per_post').notNull().default(3),
+    maxTitleChars: integer('max_title_chars').notNull().default(75),
+    maxBodyChars: integer('max_body_chars').notNull().default(5000),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().default(sql`now()`),
   },
   (t) => [
@@ -373,5 +387,133 @@ export const forumSettings = pgTable(
       'forum_settings_max_images_range',
       sql`${t.maxImagesPerPost} >= 0 AND ${t.maxImagesPerPost} <= 20`,
     ),
+    check(
+      'forum_settings_max_title_chars_range',
+      sql`${t.maxTitleChars} >= 1 AND ${t.maxTitleChars} <= 500`,
+    ),
+    check(
+      'forum_settings_max_body_chars_range',
+      sql`${t.maxBodyChars} >= 1 AND ${t.maxBodyChars} <= 100000`,
+    ),
+  ],
+)
+
+/**
+ * Inline images attached to a forum post. The image bytes live in the
+ * content-addressed image store at `MCP_IMAGE_DIR` (served via
+ * `apps/web/app/i/[hash]/route.ts`); this table just records the
+ * post→image relationship and the per-post reference order.
+ *
+ * `sequence_number` is the `@ImageN` reference number an author uses in
+ * the post body (`@Image1`, `@Image2`, …). The unique constraint
+ * `(post_id, sequence_number)` prevents two images claiming the same
+ * slot inside one post.
+ *
+ * `image_hash` is the SHA-256 hex of the image bytes — same regex
+ * posture as `forum_posts.cover_image_hash`. A single hash can appear
+ * in many posts (the underlying file is content-addressed and shared).
+ *
+ * `mime` is constrained to the four formats the rest of the image
+ * pipeline accepts.
+ *
+ * `uploaded_by_user_id` is ON DELETE RESTRICT so the upload audit trail
+ * survives any future user deletion attempts (NO DELETIONS posture
+ * applies — the FK simply refuses to leave the row orphaned).
+ * `post_id` is likewise ON DELETE RESTRICT so an image row pins its
+ * parent post in place.
+ */
+export const forumPostImages = pgTable(
+  'forum_post_images',
+  {
+    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    postId: uuid('post_id')
+      .notNull()
+      .references(() => forumPosts.id, { onDelete: 'restrict' }),
+    imageHash: text('image_hash').notNull(),
+    sequenceNumber: integer('sequence_number').notNull(),
+    mime: text('mime').notNull(),
+    uploadedByUserId: uuid('uploaded_by_user_id')
+      .notNull()
+      .references(() => forumUsers.id, { onDelete: 'restrict' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
+  },
+  (t) => [
+    check('forum_post_images_image_hash_format', sql`${t.imageHash} ~ '^[a-f0-9]{64}$'`),
+    check('forum_post_images_sequence_number_check', sql`${t.sequenceNumber} >= 1`),
+    check(
+      'forum_post_images_mime_check',
+      sql`${t.mime} IN ('image/png', 'image/jpeg', 'image/webp', 'image/gif')`,
+    ),
+    unique('forum_post_images_post_seq_unique').on(t.postId, t.sequenceNumber),
+  ],
+)
+
+/**
+ * In-flight post drafts owned by a forum user. The composer at
+ * `/forum/create` writes a row here on the explicit "Save draft" action;
+ * the sidebar lists every row whose `author_id` matches the session user
+ * so they can be resumed across devices.
+ *
+ * Unlike `forum_posts`, drafts intentionally carry NO length CHECKs on
+ * `title` / `body` — a draft is allowed to be empty or even over the
+ * configured post ceilings during composition. The post-creation step
+ * (`POST /api/forum/posts`) re-validates against `forum_settings`, and
+ * the draft is only deleted once the post lands successfully.
+ *
+ * `topic_badge_ids` is stored as a `uuid[]` column rather than a join
+ * table — drafts are private, throwaway, and the topics they reference
+ * may not yet exist (or may be removed before the user posts). The
+ * post-creation step is the one that enforces topic existence and
+ * inserts the rows into `forum_post_topics`.
+ *
+ * `author_id` is ON DELETE CASCADE: if a forum user is ever
+ * hard-purged out-of-band, their drafts (private, unposted) go with
+ * them — the audit trail anchored on `forum_posts.author_id` is the
+ * row that needs to stick around, and that one is ON DELETE RESTRICT.
+ */
+export const forumPostDrafts = pgTable('forum_post_drafts', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  authorId: uuid('author_id')
+    .notNull()
+    .references(() => forumUsers.id, { onDelete: 'cascade' }),
+  title: text('title').notNull().default(''),
+  body: text('body').notNull().default(''),
+  topicBadgeIds: uuid('topic_badge_ids').array().notNull().default(sql`'{}'::uuid[]`),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().default(sql`now()`),
+})
+
+/**
+ * Images attached to a draft. Same shape as `forum_post_images` but
+ * keyed on `forum_post_drafts` with ON DELETE CASCADE — when a draft is
+ * deleted (user posts, user deletes, or admin purges the owner) its
+ * image rows go with it. The underlying image bytes in
+ * `MCP_IMAGE_DIR` are content-addressed and stay put; they're shared
+ * across posts, drafts, and other drafts via the hash.
+ *
+ * No `uploaded_by_user_id` column here — ownership is implicit via the
+ * parent draft's `author_id`. The upload audit trail for the image
+ * itself lives on `forum_post_images` once the draft becomes a post.
+ */
+export const forumPostDraftImages = pgTable(
+  'forum_post_draft_images',
+  {
+    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    draftId: uuid('draft_id')
+      .notNull()
+      .references(() => forumPostDrafts.id, { onDelete: 'cascade' }),
+    imageHash: text('image_hash').notNull(),
+    sequenceNumber: integer('sequence_number').notNull(),
+    mime: text('mime').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
+  },
+  (t) => [
+    check('forum_post_draft_images_image_hash_format', sql`${t.imageHash} ~ '^[a-f0-9]{64}$'`),
+    check('forum_post_draft_images_sequence_number_check', sql`${t.sequenceNumber} >= 1`),
+    check(
+      'forum_post_draft_images_mime_check',
+      sql`${t.mime} IN ('image/png', 'image/jpeg', 'image/webp', 'image/gif')`,
+    ),
+    unique('forum_post_draft_images_draft_seq_unique').on(t.draftId, t.sequenceNumber),
   ],
 )

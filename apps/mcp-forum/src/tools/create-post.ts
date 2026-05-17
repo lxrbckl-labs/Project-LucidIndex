@@ -1,10 +1,17 @@
 // create_post — author a top-level forum thread.
 //
 // Inputs:
-//   - title:           1..75 chars (matches DB CHECK)
-//   - body:            1..5000 chars (matches DB CHECK)
+//   - title:           1..forum_settings.max_title_chars (default 75)
+//   - body:            1..forum_settings.max_body_chars  (default 5000)
 //   - topic_badge_ids: optional UUID list, length ≤ forum_settings.max_topics_per_post,
 //                      each UUID must exist in topic_badges
+//
+// The four length / count caps used to be hardcoded literals; they now
+// live on `forum_settings` (row id=1) and are admin-configurable via
+// Settings → Forum → Posting. We read the singleton once at the top of
+// the handler and use those values for all validation below. If the
+// row is somehow missing (shouldn't happen post-seed), we fall back to
+// the same 75 / 5000 / 3 defaults the migration seeds.
 //
 // The post is inserted with author_id = ctx.forumUserId. The agent
 // never gets to override identity — the auth context is the only
@@ -18,7 +25,8 @@
 //
 // cover_image_hash is always NULL in this surface — agents have no
 // image-upload tool yet. The column is reserved for the future
-// image-upload path.
+// image-upload path; inline post images use the `forum_post_images`
+// join table once that flow lands.
 
 import { db } from '@lucidindex/db/client'
 import { forumPosts, forumPostTopics, forumSettings, topicBadges } from '@lucidindex/db/schema'
@@ -27,26 +35,29 @@ import { z } from 'zod'
 import { logger } from '../logger.js'
 import { ToolError } from './errors.js'
 
+/** Hard fallbacks — match the DB column defaults and migration 0019 seed. */
+const DEFAULT_MAX_TOPICS = 3
+const DEFAULT_MAX_TITLE_CHARS = 75
+const DEFAULT_MAX_BODY_CHARS = 5000
+
 export const createPostInputShape = {
   title: z
     .string()
     .min(1)
-    .max(75)
     .describe(
-      'Post title. 1–75 characters. Plain text; rendered as the thread headline on the forum.',
+      'Post title. Plain text; rendered as the thread headline on the forum. Length capped by forum_settings.max_title_chars (default 75, admin-configurable).',
     ),
   body: z
     .string()
     .min(1)
-    .max(5000)
     .describe(
-      'Post body. 1–5000 characters. Plain text / Markdown — the forum renderer treats this as user-authored content.',
+      'Post body. Plain text / Markdown — the forum renderer treats this as user-authored content. Length capped by forum_settings.max_body_chars (default 5000, admin-configurable).',
     ),
   topic_badge_ids: z
     .array(z.string().uuid())
     .optional()
     .describe(
-      'Optional list of topic_badge UUIDs to tag the post with. Length capped by forum_settings.max_topics_per_post (default 3). Each id must exist in topic_badges. Pass [] or omit for an untagged post.',
+      'Optional list of topic_badge UUIDs to tag the post with. Length capped by forum_settings.max_topics_per_post (default 3, admin-configurable). Each id must exist in topic_badges. Pass [] or omit for an untagged post.',
     ),
 }
 
@@ -71,23 +82,45 @@ export async function createPost(args: CreatePostArgs): Promise<CreatePostOutput
     topic_badge_ids: args.topic_badge_ids,
   })
 
+  // Read the singleton settings row once and apply its limits to the
+  // length + count checks below. Missing row → fall back to the same
+  // defaults the schema + seed use.
+  const settingsRow = (
+    await db
+      .select({
+        maxTopicsPerPost: forumSettings.maxTopicsPerPost,
+        maxTitleChars: forumSettings.maxTitleChars,
+        maxBodyChars: forumSettings.maxBodyChars,
+      })
+      .from(forumSettings)
+      .where(eq(forumSettings.id, 1))
+      .limit(1)
+  )[0]
+  const maxTopics = settingsRow?.maxTopicsPerPost ?? DEFAULT_MAX_TOPICS
+  const maxTitleChars = settingsRow?.maxTitleChars ?? DEFAULT_MAX_TITLE_CHARS
+  const maxBodyChars = settingsRow?.maxBodyChars ?? DEFAULT_MAX_BODY_CHARS
+
+  // App-level length checks — the DB no longer enforces these on
+  // forum_posts.title / body (the CHECKs moved out in migration 0019).
+  if (parsed.title.length > maxTitleChars) {
+    throw new ToolError(
+      'invalid_input',
+      `Post title is ${parsed.title.length} characters; max allowed is ${maxTitleChars}.`,
+    )
+  }
+  if (parsed.body.length > maxBodyChars) {
+    throw new ToolError(
+      'invalid_input',
+      `Post body is ${parsed.body.length} characters; max allowed is ${maxBodyChars}.`,
+    )
+  }
+
   const topicIds = parsed.topic_badge_ids ?? []
   // Deduplicate so the per-post cap reflects distinct badges, and the
   // composite-PK insert doesn't trip on a within-batch duplicate.
   const uniqueTopicIds = Array.from(new Set(topicIds))
 
   if (uniqueTopicIds.length > 0) {
-    const settingsRow = (
-      await db
-        .select({ maxTopicsPerPost: forumSettings.maxTopicsPerPost })
-        .from(forumSettings)
-        .where(eq(forumSettings.id, 1))
-        .limit(1)
-    )[0]
-    // Default to the schema default if the singleton hasn't been seeded
-    // yet (defensive — admin onboarding seeds it, but tests / fresh dev
-    // DBs may not have hit that path).
-    const maxTopics = settingsRow?.maxTopicsPerPost ?? 3
     if (uniqueTopicIds.length > maxTopics) {
       throw new ToolError(
         'too_many_topics',
