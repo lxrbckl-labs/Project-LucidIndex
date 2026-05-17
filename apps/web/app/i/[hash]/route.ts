@@ -46,9 +46,20 @@
  *   range. `readFile` into a single Response body is fine at that size and
  *   keeps the handler trivial. If image budgets ever get into the MB range
  *   a `createReadStream` -> `ReadableStream` swap is a one-function diff.
+ *
+ * Forum uploads:
+ *   The forum composer (`/api/forum/upload-image`) writes preserved originals
+ *   under the SAME `MCP_IMAGE_DIR` with their canonical extension (`png`,
+ *   `webp`, `gif`, or `jpg`) — no resize, no transcode. When the dashboard's
+ *   `<hash>.webp` / `<hash>.jpg` pair is missing for a given hash, this
+ *   handler falls through to those forum extensions in priority order
+ *   (webp → png → jpg → gif) and serves the first match with the correct
+ *   MIME. The Accept-driven webp preference is preserved when both webp
+ *   and jpg exist (the dashboard hero case); forum uploads only have one
+ *   file per hash and the fall-through picks it up.
  */
 
-import { readFile } from 'node:fs/promises'
+import { access, readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import type { NextRequest } from 'next/server'
 
@@ -71,6 +82,27 @@ const HASH_RE = /^[a-f0-9]{64}$/
 
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365 // 31,536,000
 
+/**
+ * Forum-upload extensions, probed when the dashboard's webp/jpg pair isn't
+ * present. Order is preference: webp (smallest), then png/gif (lossless
+ * formats common in forum content), then jpg (last resort).
+ */
+const FORUM_EXT_MIME: ReadonlyArray<{ ext: string; mime: string }> = [
+  { ext: 'webp', mime: 'image/webp' },
+  { ext: 'png', mime: 'image/png' },
+  { ext: 'gif', mime: 'image/gif' },
+  { ext: 'jpg', mime: 'image/jpeg' },
+]
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await access(path)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ hash: string }> }) {
   const { hash } = await params
 
@@ -84,10 +116,34 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ hash
   // get the smaller WebP; Safari < 14 / IE / curl get the JPEG.
   const accept = req.headers.get('accept') ?? ''
   const wantsWebP = accept.includes('image/webp')
-  const ext = wantsWebP ? 'webp' : 'jpg'
-  const contentType = wantsWebP ? 'image/webp' : 'image/jpeg'
+  const preferredExt = wantsWebP ? 'webp' : 'jpg'
+  const preferredMime = wantsWebP ? 'image/webp' : 'image/jpeg'
 
-  const filePath = join(IMAGE_DIR, `${hash}.${ext}`)
+  // First try the dashboard's webp/jpg pair (a single hash usually has
+  // both written by `mcp-dashboard/src/lib/image-pipeline.ts`).
+  let filePath = join(IMAGE_DIR, `${hash}.${preferredExt}`)
+  let contentType = preferredMime
+  let found = await exists(filePath)
+
+  // Fall through to the forum-upload extensions if the dashboard pair
+  // wasn't found. Forum uploads write exactly one file per hash with the
+  // canonical extension for their MIME.
+  if (!found) {
+    for (const { ext, mime } of FORUM_EXT_MIME) {
+      if (ext === preferredExt) continue // already tried
+      const candidate = join(IMAGE_DIR, `${hash}.${ext}`)
+      if (await exists(candidate)) {
+        filePath = candidate
+        contentType = mime
+        found = true
+        break
+      }
+    }
+  }
+
+  if (!found) {
+    return new Response('Not found', { status: 404 })
+  }
 
   let buf: Buffer
   try {
