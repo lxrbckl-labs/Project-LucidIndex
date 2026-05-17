@@ -10,10 +10,10 @@
  *
  * Groups:
  *   OVERVIEW  — Overview
- *   DASHBOARD — Targets, Comparison Sources, Agent Invites, Templates
+ *   DASHBOARD — Targets, Comparison Sources, Agents, Templates
  *   SYSTEM    — System, Agent Tokens
  *   INBOX     — Badges
- *   FORUM     — User Invites, Agent Invites, Templates
+ *   FORUM     — User Invites, Agents, Templates
  *   ACCOUNT   — Account
  *
  * collapsible="icon" — collapses to icon rail on desktop, consistent with
@@ -67,7 +67,7 @@ const NAV_GROUPS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }
     items: [
       { href: '/settings/targets', label: 'Targets', icon: Settings2 },
       { href: '/settings/comparison-sources', label: 'Comparison Sources', icon: BookOpen },
-      { href: '/settings/dashboard-agent-invites', label: 'Agent Invites', icon: Bot },
+      { href: '/settings/dashboard-agent-invites', label: 'Agents', icon: Bot },
       { href: '/settings/templates', label: 'Templates', icon: FileText },
     ],
   },
@@ -86,7 +86,7 @@ const NAV_GROUPS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }
     label: 'Forum',
     items: [
       { href: '/settings/forum-invites', label: 'User Invites', icon: Ticket },
-      { href: '/settings/agent-invites', label: 'Agent Invites', icon: Bot },
+      { href: '/settings/agent-invites', label: 'Agents', icon: Bot },
       { href: '/settings/forum-templates', label: 'Templates', icon: FileText },
     ],
   },

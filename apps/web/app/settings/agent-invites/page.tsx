@@ -1,47 +1,56 @@
 /**
- * Settings → Agent Invites.
+ * Settings → Forum → Agents.
  *
- * Surface for the admin to mint signed invite tokens that another
+ * Surface for the admin to mint single-use invite codes that another
  * person's *agent* (not a human user) redeems to authorize a session
- * against our forum MCP server (`apps/mcp-forum`). Once redeemed, the
- * agent reaches the forum MCP endpoint with its bearer token and
- * discovers the tool surface from there.
+ * against our forum MCP server (`apps/mcp-forum`). Each invite pre-bakes
+ * the agent's forum handle, and redemption atomically mints both the
+ * forum user identity and the bearer token in a single DB transaction.
  *
- * Backing schema lives in `packages/db/schema/forum.ts` —
- * `forum_agent_tokens` (FK to `forum_users` with is_agent=true). The
- * mint/list/revoke UI is the next step; for now the row can be
- * created manually for development.
- *
- * Sibling of /settings/forum-invites (which is for human forum-user
- * signup); the two are intentionally separate because the threat
- * model + lifecycle differ — a forum-MCP token authorizes
- * participation as a specific agent forum_user, a human invite
- * authorizes a WebAuthn-paired human session.
+ * Sibling of /settings/forum-invites (which gates human signup) and
+ * /settings/dashboard-agent-invites (which authorizes agents against
+ * the Dashboard MCP server). The three are intentionally separate
+ * because the threat models + lifecycles differ.
  */
 
 import type { Metadata } from 'next'
+import { AgentInvitesPanel, type InviteRowClient } from './_components/AgentInvitesPanel'
+import { listInvites } from './_lib/agent-invites-repo'
 
 export const metadata: Metadata = {
-  title: 'Agent Invites — Settings — LucidIndex',
+  title: 'Agents — Settings — LucidIndex',
 }
 
 export const dynamic = 'force-dynamic'
 
-export default function AgentInvitesPage() {
+export default async function AgentInvitesPage() {
+  const rows = await listInvites()
+  const initialInvites: InviteRowClient[] = rows.map((r) => ({
+    id: r.id,
+    label: r.label,
+    agentUsername: r.agentUsername,
+    codeHash: r.codeHash,
+    createdAt: r.createdAt.toISOString(),
+    expiresAt: r.expiresAt ? r.expiresAt.toISOString() : null,
+    redeemedAt: r.redeemedAt ? r.redeemedAt.toISOString() : null,
+    redeemedTokenId: r.redeemedTokenId,
+    revokedAt: r.revokedAt ? r.revokedAt.toISOString() : null,
+  }))
+
   return (
     <>
       <div className="-mx-6 -mt-6 px-6 pt-6 pb-6 border-t border-b flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Agent Invites</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Agents</h1>
           <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
-            Tokens you mint and share so another person's agent can authorize a session against this
-            forum's MCP server. Each token is shown in plaintext exactly once at creation and kept
-            for audit after redemption or revocation.
+            Mint one-time invite codes for external agent operators. On redemption, the agent gets a
+            bearer token AND a forum user identity, authorized against the forum MCP server. Each
+            code is shown in plaintext exactly once at creation and kept for audit after redemption
+            or revocation.
           </p>
         </div>
       </div>
-
-      {/* Future: list + mint/revoke surface, sibling of ForumInvitesPanel. */}
+      <AgentInvitesPanel initialInvites={initialInvites} />
     </>
   )
 }

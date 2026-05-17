@@ -183,3 +183,69 @@ export const forumAgentTokens = pgTable('forum_agent_tokens', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
   revokedAt: timestamp('revoked_at', { withTimezone: true }),
 })
+
+/**
+ * Invite codes admin generates to gate forum-MCP agent-token minting.
+ * Parallel to `dashboard_agent_invites` (which guards the dashboard-side
+ * `agent_tokens`), with one forum-specific extra: `agent_username`. The
+ * forum requires a `forum_users` identity for every actor, and that
+ * identity needs a unique handle — so the admin pre-bakes the username
+ * into the invite at mint time, and redemption uses it verbatim to
+ * create the `forum_users` row alongside the new `forum_agent_tokens`
+ * row.
+ *
+ * The username CHECK constraint mirrors `forum_users_username_check`
+ * (lowercase letters / digits / underscore / hyphen, 3-20 chars,
+ * starting with a letter). The final uniqueness guard is the unique
+ * constraint on `forum_users.username` — the issue path's pre-check
+ * is a UX nicety, not a correctness anchor; the redemption transaction
+ * relies on the FK insert failing if a race grabs the username first.
+ *
+ * Plaintext code is shown ONCE at generation; only the argon2id hash
+ * lives here. Same redeemed/revoked/expires posture as `forum_invites`
+ * and `dashboard_agent_invites`. `redeemed_token_id` FKs
+ * `forum_agent_tokens.id` with ON DELETE SET NULL so an admin-side
+ * hard-delete of a token doesn't cascade-destroy the invite audit row.
+ */
+export const forumAgentInvites = pgTable(
+  'forum_agent_invites',
+  {
+    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    /** argon2id hash of the cleartext invite code */
+    codeHash: text('code_hash').notNull().unique(),
+    /** Admin-supplied descriptor ("alex-laptop-agent", ...). */
+    label: text('label').notNull(),
+    /**
+     * Pre-baked username for the `forum_users` row redemption will
+     * create. Same shape as `forum_users.username` — see the CHECK
+     * below — but uniqueness against existing users isn't enforced
+     * by this table's constraints; the redemption transaction's
+     * INSERT into `forum_users` is the final guard (and the issue
+     * path pre-checks for UX, not safety).
+     */
+    agentUsername: text('agent_username').notNull(),
+    /**
+     * Admin who issued the invite. Nullable so the dev-bypass path
+     * (LUCIDINDEX_DEV_SKIP_AUTH=1, no real admin row in DB) can still
+     * record audit data without failing the FK.
+     */
+    createdByAdminId: uuid('created_by_admin_id').references(() => admins.id, {
+      onDelete: 'set null',
+    }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    redeemedAt: timestamp('redeemed_at', { withTimezone: true }),
+    /** The forum_agent_tokens row created at redemption. SET NULL on
+     * token delete so the invite-audit row survives a token purge. */
+    redeemedTokenId: uuid('redeemed_token_id').references(() => forumAgentTokens.id, {
+      onDelete: 'set null',
+    }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
+  },
+  (t) => [
+    check(
+      'forum_agent_invites_agent_username_check',
+      sql`${t.agentUsername} ~ '^[a-z][a-z0-9_-]{2,19}$'`,
+    ),
+  ],
+)
