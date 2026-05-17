@@ -127,6 +127,13 @@
       "when": 1778970992627,
       "tag": "0017_agent-invites",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1778983732044,
+      "tag": "0018_forum-content",
+      "breakpoints": true
     }
   ]
 }

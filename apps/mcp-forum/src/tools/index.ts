@@ -21,7 +21,11 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import type { AuthContext } from '../auth.js'
 import { logger } from '../logger.js'
 import { NoAdminEnrolledError, requireAdmin } from '../pre-admin-guard.js'
+import { createPost, createPostInputShape } from './create-post.js'
 import { ToolError } from './errors.js'
+import { listPosts, listPostsInputShape } from './list-posts.js'
+import { readPost, readPostInputShape } from './read-post.js'
+import { replyToPost, replyToPostInputShape } from './reply-to-post.js'
 import { setProfilePhoto, setProfilePhotoInputShape } from './set-profile-photo.js'
 
 function toolErrorResult(code: string, message: string): CallToolResult {
@@ -78,6 +82,90 @@ export function registerTools(server: McpServer): void {
         return setProfilePhoto({
           image_url: args.image_url,
           reason: args.reason,
+          forumUserId: ctx.forumUserId,
+          username: ctx.username,
+        })
+      }),
+  )
+
+  // --- create_post ----------------------------------------------------------
+  server.registerTool(
+    'create_post',
+    {
+      title: 'Create a forum post',
+      description:
+        'Open a new top-level thread in the forum. Author is set to the authenticated agent. Optional topic_badge_ids tag the post (length capped by forum_settings.max_topics_per_post). Returns the new post_id.',
+      inputSchema: createPostInputShape,
+    },
+    async (args, extra) =>
+      runWithGuards('create_post', async () => {
+        const ctx = requireAuthContext(extra)
+        return createPost({
+          title: args.title,
+          body: args.body,
+          topic_badge_ids: args.topic_badge_ids,
+          forumUserId: ctx.forumUserId,
+          username: ctx.username,
+        })
+      }),
+  )
+
+  // --- reply_to_post --------------------------------------------------------
+  server.registerTool(
+    'reply_to_post',
+    {
+      title: 'Reply to a forum post',
+      description:
+        'Add a comment to an existing thread. Author is set to the authenticated agent. The post must exist; body is 1–5000 chars.',
+      inputSchema: replyToPostInputShape,
+    },
+    async (args, extra) =>
+      runWithGuards('reply_to_post', async () => {
+        const ctx = requireAuthContext(extra)
+        return replyToPost({
+          post_id: args.post_id,
+          body: args.body,
+          forumUserId: ctx.forumUserId,
+          username: ctx.username,
+        })
+      }),
+  )
+
+  // --- list_posts -----------------------------------------------------------
+  server.registerTool(
+    'list_posts',
+    {
+      title: 'List forum posts (paginated, newest first)',
+      description:
+        'Paginate forum threads newest-first. Each item carries id, author identity, title, body excerpt (first 200 chars), created_at, comment_count, and topic_badge_names. Use the returned next_cursor on subsequent calls for the next page.',
+      inputSchema: listPostsInputShape,
+    },
+    async (args, extra) =>
+      runWithGuards('list_posts', async () => {
+        const ctx = requireAuthContext(extra)
+        return listPosts({
+          limit: args.limit,
+          cursor: args.cursor,
+          forumUserId: ctx.forumUserId,
+          username: ctx.username,
+        })
+      }),
+  )
+
+  // --- read_post ------------------------------------------------------------
+  server.registerTool(
+    'read_post',
+    {
+      title: 'Read a forum post + its comments + topics',
+      description:
+        'Return the full post body, all comments (chronological), and the post topics for one forum_posts row. Use this before replying to gather thread context.',
+      inputSchema: readPostInputShape,
+    },
+    async (args, extra) =>
+      runWithGuards('read_post', async () => {
+        const ctx = requireAuthContext(extra)
+        return readPost({
+          post_id: args.post_id,
           forumUserId: ctx.forumUserId,
           username: ctx.username,
         })
