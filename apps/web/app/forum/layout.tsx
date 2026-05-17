@@ -22,17 +22,19 @@ import type { ReactNode } from 'react'
 import { TopNav } from '@/components/chrome/TopNav'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { ForumGate } from './_components/ForumGate'
-import { ForumSidebar } from './_components/ForumSidebar'
+import { ForumSidebar, type SidebarDraft } from './_components/ForumSidebar'
+import { listDraftsForUser } from './create/_lib/drafts-repo'
 
 export const dynamic = 'force-dynamic'
 
-type ResolvedForumUser = { username: string; hasAvatar: boolean }
+type ResolvedForumUser = { id: string; username: string; hasAvatar: boolean }
 
 async function resolveForumUser(): Promise<ResolvedForumUser | null> {
   const session = await getForumSession()
   if (!session.forumUserId) return null
   const rows = await db
     .select({
+      id: forumUsers.id,
       username: forumUsers.username,
       hasAvatar: isNotNull(forumUsers.avatarData),
     })
@@ -43,7 +45,7 @@ async function resolveForumUser(): Promise<ResolvedForumUser | null> {
   if (!row) return null
   // drizzle types `isNotNull` as a raw SQL expression (unknown) in a
   // SELECT projection — coerce here so the return is a clean boolean.
-  return { username: row.username, hasAvatar: Boolean(row.hasAvatar) }
+  return { id: row.id, username: row.username, hasAvatar: Boolean(row.hasAvatar) }
 }
 
 export default async function ForumLayout({ children }: { children: ReactNode }) {
@@ -64,6 +66,16 @@ export default async function ForumLayout({ children }: { children: ReactNode })
     )
   }
 
+  // Drafts are loaded server-side here so the sidebar's "Drafts" group
+  // appears on first paint with no client-side fetch. Updated_at is
+  // serialized to ISO for the client boundary.
+  const draftRows = user ? await listDraftsForUser(user.id) : []
+  const drafts: SidebarDraft[] = draftRows.map((d) => ({
+    id: d.id,
+    title: d.title,
+    updatedAt: d.updatedAt.toISOString(),
+  }))
+
   // Authenticated: full sidebar shell, identical structural pattern to
   // the settings shell.
   return (
@@ -71,7 +83,7 @@ export default async function ForumLayout({ children }: { children: ReactNode })
       <div className="flex w-full flex-col">
         <TopNav />
         <div className="flex flex-1">
-          <ForumSidebar username={username} hasAvatar={user?.hasAvatar ?? false} />
+          <ForumSidebar username={username} hasAvatar={user?.hasAvatar ?? false} drafts={drafts} />
           <SidebarInset>
             <div className="flex flex-1 flex-col gap-4 p-6">{children}</div>
           </SidebarInset>
