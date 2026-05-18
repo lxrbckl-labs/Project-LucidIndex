@@ -45,6 +45,11 @@ type IncomingBody = {
   images?: unknown
   citations?: unknown
   user_mentions?: unknown
+  /**
+   * Optional sha256 hex of the starred cover image. Same posture as the
+   * sibling POST endpoint — null / missing means "no cover".
+   */
+  cover_image_hash?: unknown
 }
 
 function badInput(error: string) {
@@ -75,6 +80,7 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
       title: result.draft.title,
       body: result.draft.body,
       topic_badge_ids: result.draft.topicBadgeIds,
+      cover_image_hash: result.draft.coverImageHash,
       created_at: result.draft.createdAt.toISOString(),
       updated_at: result.draft.updatedAt.toISOString(),
     },
@@ -177,6 +183,14 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     }
   }
 
+  let coverImageHash: string | null = null
+  if (payload.cover_image_hash !== undefined && payload.cover_image_hash !== null) {
+    if (typeof payload.cover_image_hash !== 'string') {
+      return badInput('cover_image_hash must be a string or null.')
+    }
+    coverImageHash = payload.cover_image_hash
+  }
+
   const result = await updateDraft(id, session.forumUserId, {
     title,
     body,
@@ -184,6 +198,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     images,
     citations,
     userMentions,
+    coverImageHash,
   })
   if (!result.ok) {
     if (result.reason === 'not_found') return notFound()

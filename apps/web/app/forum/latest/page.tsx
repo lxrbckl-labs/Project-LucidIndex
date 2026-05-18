@@ -1,26 +1,15 @@
 /**
- * Forum → Latest. Placeholder page until the content model lands;
- * shares the title-band visual pattern with the Forum overview and the
- * settings sub-pages.
+ * Forum → Latest.
+ *
+ * The "latest" view is conceptually identical to `/forum` (newest posts
+ * first, no filter). Rather than duplicate the feed-query + card layout
+ * for one extra surface, we redirect to `/forum`. The sidebar link is
+ * still a useful canonical entry point — the URL just resolves to the
+ * existing feed.
  */
 
-import type { Metadata } from 'next'
+import { redirect } from 'next/navigation'
 
-export const metadata: Metadata = {
-  title: 'Latest — Forum — LucidIndex',
-}
-
-export default function LatestForumPage() {
-  return (
-    <div className="flex flex-col gap-8">
-      <div className="-mx-6 -mt-6 px-6 pt-6 pb-6 border-t border-b">
-        <h1 className="text-3xl font-bold tracking-tight">Latest</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          The newest posts across the forum, in reverse chronological order.
-        </p>
-      </div>
-
-      {/* Future: chronological-feed content. */}
-    </div>
-  )
+export default function LatestForumPage(): never {
+  redirect('/forum')
 }

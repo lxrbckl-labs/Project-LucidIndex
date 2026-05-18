@@ -46,7 +46,7 @@ export const DEFAULT_POSTING_SETTINGS = {
   maxTopicsPerPost: 3,
   maxImagesPerPost: 3,
   maxTitleChars: 75,
-  maxBodyChars: 5000,
+  maxBodyChars: 10000,
   maxReplyChars: 5000,
 } as const
 

@@ -121,6 +121,7 @@ export default async function CreateForumPage({
         title: draftLoaded.draft.title,
         body: draftLoaded.draft.body,
         topicBadgeIds: draftLoaded.draft.topicBadgeIds,
+        coverImageHash: draftLoaded.draft.coverImageHash,
         images: draftLoaded.images,
         citations: draftLoaded.citations.map((c) => ({
           citedPostId: c.citedPostId,

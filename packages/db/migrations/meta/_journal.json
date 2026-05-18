@@ -183,6 +183,20 @@
       "when": 1779060146875,
       "tag": "0025_configurable-reply-length",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1779063069373,
+      "tag": "0026_comment-citations-and-mentions",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1779070997497,
+      "tag": "0027_draft-cover-image",
+      "breakpoints": true
     }
   ]
 }

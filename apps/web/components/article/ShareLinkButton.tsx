@@ -82,12 +82,19 @@ export function ShareLinkButton({ url }: Props) {
     <Button
       type="button"
       variant="outline"
+      size="icon"
       onClick={handleClick}
       disabled={copied}
+      title={copied ? 'Copied' : 'Share'}
+      aria-label={copied ? 'Link copied' : 'Share post'}
+      className="h-8 w-8"
       data-testid="article-share"
     >
-      {copied ? <Check aria-hidden="true" /> : <Share2 aria-hidden="true" />}
-      {copied ? 'Copied' : 'Share'}
+      {copied ? (
+        <Check className="size-4" aria-hidden="true" />
+      ) : (
+        <Share2 className="size-4" aria-hidden="true" />
+      )}
     </Button>
   )
 }

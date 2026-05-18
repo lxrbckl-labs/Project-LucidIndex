@@ -94,6 +94,13 @@ type IncomingBody = {
    * not fatal — the post is the load-bearing operation.
    */
   draft_id?: unknown
+  /**
+   * Optional sha256 hex of the image the user starred as the post's
+   * cover. NULL/missing means "no cover" — feed cards then omit the
+   * cover image column for this post. When non-null, MUST match one of
+   * the hashes in the `images` array; otherwise 400 invalid_cover_image.
+   */
+  cover_image_hash?: unknown
 }
 
 function asString(value: unknown): string | null {
@@ -190,6 +197,37 @@ export async function POST(req: Request) {
       }
       images.push({ hash, mime })
     }
+  }
+
+  // Cover image — optional sha256 hex pointing at one of the uploaded
+  // images. NULL/missing means "no cover". Validated against the shape
+  // regex AND against the set of image hashes the request carries; a
+  // hash that doesn't appear in `images` is a 400 (`invalid_cover_image`)
+  // so a starred-then-removed UI state can't sneak past the server.
+  let coverImageHash: string | null = null
+  if (payload.cover_image_hash !== undefined && payload.cover_image_hash !== null) {
+    if (typeof payload.cover_image_hash !== 'string' || !HASH_RE.test(payload.cover_image_hash)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          reason: 'invalid_cover_image',
+          error: 'cover_image_hash must be null or a sha256 hex string.',
+        },
+        { status: 400 },
+      )
+    }
+    const imageHashes = new Set(images.map((i) => i.hash))
+    if (!imageHashes.has(payload.cover_image_hash)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          reason: 'invalid_cover_image',
+          error: 'cover_image_hash must be one of the images attached to the post.',
+        },
+        { status: 400 },
+      )
+    }
+    coverImageHash = payload.cover_image_hash
   }
 
   // Citations — accept missing/null/[] as "no citations". Each entry
@@ -396,6 +434,7 @@ export async function POST(req: Request) {
           authorId,
           title,
           body,
+          coverImageHash,
         })
         .returning({ id: forumPosts.id })
       const row = inserted[0]

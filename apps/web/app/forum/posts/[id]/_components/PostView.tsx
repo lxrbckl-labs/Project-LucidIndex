@@ -36,17 +36,19 @@
  *     tab. Omitted entirely if no citations.
  */
 
-import { Edit2, Eye, MessageSquare } from 'lucide-react'
+import { Eye, MessageSquare, Pencil } from 'lucide-react'
 import Link from 'next/link'
 import type { ComponentPropsWithoutRef, ReactNode } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ShareLinkButton } from '@/components/article/ShareLinkButton'
+import { AuthorHoverCard } from '@/components/forum/AuthorHoverCard'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { CitationsSection } from './CitationsSection'
 import { EditHistoryIndicator } from './EditHistoryIndicator'
+import { GallerySection } from './GallerySection'
 import { InlineCitationLink } from './InlineCitationLink'
 
 export type PostViewImage = {
@@ -278,6 +280,13 @@ const markdownComponents = {
       </td>
     )
   },
+  p({ children, ...rest }: ComponentPropsWithoutRef<'p'> & { children?: ReactNode }) {
+    return (
+      <p {...rest} className="text-justify">
+        {children}
+      </p>
+    )
+  },
   ul({ children, ...rest }: ComponentPropsWithoutRef<'ul'> & { children?: ReactNode }) {
     return (
       <ul {...rest} className="my-2 list-disc pl-6">
@@ -399,31 +408,33 @@ export function PostView({
         </Link>
         <span>
           by{' '}
-          <Link
-            href={`/forum/users/${author.username}`}
-            className="underline-offset-4 hover:underline"
-          >
-            @{author.username}
-          </Link>
+          <AuthorHoverCard username={author.username}>
+            <Link
+              href={`/forum/users/${author.username}`}
+              className="underline-offset-4 hover:underline"
+            >
+              @{author.username}
+            </Link>
+          </AuthorHoverCard>
         </span>
         {author.isAgent && (
           <Badge variant="secondary" className="font-normal">
             agent
           </Badge>
         )}
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex items-center gap-1.5">
           <ShareLinkButton />
           {canEdit && (
             <Button
-              variant="ghost"
-              size="sm"
+              variant="outline"
+              size="icon"
               asChild
-              className="h-7 gap-1.5 px-2"
+              className="h-8 w-8"
+              title="Edit post"
               data-testid="post-edit-button"
             >
               <Link href={`/forum/posts/${post.id}/edit`} aria-label="Edit post">
-                <Edit2 className="size-3.5" aria-hidden="true" />
-                Edit
+                <Pencil className="size-4" aria-hidden="true" />
               </Link>
             </Button>
           )}
@@ -449,7 +460,6 @@ export function PostView({
               {viewCount} {viewCount === 1 ? 'view' : 'views'}
             </span>
           </div>
-          {edits.length > 0 && <EditHistoryIndicator edits={edits.map((d) => d.toISOString())} />}
           <button
             type="button"
             onClick={onToggleReplies}
@@ -463,13 +473,14 @@ export function PostView({
               {replyCount} {replyCount === 1 ? 'reply' : 'replies'}
             </span>
           </button>
+          {edits.length > 0 && <EditHistoryIndicator edits={edits.map((d) => d.toISOString())} />}
         </div>
       </div>
 
-      {/* Body — preserved verbatim from prior version (tokenizer +
-          ReactMarkdown), only the wrapper section's spacing/typography
-          changes to match the article page. No text-justify — forum
-          posts read better left-aligned. */}
+      {/* Body — tokenizer + ReactMarkdown. Paragraph segments render
+          with text-justify via the custom `p` component in
+          markdownComponents. Images, citations, and user mentions are
+          rendered as inline React elements. */}
       <section
         data-testid="post-body"
         className="mt-10 break-words text-base leading-relaxed text-foreground"
@@ -536,48 +547,24 @@ export function PostView({
             )
           }
           return (
-            <a
-              // biome-ignore lint/suspicious/noArrayIndexKey: parsed token sequence is stable across renders
-              key={`u-${idx}`}
-              href={`/forum/users/${mention.mentionedUsername}`}
-              className="font-medium text-primary hover:underline"
-              data-testid={`mention-inline-${mention.mentionedUsername}`}
-            >
-              @{mention.mentionedUsername}
-            </a>
+            // biome-ignore lint/suspicious/noArrayIndexKey: parsed token sequence is stable across renders
+            <AuthorHoverCard key={`u-${idx}`} username={mention.mentionedUsername}>
+              <a
+                href={`/forum/users/${mention.mentionedUsername}`}
+                className="font-medium text-primary hover:underline"
+                data-testid={`mention-inline-${mention.mentionedUsername}`}
+              >
+                @{mention.mentionedUsername}
+              </a>
+            </AuthorHoverCard>
           )
         })}
       </section>
 
-      {/* Unreferenced images gallery — preserved layout, just repositioned
-          inside the 640px column with mt-10 spacing. */}
-      {unreferencedImages.length > 0 && (
-        <section className="mt-10 flex flex-col gap-2" data-testid="unreferenced-images">
-          <h2 className="mb-3 text-sm uppercase tracking-[0.08em] text-muted-foreground">
-            Gallery
-          </h2>
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {unreferencedImages.map((img) => (
-              <li
-                key={img.imageHash + img.sequenceNumber}
-                className="flex flex-col gap-1 rounded-md border bg-card p-2"
-              >
-                <div className="aspect-square w-full overflow-hidden rounded-sm bg-muted">
-                  {/* biome-ignore lint/performance/noImgElement: bytes served by /i/<hash> route handler */}
-                  <img
-                    src={`/i/${img.imageHash}`}
-                    alt={`Inline reference @Image${img.sequenceNumber}`}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-                <code className="font-mono text-[11px] text-muted-foreground">
-                  @Image{img.sequenceNumber}
-                </code>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {/* Gallery — collapsible accordion (closed by default), sister
+          to the Citations section below. Hosts only the unreferenced
+          images. See `./GallerySection.tsx`. */}
+      <GallerySection images={unreferencedImages} />
 
       {/* Citations — collapsible accordion (closed by default), each
           row hyperlink in blue + HoverCard preview. See

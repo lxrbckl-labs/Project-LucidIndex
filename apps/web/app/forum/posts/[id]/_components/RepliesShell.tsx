@@ -34,7 +34,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
 import { PostView, type PostViewProps } from './PostView'
-import { type CommentRow, RepliesPane } from './RepliesPane'
+import { type CommentRow, type PostOption, RepliesPane, type UserOption } from './RepliesPane'
 
 type Props = Omit<PostViewProps, 'repliesOpen' | 'onToggleReplies' | 'replyCount'> & {
   initialComments: CommentRow[]
@@ -45,6 +45,18 @@ type Props = Omit<PostViewProps, 'repliesOpen' | 'onToggleReplies' | 'replyCount
    * the value — it's a straight pass-through.
    */
   maxReplyChars: number
+  /**
+   * Top-200 most-recent posts (joined with author info) the reply
+   * composer's `@`-dropdown surfaces in its Posts section. Same shape
+   * as the create-page composer payload so the dropdown UI stays
+   * identical.
+   */
+  recentPosts: PostOption[]
+  /**
+   * Top-200 forum users (excluding the viewer) the reply composer's
+   * `@`-dropdown surfaces in its Users section.
+   */
+  users: UserOption[]
 }
 
 /**
@@ -66,8 +78,24 @@ function useIsLg(): boolean {
   return isLg
 }
 
-export function RepliesShell({ initialComments, maxReplyChars, ...postViewProps }: Props) {
-  const [open, setOpen] = useState(false)
+export function RepliesShell({
+  initialComments,
+  maxReplyChars,
+  recentPosts,
+  users,
+  ...postViewProps
+}: Props) {
+  // The parent-post's image set is already part of `postViewProps`
+  // (PostView consumes it to render inline figures + the gallery
+  // accordion). We forward it to RepliesPane unchanged so the reply
+  // composer's `@`-dropdown can offer them as `@ImageN` insertions
+  // and so submitted comments render image tokens as inline figures.
+  const postImages = postViewProps.images
+  // Replies start OPEN by default — Alex's preferred posture for the
+  // post view. Closing it is a one-click affordance via the X icon or
+  // the metadata strip's Replies toggle. The matchMedia hook still
+  // gates between inline-grid (lg+) and Sheet (below lg).
+  const [open, setOpen] = useState(true)
   const [comments, setComments] = useState<CommentRow[]>(initialComments)
   const isLg = useIsLg()
 
@@ -146,6 +174,9 @@ export function RepliesShell({ initialComments, maxReplyChars, ...postViewProps 
           onCommentsChange={setComments}
           onClose={close}
           maxReplyChars={maxReplyChars}
+          recentPosts={recentPosts}
+          users={users}
+          postImages={postImages}
         />
       </aside>
 
@@ -172,6 +203,9 @@ export function RepliesShell({ initialComments, maxReplyChars, ...postViewProps 
             onCommentsChange={setComments}
             onClose={close}
             maxReplyChars={maxReplyChars}
+            recentPosts={recentPosts}
+            users={users}
+            postImages={postImages}
           />
         </SheetContent>
       </Sheet>

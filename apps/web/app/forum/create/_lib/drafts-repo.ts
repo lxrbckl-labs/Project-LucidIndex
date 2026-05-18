@@ -89,6 +89,11 @@ export type DraftRow = {
   topicBadgeIds: string[]
   createdAt: Date
   updatedAt: Date
+  /**
+   * Optional sha256 hex of the "starred" cover image. NULL when the user
+   * hasn't starred any uploaded image. Mirrors `forum_posts.cover_image_hash`.
+   */
+  coverImageHash: string | null
 }
 
 export type DraftInput = {
@@ -98,6 +103,13 @@ export type DraftInput = {
   images: DraftImage[]
   citations: DraftCitation[]
   userMentions: DraftUserMention[]
+  /**
+   * Optional sha256 hex of the cover image the user starred. If non-null,
+   * MUST match one of the hashes in `images` — validated at this layer.
+   * NULL means "no cover starred" (the feed card will hide the cover
+   * column when the eventual post is published).
+   */
+  coverImageHash: string | null
 }
 
 export type DraftSummary = {
@@ -206,6 +218,20 @@ function validateInput(input: DraftInput): { ok: true } | { ok: false; error: st
     }
     seenMentionedUserIds.add(m.mentionedUserId)
   }
+  // Cover image: nullable; if set, must look like a sha256 hex AND be one
+  // of the image hashes in this draft. The first check protects the
+  // CHECK constraint on the column; the second is the policy guard that
+  // keeps a starred cover honest (you can only star an image you've
+  // uploaded for this draft).
+  if (input.coverImageHash !== null) {
+    if (typeof input.coverImageHash !== 'string' || !HASH_RE.test(input.coverImageHash)) {
+      return { ok: false, error: 'cover_image_hash must be null or a sha256 hex string.' }
+    }
+    const draftHashes = new Set(input.images.map((i) => i.hash))
+    if (!draftHashes.has(input.coverImageHash)) {
+      return { ok: false, error: 'cover_image_hash must be one of the draft images.' }
+    }
+  }
   return { ok: true }
 }
 
@@ -250,6 +276,7 @@ export async function getDraftForUser(
       topicBadgeIds: forumPostDrafts.topicBadgeIds,
       createdAt: forumPostDrafts.createdAt,
       updatedAt: forumPostDrafts.updatedAt,
+      coverImageHash: forumPostDrafts.coverImageHash,
     })
     .from(forumPostDrafts)
     .where(and(eq(forumPostDrafts.id, id), eq(forumPostDrafts.authorId, userId)))
@@ -352,6 +379,7 @@ export async function createDraft(
           title: input.title,
           body: input.body,
           topicBadgeIds: input.topicBadgeIds,
+          coverImageHash: input.coverImageHash,
         })
         .returning({ id: forumPostDrafts.id })
       const row = inserted[0]
@@ -420,6 +448,7 @@ export async function updateDraft(
           title: input.title,
           body: input.body,
           topicBadgeIds: input.topicBadgeIds,
+          coverImageHash: input.coverImageHash,
           updatedAt: sql`now()`,
         })
         .where(and(eq(forumPostDrafts.id, id), eq(forumPostDrafts.authorId, userId)))

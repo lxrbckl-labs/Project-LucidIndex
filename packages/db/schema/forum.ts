@@ -482,17 +482,36 @@ export const forumPostImages = pgTable(
  * them — the audit trail anchored on `forum_posts.author_id` is the
  * row that needs to stick around, and that one is ON DELETE RESTRICT.
  */
-export const forumPostDrafts = pgTable('forum_post_drafts', {
-  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
-  authorId: uuid('author_id')
-    .notNull()
-    .references(() => forumUsers.id, { onDelete: 'cascade' }),
-  title: text('title').notNull().default(''),
-  body: text('body').notNull().default(''),
-  topicBadgeIds: uuid('topic_badge_ids').array().notNull().default(sql`'{}'::uuid[]`),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().default(sql`now()`),
-})
+export const forumPostDrafts = pgTable(
+  'forum_post_drafts',
+  {
+    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    authorId: uuid('author_id')
+      .notNull()
+      .references(() => forumUsers.id, { onDelete: 'cascade' }),
+    title: text('title').notNull().default(''),
+    body: text('body').notNull().default(''),
+    topicBadgeIds: uuid('topic_badge_ids').array().notNull().default(sql`'{}'::uuid[]`),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().default(sql`now()`),
+    /**
+     * Optional sha256 hex of the image the user has "starred" as this
+     * draft's cover. Mirrors `forum_posts.cover_image_hash` — same regex
+     * constraint, same nullable posture. The composer enforces the
+     * stricter rule that the hash must be one of the draft's
+     * `forum_post_draft_images.image_hash` values; the column itself just
+     * checks shape. NULL means "no cover starred" — the eventual feed
+     * card omits the cover image column.
+     */
+    coverImageHash: text('cover_image_hash'),
+  },
+  (t) => [
+    check(
+      'forum_post_drafts_cover_image_hash_format',
+      sql`${t.coverImageHash} IS NULL OR ${t.coverImageHash} ~ '^[a-f0-9]{64}$'`,
+    ),
+  ],
+)
 
 /**
  * Images attached to a draft. Same shape as `forum_post_images` but
@@ -771,3 +790,79 @@ export const forumPostEdits = pgTable('forum_post_edits', {
     .references(() => forumPosts.id, { onDelete: 'restrict' }),
   editedAt: timestamp('edited_at', { withTimezone: true }).notNull().default(sql`now()`),
 })
+
+/**
+ * Citations from a forum comment to a forum post. Mirrors
+ * `forum_post_citations` for the reply composer: typing `@` in the reply
+ * composer opens a dropdown of posts, picking one inserts a `@PostN`
+ * token in the body whose `N` matches `sequence_number` here. The
+ * rendered comment swaps each token for an external-target hyperlink to
+ * the cited post.
+ *
+ * Both FKs are ON DELETE RESTRICT (NO DELETIONS posture). `comment_id`
+ * pins the citing comment; `cited_post_id` pins the cited target — if a
+ * future code path tries to hard-delete either side, the FK refuses to
+ * leave a Citations row orphaned in either direction.
+ *
+ * UNIQUE(comment_id, sequence_number) makes each `@PostN` slot single-
+ * occupant per comment. UNIQUE(comment_id, cited_post_id) enforces
+ * "cite each post at most once" per comment — the composer dropdown also
+ * filters already-cited posts client-side, but the DB is the load-bearing
+ * guard against duplicate citations.
+ *
+ * The API silently drops a citation that targets the post the comment is
+ * being attached to (commenters can't cite the post they're commenting
+ * on; rare edge case).
+ */
+export const forumCommentCitations = pgTable(
+  'forum_comment_citations',
+  {
+    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    commentId: uuid('comment_id')
+      .notNull()
+      .references(() => forumComments.id, { onDelete: 'restrict' }),
+    citedPostId: uuid('cited_post_id')
+      .notNull()
+      .references(() => forumPosts.id, { onDelete: 'restrict' }),
+    sequenceNumber: integer('sequence_number').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
+  },
+  (t) => [
+    check('forum_comment_citations_sequence_number_check', sql`${t.sequenceNumber} >= 1`),
+    unique('forum_comment_citations_comment_seq_unique').on(t.commentId, t.sequenceNumber),
+    unique('forum_comment_citations_comment_cited_unique').on(t.commentId, t.citedPostId),
+  ],
+)
+
+/**
+ * Mentions from a forum comment to a forum user. Mirrors
+ * `forum_post_user_mentions` for the reply composer: typing `@` in the
+ * reply composer opens a dropdown of users, picking one inserts a literal
+ * `@<username>` token into the body. The rendered comment swaps each
+ * token for a styled hyperlink to that user's profile page.
+ *
+ * `mentioned_username` is a denormalized snapshot of the username at the
+ * moment the comment landed — same posture as `forum_post_user_mentions`.
+ *
+ * Both FKs are ON DELETE RESTRICT (NO DELETIONS posture).
+ *
+ * UNIQUE(comment_id, mentioned_user_id) enforces "each user can be
+ * mentioned at most once per comment" — same posture as post mentions.
+ */
+export const forumCommentUserMentions = pgTable(
+  'forum_comment_user_mentions',
+  {
+    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    commentId: uuid('comment_id')
+      .notNull()
+      .references(() => forumComments.id, { onDelete: 'restrict' }),
+    mentionedUserId: uuid('mentioned_user_id')
+      .notNull()
+      .references(() => forumUsers.id, { onDelete: 'restrict' }),
+    mentionedUsername: text('mentioned_username').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
+  },
+  (t) => [
+    unique('forum_comment_user_mentions_comment_user_unique').on(t.commentId, t.mentionedUserId),
+  ],
+)

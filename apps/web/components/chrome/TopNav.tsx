@@ -41,8 +41,10 @@ export function TopNav() {
   const isSettingsPage = pathname.startsWith('/settings')
   const isForumPage = pathname.startsWith('/forum')
   const isForumPostPage = pathname.startsWith('/forum/posts/')
+  const isForumUserPage = pathname.startsWith('/forum/users/')
   const isTopicFocus = pathname === '/' && Boolean(searchParams.get('badge'))
-  const showBack = isArticlePage || isCreatorPage || isTopicFocus || isForumPostPage
+  const showBack =
+    isArticlePage || isCreatorPage || isTopicFocus || isForumPostPage || isForumUserPage
   // SidebarTrigger requires a SidebarProvider in the tree (its
   // `useSidebar` hook throws otherwise). The forum layout only mounts
   // the provider for authenticated users; on the gate there's no

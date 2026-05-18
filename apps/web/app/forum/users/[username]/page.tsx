@@ -43,6 +43,7 @@ import { ArrowRight, Bot, Eye } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { AuthorHoverCard } from '@/components/forum/AuthorHoverCard'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -111,6 +112,7 @@ type FeedRow = {
   viewCount: number
   starredByMe: boolean
   isAuthor: boolean
+  coverImageHash: string | null
 }
 
 type TopTopicRow = {
@@ -195,6 +197,7 @@ export default async function UserProfilePage({ params }: PageProps) {
         createdAt: forumPosts.createdAt,
         authorUsername: forumUsers.username,
         authorIsAgent: forumUsers.isAgent,
+        coverImageHash: forumPosts.coverImageHash,
         topicNames: sql<string[]>`COALESCE(
           (
             SELECT array_agg(${topicBadges.name} ORDER BY ${topicBadges.name})
@@ -242,6 +245,7 @@ export default async function UserProfilePage({ params }: PageProps) {
     viewCount: r.viewCount ?? 0,
     starredByMe: Boolean(r.starredByMe),
     isAuthor: isOwnProfile,
+    coverImageHash: r.coverImageHash,
   }))
 
   const hasAnyActivity = postCount > 0 || commentCount > 0
@@ -324,67 +328,98 @@ export default async function UserProfilePage({ params }: PageProps) {
             {recent.map((row) => (
               <li
                 key={row.id}
-                className="rounded-lg border bg-card p-4"
+                className="overflow-hidden rounded-lg border bg-card"
                 data-testid={`profile-card-${row.id}`}
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="font-medium text-foreground">@{row.authorUsername}</span>
-                      {row.authorIsAgent && (
-                        <Badge variant="secondary" className="h-5 gap-1 px-1.5 text-[10px]">
-                          <Bot className="size-3" aria-hidden="true" />
-                          agent
-                        </Badge>
+                <div className="flex">
+                  {/* Cover image column — LEFT-most, flush to the card's
+                      border. Renders only when the post has a starred
+                      cover; otherwise the content column fills the card.
+                      Mirrors `/forum` feed exactly — `self-stretch`
+                      makes the image match the content column's natural
+                      height (content-driven card height); the content
+                      column owns 16px-on-all-sides padding via its own
+                      `p-4`. */}
+                  {row.coverImageHash && (
+                    <Link
+                      href={`/forum/posts/${row.id}`}
+                      className="block w-32 shrink-0 self-stretch bg-muted"
+                      data-testid={`feed-cover-${row.id}`}
+                      aria-label={`Open post: ${row.title}`}
+                    >
+                      {/* biome-ignore lint/performance/noImgElement: Route Handler serves bytes */}
+                      <img
+                        src={`/i/${row.coverImageHash}`}
+                        alt=""
+                        draggable={false}
+                        className="h-full w-full object-cover select-none"
+                      />
+                    </Link>
+                  )}
+
+                  <div className="flex min-w-0 flex-1 items-start justify-between gap-4 p-4">
+                    <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <AuthorHoverCard username={row.authorUsername}>
+                          <span className="font-medium text-foreground">@{row.authorUsername}</span>
+                        </AuthorHoverCard>
+                        {row.authorIsAgent && (
+                          <Badge variant="secondary" className="h-5 gap-1 px-1.5 text-[10px]">
+                            <Bot className="size-3" aria-hidden="true" />
+                            agent
+                          </Badge>
+                        )}
+                        <span aria-hidden="true">·</span>
+                        <span>{relativeTime(row.createdAt)}</span>
+                        <span aria-hidden="true">·</span>
+                        <span
+                          className="inline-flex items-center gap-1"
+                          title={`${row.viewCount} ${row.viewCount === 1 ? 'view' : 'views'}`}
+                          data-testid="profile-view-count"
+                        >
+                          <Eye className="size-3" aria-hidden="true" />
+                          {row.viewCount}
+                        </span>
+                      </div>
+
+                      <h3 className="text-lg font-semibold leading-tight">{row.title}</h3>
+
+                      {row.body.length > 0 && (
+                        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
+                          {makeExcerpt(row.body)}
+                        </p>
                       )}
-                      <span aria-hidden="true">·</span>
-                      <span>{relativeTime(row.createdAt)}</span>
-                      <span aria-hidden="true">·</span>
-                      <span
-                        className="inline-flex items-center gap-1"
-                        title={`${row.viewCount} ${row.viewCount === 1 ? 'view' : 'views'}`}
-                        data-testid="profile-view-count"
-                      >
-                        <Eye className="size-3" aria-hidden="true" />
-                        {row.viewCount}
-                      </span>
+
+                      {row.topicNames.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {row.topicNames.map((name) => (
+                            <Badge key={name} variant="outline" className="font-normal">
+                              {name}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
-                    <h3 className="text-lg font-semibold leading-tight">{row.title}</h3>
-
-                    {row.body.length > 0 && (
-                      <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
-                        {makeExcerpt(row.body)}
-                      </p>
-                    )}
-
-                    {row.topicNames.length > 0 && (
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {row.topicNames.map((name) => (
-                          <Badge key={name} variant="outline" className="font-normal">
-                            {name}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Right column — View / Star stacked vertically.
-                      Mirrors the /forum feed card layout. Edit lives on
-                      the post view itself. */}
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      asChild
-                      data-testid={`view-button-${row.id}`}
-                    >
-                      <Link href={`/forum/posts/${row.id}`}>
-                        <ArrowRight className="size-4" aria-hidden="true" />
-                        View
-                      </Link>
-                    </Button>
-                    <StarButton postId={row.id} initialStarred={row.starredByMe} />
+                    {/* Right column — Star at top, View (icon-only) at bottom.
+                        Mirrors the /forum feed card layout. Edit lives on
+                        the post view itself. self-stretch anchors View to
+                        the card bottom via justify-between. */}
+                    <div className="flex shrink-0 flex-col items-end justify-between gap-1.5 self-stretch">
+                      <StarButton postId={row.id} initialStarred={row.starredByMe} />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        asChild
+                        title="View"
+                        className="h-8 w-8"
+                        data-testid={`view-button-${row.id}`}
+                      >
+                        <Link href={`/forum/posts/${row.id}`} aria-label="View post">
+                          <ArrowRight className="size-4" aria-hidden="true" />
+                        </Link>
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </li>

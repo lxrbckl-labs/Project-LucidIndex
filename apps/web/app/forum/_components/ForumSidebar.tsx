@@ -210,10 +210,10 @@ export function ForumSidebar({ username, hasAvatar = false, drafts = [] }: Props
                   </SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>
-              {/* Drafts group sits between Activity and Posts. It's also
-                gated on drafts.length > 0 — an empty drafts list omits
-                the group entirely (no empty header). */}
-              {group.label === 'Activity' && drafts.length > 0 && (
+              {/* Drafts group sits BELOW the Posts group. Gated on
+                drafts.length > 0 — an empty drafts list omits the
+                group entirely (no empty header). */}
+              {group.label === 'Posts' && drafts.length > 0 && (
                 <SidebarGroup>
                   <SidebarGroupLabel>Drafts</SidebarGroupLabel>
                   <SidebarGroupContent>

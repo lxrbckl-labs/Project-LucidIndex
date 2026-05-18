@@ -53,11 +53,11 @@ export function EditHistoryIndicator({ edits }: Props) {
         <button
           type="button"
           aria-label={`${label} — show timestamps`}
+          title={label}
           data-testid="edit-history-trigger"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors"
         >
           <History className="size-4" aria-hidden="true" />
-          <span>{label}</span>
         </button>
       </PopoverTrigger>
       <PopoverContent

@@ -75,6 +75,7 @@ export default async function EditForumPostPage({ params }: PageProps) {
       title: forumPosts.title,
       body: forumPosts.body,
       authorId: forumPosts.authorId,
+      coverImageHash: forumPosts.coverImageHash,
     })
     .from(forumPosts)
     .where(eq(forumPosts.id, postId))
@@ -185,6 +186,7 @@ export default async function EditForumPostPage({ params }: PageProps) {
     title: post.title,
     body: post.body,
     topicBadgeIds: topicRows.map((r) => r.topicBadgeId),
+    coverImageHash: post.coverImageHash,
     images: imageRows.map((i) => ({ hash: i.imageHash, mime: i.mime })),
     citations: citationRows.map((c) => ({
       citedPostId: c.citedPostId,

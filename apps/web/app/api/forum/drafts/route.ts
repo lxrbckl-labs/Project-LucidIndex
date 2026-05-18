@@ -42,6 +42,14 @@ type IncomingBody = {
   images?: unknown
   citations?: unknown
   user_mentions?: unknown
+  /**
+   * Optional sha256 hex of the image the user has starred as this draft's
+   * cover. NULL/undefined/missing all mean "no cover starred". When set,
+   * the repo helper enforces the stricter rule that the hash is one of
+   * the draft's image hashes; here we only sanity-check the shape so a
+   * non-string payload is rejected fast.
+   */
+  cover_image_hash?: unknown
 }
 
 function badInput(error: string) {
@@ -134,6 +142,17 @@ export async function POST(req: Request) {
     }
   }
 
+  // Cover image: accept null / missing / a string hash. Anything else is
+  // a 400. The repo helper does the deeper "must be one of the draft's
+  // images" check.
+  let coverImageHash: string | null = null
+  if (payload.cover_image_hash !== undefined && payload.cover_image_hash !== null) {
+    if (typeof payload.cover_image_hash !== 'string') {
+      return badInput('cover_image_hash must be a string or null.')
+    }
+    coverImageHash = payload.cover_image_hash
+  }
+
   const result = await createDraft(session.forumUserId, {
     title,
     body,
@@ -141,6 +160,7 @@ export async function POST(req: Request) {
     images,
     citations,
     userMentions,
+    coverImageHash,
   })
   if (!result.ok) {
     return badInput(result.error ?? 'Could not save draft.')

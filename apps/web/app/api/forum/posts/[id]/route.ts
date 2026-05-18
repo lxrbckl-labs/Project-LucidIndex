@@ -65,6 +65,12 @@ type IncomingBody = {
   images?: unknown
   citations?: unknown
   user_mentions?: unknown
+  /**
+   * Optional sha256 hex of the image starred as cover. Same validation
+   * posture as the POST sibling — NULL/missing clears the cover; a
+   * non-null hash must be one of the images in the edited payload.
+   */
+  cover_image_hash?: unknown
 }
 
 function asString(value: unknown): string | null {
@@ -157,6 +163,34 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       }
       images.push({ hash, mime })
     }
+  }
+
+  // Cover image — optional sha256 hex pointing at one of the edited
+  // post's images. Same posture as the create endpoint.
+  let coverImageHash: string | null = null
+  if (payload.cover_image_hash !== undefined && payload.cover_image_hash !== null) {
+    if (typeof payload.cover_image_hash !== 'string' || !HASH_RE.test(payload.cover_image_hash)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          reason: 'invalid_cover_image',
+          error: 'cover_image_hash must be null or a sha256 hex string.',
+        },
+        { status: 400 },
+      )
+    }
+    const imageHashes = new Set(images.map((i) => i.hash))
+    if (!imageHashes.has(payload.cover_image_hash)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          reason: 'invalid_cover_image',
+          error: 'cover_image_hash must be one of the images attached to the post.',
+        },
+        { status: 400 },
+      )
+    }
+    coverImageHash = payload.cover_image_hash
   }
 
   const rawCitations = payload.citations
@@ -319,7 +353,10 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
   // for the full NO DELETIONS reasoning.
   try {
     await db.transaction(async (tx) => {
-      await tx.update(forumPosts).set({ title, body }).where(eq(forumPosts.id, postId))
+      await tx
+        .update(forumPosts)
+        .set({ title, body, coverImageHash })
+        .where(eq(forumPosts.id, postId))
 
       await tx.delete(forumPostTopics).where(eq(forumPostTopics.postId, postId))
       if (topicIds.length > 0) {

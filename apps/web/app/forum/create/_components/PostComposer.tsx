@@ -51,7 +51,7 @@
  *   - Users  — mention a forum user (inserts `@<username>`)
  */
 
-import { Check, ChevronsUpDown, ImagePlus, Loader2, Save, Send, X } from 'lucide-react'
+import { Check, ChevronsUpDown, ImagePlus, Loader2, Save, Send, Star, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import {
   type ChangeEvent,
@@ -158,6 +158,12 @@ export type PostComposerInitialDraft = {
   images: Array<{ hash: string; mime: string }>
   citations: InitialCitation[]
   userMentions: InitialUserMention[]
+  /**
+   * Optional sha256 hex of the image starred as this draft's cover. When
+   * non-null, the composer renders the matching image slot's Star button
+   * in its filled state on mount. NULL means "no cover starred yet".
+   */
+  coverImageHash: string | null
 }
 
 /**
@@ -176,6 +182,11 @@ export type PostComposerInitialPost = {
   images: Array<{ hash: string; mime: string }>
   citations: InitialCitation[]
   userMentions: InitialUserMention[]
+  /**
+   * Optional sha256 hex of the image starred as this post's cover.
+   * Same posture as `PostComposerInitialDraft.coverImageHash`.
+   */
+  coverImageHash: string | null
 }
 
 type ImageSlot =
@@ -382,6 +393,14 @@ export function PostComposer({
   const [images, setImages] = useState<ImageSlot[]>(initialImages)
   const [citations, setCitations] = useState<CitationSlot[]>(initialCitations)
   const [userMentions, setUserMentions] = useState<UserMentionSlot[]>(initialUserMentions)
+  // The sha256 hex of the image starred as the post's cover, or null
+  // when none is starred. Radio-style: starring image A while image B is
+  // starred un-stars B (we just overwrite the single hash). When a
+  // starred image is removed via the X button we clear this back to null
+  // so the server never sees a cover-hash that isn't in the images set.
+  const [coverImageHash, setCoverImageHash] = useState<string | null>(
+    initialSource?.coverImageHash ?? null,
+  )
   const [imageRemovedWarning, setImageRemovedWarning] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -422,6 +441,7 @@ export function PostComposer({
     images,
     citations,
     userMentions,
+    coverImageHash,
   })
 
   const titleOver = title.length > limits.maxTitleChars
@@ -950,6 +970,14 @@ export function PostComposer({
       if (target && 'previewUrl' in target && target.previewUrl) {
         URL.revokeObjectURL(target.previewUrl)
       }
+      // If the slot being removed is the currently-starred cover, clear
+      // the cover hash. Done here (rather than in a separate effect) so
+      // the cover state never lags behind the image grid for even one
+      // render — the submit path can rely on the invariant that the
+      // cover hash, if non-null, is always a hash present in `images`.
+      if (target && target.state === 'ready' && target.hash === coverImageHash) {
+        setCoverImageHash(null)
+      }
       const next = prev.filter((s) => s.localId !== localId)
       // Only show the warning when we removed something from the middle
       // (i.e. there were items after this one), because that's when the
@@ -960,6 +988,17 @@ export function PostComposer({
       }
       return next
     })
+  }
+
+  /**
+   * Radio-style cover toggle. Clicking Star on an already-starred image
+   * un-stars it (cover → null). Clicking Star on an un-starred image
+   * stars it (any previous cover is overwritten — exactly one cover or
+   * none, ever). Only ready-state slots are starrable; uploading/error
+   * slots don't render the button.
+   */
+  function toggleCover(hash: string) {
+    setCoverImageHash((prev) => (prev === hash ? null : hash))
   }
 
   /**
@@ -1028,10 +1067,22 @@ export function PostComposer({
    */
   const buildDraftPayload = useCallback(() => {
     const state = latestStateRef.current
+    // Only send the cover hash if it's a known ready-image hash — guards
+    // against a stale star pointing at a hash that's been removed in the
+    // same render cycle (the removeImage handler clears it, but defense
+    // in depth is cheap here and the server would reject it anyway).
+    const readyHashes = new Set(
+      state.images
+        .filter((s): s is Extract<ImageSlot, { state: 'ready' }> => s.state === 'ready')
+        .map((s) => s.hash),
+    )
+    const cover =
+      state.coverImageHash && readyHashes.has(state.coverImageHash) ? state.coverImageHash : null
     return {
       title: state.title,
       body: state.body,
       topic_badge_ids: state.selectedTopicIds,
+      cover_image_hash: cover,
       images: state.images
         .filter((s): s is Extract<ImageSlot, { state: 'ready' }> => s.state === 'ready')
         .map((img) => ({ hash: img.hash, mime: img.mime })),
@@ -1156,13 +1207,25 @@ export function PostComposer({
     if (s.images.length > 0) return false
     if (s.citations.length > 0) return false
     if (s.userMentions.length > 0) return false
+    // coverImageHash only takes a non-null value when an image is
+    // starred, which requires images.length > 0 — so the check above
+    // already covers this. Keeping it here for symmetry of intent.
+    if (s.coverImageHash !== null) return false
     return true
   }, [])
 
   // Keep the latestStateRef synchronized.
   useEffect(() => {
-    latestStateRef.current = { title, body, selectedTopicIds, images, citations, userMentions }
-  }, [title, body, selectedTopicIds, images, citations, userMentions])
+    latestStateRef.current = {
+      title,
+      body,
+      selectedTopicIds,
+      images,
+      citations,
+      userMentions,
+      coverImageHash,
+    }
+  }, [title, body, selectedTopicIds, images, citations, userMentions, coverImageHash])
 
   // Suppress the initial-render effect run so a fresh-loaded composer
   // doesn't flash "Unsaved changes" and schedule a no-op auto-save
@@ -1214,6 +1277,7 @@ export function PostComposer({
     images,
     citations,
     userMentions,
+    coverImageHash,
     draftId,
     submitting,
     hasInFlightUpload,
@@ -1275,10 +1339,18 @@ export function PostComposer({
     setSubmitting(true)
     setSubmitError(null)
     try {
+      // Defense-in-depth: only send the cover hash if it still matches a
+      // ready image. removeImage() already clears the cover when its
+      // image disappears, but the readyHashes guard means a transient
+      // mismatch never reaches the server.
+      const readyHashSet = new Set(readyImages.map((i) => i.hash))
+      const submittedCover =
+        coverImageHash && readyHashSet.has(coverImageHash) ? coverImageHash : null
       const payload: {
         title: string
         body: string
         topic_badge_ids: string[]
+        cover_image_hash: string | null
         images: Array<{ hash: string; mime: string }>
         citations: Array<{ cited_post_id: string; sequence_number: number }>
         user_mentions: Array<{ mentioned_user_id: string; mentioned_username: string }>
@@ -1287,6 +1359,7 @@ export function PostComposer({
         title: title.trim(),
         body,
         topic_badge_ids: selectedTopicIds,
+        cover_image_hash: submittedCover,
         images: readyImages.map((img) => ({ hash: img.hash, mime: img.mime })),
         // Same lifecycle policy as drafts: only send citations whose
         // `@PostN` token still appears in the body. The server applies
@@ -1647,10 +1720,12 @@ export function PostComposer({
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {images.map((slot, idx) => {
               const label = `@Image${idx + 1}`
+              const isStarred = slot.state === 'ready' && slot.hash === coverImageHash
               return (
                 <li
                   key={slot.localId}
                   className="relative flex flex-col gap-2 rounded-md border bg-card p-2"
+                  data-testid={`image-slot-${idx + 1}`}
                 >
                   {slot.state === 'uploading' && (
                     <>
@@ -1687,6 +1762,30 @@ export function PostComposer({
                     <div className="flex aspect-square w-full items-center justify-center rounded-sm bg-destructive/10 p-3 text-center text-xs text-destructive">
                       {slot.error}
                     </div>
+                  )}
+                  {/* Star button — only renders on ready slots. Radio-
+                      style toggle: clicking on a non-starred slot stars
+                      it (any previous cover is un-starred); clicking on
+                      the already-starred slot un-stars it (cover → null). */}
+                  {slot.state === 'ready' && (
+                    <button
+                      type="button"
+                      onClick={() => toggleCover(slot.hash)}
+                      disabled={submitting}
+                      aria-label={isStarred ? 'Unstar cover image' : 'Star as cover image'}
+                      aria-pressed={isStarred}
+                      data-testid={`image-star-${idx + 1}`}
+                      className={`absolute left-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded-sm bg-background/80 shadow-sm hover:bg-background ${
+                        isStarred
+                          ? 'text-amber-500 hover:text-amber-600'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <Star
+                        className={`h-3.5 w-3.5 ${isStarred ? 'fill-current' : ''}`}
+                        aria-hidden="true"
+                      />
+                    </button>
                   )}
                   <button
                     type="button"
