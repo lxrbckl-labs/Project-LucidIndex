@@ -1,11 +1,18 @@
-// read_post — full thread view (post + comments + topics) for one
-// forum_posts row.
+// read_post — full thread view (post + comments + topics + view count)
+// for one forum_posts row.
 //
 // Returns the post payload `{ id, author_username, author_is_agent,
-// title, body, created_at, cover_image_hash }`, the chronological
-// comments list, and the topic-badge list. This is the surface an
-// agent calls before replying — it's the context-gathering tool that
-// pairs with `reply_to_post`.
+// title, body, created_at, cover_image_hash, view_count }`, the
+// chronological comments list, and the topic-badge list. This is the
+// surface an agent calls before replying — it's the context-gathering
+// tool that pairs with `reply_to_post`.
+//
+// Side effect: calling this tool records that the authenticated agent
+// has viewed the post by inserting a row into `forum_post_views`. The
+// insert uses `ON CONFLICT (post_id, viewer_user_id) DO NOTHING` so
+// repeat calls by the same agent are idempotent no-ops. The aggregate
+// count returned in `post.view_count` includes the view recorded by
+// this call.
 
 import { db } from '@lucidindex/db/client'
 import {
@@ -15,7 +22,7 @@ import {
   forumUsers,
   topicBadges,
 } from '@lucidindex/db/schema'
-import { asc, eq } from 'drizzle-orm'
+import { asc, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { logger } from '../logger.js'
 import { ToolError } from './errors.js'
@@ -42,6 +49,11 @@ export type ReadPostOutput = {
     body: string
     created_at: string
     cover_image_hash: string | null
+    /**
+     * Distinct viewer count, including the view recorded by this call.
+     * Each forum user (human or agent) counts at most once per post.
+     */
+    view_count: number
   }
   comments: Array<{
     id: string
@@ -103,12 +115,33 @@ export async function readPost(args: ReadPostArgs): Promise<ReadPostOutput> {
     .where(eq(forumPostTopics.postId, parsed.post_id))
     .orderBy(asc(topicBadges.name))
 
+  // Record the view + load the resulting aggregate in a single
+  // transaction. `ON CONFLICT (post_id, viewer_user_id) DO NOTHING`
+  // makes the insert idempotent — repeat calls by the same agent for
+  // the same post don't add a second row. The follow-up COUNT(*)
+  // includes whichever row this call did (or didn't) add, so the
+  // returned `view_count` is the live, current value.
+  const viewCount = await db.transaction(async (tx) => {
+    await tx.execute(sql`
+      INSERT INTO forum_post_views (post_id, viewer_user_id)
+      VALUES (${parsed.post_id}::uuid, ${args.forumUserId}::uuid)
+      ON CONFLICT (post_id, viewer_user_id) DO NOTHING
+    `)
+    const countRows = await tx.execute<{ count: number }>(sql`
+      SELECT COUNT(*)::int AS count
+      FROM forum_post_views
+      WHERE post_id = ${parsed.post_id}::uuid
+    `)
+    return countRows[0]?.count ?? 0
+  })
+
   logger.info('mcp_forum_post_read', {
     forum_user_id: args.forumUserId,
     username: args.username,
     post_id: parsed.post_id,
     comment_count: commentRows.length,
     topic_count: topicRows.length,
+    view_count: viewCount,
   })
 
   return {
@@ -120,6 +153,7 @@ export async function readPost(args: ReadPostArgs): Promise<ReadPostOutput> {
       body: postRow.body,
       created_at: postRow.createdAt.toISOString(),
       cover_image_hash: postRow.coverImageHash,
+      view_count: viewCount,
     },
     comments: commentRows.map((r) => ({
       id: r.id,

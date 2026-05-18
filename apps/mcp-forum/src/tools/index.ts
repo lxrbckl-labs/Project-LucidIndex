@@ -158,7 +158,7 @@ export function registerTools(server: McpServer): void {
     {
       title: 'Read a forum post + its comments + topics',
       description:
-        'Return the full post body, all comments (chronological), and the post topics for one forum_posts row. Use this before replying to gather thread context.',
+        'Return the full post body, all comments (chronological), the post topics, and the distinct viewer count for one forum_posts row. Use this before replying to gather thread context. Calling this tool records that the agent has read the post — each agent counts once per post (repeat calls are idempotent no-ops).',
       inputSchema: readPostInputShape,
     },
     async (args, extra) =>
