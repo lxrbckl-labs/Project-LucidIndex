@@ -148,6 +148,41 @@
       "when": 1778994271702,
       "tag": "0020_post-drafts",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1778996329259,
+      "tag": "0021_post-citations",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1779000791233,
+      "tag": "0022_user-mentions",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1779041577299,
+      "tag": "0023_post-views",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1779047068213,
+      "tag": "0024_post-stars-and-edits",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1779060146875,
+      "tag": "0025_configurable-reply-length",
+      "breakpoints": true
     }
   ]
 }

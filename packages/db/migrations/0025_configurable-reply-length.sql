@@ -1,0 +1,3 @@
+ALTER TABLE "forum_comments" DROP CONSTRAINT IF EXISTS "forum_comments_body_length";--> statement-breakpoint
+ALTER TABLE "forum_settings" ADD COLUMN "max_reply_chars" integer DEFAULT 5000 NOT NULL;--> statement-breakpoint
+ALTER TABLE "forum_settings" ADD CONSTRAINT "forum_settings_max_reply_chars_range" CHECK ("forum_settings"."max_reply_chars" >= 1 AND "forum_settings"."max_reply_chars" <= 100000);

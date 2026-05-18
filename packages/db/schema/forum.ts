@@ -297,30 +297,32 @@ export const forumPosts = pgTable(
 
 /**
  * Comments — replies to a `forum_posts` row. Single-level (no nested
- * threading in v1); the UI renders a flat chronological list. Same
- * length cap as post bodies. `post_id` and `author_id` are both
- * ON DELETE RESTRICT (NO DELETIONS posture).
+ * threading in v1); the UI renders a flat chronological list.
+ * `post_id` and `author_id` are both ON DELETE RESTRICT (NO DELETIONS
+ * posture).
+ *
+ * `body` length bounds are NOT enforced at the DB layer any more — they
+ * now live as a user-configurable value on `forum_settings`
+ * (`max_reply_chars`) and are checked at the application boundary (the
+ * `reply_to_post` MCP tool and the `POST /api/forum/posts/[id]/comments`
+ * route both read `forum_settings` and reject out-of-range input).
+ * Moving to app-level enforcement lets the admin retune the ceiling via
+ * the Settings → Forum → Posting page without a migration — same posture
+ * as the `forum_posts.title` / `body` move done in migration 0019. The
+ * CHECK range on `forum_settings.max_reply_chars` still anchors the hard
+ * ceiling.
  */
-export const forumComments = pgTable(
-  'forum_comments',
-  {
-    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
-    postId: uuid('post_id')
-      .notNull()
-      .references(() => forumPosts.id, { onDelete: 'restrict' }),
-    authorId: uuid('author_id')
-      .notNull()
-      .references(() => forumUsers.id, { onDelete: 'restrict' }),
-    body: text('body').notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
-  },
-  (t) => [
-    check(
-      'forum_comments_body_length',
-      sql`char_length(${t.body}) >= 1 AND char_length(${t.body}) <= 5000`,
-    ),
-  ],
-)
+export const forumComments = pgTable('forum_comments', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  postId: uuid('post_id')
+    .notNull()
+    .references(() => forumPosts.id, { onDelete: 'restrict' }),
+  authorId: uuid('author_id')
+    .notNull()
+    .references(() => forumUsers.id, { onDelete: 'restrict' }),
+  body: text('body').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
+})
 
 /**
  * Join table between `forum_posts` and `topic_badges` — each row tags a
@@ -350,22 +352,26 @@ export const forumPostTopics = pgTable(
  * juggling row counts.
  *
  * Configurable post limits live here and are read at the application
- * boundary (the `create_post` MCP tool and the web composer):
+ * boundary (the `create_post` / `reply_to_post` MCP tools and the web
+ * composer / replies pane):
  *   - `max_topics_per_post` — distinct topic_badges per post (1-10).
  *   - `max_images_per_post` — inline images per post (0-20).
  *   - `max_title_chars`     — post title length (1-500).
  *   - `max_body_chars`      — post body  length (1-100000).
+ *   - `max_reply_chars`     — comment body length (1-100000).
  *
  * The CHECK ranges on each column are reasonable hard ceilings — the
  * admin's user-configurable value lives within them. The matching
- * `forum_posts.title` / `body` length CHECKs were dropped when this turn
- * moved post-length enforcement to the application layer; the only
- * remaining CHECK on `forum_posts` is the cover_image_hash format guard.
+ * `forum_posts.title` / `body` length CHECKs were dropped when migration
+ * 0019 moved post-length enforcement to the application layer; the
+ * `forum_comments.body` length CHECK was dropped in the same posture in
+ * migration 0025 once `max_reply_chars` landed.
  *
  * Migration 0019 seeds the singleton row (id=1) with defaults
- * 3 / 1 / 75 / 5000 via INSERT … ON CONFLICT DO NOTHING so reads always
- * succeed on a fresh DB. The repo layer also defends with the same
- * defaults if the row somehow goes missing.
+ * 3 / 1 / 75 / 5000 via INSERT … ON CONFLICT DO NOTHING. Migration 0025
+ * adds `max_reply_chars` with DEFAULT 5000 so the existing singleton row
+ * picks up the new column without a manual UPDATE. The repo layer also
+ * defends with the same defaults if the row somehow goes missing.
  */
 export const forumSettings = pgTable(
   'forum_settings',
@@ -375,6 +381,7 @@ export const forumSettings = pgTable(
     maxImagesPerPost: integer('max_images_per_post').notNull().default(3),
     maxTitleChars: integer('max_title_chars').notNull().default(75),
     maxBodyChars: integer('max_body_chars').notNull().default(5000),
+    maxReplyChars: integer('max_reply_chars').notNull().default(5000),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().default(sql`now()`),
   },
   (t) => [
@@ -394,6 +401,10 @@ export const forumSettings = pgTable(
     check(
       'forum_settings_max_body_chars_range',
       sql`${t.maxBodyChars} >= 1 AND ${t.maxBodyChars} <= 100000`,
+    ),
+    check(
+      'forum_settings_max_reply_chars_range',
+      sql`${t.maxReplyChars} >= 1 AND ${t.maxReplyChars} <= 100000`,
     ),
   ],
 )
@@ -517,3 +528,246 @@ export const forumPostDraftImages = pgTable(
     unique('forum_post_draft_images_draft_seq_unique').on(t.draftId, t.sequenceNumber),
   ],
 )
+
+/**
+ * Citations from one published post to another. The composer at
+ * `/forum/create` lets the author type `@` and pick a post from a
+ * dropdown; selecting it inserts a `@PostN` token in the body whose
+ * `N` matches `sequence_number` in this table. The published post view
+ * at `/forum/posts/[id]` swaps each token for an external-target
+ * hyperlink to the cited post and renders a Citations section at the
+ * bottom listing every cited post in `sequence_number` order.
+ *
+ * Both FKs are ON DELETE RESTRICT (NO DELETIONS posture). `post_id`
+ * pins the citing post; `cited_post_id` pins the cited target — if a
+ * future code path tries to hard-delete a post, the FK refuses to
+ * leave a Citations row orphaned in either direction.
+ *
+ * UNIQUE(post_id, sequence_number) makes each `@PostN` slot single-
+ * occupant per post — same posture as `forum_post_images`. UNIQUE(
+ * post_id, cited_post_id) enforces "cite each post at most once":
+ * the composer dropdown also filters already-cited posts client-side,
+ * but the DB is the load-bearing guard against duplicate citations.
+ *
+ * Self-citation isn't possible in v1: the row only lands inside the
+ * transaction that creates the citing post, so `cited_post_id` can't
+ * yet equal the citing post's id. Future code paths that edit a
+ * published post would need to add an application-layer check.
+ */
+export const forumPostCitations = pgTable(
+  'forum_post_citations',
+  {
+    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    postId: uuid('post_id')
+      .notNull()
+      .references(() => forumPosts.id, { onDelete: 'restrict' }),
+    citedPostId: uuid('cited_post_id')
+      .notNull()
+      .references(() => forumPosts.id, { onDelete: 'restrict' }),
+    sequenceNumber: integer('sequence_number').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
+  },
+  (t) => [
+    check('forum_post_citations_sequence_number_check', sql`${t.sequenceNumber} >= 1`),
+    unique('forum_post_citations_post_seq_unique').on(t.postId, t.sequenceNumber),
+    unique('forum_post_citations_post_cited_unique').on(t.postId, t.citedPostId),
+  ],
+)
+
+/**
+ * Draft-side mirror of `forum_post_citations`. Same shape minus the
+ * citing post id (drafts don't have a `forum_posts` row yet) — the
+ * row points at the draft instead. `draft_id` is ON DELETE CASCADE so
+ * dropping a draft (user posts, user deletes, or admin purges the
+ * owner) tears down its draft citations atomically; `cited_post_id`
+ * is ON DELETE RESTRICT for the same reason as the published-side
+ * table.
+ *
+ * The post-creation step (`POST /api/forum/posts`) doesn't read this
+ * table — the composer sends the citation set directly on the
+ * submit payload. This table only stores the in-flight composition
+ * state so a reload of `/forum/create?draft=<id>` hydrates the
+ * picked citations alongside title/body/topics/images.
+ */
+export const forumPostDraftCitations = pgTable(
+  'forum_post_draft_citations',
+  {
+    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    draftId: uuid('draft_id')
+      .notNull()
+      .references(() => forumPostDrafts.id, { onDelete: 'cascade' }),
+    citedPostId: uuid('cited_post_id')
+      .notNull()
+      .references(() => forumPosts.id, { onDelete: 'restrict' }),
+    sequenceNumber: integer('sequence_number').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
+  },
+  (t) => [
+    check('forum_post_draft_citations_sequence_number_check', sql`${t.sequenceNumber} >= 1`),
+    unique('forum_post_draft_citations_draft_seq_unique').on(t.draftId, t.sequenceNumber),
+    unique('forum_post_draft_citations_draft_cited_unique').on(t.draftId, t.citedPostId),
+  ],
+)
+
+/**
+ * Mentions from a published forum post to another forum user. The composer
+ * at `/forum/create` lets the author type `@` and pick a user from a
+ * dropdown; selecting it inserts a literal `@<username>` token into the
+ * body. The published post view at `/forum/posts/[id]` swaps each token
+ * for a styled hyperlink to that user's (future) profile page.
+ *
+ * `mentioned_username` is a denormalized snapshot of the username at the
+ * moment the post landed. Usernames are stable in v1 but could become
+ * editable later; persisting the snapshot keeps "what was actually
+ * written" intact even if the live user later renames. Render-time logic
+ * prefers the live username and falls back to the snapshot only if the
+ * user row is gone (which the FK currently forbids).
+ *
+ * Both FKs are ON DELETE RESTRICT (NO DELETIONS posture). `post_id`
+ * pins the citing post; `mentioned_user_id` pins the mentioned user.
+ *
+ * UNIQUE(post_id, mentioned_user_id) enforces "each user can be mentioned
+ * at most once per post" — same posture as citations and images. The
+ * composer dropdown also filters already-mentioned users client-side, but
+ * the DB is the load-bearing guard.
+ *
+ * Unlike `@PostN` and `@ImageN`, the token format here is the literal
+ * username (`@alice`) rather than a positional `@UserN`. Usernames are
+ * already unique and stable enough to address directly, and the resulting
+ * body text reads naturally without a translation layer.
+ */
+export const forumPostUserMentions = pgTable(
+  'forum_post_user_mentions',
+  {
+    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    postId: uuid('post_id')
+      .notNull()
+      .references(() => forumPosts.id, { onDelete: 'restrict' }),
+    mentionedUserId: uuid('mentioned_user_id')
+      .notNull()
+      .references(() => forumUsers.id, { onDelete: 'restrict' }),
+    mentionedUsername: text('mentioned_username').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
+  },
+  (t) => [unique('forum_post_user_mentions_post_user_unique').on(t.postId, t.mentionedUserId)],
+)
+
+/**
+ * Per-post view tally. One row per (post, viewer) pair — each forum user
+ * (human OR agent) counts at most once per post regardless of how many
+ * times they revisit. Both surfaces that "open" a post record a view:
+ *   - The web RSC at `/forum/posts/[id]` fires `markPostViewed` on render.
+ *   - The MCP `read_post` tool inserts a row inside the same call.
+ * Inserts use `ON CONFLICT (post_id, viewer_user_id) DO NOTHING` so
+ * repeat opens are idempotent no-ops.
+ *
+ * No surrogate `id` column — the composite `(post_id, viewer_user_id)`
+ * primary key both enforces the uniqueness and indexes the lookup we
+ * need (`SELECT count(*) WHERE post_id = $1`). `viewed_at` records the
+ * first-touch moment and is never updated; this is a one-shot event
+ * log, not a "last seen" tracker.
+ *
+ * Both FKs are ON DELETE RESTRICT (NO DELETIONS posture). If a post or
+ * a forum user is ever hard-purged out-of-band, the FK refuses to leave
+ * a view-record orphaned in either direction.
+ *
+ * Author self-views count by design — Alex chose the simplest
+ * "first-touch from anyone" semantics; no author-exclusion branch in
+ * the insert path.
+ */
+export const forumPostViews = pgTable(
+  'forum_post_views',
+  {
+    postId: uuid('post_id')
+      .notNull()
+      .references(() => forumPosts.id, { onDelete: 'restrict' }),
+    viewerUserId: uuid('viewer_user_id')
+      .notNull()
+      .references(() => forumUsers.id, { onDelete: 'restrict' }),
+    viewedAt: timestamp('viewed_at', { withTimezone: true }).notNull().default(sql`now()`),
+  },
+  (t) => [primaryKey({ columns: [t.postId, t.viewerUserId] })],
+)
+
+/**
+ * Draft-side mirror of `forum_post_user_mentions`. Same shape minus the
+ * citing post id (drafts don't have a `forum_posts` row yet) — the row
+ * points at the draft instead. `draft_id` is ON DELETE CASCADE so
+ * dropping a draft tears down its draft user mentions atomically;
+ * `mentioned_user_id` is ON DELETE RESTRICT for the same reason as the
+ * published-side table.
+ *
+ * The post-creation step (`POST /api/forum/posts`) doesn't read this
+ * table — the composer sends the user-mention set directly on the submit
+ * payload. This table only stores the in-flight composition state so a
+ * reload of `/forum/create?draft=<id>` hydrates the picked mentions
+ * alongside title/body/topics/images/citations.
+ */
+export const forumPostDraftUserMentions = pgTable(
+  'forum_post_draft_user_mentions',
+  {
+    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    draftId: uuid('draft_id')
+      .notNull()
+      .references(() => forumPostDrafts.id, { onDelete: 'cascade' }),
+    mentionedUserId: uuid('mentioned_user_id')
+      .notNull()
+      .references(() => forumUsers.id, { onDelete: 'restrict' }),
+    mentionedUsername: text('mentioned_username').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
+  },
+  (t) => [
+    unique('forum_post_draft_user_mentions_draft_user_unique').on(t.draftId, t.mentionedUserId),
+  ],
+)
+
+/**
+ * Per-(post, user) star toggle — a soft "I like this" signal a viewer
+ * adds and removes at will. Unlike the rest of the forum tables (which
+ * follow the NO DELETIONS posture and use ON DELETE RESTRICT to anchor
+ * audit trails), stars are explicitly EXEMPT from the no-delete rule:
+ * a star is ephemeral UI state, not a historical record. Toggling
+ * un-stars via SQL `DELETE` is the intended path.
+ *
+ * Both FKs are still `ON DELETE RESTRICT` so a future hard-purge of a
+ * post or a user can't leave orphan rows; the toggle endpoint manages
+ * row lifetime on its own. Composite primary key `(post_id, user_id)`
+ * doubles as the uniqueness guard (one star per viewer per post) and
+ * the lookup index for the count query.
+ *
+ * `created_at` records when the current star was set. It's reset on
+ * re-star (DELETE then INSERT, not UPDATE) — there's no "starred-at
+ * history" surface. If we ever add one, it goes in a sibling table;
+ * this one stays single-row-per-pair.
+ */
+export const forumPostStars = pgTable(
+  'forum_post_stars',
+  {
+    postId: uuid('post_id')
+      .notNull()
+      .references(() => forumPosts.id, { onDelete: 'restrict' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => forumUsers.id, { onDelete: 'restrict' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
+  },
+  (t) => [primaryKey({ columns: [t.postId, t.userId] })],
+)
+
+/**
+ * Append-only edit log for a forum post. One row per save through the
+ * PATCH endpoint at `/api/forum/posts/[id]`. Records the timestamp only
+ * — no body diff, no prior title/body snapshot. The post view's
+ * "Edited N times" indicator counts rows; clicking it surfaces the
+ * `edited_at` list (most-recent first) in a popover.
+ *
+ * `post_id` is ON DELETE RESTRICT (NO DELETIONS posture). The table is
+ * write-only from the app — inserts only, never updates or deletes.
+ */
+export const forumPostEdits = pgTable('forum_post_edits', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  postId: uuid('post_id')
+    .notNull()
+    .references(() => forumPosts.id, { onDelete: 'restrict' }),
+  editedAt: timestamp('edited_at', { withTimezone: true }).notNull().default(sql`now()`),
+})

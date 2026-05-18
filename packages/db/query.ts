@@ -9,4 +9,4 @@
  * everything to keep the surface intentional.
  */
 
-export { and, asc, desc, eq, gt, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm'
+export { and, asc, desc, eq, gt, inArray, isNotNull, isNull, ne, or, sql } from 'drizzle-orm'
