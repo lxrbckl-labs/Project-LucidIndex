@@ -3,13 +3,14 @@
 /**
  * Settings → Forum → Posting client panel.
  *
- * Four labeled number inputs in a vertical form — one per configurable
+ * Five labeled number inputs in a vertical form — one per configurable
  * post limit on the `forum_settings` singleton:
  *
  *   - Topics per post  (1-10,     default 3)
  *   - Images per post  (0-20,     default 1)
  *   - Title length     (1-500,    default 75)
  *   - Body length      (1-100000, default 5000)
+ *   - Replies length   (1-100000, default 5000)
  *
  * The form holds string state per input (not numbers) so the user can
  * blank a field mid-edit without losing focus to a clamp; the strings
@@ -34,6 +35,7 @@ export type PostingPanelInitial = {
   maxImagesPerPost: number
   maxTitleChars: number
   maxBodyChars: number
+  maxReplyChars: number
 }
 
 type FieldKey = keyof PostingPanelInitial
@@ -80,6 +82,13 @@ const FIELDS: ReadonlyArray<FieldSpec> = [
     min: 1,
     max: 100_000,
   },
+  {
+    key: 'maxReplyChars',
+    label: 'Replies length',
+    hint: 'Maximum characters in a reply body. 1–100,000. Default 5,000.',
+    min: 1,
+    max: 100_000,
+  },
 ]
 
 const DEFAULTS: PostingPanelInitial = {
@@ -87,6 +96,7 @@ const DEFAULTS: PostingPanelInitial = {
   maxImagesPerPost: 1,
   maxTitleChars: 75,
   maxBodyChars: 5000,
+  maxReplyChars: 5000,
 }
 
 export function PostingPanel({ initial }: { initial: PostingPanelInitial }) {
@@ -98,6 +108,7 @@ export function PostingPanel({ initial }: { initial: PostingPanelInitial }) {
       maxImagesPerPost: String(input.maxImagesPerPost),
       maxTitleChars: String(input.maxTitleChars),
       maxBodyChars: String(input.maxBodyChars),
+      maxReplyChars: String(input.maxReplyChars),
     }
   }
 

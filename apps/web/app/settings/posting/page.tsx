@@ -1,17 +1,18 @@
 /**
  * Settings → Forum → Posting.
  *
- * Admin surface for the four configurable post limits stored on the
+ * Admin surface for the five configurable post limits stored on the
  * `forum_settings` singleton:
  *   - max_topics_per_post  (1-10)
  *   - max_images_per_post  (0-20)
  *   - max_title_chars      (1-500)
  *   - max_body_chars       (1-100000)
+ *   - max_reply_chars      (1-100000)
  *
- * The `create_post` MCP tool reads the same row at the top of its handler,
- * so changes saved here propagate immediately to any agent that POSTs
- * after the update. The future `/forum/create` web composer will do the
- * same.
+ * The `create_post` and `reply_to_post` MCP tools read the same row at
+ * the top of each handler, so changes saved here propagate immediately
+ * to any agent that POSTs after the update. The `/forum/create` web
+ * composer and the post page's replies sidebar do the same.
  *
  * RSC: reads via `getPostingSettings()` and hands the row to the client
  * `<PostingPanel>` for the form + save/reset interactions.
@@ -45,6 +46,7 @@ export default async function PostingSettingsPage() {
           maxImagesPerPost: settings.maxImagesPerPost,
           maxTitleChars: settings.maxTitleChars,
           maxBodyChars: settings.maxBodyChars,
+          maxReplyChars: settings.maxReplyChars,
         }}
       />
     </>

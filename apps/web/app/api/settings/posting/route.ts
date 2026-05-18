@@ -1,10 +1,11 @@
 /**
- * /api/settings/posting — admin-gated mutate endpoint for the four
+ * /api/settings/posting — admin-gated mutate endpoint for the five
  * configurable post limits on the `forum_settings` singleton.
  *
  *   POST → body { maxTopicsPerPost?, maxImagesPerPost?, maxTitleChars?,
- *                 maxBodyChars? } → UPSERTs the singleton row.
- *          Returns { ok: true, row } or 400 with { ok: false, error }.
+ *                 maxBodyChars?, maxReplyChars? } → UPSERTs the singleton
+ *          row. Returns { ok: true, row } or 400 with
+ *          { ok: false, error }.
  *
  * Auth: passkey-gated via `requireAdmin()` — same posture as sibling
  * admin routes (e.g. /api/settings/dashboard-agent-invites).
@@ -22,7 +23,13 @@ import {
 
 export const dynamic = 'force-dynamic'
 
-const FIELDS = ['maxTopicsPerPost', 'maxImagesPerPost', 'maxTitleChars', 'maxBodyChars'] as const
+const FIELDS = [
+  'maxTopicsPerPost',
+  'maxImagesPerPost',
+  'maxTitleChars',
+  'maxBodyChars',
+  'maxReplyChars',
+] as const
 
 export async function POST(req: Request) {
   const session = await requireAdmin()

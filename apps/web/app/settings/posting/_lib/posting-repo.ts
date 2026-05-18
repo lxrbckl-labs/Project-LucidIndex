@@ -24,27 +24,30 @@ import { db } from '@lucidindex/db/client'
 import { eq, sql } from '@lucidindex/db/query'
 import { forumSettings } from '@lucidindex/db/schema'
 
-/** The four admin-configurable post limits + the row's updatedAt timestamp. */
+/** The five admin-configurable post limits + the row's updatedAt timestamp. */
 export type PostingSettings = {
   maxTopicsPerPost: number
   maxImagesPerPost: number
   maxTitleChars: number
   maxBodyChars: number
+  maxReplyChars: number
   updatedAt: Date
 }
 
 /**
  * Canonical defaults. Matches the column defaults in the schema and the
- * seed in migration 0019. Exported so the panel and the API route share
- * one source of truth — the "Reset to defaults" button writes these
- * exact values back, and the self-heal upsert in `getPostingSettings`
- * uses them if the row is missing.
+ * seed in migration 0019 (plus the `max_reply_chars` default added in
+ * migration 0025). Exported so the panel and the API route share one
+ * source of truth — the "Reset to defaults" button writes these exact
+ * values back, and the self-heal upsert in `getPostingSettings` uses
+ * them if the row is missing.
  */
 export const DEFAULT_POSTING_SETTINGS = {
   maxTopicsPerPost: 3,
   maxImagesPerPost: 3,
   maxTitleChars: 75,
   maxBodyChars: 5000,
+  maxReplyChars: 5000,
 } as const
 
 /**
@@ -57,6 +60,7 @@ export const POSTING_LIMITS = {
   maxImagesPerPost: { min: 0, max: 20 },
   maxTitleChars: { min: 1, max: 500 },
   maxBodyChars: { min: 1, max: 100_000 },
+  maxReplyChars: { min: 1, max: 100_000 },
 } as const
 
 type Column = keyof typeof POSTING_LIMITS
@@ -73,6 +77,7 @@ export async function getPostingSettings(): Promise<PostingSettings> {
       maxImagesPerPost: forumSettings.maxImagesPerPost,
       maxTitleChars: forumSettings.maxTitleChars,
       maxBodyChars: forumSettings.maxBodyChars,
+      maxReplyChars: forumSettings.maxReplyChars,
       updatedAt: forumSettings.updatedAt,
     })
     .from(forumSettings)
@@ -93,6 +98,7 @@ export async function getPostingSettings(): Promise<PostingSettings> {
       maxImagesPerPost: forumSettings.maxImagesPerPost,
       maxTitleChars: forumSettings.maxTitleChars,
       maxBodyChars: forumSettings.maxBodyChars,
+      maxReplyChars: forumSettings.maxReplyChars,
       updatedAt: forumSettings.updatedAt,
     })
   const seeded = inserted[0]
@@ -105,6 +111,7 @@ export async function getPostingSettings(): Promise<PostingSettings> {
       maxImagesPerPost: forumSettings.maxImagesPerPost,
       maxTitleChars: forumSettings.maxTitleChars,
       maxBodyChars: forumSettings.maxBodyChars,
+      maxReplyChars: forumSettings.maxReplyChars,
       updatedAt: forumSettings.updatedAt,
     })
     .from(forumSettings)
@@ -123,6 +130,7 @@ export type UpdateInput = Partial<{
   maxImagesPerPost: number
   maxTitleChars: number
   maxBodyChars: number
+  maxReplyChars: number
 }>
 
 export type ValidateResult = { ok: true; clean: UpdateInput } | { ok: false; error: string }
@@ -132,6 +140,7 @@ const LABELS: Record<Column, string> = {
   maxImagesPerPost: 'Images per post',
   maxTitleChars: 'Title length',
   maxBodyChars: 'Body length',
+  maxReplyChars: 'Replies length',
 }
 
 /**
@@ -192,6 +201,7 @@ export async function updatePostingSettings(input: UpdateInput): Promise<UpdateR
         maxImagesPerPost: forumSettings.maxImagesPerPost,
         maxTitleChars: forumSettings.maxTitleChars,
         maxBodyChars: forumSettings.maxBodyChars,
+        maxReplyChars: forumSettings.maxReplyChars,
         updatedAt: forumSettings.updatedAt,
       })
     const row = rows[0]
