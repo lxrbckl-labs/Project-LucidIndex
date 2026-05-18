@@ -40,8 +40,9 @@ export function TopNav() {
   const isCreatorPage = pathname.startsWith('/c/')
   const isSettingsPage = pathname.startsWith('/settings')
   const isForumPage = pathname.startsWith('/forum')
+  const isForumPostPage = pathname.startsWith('/forum/posts/')
   const isTopicFocus = pathname === '/' && Boolean(searchParams.get('badge'))
-  const showBack = isArticlePage || isCreatorPage || isTopicFocus
+  const showBack = isArticlePage || isCreatorPage || isTopicFocus || isForumPostPage
   // SidebarTrigger requires a SidebarProvider in the tree (its
   // `useSidebar` hook throws otherwise). The forum layout only mounts
   // the provider for authenticated users; on the gate there's no
@@ -53,42 +54,20 @@ export function TopNav() {
     <header className="sticky top-0 z-50 bg-background/70 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/50">
       <div className="grid grid-cols-3 items-center p-4">
         {/* Left cluster. Order from left to right:
-              1. SidebarTrigger — settings shell only; needs to be leftmost
-                 so the collapse affordance lives flush against the sidebar
-                 it controls.
-              2. Forum / Dashboard toggle — on every page; on /forum the
-                 same slot becomes a Dashboard button (you can't jump from
-                 Forum to itself).
-              3. EscapeToBack — article / creator / topic-focus only. */}
+              1. SidebarTrigger — settings / forum shell only.
+              2. Forum button — on every page EXCEPT /forum (you can't
+                 jump from Forum to itself; the Dashboard slot moved to
+                 the right cluster).
+              3. EscapeToBack — article / creator / topic-focus / forum
+                 post pages. */}
         <div className="flex items-center justify-start gap-2">
           {(isSettingsPage || isForumPage) && hasSidebarShell && (
-            <SidebarTrigger className="h-9 w-9 border border-input bg-background" />
+            <SidebarTrigger className="h-9 w-9 shrink-0 border border-input bg-background" />
           )}
-          {isForumPage ? (
+          {!isForumPage && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 border border-input bg-background"
-                  asChild
-                >
-                  <Link href="/" aria-label="Dashboard">
-                    <LayoutDashboard className="h-4 w-4 rotate-90" />
-                  </Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Dashboard</TooltipContent>
-            </Tooltip>
-          ) : (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 border border-input bg-background"
-                  asChild
-                >
+                <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" asChild>
                   <Link href="/forum" aria-label="Forum">
                     <MessagesSquare className="h-4 w-4" />
                   </Link>
@@ -116,21 +95,19 @@ export function TopNav() {
           </Link>
         </div>
 
-        {/* Right cluster: search + theme toggle + settings/dashboard toggle */}
+        {/* Right cluster: search + theme toggle + Dashboard + Settings.
+            Dashboard sits to the left of Settings. Each nav button is
+            suppressed on its own surface (you can't jump from
+            /settings to /settings, or from / to /). */}
         <div className="flex items-center justify-end gap-2">
           <TypeaheadSearch />
 
           <ThemeToggle />
 
-          {isSettingsPage ? (
+          {pathname !== '/' && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 border border-input bg-background"
-                  asChild
-                >
+                <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" asChild>
                   <Link href="/" aria-label="Dashboard">
                     <LayoutDashboard className="h-4 w-4 rotate-90" />
                   </Link>
@@ -138,15 +115,12 @@ export function TopNav() {
               </TooltipTrigger>
               <TooltipContent>Dashboard</TooltipContent>
             </Tooltip>
-          ) : (
+          )}
+
+          {!isSettingsPage && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 border border-input bg-background"
-                  asChild
-                >
+                <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" asChild>
                   <Link href="/settings" aria-label="Settings">
                     <Settings className="h-4 w-4" />
                   </Link>

@@ -8,6 +8,10 @@
  *   - On /settings/* routes, a "Settings" group is prepended with results from
  *     the static settings index (synchronous, no fetch needed). Min length 1
  *     for settings; 2 for the API.
+ *   - On /forum/* routes, swaps to `/api/forum/search/typeahead` and renders
+ *     three forum-specific groups: Forum Posts, Authors, Topics. The
+ *     dashboard groups (Creators/Topics/Articles/Starred/Settings) do NOT
+ *     render in forum mode — the two modes don't cross-contaminate.
  *   - Matching creators appear first in a "Creators" group; topics second in a
  *     "Topics" group; starred articles in a "Starred" group; regular articles
  *     below in an "Articles" group. Starred articles are deduplicated out of
@@ -16,9 +20,13 @@
  *   - Clicking (or keyboard-selecting) a topic navigates to /?badge=<name>.
  *   - Clicking (or keyboard-selecting) an article navigates to /a/<slug>.
  *   - Clicking (or keyboard-selecting) a settings entry navigates to its href.
+ *   - In forum mode: post → /forum/posts/<id>; author → /forum/users/<username>;
+ *     topic → /forum?topic=<id>.
  *   - Cmd+K / Ctrl+K focuses the input from anywhere on the page.
  *   - In-flight fetches are aborted when the query changes.
- *   - Responses are cached in a module-scope Map (up to 50 entries).
+ *   - Responses are cached in a module-scope Map (up to 50 entries). Cache
+ *     keys are namespaced by mode (`forum:` / `dashboard:`) so flipping
+ *     pages doesn't surface stale cross-mode results.
  *   - Matched substrings in titles/descriptions/names are highlighted.
  *
  * Layout: shadcn Popover wrapping a plain Input. The dropdown uses shadcn
@@ -26,10 +34,15 @@
  * sections for keyboard navigation and item selection.
  */
 
-import { FileText, Hash, Search, Settings, Star, User } from 'lucide-react'
+import { Bot, FileText, Hash, MessageSquare, Search, Settings, Star, User } from 'lucide-react'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import type {
+  ForumAuthorHit,
+  ForumPostHit,
+  ForumTopicHit,
+} from '@/app/api/forum/search/typeahead/route'
 import type {
   TypeaheadArticle,
   TypeaheadCreator,
@@ -91,21 +104,35 @@ const SETTINGS_MIN_LENGTH = 1
 
 // ─── Module-scope fetch cache ─────────────────────────────────────────────────
 
-type ApiResponse = {
+type DashboardApiResponse = {
   articles: TypeaheadArticle[]
   creators: TypeaheadCreator[]
   topics: TypeaheadTopic[]
   starredArticles: TypeaheadArticle[]
 }
 
-const CACHE_MAX = 50
-const fetchCache = new Map<string, ApiResponse>()
-
-function cacheGet(key: string): ApiResponse | undefined {
-  return fetchCache.get(key)
+type ForumApiResponse = {
+  posts: ForumPostHit[]
+  authors: ForumAuthorHit[]
+  topics: ForumTopicHit[]
 }
 
-function cacheSet(key: string, value: ApiResponse): void {
+/**
+ * Cache entries are namespaced by mode (`forum:<q>` / `dashboard:<q>`) so
+ * dashboard-mode and forum-mode results never collide for the same query
+ * string. The union stays narrow so the read path doesn't need a runtime
+ * discriminator — callers only `cacheGet` from the branch they're in.
+ */
+type CachedEntry = DashboardApiResponse | ForumApiResponse
+
+const CACHE_MAX = 50
+const fetchCache = new Map<string, CachedEntry>()
+
+function cacheGet<T extends CachedEntry>(key: string): T | undefined {
+  return fetchCache.get(key) as T | undefined
+}
+
+function cacheSet(key: string, value: CachedEntry): void {
   if (fetchCache.size >= CACHE_MAX) {
     // Evict the oldest entry (first inserted key)
     const firstKey = fetchCache.keys().next().value
@@ -120,6 +147,7 @@ export function TypeaheadSearch() {
   const router = useRouter()
   const pathname = usePathname()
   const onSettingsPage = pathname.startsWith('/settings')
+  const onForumPage = pathname.startsWith('/forum')
 
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
@@ -128,6 +156,12 @@ export function TypeaheadSearch() {
   const [topics, setTopics] = useState<TypeaheadTopic[]>([])
   const [starredArticles, setStarredArticles] = useState<TypeaheadArticle[]>([])
   const [settingsResults, setSettingsResults] = useState<SettingsIndexEntry[]>([])
+  // Forum-mode results — kept separate from the dashboard arrays above so
+  // the two modes never bleed into each other when the user navigates from
+  // /forum/* back to /.
+  const [forumPosts, setForumPosts] = useState<ForumPostHit[]>([])
+  const [forumAuthors, setForumAuthors] = useState<ForumAuthorHit[]>([])
+  const [forumTopics, setForumTopics] = useState<ForumTopicHit[]>([])
   const [loading, setLoading] = useState(false)
 
   const inputRef = useRef<HTMLInputElement>(null)
@@ -135,12 +169,25 @@ export function TypeaheadSearch() {
   /** AbortController for the current in-flight fetch. */
   const abortRef = useRef<AbortController | null>(null)
 
-  // ── Fetch typeahead results ──────────────────────────────────────────────
-  const fetchResults = useCallback(async (q: string) => {
-    const cacheKey = q.trim().toLowerCase()
+  function clearDashboardResults() {
+    setArticles([])
+    setCreators([])
+    setTopics([])
+    setStarredArticles([])
+  }
+
+  function clearForumResults() {
+    setForumPosts([])
+    setForumAuthors([])
+    setForumTopics([])
+  }
+
+  // ── Fetch typeahead results (dashboard mode) ────────────────────────────
+  const fetchDashboardResults = useCallback(async (q: string) => {
+    const cacheKey = `dashboard:${q.trim().toLowerCase()}`
 
     // Cache hit — skip the network entirely
-    const cached = cacheGet(cacheKey)
+    const cached = cacheGet<DashboardApiResponse>(cacheKey)
     if (cached) {
       setArticles(cached.articles)
       setCreators(cached.creators)
@@ -170,8 +217,8 @@ export function TypeaheadSearch() {
         setStarredArticles([])
         return
       }
-      const data = (await res.json()) as ApiResponse
-      const result: ApiResponse = {
+      const data = (await res.json()) as DashboardApiResponse
+      const result: DashboardApiResponse = {
         articles: data.articles ?? [],
         creators: data.creators ?? [],
         topics: data.topics ?? [],
@@ -189,6 +236,57 @@ export function TypeaheadSearch() {
       setCreators([])
       setTopics([])
       setStarredArticles([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // ── Fetch typeahead results (forum mode) ────────────────────────────────
+  const fetchForumResults = useCallback(async (q: string) => {
+    const cacheKey = `forum:${q.trim().toLowerCase()}`
+
+    const cached = cacheGet<ForumApiResponse>(cacheKey)
+    if (cached) {
+      setForumPosts(cached.posts)
+      setForumAuthors(cached.authors)
+      setForumTopics(cached.topics)
+      setLoading(false)
+      return
+    }
+
+    if (abortRef.current) {
+      abortRef.current.abort()
+    }
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/forum/search/typeahead?q=${encodeURIComponent(q.trim())}`, {
+        cache: 'no-store',
+        signal: controller.signal,
+      })
+      if (!res.ok) {
+        setForumPosts([])
+        setForumAuthors([])
+        setForumTopics([])
+        return
+      }
+      const data = (await res.json()) as ForumApiResponse
+      const result: ForumApiResponse = {
+        posts: data.posts ?? [],
+        authors: data.authors ?? [],
+        topics: data.topics ?? [],
+      }
+      cacheSet(cacheKey, result)
+      setForumPosts(result.posts)
+      setForumAuthors(result.authors)
+      setForumTopics(result.topics)
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
+      setForumPosts([])
+      setForumAuthors([])
+      setForumTopics([])
     } finally {
       setLoading(false)
     }
@@ -225,27 +323,40 @@ export function TypeaheadSearch() {
       } else {
         setOpen(false)
       }
-      setArticles([])
-      setCreators([])
-      setTopics([])
-      setStarredArticles([])
+      clearDashboardResults()
+      clearForumResults()
       return
     }
 
-    // Non-settings pages: need ≥ MIN_LENGTH to fire the API
+    // Forum pages: fetch from the forum endpoint. Dashboard arrays stay
+    // empty so the dashboard groups don't render alongside forum hits.
+    if (onForumPage) {
+      if (trimmed.length < MIN_LENGTH) {
+        clearForumResults()
+        setOpen(false)
+        return
+      }
+      clearDashboardResults()
+      setOpen(true)
+      debounceRef.current = setTimeout(() => {
+        void fetchForumResults(next)
+      }, DEBOUNCE_MS)
+      return
+    }
+
+    // Dashboard pages: need ≥ MIN_LENGTH to fire the API
     if (trimmed.length < MIN_LENGTH) {
-      setArticles([])
-      setCreators([])
-      setTopics([])
-      setStarredArticles([])
+      clearDashboardResults()
+      clearForumResults()
       setOpen(false)
       return
     }
 
     setOpen(true)
+    clearForumResults()
 
     debounceRef.current = setTimeout(() => {
-      void fetchResults(next)
+      void fetchDashboardResults(next)
     }, DEBOUNCE_MS)
   }
 
@@ -304,6 +415,25 @@ export function TypeaheadSearch() {
     router.push(href)
   }
 
+  // ── Forum selections ────────────────────────────────────────────────────
+  function handleSelectForumPost(id: string) {
+    setOpen(false)
+    setQuery('')
+    router.push(`/forum/posts/${id}`)
+  }
+
+  function handleSelectForumAuthor(username: string) {
+    setOpen(false)
+    setQuery('')
+    router.push(`/forum/users/${username}`)
+  }
+
+  function handleSelectForumTopic(id: string) {
+    setOpen(false)
+    setQuery('')
+    router.push(`/forum?topic=${id}`)
+  }
+
   const trimmedQuery = query.trim()
 
   const hasResults =
@@ -311,7 +441,10 @@ export function TypeaheadSearch() {
     creators.length > 0 ||
     topics.length > 0 ||
     starredArticles.length > 0 ||
-    settingsResults.length > 0
+    settingsResults.length > 0 ||
+    forumPosts.length > 0 ||
+    forumAuthors.length > 0 ||
+    forumTopics.length > 0
 
   // Show the dropdown when open and there is something to render or we're
   // still loading. The effective min-length check differs per page type.
@@ -371,7 +504,7 @@ export function TypeaheadSearch() {
               )}
 
               {/* ── Settings group (shown first on /settings/* routes) ── */}
-              {!loading && settingsResults.length > 0 && (
+              {!loading && !onForumPage && settingsResults.length > 0 && (
                 <CommandGroup heading="Settings">
                   {settingsResults.map((entry) => (
                     <CommandItem
@@ -399,8 +532,107 @@ export function TypeaheadSearch() {
                 </CommandGroup>
               )}
 
+              {/* ── Forum Posts group ─────────────────────────────────── */}
+              {!loading && onForumPage && forumPosts.length > 0 && (
+                <CommandGroup heading="Forum Posts">
+                  {forumPosts.map((p) => (
+                    <CommandItem
+                      key={p.id}
+                      value={`forum-post-${p.id}`}
+                      onSelect={() => handleSelectForumPost(p.id)}
+                      className="flex items-center gap-3 px-3 py-2 cursor-pointer"
+                    >
+                      {/* Post icon */}
+                      <div className="shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                        <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                      </div>
+
+                      {/* Title + author */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm leading-tight truncate">
+                          {highlightMatch(truncate(p.title, 60), trimmedQuery)}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate flex items-center gap-1">
+                          <span>@{p.authorUsername}</span>
+                          {p.authorIsAgent && (
+                            <Bot className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
+                          )}
+                        </p>
+                      </div>
+
+                      {/* Date */}
+                      {p.createdAt && (
+                        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                          {formatDate(p.createdAt)}
+                        </span>
+                      )}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+
+              {/* ── Authors group (forum mode) ────────────────────────── */}
+              {!loading && onForumPage && forumAuthors.length > 0 && (
+                <CommandGroup heading="Authors">
+                  {forumAuthors.map((a) => (
+                    <CommandItem
+                      key={a.id}
+                      value={`forum-author-${a.id}`}
+                      onSelect={() => handleSelectForumAuthor(a.username)}
+                      className="flex items-center gap-3 px-3 py-2 cursor-pointer"
+                    >
+                      {/* Avatar circle */}
+                      <div className="shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                        {a.isAgent ? (
+                          <Bot className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <User className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
+
+                      {/* Username */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm leading-tight truncate">
+                          @{highlightMatch(a.username, trimmedQuery)}
+                        </p>
+                        {a.isAgent && <p className="text-xs text-muted-foreground mt-0.5">agent</p>}
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+
+              {/* ── Topics group (forum mode) ─────────────────────────── */}
+              {!loading && onForumPage && forumTopics.length > 0 && (
+                <CommandGroup heading="Topics">
+                  {forumTopics.map((t) => (
+                    <CommandItem
+                      key={`forum-topic-${t.id}`}
+                      value={`forum-topic-${t.id}`}
+                      onSelect={() => handleSelectForumTopic(t.id)}
+                      className="flex items-center gap-3 px-3 py-2 cursor-pointer"
+                    >
+                      {/* Hash icon */}
+                      <div className="shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                        <Hash className="h-4 w-4 text-muted-foreground" />
+                      </div>
+
+                      {/* Name + post count */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm leading-tight truncate">
+                          {highlightMatch(t.name, trimmedQuery)}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {t.postCount === 1 ? '1 post' : `${t.postCount} posts`}
+                        </p>
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+
               {/* ── Creators group ────────────────────────────────────── */}
-              {!loading && creators.length > 0 && (
+              {!loading && !onForumPage && creators.length > 0 && (
                 <CommandGroup heading="Creators">
                   {creators.map((c) => (
                     <CommandItem
@@ -429,7 +661,7 @@ export function TypeaheadSearch() {
               )}
 
               {/* ── Topics group ──────────────────────────────────────── */}
-              {!loading && topics.length > 0 && (
+              {!loading && !onForumPage && topics.length > 0 && (
                 <CommandGroup heading="Topics">
                   {topics.map((t) => (
                     <CommandItem
@@ -458,7 +690,7 @@ export function TypeaheadSearch() {
               )}
 
               {/* ── Starred articles group ────────────────────────────── */}
-              {!loading && starredArticles.length > 0 && (
+              {!loading && !onForumPage && starredArticles.length > 0 && (
                 <CommandGroup heading="Starred">
                   {starredArticles.map((r) => (
                     <CommandItem
@@ -509,7 +741,7 @@ export function TypeaheadSearch() {
               )}
 
               {/* ── Articles group ─────────────────────────────────────── */}
-              {!loading && articles.length > 0 && (
+              {!loading && !onForumPage && articles.length > 0 && (
                 <CommandGroup heading="Articles">
                   {articles.map((r) => (
                     <CommandItem

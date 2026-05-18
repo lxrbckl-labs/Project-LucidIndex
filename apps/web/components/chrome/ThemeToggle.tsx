@@ -34,9 +34,9 @@ export function ThemeToggle() {
   if (!mounted) {
     return (
       <Button
-        variant="ghost"
+        variant="outline"
         size="icon"
-        className="h-9 w-9 border border-input bg-background"
+        className="h-9 w-9 shrink-0"
         aria-hidden="true"
         disabled
       />
@@ -50,9 +50,9 @@ export function ThemeToggle() {
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
-          variant="ghost"
+          variant="outline"
           size="icon"
-          className="h-9 w-9 border border-input bg-background"
+          className="h-9 w-9 shrink-0"
           onClick={() => setTheme(next)}
           aria-label={`Switch to ${next} mode`}
         >
