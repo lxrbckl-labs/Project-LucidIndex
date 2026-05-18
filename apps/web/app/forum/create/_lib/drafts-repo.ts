@@ -16,14 +16,70 @@
 import 'server-only'
 import { db } from '@lucidindex/db/client'
 import { and, desc, eq, sql } from '@lucidindex/db/query'
-import { forumPostDraftImages, forumPostDrafts } from '@lucidindex/db/schema'
+import {
+  forumPostDraftCitations,
+  forumPostDraftImages,
+  forumPostDrafts,
+  forumPostDraftUserMentions,
+} from '@lucidindex/db/schema'
 
 const HASH_RE = /^[a-f0-9]{64}$/
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const USERNAME_RE = /^[a-z][a-z0-9_-]{2,19}$/
 
 export type DraftImage = {
   hash: string
   mime: string
+}
+
+/**
+ * Draft-side citation entry: the FK to the cited post + the explicit
+ * `@PostN` slot it claims. The composer assigns the sequence at pick
+ * time (never reusing a removed slot's number) and persists it here
+ * so the body's `@PostN` tokens survive draft save/load round-trips
+ * even when intermediate citations have been dropped. The cited
+ * post's title + author username aren't persisted on the draft —
+ * they're re-resolved at hydrate time by joining against
+ * `forum_posts` / `forum_users`.
+ */
+export type DraftCitation = {
+  citedPostId: string
+  sequenceNumber: number
+}
+
+/** Hydrated citation returned to the composer for resume-from-draft. */
+export type DraftCitationHydrated = {
+  citedPostId: string
+  sequenceNumber: number
+  postTitle: string
+  authorUsername: string
+}
+
+/**
+ * Draft-side user-mention entry: the FK to the mentioned forum user plus
+ * a snapshot of their username at mention time. The composer's
+ * `@<username>` dropdown picks resolve to one of these. Unlike citations
+ * and images, mentions don't carry a sequence number — the token in the
+ * body IS the username, and the same user can only be mentioned once
+ * per post/draft.
+ */
+export type DraftUserMention = {
+  mentionedUserId: string
+  mentionedUsername: string
+}
+
+/**
+ * Hydrated user mention returned to the composer for resume-from-draft.
+ * Carries `isAgent` so the dropdown can render the small "agent" badge
+ * — the persisted draft row doesn't include the flag (it's snapshot-
+ * stable but more usefully read live), so we re-resolve it at hydrate
+ * time.
+ */
+export type DraftUserMentionHydrated = {
+  mentionedUserId: string
+  mentionedUsername: string
+  isAgent: boolean
 }
 
 export type DraftRow = {
@@ -40,6 +96,8 @@ export type DraftInput = {
   body: string
   topicBadgeIds: string[]
   images: DraftImage[]
+  citations: DraftCitation[]
+  userMentions: DraftUserMention[]
 }
 
 export type DraftSummary = {
@@ -88,6 +146,66 @@ function validateInput(input: DraftInput): { ok: true } | { ok: false; error: st
       return { ok: false, error: 'Each image mime must be png/jpeg/webp/gif.' }
     }
   }
+  if (!Array.isArray(input.citations)) {
+    return { ok: false, error: 'citations must be an array.' }
+  }
+  // Citations carry an explicit sequenceNumber (NOT idx+1) so the body's
+  // `@PostN` tokens survive draft round-trips when intermediate citations
+  // have been dropped. UNIQUE(draft_id, cited_post_id) + UNIQUE(draft_id,
+  // sequence_number) catch in-batch dupes at the DB layer, but pre-checking
+  // surfaces a friendlier error.
+  const seenCited = new Set<string>()
+  const seenSeq = new Set<number>()
+  for (const c of input.citations) {
+    if (!c || typeof c !== 'object') {
+      return { ok: false, error: 'Each citation must be {citedPostId, sequenceNumber}.' }
+    }
+    if (typeof c.citedPostId !== 'string' || !UUID_RE.test(c.citedPostId)) {
+      return { ok: false, error: 'Each citation cited_post_id must be a UUID.' }
+    }
+    if (typeof c.sequenceNumber !== 'number' || !Number.isInteger(c.sequenceNumber)) {
+      return { ok: false, error: 'Each citation sequence_number must be an integer.' }
+    }
+    if (c.sequenceNumber < 1) {
+      return { ok: false, error: 'Each citation sequence_number must be >= 1.' }
+    }
+    if (seenCited.has(c.citedPostId)) {
+      return { ok: false, error: 'Each post may be cited at most once per draft.' }
+    }
+    if (seenSeq.has(c.sequenceNumber)) {
+      return { ok: false, error: 'Each citation sequence_number must be unique within the draft.' }
+    }
+    seenCited.add(c.citedPostId)
+    seenSeq.add(c.sequenceNumber)
+  }
+  if (!Array.isArray(input.userMentions)) {
+    return { ok: false, error: 'user_mentions must be an array.' }
+  }
+  // User mentions: each entry is {mentionedUserId, mentionedUsername}.
+  // The UNIQUE(draft_id, mentioned_user_id) catches in-batch dupes at
+  // the DB layer, but pre-checking surfaces a friendlier error. We also
+  // validate the snapshot username shape against the same regex
+  // `forum_users.username` enforces — that keeps a junk snapshot from
+  // landing even though no CHECK runs on this column.
+  const seenMentionedUserIds = new Set<string>()
+  for (const m of input.userMentions) {
+    if (!m || typeof m !== 'object') {
+      return { ok: false, error: 'Each user_mention must be {mentionedUserId, mentionedUsername}.' }
+    }
+    if (typeof m.mentionedUserId !== 'string' || !UUID_RE.test(m.mentionedUserId)) {
+      return { ok: false, error: 'Each user_mention mentioned_user_id must be a UUID.' }
+    }
+    if (typeof m.mentionedUsername !== 'string' || !USERNAME_RE.test(m.mentionedUsername)) {
+      return {
+        ok: false,
+        error: 'Each user_mention mentioned_username must match the forum username pattern.',
+      }
+    }
+    if (seenMentionedUserIds.has(m.mentionedUserId)) {
+      return { ok: false, error: 'Each user may be mentioned at most once per draft.' }
+    }
+    seenMentionedUserIds.add(m.mentionedUserId)
+  }
   return { ok: true }
 }
 
@@ -118,7 +236,12 @@ export async function listDraftsForUser(userId: string): Promise<DraftSummary[]>
 export async function getDraftForUser(
   id: string,
   userId: string,
-): Promise<{ draft: DraftRow; images: DraftImage[] } | null> {
+): Promise<{
+  draft: DraftRow
+  images: DraftImage[]
+  citations: DraftCitationHydrated[]
+  userMentions: DraftUserMentionHydrated[]
+} | null> {
   const rows = await db
     .select({
       id: forumPostDrafts.id,
@@ -144,9 +267,67 @@ export async function getDraftForUser(
     .where(eq(forumPostDraftImages.draftId, id))
     .orderBy(forumPostDraftImages.sequenceNumber)
 
+  // Citations hydrated with the cited post's title + author username so
+  // the composer dropdown can render labels without a second round-trip.
+  // Raw SQL JOIN — cleaner than two queries + a manual zip, and the
+  // result set is bounded by the post-image cap (single-digit rows in
+  // practice).
+  const citationRows = await db.execute<{
+    cited_post_id: string
+    sequence_number: number
+    post_title: string
+    author_username: string
+  }>(sql`
+    SELECT
+      c.cited_post_id::text                   AS cited_post_id,
+      c.sequence_number                       AS sequence_number,
+      p.title                                 AS post_title,
+      u.username                              AS author_username
+    FROM forum_post_draft_citations c
+    JOIN forum_posts  p ON p.id = c.cited_post_id
+    JOIN forum_users  u ON u.id = p.author_id
+    WHERE c.draft_id = ${id}::uuid
+    ORDER BY c.sequence_number ASC
+  `)
+
+  // User mentions hydrated with the live `is_agent` flag from
+  // `forum_users` so the dropdown can render the small badge. The
+  // username persisted on the draft row is the snapshot at pick time;
+  // we prefer the LIVE username here so a renamed user shows their
+  // current handle when the draft is reopened. Fall back to the
+  // snapshot only if the row is somehow missing (the FK currently
+  // forbids that, but the JOIN is left-friendly for defense in depth).
+  const userMentionRows = await db.execute<{
+    mentioned_user_id: string
+    mentioned_username_snapshot: string
+    live_username: string | null
+    is_agent: boolean | null
+  }>(sql`
+    SELECT
+      m.mentioned_user_id::text       AS mentioned_user_id,
+      m.mentioned_username            AS mentioned_username_snapshot,
+      u.username                      AS live_username,
+      u.is_agent                      AS is_agent
+    FROM forum_post_draft_user_mentions m
+    LEFT JOIN forum_users u ON u.id = m.mentioned_user_id
+    WHERE m.draft_id = ${id}::uuid
+    ORDER BY m.created_at ASC
+  `)
+
   return {
     draft: row,
     images: images.map((i) => ({ hash: i.hash, mime: i.mime })),
+    citations: citationRows.map((c) => ({
+      citedPostId: c.cited_post_id,
+      sequenceNumber: c.sequence_number,
+      postTitle: c.post_title,
+      authorUsername: c.author_username,
+    })),
+    userMentions: userMentionRows.map((m) => ({
+      mentionedUserId: m.mentioned_user_id,
+      mentionedUsername: m.live_username ?? m.mentioned_username_snapshot,
+      isAgent: m.is_agent ?? false,
+    })),
   }
 }
 
@@ -182,6 +363,24 @@ export async function createDraft(
             imageHash: img.hash,
             sequenceNumber: idx + 1,
             mime: img.mime,
+          })),
+        )
+      }
+      if (input.citations.length > 0) {
+        await tx.insert(forumPostDraftCitations).values(
+          input.citations.map((c) => ({
+            draftId: row.id,
+            citedPostId: c.citedPostId,
+            sequenceNumber: c.sequenceNumber,
+          })),
+        )
+      }
+      if (input.userMentions.length > 0) {
+        await tx.insert(forumPostDraftUserMentions).values(
+          input.userMentions.map((m) => ({
+            draftId: row.id,
+            mentionedUserId: m.mentionedUserId,
+            mentionedUsername: m.mentionedUsername,
           })),
         )
       }
@@ -236,6 +435,31 @@ export async function updateDraft(
             imageHash: img.hash,
             sequenceNumber: idx + 1,
             mime: img.mime,
+          })),
+        )
+      }
+      // Same DELETE-then-INSERT rebuild for citations — simpler than a
+      // diff merge, and the set is bounded by what the composer cares to
+      // track at any one moment. Sequence numbers come from the caller
+      // verbatim (NOT idx+1) so the body's `@PostN` tokens round-trip.
+      await tx.delete(forumPostDraftCitations).where(eq(forumPostDraftCitations.draftId, id))
+      if (input.citations.length > 0) {
+        await tx.insert(forumPostDraftCitations).values(
+          input.citations.map((c) => ({
+            draftId: id,
+            citedPostId: c.citedPostId,
+            sequenceNumber: c.sequenceNumber,
+          })),
+        )
+      }
+      // Same DELETE-then-INSERT rebuild for user mentions.
+      await tx.delete(forumPostDraftUserMentions).where(eq(forumPostDraftUserMentions.draftId, id))
+      if (input.userMentions.length > 0) {
+        await tx.insert(forumPostDraftUserMentions).values(
+          input.userMentions.map((m) => ({
+            draftId: id,
+            mentionedUserId: m.mentionedUserId,
+            mentionedUsername: m.mentionedUsername,
           })),
         )
       }

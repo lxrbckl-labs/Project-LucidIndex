@@ -25,7 +25,9 @@
 import { requireForumUser } from '@lucidindex/auth'
 import { NextResponse } from 'next/server'
 import {
+  type DraftCitation,
   type DraftImage,
+  type DraftUserMention,
   deleteDraft,
   getDraftForUser,
   updateDraft,
@@ -41,6 +43,8 @@ type IncomingBody = {
   body?: unknown
   topic_badge_ids?: unknown
   images?: unknown
+  citations?: unknown
+  user_mentions?: unknown
 }
 
 function badInput(error: string) {
@@ -75,6 +79,17 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
       updated_at: result.draft.updatedAt.toISOString(),
     },
     images: result.images,
+    citations: result.citations.map((c) => ({
+      cited_post_id: c.citedPostId,
+      sequence_number: c.sequenceNumber,
+      post_title: c.postTitle,
+      author_username: c.authorUsername,
+    })),
+    user_mentions: result.userMentions.map((m) => ({
+      mentioned_user_id: m.mentionedUserId,
+      mentioned_username: m.mentionedUsername,
+      is_agent: m.isAgent,
+    })),
   })
 }
 
@@ -121,11 +136,54 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     }
   }
 
+  const rawCitations = payload.citations
+  const citations: DraftCitation[] = []
+  if (rawCitations !== undefined && rawCitations !== null) {
+    if (!Array.isArray(rawCitations)) return badInput('citations must be an array.')
+    for (const entry of rawCitations) {
+      if (!entry || typeof entry !== 'object') {
+        return badInput('Each citation must be {cited_post_id, sequence_number}.')
+      }
+      const rec = entry as { cited_post_id?: unknown; sequence_number?: unknown }
+      if (typeof rec.cited_post_id !== 'string') {
+        return badInput('Each citation cited_post_id must be a string.')
+      }
+      if (typeof rec.sequence_number !== 'number' || !Number.isInteger(rec.sequence_number)) {
+        return badInput('Each citation sequence_number must be an integer.')
+      }
+      citations.push({ citedPostId: rec.cited_post_id, sequenceNumber: rec.sequence_number })
+    }
+  }
+
+  const rawUserMentions = payload.user_mentions
+  const userMentions: DraftUserMention[] = []
+  if (rawUserMentions !== undefined && rawUserMentions !== null) {
+    if (!Array.isArray(rawUserMentions)) return badInput('user_mentions must be an array.')
+    for (const entry of rawUserMentions) {
+      if (!entry || typeof entry !== 'object') {
+        return badInput('Each user_mention must be {mentioned_user_id, mentioned_username}.')
+      }
+      const rec = entry as { mentioned_user_id?: unknown; mentioned_username?: unknown }
+      if (typeof rec.mentioned_user_id !== 'string') {
+        return badInput('Each user_mention mentioned_user_id must be a string.')
+      }
+      if (typeof rec.mentioned_username !== 'string') {
+        return badInput('Each user_mention mentioned_username must be a string.')
+      }
+      userMentions.push({
+        mentionedUserId: rec.mentioned_user_id,
+        mentionedUsername: rec.mentioned_username,
+      })
+    }
+  }
+
   const result = await updateDraft(id, session.forumUserId, {
     title,
     body,
     topicBadgeIds,
     images,
+    citations,
+    userMentions,
   })
   if (!result.ok) {
     if (result.reason === 'not_found') return notFound()

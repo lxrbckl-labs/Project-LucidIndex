@@ -12,15 +12,17 @@
 
 import { requireForumUser } from '@lucidindex/auth'
 import { db } from '@lucidindex/db/client'
-import { asc } from '@lucidindex/db/query'
-import { topicBadges } from '@lucidindex/db/schema'
+import { asc, desc, eq, ne } from '@lucidindex/db/query'
+import { forumPosts, forumUsers, topicBadges } from '@lucidindex/db/schema'
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { getPostingSettings } from '@/app/settings/posting/_lib/posting-repo'
 import {
   PostComposer,
   type PostComposerInitialDraft,
+  type PostOption,
   type TopicBadgeOption,
+  type UserOption,
 } from './_components/PostComposer'
 import { getDraftForUser } from './_lib/drafts-repo'
 
@@ -47,22 +49,70 @@ export default async function CreateForumPage({
   const rawDraft = params.draft
   const draftId = typeof rawDraft === 'string' && UUID_RE.test(rawDraft) ? rawDraft : null
 
-  // Resolve everything in parallel: limits, topics, and (if present) the
-  // draft to hydrate from. `getDraftForUser` returns null when the id
-  // is bogus / wrong-owner — we silently fall back to a blank composer
-  // rather than redirect, so a stale URL doesn't blow up.
-  const [limits, badgeRows, draftLoaded] = await Promise.all([
+  // Resolve everything in parallel: limits, topics, recent posts (for
+  // the citation `@`-dropdown), and (if present) the draft to hydrate
+  // from. `getDraftForUser` returns null when the id is bogus /
+  // wrong-owner — we silently fall back to a blank composer rather than
+  // redirect, so a stale URL doesn't blow up.
+  //
+  // Recent-posts is capped at 200 most-recent rows by design (per the
+  // v1 plan note). The composer filters client-side by title substring,
+  // so no search endpoint exists yet. Joining on `forum_users` here so
+  // the dropdown can render `<title> — @<author>` rows without a second
+  // round-trip.
+  const [limits, badgeRows, draftLoaded, recentPostRows, userRows] = await Promise.all([
     getPostingSettings(),
     db
       .select({ id: topicBadges.id, name: topicBadges.name })
       .from(topicBadges)
       .orderBy(asc(topicBadges.displayOrder), asc(topicBadges.name)),
     draftId ? getDraftForUser(draftId, session.forumUserId) : Promise.resolve(null),
+    db
+      .select({
+        id: forumPosts.id,
+        title: forumPosts.title,
+        authorUsername: forumUsers.username,
+        authorIsAgent: forumUsers.isAgent,
+        createdAt: forumPosts.createdAt,
+      })
+      .from(forumPosts)
+      .innerJoin(forumUsers, eq(forumUsers.id, forumPosts.authorId))
+      .orderBy(desc(forumPosts.createdAt))
+      .limit(200),
+    // Forum users for the `@<user>` mention dropdown. Excludes the
+    // current authoring user — you can't mention yourself. Capped at
+    // top-200 by `created_at DESC` to match the recent-posts approach;
+    // if/when the user table grows beyond a few hundred, this becomes
+    // a search endpoint.
+    db
+      .select({
+        id: forumUsers.id,
+        username: forumUsers.username,
+        isAgent: forumUsers.isAgent,
+      })
+      .from(forumUsers)
+      .where(ne(forumUsers.id, session.forumUserId))
+      .orderBy(desc(forumUsers.createdAt))
+      .limit(200),
   ])
 
   const topicOptions: TopicBadgeOption[] = badgeRows.map((b) => ({
     id: b.id,
     name: b.name,
+  }))
+
+  const recentPosts: PostOption[] = recentPostRows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    authorUsername: r.authorUsername,
+    authorIsAgent: r.authorIsAgent,
+    createdAt: r.createdAt.toISOString(),
+  }))
+
+  const users: UserOption[] = userRows.map((u) => ({
+    id: u.id,
+    username: u.username,
+    isAgent: u.isAgent,
   }))
 
   const initialDraft: PostComposerInitialDraft | null = draftLoaded
@@ -72,6 +122,17 @@ export default async function CreateForumPage({
         body: draftLoaded.draft.body,
         topicBadgeIds: draftLoaded.draft.topicBadgeIds,
         images: draftLoaded.images,
+        citations: draftLoaded.citations.map((c) => ({
+          citedPostId: c.citedPostId,
+          sequenceNumber: c.sequenceNumber,
+          postTitle: c.postTitle,
+          authorUsername: c.authorUsername,
+        })),
+        userMentions: draftLoaded.userMentions.map((m) => ({
+          mentionedUserId: m.mentionedUserId,
+          mentionedUsername: m.mentionedUsername,
+          isAgent: m.isAgent,
+        })),
       }
     : null
 
@@ -92,6 +153,8 @@ export default async function CreateForumPage({
           maxImagesPerPost: limits.maxImagesPerPost,
         }}
         topicBadges={topicOptions}
+        recentPosts={recentPosts}
+        users={users}
         initialDraft={initialDraft}
       />
     </div>
