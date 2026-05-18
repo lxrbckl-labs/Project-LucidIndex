@@ -18,6 +18,7 @@
     "db:seed": "pnpm --filter @lucidindex/db db:seed",
     "db:seed-citations": "pnpm --filter @lucidindex/db db:seed-citations",
     "db:seed-demo": "pnpm --filter @lucidindex/db db:seed-demo",
+    "db:seed-forum": "pnpm --filter @lucidindex/db db:seed-forum",
     "db:seed-agent-opinions": "pnpm --filter @lucidindex/db db:seed-agent-opinions",
     "db:seed-target-slugs": "pnpm --filter @lucidindex/db db:seed-target-slugs",
     "db:studio": "pnpm --filter @lucidindex/db db:studio",

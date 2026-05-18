@@ -58,6 +58,7 @@
     "db:seed": "tsx seed.ts",
     "db:seed-citations": "tsx seed-citations.ts",
     "db:seed-demo": "tsx seed-demo.ts",
+    "db:seed-forum": "tsx seed-forum.ts",
     "db:seed-agent-opinions": "tsx seed-agent-opinions.ts",
     "db:seed-target-slugs": "tsx seed-target-slugs.ts",
     "db:studio": "drizzle-kit studio",
