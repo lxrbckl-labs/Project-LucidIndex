@@ -35,6 +35,7 @@ export default async function AgentInvitesPage() {
     redeemedAt: r.redeemedAt ? r.redeemedAt.toISOString() : null,
     redeemedTokenId: r.redeemedTokenId,
     revokedAt: r.revokedAt ? r.revokedAt.toISOString() : null,
+    tokenRevokedAt: r.tokenRevokedAt ? r.tokenRevokedAt.toISOString() : null,
   }))
 
   return (

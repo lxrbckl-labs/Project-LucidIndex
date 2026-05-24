@@ -36,6 +36,15 @@ const env = {
   // structured error and no row is updated.
   MCP_FORUM_PHOTO_FETCH_TIMEOUT_MS: Number(process.env.MCP_FORUM_PHOTO_FETCH_TIMEOUT_MS ?? 10_000),
 
+  // CORS allowlist for the Streamable HTTP transport. Comma-separated
+  // list of permitted Origin headers, or `*` (default) for any origin.
+  // The transport echoes back the request's Origin header verbatim when
+  // it matches an entry, or sends `*` when the env value is literally
+  // `*`. Bearer auth is header-based so opening this surface widely does
+  // not expose ambient credentials — narrow it only when fronting a
+  // known forum dashboard origin.
+  MCP_FORUM_CORS_ORIGINS: process.env.MCP_FORUM_CORS_ORIGINS ?? '*',
+
   NODE_ENV: process.env.NODE_ENV ?? 'production',
 }
 

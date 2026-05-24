@@ -75,6 +75,13 @@ export type InviteRowClient = {
   redeemedAt: string | null
   redeemedTokenId: string | null
   revokedAt: string | null
+  /**
+   * Mirror of `forum_agent_tokens.revoked_at` on the row's redeemed
+   * token. Populated only when `redeemedTokenId` is non-null. The
+   * invite-side `revokedAt` is an audit marker; THIS is the field
+   * that controls whether the agent's bearer still works.
+   */
+  tokenRevokedAt: string | null
 }
 
 type Props = { initialInvites: InviteRowClient[] }
@@ -171,6 +178,7 @@ function InvitesTable({ rows, onChanged }: { rows: InviteRowClient[]; onChanged:
             <TableHead>Redeemed</TableHead>
             <TableHead>Token</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Token status</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -217,25 +225,62 @@ function InviteRow({ row, onChanged }: { row: InviteRowClient; onChanged: () => 
       <TableCell>
         <StatusBadge status={status} />
       </TableCell>
+      <TableCell>
+        <TokenStatusBadge row={row} />
+      </TableCell>
       <TableCell className="text-right whitespace-nowrap">
-        {(status === 'available' || status === 'redeemed') && (
-          <RevokeButton
-            id={row.id}
-            label={row.label}
-            isRedeemed={status === 'redeemed'}
-            onRevoked={onChanged}
-          />
-        )}
-        {status === 'revoked' && (
-          <RestoreButton
-            id={row.id}
-            label={row.label}
-            wasRedeemed={!!row.redeemedAt}
-            onRestored={onChanged}
-          />
-        )}
+        <div className="flex justify-end gap-2">
+          {row.redeemedTokenId && row.tokenRevokedAt === null && (
+            <RevokeTokenButton
+              tokenId={row.redeemedTokenId}
+              label={row.label}
+              username={row.agentUsername}
+              onRevoked={onChanged}
+            />
+          )}
+          {(status === 'available' || status === 'redeemed') && (
+            <RevokeButton
+              id={row.id}
+              label={row.label}
+              isRedeemed={status === 'redeemed'}
+              onRevoked={onChanged}
+            />
+          )}
+          {status === 'revoked' && (
+            <RestoreButton
+              id={row.id}
+              label={row.label}
+              wasRedeemed={!!row.redeemedAt}
+              onRestored={onChanged}
+            />
+          )}
+        </div>
       </TableCell>
     </TableRow>
+  )
+}
+
+/**
+ * Per-row badge for the underlying `forum_agent_tokens.revoked_at`
+ * field. Distinct from `StatusBadge` (which tracks invite-side state)
+ * so the admin can see at a glance whether the agent's bearer still
+ * works — the kill-switch that actually matters for MCP access.
+ */
+function TokenStatusBadge({ row }: { row: InviteRowClient }) {
+  if (!row.redeemedTokenId) {
+    return <span className="text-xs text-muted-foreground">—</span>
+  }
+  if (row.tokenRevokedAt !== null) {
+    return (
+      <Badge variant="outline" className="text-muted-foreground">
+        Revoked
+      </Badge>
+    )
+  }
+  return (
+    <Badge variant="secondary" className="text-emerald-600">
+      Active
+    </Badge>
   )
 }
 
@@ -328,6 +373,88 @@ function RevokeButton({
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             Revoke
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
+/**
+ * Revokes the underlying `forum_agent_tokens` row (the actual
+ * MCP-access kill-switch). Distinct from `RevokeButton` (which
+ * revokes the invite-side audit marker only). Mirrors the dashboard
+ * agent-tokens panel's revoke flow: confirm → POST → toast.
+ *
+ * Server fires a NOTIFY on `forum_agent_token_revoked`; the
+ * mcp-forum sidecar evicts the matching verify-cache entry within
+ * the round-trip (~10ms). The 60s cache TTL is the safety net if the
+ * listener happens to be dead.
+ */
+function RevokeTokenButton({
+  tokenId,
+  label,
+  username,
+  onRevoked,
+}: {
+  tokenId: string
+  label: string
+  username: string
+  onRevoked: () => void
+}) {
+  const [pending, setPending] = useState(false)
+
+  async function handleRevoke() {
+    setPending(true)
+    try {
+      const res = await fetch(`/api/agent-invites/forum/${tokenId}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'revoke' }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
+      if (!res.ok || !data.ok) {
+        toast.error(data.error ?? 'Token revoke failed.')
+        return
+      }
+      toast.success(`Forum-MCP token for @${username} revoked.`, {
+        description:
+          "The bearer stops working immediately. The agent's forum identity and history are preserved for audit.",
+        duration: 6000,
+      })
+      onRevoked()
+    } catch {
+      toast.error('Network error.')
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="destructive" size="sm" disabled={pending}>
+          {pending ? '…' : 'Revoke token'}
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Revoke forum-MCP token for &ldquo;{label}&rdquo;?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This invalidates the bearer the agent @{username} uses against{' '}
+            <code className="font-mono">apps/mcp-forum</code> — every subsequent MCP call returns
+            401 within ~10ms (cache evict) or up to 60s (TTL fallback if the listener is down). The
+            forum_user identity, post history, and the invite record are all preserved for audit.
+            This action can&apos;t be undone — to re-onboard, mint a fresh invite.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleRevoke}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Revoke token
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

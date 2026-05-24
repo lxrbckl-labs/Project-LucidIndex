@@ -13,8 +13,14 @@
 //   - comment_count (COUNT subquery on forum_comments)
 //   - topic_badge_names (aggregated join through forum_post_topics)
 //
-// Per-post detail (full body, full comment list) is the responsibility
-// of `read_post` — this listing is intentionally a feed view.
+// Filter params (all optional, AND-combined with cursor pagination):
+//   - since_created_at: only posts strictly after this ISO timestamp
+//   - author_username: only posts by this username (exact lowercase)
+//   - topic_badge_id: only posts carrying this badge
+//
+// Per-post detail (full body, full comment list) is the
+// responsibility of `read_post` — this listing is intentionally a
+// feed view.
 
 import { db } from '@lucidindex/db/client'
 import {
@@ -24,7 +30,7 @@ import {
   forumUsers,
   topicBadges,
 } from '@lucidindex/db/schema'
-import { and, desc, eq, inArray, lt, or, sql } from 'drizzle-orm'
+import { and, desc, eq, exists, gt, inArray, lt, or, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { logger } from '../logger.js'
 import { ToolError } from './errors.js'
@@ -37,6 +43,24 @@ export const listPostsInputShape = {
     .describe(
       'Opaque pagination cursor returned as `next_cursor` from a prior call. Omit for the first page.',
     ),
+  since_created_at: z
+    .string()
+    .datetime()
+    .optional()
+    .describe(
+      'Only return posts created strictly after this ISO timestamp. Use this to poll for new posts since your last successful pull instead of paginating the entire forum.',
+    ),
+  author_username: z
+    .string()
+    .optional()
+    .describe(
+      'Filter to posts by this username (exact lowercase match). Useful for watching a specific creator.',
+    ),
+  topic_badge_id: z
+    .string()
+    .uuid()
+    .optional()
+    .describe('Filter to posts carrying this topic badge.'),
 }
 
 const argsSchema = z.object(listPostsInputShape)
@@ -92,19 +116,72 @@ function decodeCursor(cursor: string): { createdAt: Date; id: string } {
 }
 
 export async function listPosts(args: ListPostsArgs): Promise<ListPostsOutput> {
-  const parsed = argsSchema.parse({ limit: args.limit, cursor: args.cursor })
+  const parsed = argsSchema.parse({
+    limit: args.limit,
+    cursor: args.cursor,
+    since_created_at: args.since_created_at,
+    author_username: args.author_username,
+    topic_badge_id: args.topic_badge_id,
+  })
   const limit = parsed.limit ?? DEFAULT_LIMIT
 
-  // Build the keyset-pagination predicate. We fetch `limit + 1` rows so
-  // we can tell whether there's a next page without a separate count
-  // query.
+  // Resolve `author_username` → forum_users.id up front so we can use
+  // it in the WHERE clause without an extra join condition. Unknown
+  // username yields an empty page (not an error) — pollers shouldn't
+  // crash if a creator they're watching gets renamed.
+  let authorIdFilter: string | null | undefined
+  if (parsed.author_username !== undefined) {
+    const rows = await db
+      .select({ id: forumUsers.id })
+      .from(forumUsers)
+      .where(eq(forumUsers.username, parsed.author_username))
+      .limit(1)
+    authorIdFilter = rows[0]?.id ?? null
+    if (authorIdFilter === null) {
+      // No user with that handle — return empty page immediately.
+      return { posts: [] }
+    }
+  }
+
+  // Build the keyset-pagination predicate. We fetch `limit + 1` rows
+  // so we can tell whether there's a next page without a separate
+  // count query.
   const cursor = parsed.cursor ? decodeCursor(parsed.cursor) : null
-  const whereClause = cursor
-    ? or(
+  const conditions: ReturnType<typeof and>[] = []
+  if (cursor) {
+    conditions.push(
+      or(
         lt(forumPosts.createdAt, cursor.createdAt),
         and(eq(forumPosts.createdAt, cursor.createdAt), lt(forumPosts.id, cursor.id)),
-      )
-    : undefined
+      ),
+    )
+  }
+  if (parsed.since_created_at !== undefined) {
+    const since = new Date(parsed.since_created_at)
+    conditions.push(gt(forumPosts.createdAt, since))
+  }
+  if (authorIdFilter !== undefined && authorIdFilter !== null) {
+    conditions.push(eq(forumPosts.authorId, authorIdFilter))
+  }
+  if (parsed.topic_badge_id !== undefined) {
+    // Use a correlated EXISTS subquery so the badge filter doesn't
+    // multiply the row count via the join (one post can carry many
+    // badges; a JOIN would duplicate the post per badge).
+    conditions.push(
+      exists(
+        db
+          .select({ one: sql<number>`1` })
+          .from(forumPostTopics)
+          .where(
+            and(
+              eq(forumPostTopics.postId, forumPosts.id),
+              eq(forumPostTopics.topicBadgeId, parsed.topic_badge_id),
+            ),
+          ),
+      ),
+    )
+  }
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined
 
   const rows = await db
     .select({
@@ -172,6 +249,9 @@ export async function listPosts(args: ListPostsArgs): Promise<ListPostsOutput> {
     username: args.username,
     returned: posts.length,
     has_next: hasNext,
+    filtered_since: parsed.since_created_at !== undefined,
+    filtered_author: parsed.author_username !== undefined,
+    filtered_topic: parsed.topic_badge_id !== undefined,
   })
 
   return out

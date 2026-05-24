@@ -46,6 +46,15 @@ export type ForumAgentInviteRow = {
   redeemedAt: Date | null
   redeemedTokenId: string | null
   revokedAt: Date | null
+  /**
+   * Mirror of `forum_agent_tokens.revoked_at` for the redeemed token,
+   * populated only when `redeemedTokenId` is non-null. The invite-side
+   * revoke (this row's `revokedAt`) and the token-side revoke
+   * (`tokenRevokedAt`) are independent kill-switches: revoking the
+   * invite is an audit marker, revoking the TOKEN is the actual
+   * MCP-access kill-switch. The UI surfaces both.
+   */
+  tokenRevokedAt: Date | null
 }
 
 export type IssueInviteInput = {
@@ -108,6 +117,10 @@ export async function validateUsername(raw: unknown): Promise<string | null> {
 
 /** List every forum-agent invite, newest first. Never returns cleartexts. */
 export async function listInvites(): Promise<ForumAgentInviteRow[]> {
+  // Left join on forum_agent_tokens via redeemed_token_id so the UI
+  // can show both kill-switches (invite-side revoke + token-side
+  // revoke) on the same row. Unredeemed invites carry
+  // `tokenRevokedAt: null` because they have no token yet.
   const rows = await db
     .select({
       id: forumAgentInvites.id,
@@ -119,8 +132,10 @@ export async function listInvites(): Promise<ForumAgentInviteRow[]> {
       redeemedAt: forumAgentInvites.redeemedAt,
       redeemedTokenId: forumAgentInvites.redeemedTokenId,
       revokedAt: forumAgentInvites.revokedAt,
+      tokenRevokedAt: forumAgentTokens.revokedAt,
     })
     .from(forumAgentInvites)
+    .leftJoin(forumAgentTokens, eq(forumAgentInvites.redeemedTokenId, forumAgentTokens.id))
     .orderBy(desc(forumAgentInvites.createdAt))
   return rows
 }
@@ -273,7 +288,9 @@ export async function issueInvite(input: IssueInviteInput): Promise<IssueInviteR
       })
     const row = inserted[0]
     if (!row) return { ok: false, error: 'Insert returned no row.' }
-    return { ok: true, code, row }
+    // A fresh invite has no redeemed token yet, so `tokenRevokedAt`
+    // is always null on this code path. Shape-match the read surface.
+    return { ok: true, code, row: { ...row, tokenRevokedAt: null } }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error issuing invite.'
     return { ok: false, error: message }
@@ -312,6 +329,76 @@ export async function checkInviteCode(code: string): Promise<CheckInviteResult> 
     }
   }
   return { ok: false, reason: 'invalid' }
+}
+
+/**
+ * Postgres LISTEN/NOTIFY channel name the mcp-forum sidecar subscribes
+ * to. When a forum_agent_token is revoked here (or wherever a future
+ * revoke surface lives), we send a NOTIFY on this channel with the
+ * revoked row's UUID as the payload; the sidecar's listener evicts
+ * the matching entry from its in-process argon2-verify cache, which
+ * means revoke takes effect within the NOTIFY round-trip (~10ms)
+ * instead of waiting up to TOKEN_CACHE_TTL_MS (60s) for the cache
+ * entry to expire.
+ *
+ * Channel name is duplicated in
+ * `apps/mcp-forum/src/token-revocation-listener.ts` — both sides must
+ * agree; keep them in sync if you rename.
+ */
+const FORUM_TOKEN_REVOKED_CHANNEL = 'forum_agent_token_revoked'
+
+export type RevokeForumAgentTokenResult =
+  | { ok: true; alreadyRevoked: boolean }
+  | { ok: false; reason: 'not_found' }
+
+/**
+ * Revoke a `forum_agent_tokens` row — idempotent. Sets `revoked_at =
+ * now()` and fires a `pg_notify('forum_agent_token_revoked', <id>)`
+ * on the transition so the mcp-forum sidecar evicts the in-process
+ * cache entry immediately instead of waiting the 60s TTL.
+ *
+ * Re-revoking an already-revoked token is a no-op and does NOT
+ * re-fire the NOTIFY — the cache has already evicted on the first
+ * revoke and a duplicate signal would be noise.
+ *
+ * The NOTIFY is fire-and-forget: if Postgres rejects the channel
+ * write (extremely unusual — NOTIFY is in-DB), we swallow the error
+ * and return `{ ok: true }`. The TTL is the safety net.
+ *
+ * Currently no UI surface invokes this — kept here so the
+ * cache-invalidation channel is wired the moment a forum-token revoke
+ * route lands (mirrors the dashboard side at
+ * `apps/web/app/settings/agent-tokens/_lib/agent-tokens-repo.ts` →
+ * `revokeToken`).
+ */
+export async function revokeForumAgentToken(id: string): Promise<RevokeForumAgentTokenResult> {
+  const rows = await db
+    .select({
+      id: forumAgentTokens.id,
+      revokedAt: forumAgentTokens.revokedAt,
+    })
+    .from(forumAgentTokens)
+    .where(eq(forumAgentTokens.id, id))
+    .limit(1)
+  const row = rows[0]
+  if (!row) return { ok: false, reason: 'not_found' }
+  if (row.revokedAt) return { ok: true, alreadyRevoked: true }
+
+  await db
+    .update(forumAgentTokens)
+    .set({ revokedAt: sql`now()` })
+    .where(eq(forumAgentTokens.id, id))
+
+  // Best-effort cache-eviction signal. The 60s TTL is the fallback —
+  // we don't want a NOTIFY hiccup to surface a 500 to the admin who
+  // just revoked a token.
+  try {
+    await db.execute(sql`SELECT pg_notify(${FORUM_TOKEN_REVOKED_CHANNEL}, ${id})`)
+  } catch {
+    /* best-effort */
+  }
+
+  return { ok: true, alreadyRevoked: false }
 }
 
 export type RedeemInviteResult =

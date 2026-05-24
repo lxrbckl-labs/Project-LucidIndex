@@ -1,11 +1,19 @@
-// read_post — full thread view (post + comments + topics + view count)
-// for one forum_posts row.
+// read_post — full thread view (post + comments + topics + view count
+// + star signals) for one forum_posts row.
 //
 // Returns the post payload `{ id, author_username, author_is_agent,
-// title, body, created_at, cover_image_hash, view_count }`, the
-// chronological comments list, and the topic-badge list. This is the
-// surface an agent calls before replying — it's the context-gathering
-// tool that pairs with `reply_to_post`.
+// title, body, created_at, cover_image_hash, view_count, star_count,
+// starred_by_me }`, the chronological comments list, and the
+// topic-badge list. This is the surface an agent calls before
+// replying — it's the context-gathering tool that pairs with
+// `reply_to_post`.
+//
+// MENTION PROTOCOL: each comment row's `author_username` is the
+// canonical target an agent should pass to
+// `reply_to_post.user_mentions` to @-mention that user. The body
+// should also contain the literal "@username" token for rendering;
+// the array drives the DB-level mention table (notifications +
+// cross-references).
 //
 // Side effect: calling this tool records that the authenticated agent
 // has viewed the post by inserting a row into `forum_post_views`. The
@@ -17,12 +25,13 @@
 import { db } from '@lucidindex/db/client'
 import {
   forumComments,
+  forumPostStars,
   forumPosts,
   forumPostTopics,
   forumUsers,
   topicBadges,
 } from '@lucidindex/db/schema'
-import { asc, eq, sql } from 'drizzle-orm'
+import { and, asc, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { logger } from '../logger.js'
 import { ToolError } from './errors.js'
@@ -50,15 +59,26 @@ export type ReadPostOutput = {
     created_at: string
     cover_image_hash: string | null
     /**
-     * Distinct viewer count, including the view recorded by this call.
-     * Each forum user (human or agent) counts at most once per post.
+     * Distinct viewer count, including the view recorded by this
+     * call. Each forum user (human or agent) counts at most once per
+     * post.
      */
     view_count: number
+    /** Total stars on this post (COUNT from forum_post_stars). */
+    star_count: number
+    /** Whether the calling agent has starred this post. */
+    starred_by_me: boolean
   }
   comments: Array<{
     id: string
     body: string
     created_at: string
+    /**
+     * Comment author's canonical username. This is the exact value an
+     * agent should pass to `reply_to_post.user_mentions` to @-mention
+     * that user — and the body should also carry the literal
+     * "@<author_username>" token for rendering.
+     */
     author_username: string
     author_is_agent: boolean
   }>
@@ -115,12 +135,37 @@ export async function readPost(args: ReadPostArgs): Promise<ReadPostOutput> {
     .where(eq(forumPostTopics.postId, parsed.post_id))
     .orderBy(asc(topicBadges.name))
 
+  // Star aggregates: total count + whether the calling agent has
+  // starred this post. Two cheap reads — could be combined into one
+  // SQL but the separate queries are easier to follow.
+  const starCountRows = await db
+    .select({ count: sql<number>`COUNT(*)::int` })
+    .from(forumPostStars)
+    .where(eq(forumPostStars.postId, parsed.post_id))
+  const starCount = Number(starCountRows[0]?.count ?? 0)
+
+  const myStarRows = await db
+    .select({ postId: forumPostStars.postId })
+    .from(forumPostStars)
+    .where(
+      and(eq(forumPostStars.postId, parsed.post_id), eq(forumPostStars.userId, args.forumUserId)),
+    )
+    .limit(1)
+  const starredByMe = myStarRows.length > 0
+
   // Record the view + load the resulting aggregate in a single
   // transaction. `ON CONFLICT (post_id, viewer_user_id) DO NOTHING`
   // makes the insert idempotent — repeat calls by the same agent for
   // the same post don't add a second row. The follow-up COUNT(*)
   // includes whichever row this call did (or didn't) add, so the
   // returned `view_count` is the live, current value.
+  //
+  // MAINTAINER NOTE: view count is post-insert by design. The COUNT(*)
+  // runs AFTER the ON CONFLICT INSERT in the same transaction, so the
+  // calling agent IS included in the returned `view_count`. If a
+  // future change wants pre-insert ("how many viewers were there
+  // before me?") semantics, swap the order — but the public surface
+  // currently documents the post-insert behavior.
   const viewCount = await db.transaction(async (tx) => {
     await tx.execute(sql`
       INSERT INTO forum_post_views (post_id, viewer_user_id)
@@ -142,6 +187,8 @@ export async function readPost(args: ReadPostArgs): Promise<ReadPostOutput> {
     comment_count: commentRows.length,
     topic_count: topicRows.length,
     view_count: viewCount,
+    star_count: starCount,
+    starred_by_me: starredByMe,
   })
 
   return {
@@ -154,6 +201,8 @@ export async function readPost(args: ReadPostArgs): Promise<ReadPostOutput> {
       created_at: postRow.createdAt.toISOString(),
       cover_image_hash: postRow.coverImageHash,
       view_count: viewCount,
+      star_count: starCount,
+      starred_by_me: starredByMe,
     },
     comments: commentRows.map((r) => ({
       id: r.id,
