@@ -3,23 +3,22 @@
 // Verifies the caller holds the claim (claimed_by == agent_token_id), then:
 //   - Sets queue.acked_at = now()
 //   - Clears claimed_by / locked_until (so retries on failure are possible)
-//   - Updates the run_log row created by write_articles, OR inserts a fresh
-//     run_log row if the agent never called write_articles
+//   - UPDATEs the in_progress run_log row created by pull_queue_item to a
+//     terminal status, OR (legacy fallback) inserts a fresh terminal
+//     run_log row if none exists
 //   - Updates targets.last_run_status / last_run_at / last_run_failure_reason
 //   - Optionally bumps targets.high_water_mark
 //
-// run_log timing — flow change (was: created here; now: created by
-// write_articles, see write-articles.ts header):
-//
-// `articles` rows reference `run_log.id` via a non-null FK, so the row
-// must exist before any article inserts. write_articles is now the
-// authoritative creator of the run_log row (status='succeeded' on
-// creation). ack_queue_item:
-//   - if a run_log row already exists for this queue_item — promote /
-//     adjust its terminal status (a 'failed' ack overwrites the optimistic
-//     'succeeded' set by write_articles);
-//   - otherwise (no write_articles call happened) — insert a fresh
-//     run_log row with articles_count = 0.
+// run_log lifecycle (audit round 8, migration 0034):
+//   - pull_queue_item INSERTs at claim time with status='in_progress',
+//     started_at=now(), completed_at=NULL.
+//   - write_articles UPDATEs articles_count as it goes.
+//   - ack_queue_item (this file) flips status → 'succeeded' | 'failed',
+//     recomputes articles_count from the actual articles table, and
+//     stamps completed_at=now(). The row WILL exist for any queue item
+//     claimed after migration 0034. The legacy fallback that INSERTs a
+//     fresh terminal row stays in place for resilience (e.g. a pre-0034
+//     queue claim that's only now being acked, or a manual DB poke).
 //
 // articles_count is recomputed authoritatively here from the actual
 // articles row count tied to the run_log_id, so it stays correct even
@@ -31,7 +30,7 @@
 
 import { db } from '@lucidindex/db/client'
 import { articles, queue, runLog, targets } from '@lucidindex/db/schema'
-import { eq, sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { ToolError } from './index.js'
 
@@ -109,17 +108,29 @@ export async function ackQueueItem(args: AckQueueItemArgs): Promise<AckQueueItem
   let persistedHwm: unknown = null
 
   await db.transaction(async (tx) => {
-    // Locate the run_log row write_articles created (if any).
+    // Locate the run_log row pull_queue_item created at claim time. Match
+    // on BOTH (queue_item_id, agent_token_id) — the UNIQUE constraint
+    // (migration 0032) keys on the same pair, and matching only on
+    // queue_item_id could (after a reaper-released retry by a different
+    // agent) surface a row owned by some other token.
     const existingRunLog = (
       await tx
         .select({ id: runLog.id })
         .from(runLog)
-        .where(eq(runLog.queueItemId, args.queue_item_id))
+        .where(
+          and(
+            eq(runLog.queueItemId, args.queue_item_id),
+            eq(runLog.agentTokenId, args.agentTokenId),
+          ),
+        )
         .limit(1)
     )[0]
 
     if (existingRunLog) {
-      // Recount articles authoritatively for this run_log row.
+      // Common path (any claim made post-0034). Recount articles
+      // authoritatively for this run_log row, flip status to terminal,
+      // stamp completed_at. started_at stays as pull-time — set by
+      // pull_queue_item.
       const counts = await tx
         .select({ c: sql<number>`count(*)::int` })
         .from(articles)
@@ -133,12 +144,21 @@ export async function ackQueueItem(args: AckQueueItemArgs): Promise<AckQueueItem
           failureReason: args.failure_reason ?? null,
           articlesCount,
           completedAt: now,
-          agentTokenId: args.agentTokenId,
         })
         .where(eq(runLog.id, existingRunLog.id))
     } else {
-      // No write_articles call was made — insert a fresh terminal run_log
-      // row with articles_count = 0.
+      // Legacy / defensive fallback. With migration 0034 + the
+      // pull_queue_item insert, this path should not normally fire — the
+      // row exists from claim time. Possible triggers: a queue row
+      // claimed BEFORE migration 0034 landed, a manual DB poke, or the
+      // pull_queue_item run_log insert silently failing somehow. We
+      // insert a fresh terminal row so the ack still completes cleanly.
+      //
+      // `started_at = now()` here is the best proxy when no real
+      // pull-time was recorded — better than the pre-0034 `q.enqueuedAt`
+      // (the 8-day bug). The resulting row's started_at ≈ completed_at
+      // (zero duration), which honestly reflects "we have no evidence
+      // the agent did meaningful work for any meaningful time."
       articlesCount = 0
       await tx.insert(runLog).values({
         targetId: q.targetId,
@@ -147,7 +167,7 @@ export async function ackQueueItem(args: AckQueueItemArgs): Promise<AckQueueItem
         status: args.status,
         failureReason: args.failure_reason ?? null,
         articlesCount: 0,
-        startedAt: q.enqueuedAt,
+        startedAt: now,
         completedAt: now,
       })
     }

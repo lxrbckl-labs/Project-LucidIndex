@@ -19,21 +19,21 @@
 //   - Failure (any reason) does NOT block the article write — log and
 //     skip with `hero_image_hash = null`.
 //
-// run_log timing — flow change:
-// ----------------------------
-// Before #43, `ack_queue_item` created the run_log row. But articles need
-// a non-null `run_log_id`, so write_articles created an INTERIM run_log
-// row with sentinel status `succeeded` and ack_queue_item promoted it.
-// That worked but the sentinel was awkward.
+// run_log timing — flow (audit round 8, migration 0034):
+// -------------------------------------------------------
+// `pull_queue_item` is now the authoritative creator of the run_log row.
+// It INSERTs at CLAIM time with status='in_progress', started_at=now(),
+// completed_at=NULL. That makes `started_at` an honest pull-time
+// timestamp — previously it was "first-write-time" (this file), N
+// seconds or even minutes after the claim once the agent had finished
+// researching.
 //
-// With #43: write_articles still creates the run_log row first (FK still
-// requires it), but does so cleanly — status='succeeded' with
-// articles_count populated as we go. The "promotion" in ack_queue_item is
-// now an UPDATE that adjusts the terminal status if the run actually
-// failed (or otherwise leaves the row untouched).
-//
-// If write_articles never runs (failed-pass scenario), ack_queue_item
-// inserts a fresh run_log row with articles_count=0 — same as before.
+// This file's job is to UPDATE that row's `articles_count` as it goes.
+// Defensive fallback: if for any reason the row is missing (a queue row
+// claimed BEFORE migration 0034 lands, or a manual DB poke), we
+// recreate it with status='in_progress' so the FK from `articles.run_log_id`
+// resolves. `ack_queue_item` then flips status → 'succeeded' | 'failed'
+// and stamps completed_at.
 //
 // #65 deterministic slugs: slug generation now lives in
 // `@lucidindex/shared/slug` so the article-page route and the write
@@ -274,59 +274,66 @@ export async function writeArticles(args: WriteArticlesArgs): Promise<WriteArtic
     }
   }
 
-  // ---- run_log row creation (see file header for the timing change) ----
+  // ---- run_log row lookup (see file header for the lifecycle) ----
   //
-  // Find or create. Idempotent: a previous write_articles for this same
-  // queue_item_id + agent reuses its run_log row so articles_count keeps
-  // accumulating across calls (rare, but possible).
+  // `pull_queue_item` created the in_progress run_log row at claim time
+  // (migration 0034 + audit round 8). Look it up here so articles can
+  // reference it via the non-null FK. We don't UPDATE started_at — the
+  // pull-time timestamp is the canonical one.
   //
-  // Audit round 6 — duplicate-insert race: a plain SELECT-then-INSERT
-  // race is possible when two concurrent `write_articles` calls from
-  // the same agent on the same queue item both miss the SELECT and both
-  // INSERT. Migration 0032 added a UNIQUE on (queue_item_id,
-  // agent_token_id); we now do `INSERT ... ON CONFLICT DO NOTHING
-  // RETURNING id`. If RETURNING comes back empty the conflict fired —
-  // re-SELECT to get the winning row's id.
-  const now = new Date()
+  // Defensive fallback: if the row is missing — queue claimed BEFORE
+  // migration 0034 landed, or a manual DB poke — we INSERT it now with
+  // status='in_progress' so the FK resolves and the run still completes
+  // cleanly. ack_queue_item then promotes it to a terminal status.
+  // Concurrent-writer race covered by ON CONFLICT DO NOTHING against the
+  // (queue_item_id, agent_token_id) UNIQUE (migration 0032).
   let runLogId: string
-  const inserted = await db
-    .insert(runLog)
-    .values({
-      targetId: q.targetId,
-      queueItemId: q.id,
-      agentTokenId: args.agentTokenId,
-      // 'succeeded' is the optimistic terminal status. ack_queue_item
-      // overwrites this if the run is acked as 'failed'.
-      status: 'succeeded',
-      articlesCount: 0,
-      startedAt: q.enqueuedAt,
-      completedAt: now,
-    })
-    .onConflictDoNothing({ target: [runLog.queueItemId, runLog.agentTokenId] })
-    .returning({ id: runLog.id })
-
-  if (inserted.length > 0) {
-    // biome-ignore lint/style/noNonNullAssertion: just inserted one row
-    runLogId = inserted[0]!.id
-  } else {
-    // Conflict fired — another concurrent writer (or a prior call from
-    // this agent) already created the row. Re-SELECT to fetch its id.
-    const existingRunLog = await db
-      .select({ id: runLog.id })
-      .from(runLog)
-      .where(and(eq(runLog.queueItemId, q.id), eq(runLog.agentTokenId, args.agentTokenId)))
-      .limit(1)
-    if (existingRunLog.length === 0) {
-      // Defensive: ON CONFLICT fired but the row also isn't visible to
-      // our snapshot. Should be effectively impossible under READ
-      // COMMITTED, but surface a clean error instead of a NaN id.
-      throw new ToolError(
-        'internal_error',
-        'run_log find-or-create: ON CONFLICT fired but re-SELECT returned no rows.',
-      )
-    }
+  const existingRunLog = await db
+    .select({ id: runLog.id })
+    .from(runLog)
+    .where(and(eq(runLog.queueItemId, q.id), eq(runLog.agentTokenId, args.agentTokenId)))
+    .limit(1)
+  if (existingRunLog.length > 0) {
     // biome-ignore lint/style/noNonNullAssertion: length-checked above
     runLogId = existingRunLog[0]!.id
+  } else {
+    // Fallback path. `started_at = now()` here is still better than the
+    // pre-0034 `q.enqueuedAt` (the 8-day bug) — we don't have the real
+    // pull-time to fall back on in this path, so now() is the best proxy.
+    const now = new Date()
+    const inserted = await db
+      .insert(runLog)
+      .values({
+        targetId: q.targetId,
+        queueItemId: q.id,
+        agentTokenId: args.agentTokenId,
+        status: 'in_progress',
+        articlesCount: 0,
+        startedAt: now,
+        completedAt: null,
+      })
+      .onConflictDoNothing({ target: [runLog.queueItemId, runLog.agentTokenId] })
+      .returning({ id: runLog.id })
+    if (inserted.length > 0) {
+      // biome-ignore lint/style/noNonNullAssertion: just inserted one row
+      runLogId = inserted[0]!.id
+    } else {
+      // Conflict fired — a concurrent writer (or a slow pull-queue-item
+      // we raced with) created the row first. Re-SELECT it.
+      const reSelect = await db
+        .select({ id: runLog.id })
+        .from(runLog)
+        .where(and(eq(runLog.queueItemId, q.id), eq(runLog.agentTokenId, args.agentTokenId)))
+        .limit(1)
+      if (reSelect.length === 0) {
+        throw new ToolError(
+          'internal_error',
+          'run_log find-or-create: ON CONFLICT fired but re-SELECT returned no rows.',
+        )
+      }
+      // biome-ignore lint/style/noNonNullAssertion: length-checked above
+      runLogId = reSelect[0]!.id
+    }
   }
 
   // ====================================================================

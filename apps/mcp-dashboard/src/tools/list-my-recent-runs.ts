@@ -9,8 +9,8 @@
 // "this caller" over stdio (no auth context).
 
 import { db } from '@lucidindex/db/client'
-import { runLog, targets } from '@lucidindex/db/schema'
-import { and, desc, eq } from 'drizzle-orm'
+import { queue, runLog, targets } from '@lucidindex/db/schema'
+import { and, desc, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 
 const DEFAULT_LIMIT = 50
@@ -43,11 +43,30 @@ export type ListMyRecentRunsResult = {
     target_id: string
     target_label: string
     queue_item_id: string
-    status: 'succeeded' | 'failed'
+    /**
+     * `in_progress` was added in migration 0034 / audit round 8 — it
+     * surfaces here for runs whose queue item the agent has claimed but
+     * has not yet acked (between pull_queue_item and ack_queue_item).
+     * Terminal values stay `succeeded` | `failed`.
+     */
+    status: 'in_progress' | 'succeeded' | 'failed'
     articles_count: number
     failure_reason: string | null
     started_at: string
-    completed_at: string
+    /**
+     * Nullable: in_progress runs (post-pull / pre-ack) have no
+     * completion timestamp yet. Becomes a non-null ISO string once
+     * `ack_queue_item` flips the status to a terminal value.
+     */
+    completed_at: string | null
+    /**
+     * Mirror of `queue.attempt_count` for this run's queue row at the
+     * time the run completed. Surfaced so agents reviewing their own
+     * history can spot flapping rows (high attempt counts indicate the
+     * reaper repeatedly released the claim) without a second tool call.
+     * Audit round 7.
+     */
+    attempt_count: number
   }[]
 }
 
@@ -60,6 +79,11 @@ export async function listMyRecentRuns(
     ? and(eq(runLog.agentTokenId, input.agentTokenId), eq(runLog.targetId, input.target_id))
     : eq(runLog.agentTokenId, input.agentTokenId)
 
+  // Inner-join on `queue` is safe: every run_log row references a queue
+  // row via the non-null FK (run_log.queue_item_id → queue.id), so the
+  // inner join never drops rows. We pick up `attempt_count` from the
+  // queue row at read-time; the reaper does not reset it, so the value
+  // is monotonically non-decreasing across retries for the same row.
   const rows = await db
     .select({
       id: runLog.id,
@@ -71,11 +95,18 @@ export async function listMyRecentRuns(
       failureReason: runLog.failureReason,
       startedAt: runLog.startedAt,
       completedAt: runLog.completedAt,
+      attemptCount: queue.attemptCount,
     })
     .from(runLog)
     .leftJoin(targets, eq(runLog.targetId, targets.id))
+    .innerJoin(queue, eq(runLog.queueItemId, queue.id))
     .where(where)
-    .orderBy(desc(runLog.completedAt))
+    // ORDER BY coalesce(completed_at, started_at) DESC so in_progress
+    // rows (completed_at = NULL post-0034) sort next to their pull time
+    // and stay visible at the top of the list while the run is active.
+    // Without the coalesce, NULLs sort LAST under Postgres's default
+    // and active runs would vanish off the bottom.
+    .orderBy(desc(sql`coalesce(${runLog.completedAt}, ${runLog.startedAt})`))
     .limit(limit)
 
   return {
@@ -87,13 +118,18 @@ export async function listMyRecentRuns(
       // the return shape stable.
       target_label: r.targetLabel ?? '',
       queue_item_id: r.queueItemId,
-      // run_log.status is CHECK-constrained to ('succeeded' | 'failed'),
+      // run_log.status is CHECK-constrained to
+      // ('in_progress' | 'succeeded' | 'failed') as of migration 0034,
       // so this cast is safe.
-      status: r.status as 'succeeded' | 'failed',
+      status: r.status as 'in_progress' | 'succeeded' | 'failed',
       articles_count: r.articlesCount,
       failure_reason: r.failureReason,
       started_at: r.startedAt.toISOString(),
-      completed_at: r.completedAt.toISOString(),
+      // Nullable as of migration 0034 — in_progress runs have no
+      // completion timestamp yet. Surface null directly so consumers can
+      // detect active runs without re-checking `status`.
+      completed_at: r.completedAt ? r.completedAt.toISOString() : null,
+      attempt_count: r.attemptCount,
     })),
   }
 }

@@ -49,9 +49,21 @@
 // ack it or extend the lock). The release UPDATE includes a
 // `claimed_by = $ctx.agentTokenId` guard so we never race the reaper
 // into wiping another agent's claim.
+//
+// Audit round 8 (`started_at` true pull-time semantics, migration 0034):
+// after the atomic claim and BEFORE returning, this tool now INSERTs a
+// `run_log` row with `status='in_progress'`, `started_at=now()`,
+// `completed_at=NULL`. That makes `started_at` an honest pull-time
+// timestamp instead of "first-write-time" (which was N seconds — or
+// minutes — later, while the agent researched). `write_articles` UPDATEs
+// `articles_count` on that row as it goes; `ack_queue_item` flips
+// `status` to 'succeeded' | 'failed' and stamps `completed_at`. If the
+// claim-release path fires (bad template / missing metadata), it ALSO
+// deletes the freshly-inserted run_log row in the same transaction so
+// we don't strand an orphan 'in_progress' row.
 
 import { db } from '@lucidindex/db/client'
-import { promptTemplates, queue, targets } from '@lucidindex/db/schema'
+import { promptTemplates, queue, runLog, targets } from '@lucidindex/db/schema'
 import { and, eq, sql } from 'drizzle-orm'
 import env from '../env.js'
 import { renderPromptBody } from '../lib/liquid-render.js'
@@ -144,6 +156,57 @@ export async function pullQueueItem(args: PullQueueItemArgs): Promise<PullQueueI
   // biome-ignore lint/style/noNonNullAssertion: length-checked above
   const claimed = rows[0]!
 
+  // Audit round 8 — create the run_log row at PULL TIME so `started_at`
+  // is the honest claim timestamp (not "first-write-time", which can be
+  // 30s–N-minutes later depending on how long the agent researches before
+  // calling `write_articles`).
+  //
+  // status='in_progress' (added to the CHECK by migration 0034);
+  // completed_at=NULL (nullable as of 0034) — `ack_queue_item` stamps the
+  // terminal status + completed_at later.
+  //
+  // ON CONFLICT DO NOTHING: the (queue_item_id, agent_token_id) UNIQUE
+  // (migration 0032) guards against a hypothetical re-claim by the same
+  // agent — extraordinary but cheap to defend. If the conflict fires,
+  // we silently reuse the existing row; the agent doesn't notice and
+  // write_articles / ack_queue_item still find it.
+  const pulledAt = new Date()
+  try {
+    await db
+      .insert(runLog)
+      .values({
+        targetId: claimed.target_id,
+        queueItemId: claimed.id,
+        agentTokenId: args.agentTokenId,
+        status: 'in_progress',
+        articlesCount: 0,
+        startedAt: pulledAt,
+        completedAt: null,
+      })
+      .onConflictDoNothing({ target: [runLog.queueItemId, runLog.agentTokenId] })
+  } catch (insertErr) {
+    // Defensive: a run_log insert failure shouldn't strand a claim. Roll
+    // back the claim before re-throwing so the row goes back into rotation.
+    const message = insertErr instanceof Error ? insertErr.message : String(insertErr)
+    logger.error('pull_queue_item_run_log_insert_failed', {
+      queue_item_id: claimed.id,
+      message,
+    })
+    try {
+      await db
+        .update(queue)
+        .set({
+          claimedBy: null,
+          lockedUntil: null,
+          attemptCount: sql`${queue.attemptCount} - 1`,
+        })
+        .where(and(eq(queue.id, claimed.id), eq(queue.claimedBy, args.agentTokenId)))
+    } catch {
+      // swallow — reaper will catch it
+    }
+    throw new ToolError('internal_error', `Failed to record run_log row at pull time: ${message}`)
+  }
+
   // Second query: pull the joined target + template metadata for the
   // response payload. The atomic UPDATE above already locked the row
   // for us, so this is a plain read.
@@ -153,6 +216,13 @@ export async function pullQueueItem(args: PullQueueItemArgs): Promise<PullQueueI
   // release, a bad template would hold the row locked until the reaper
   // times it out, even though the agent never received the queue_item_id
   // (so it can't extend the lock or ack it).
+  //
+  // Audit round 8: the release path now ALSO deletes the run_log row
+  // we just inserted above. We only delete if the row has no `articles`
+  // hanging off it (it shouldn't — we're between INSERT and any
+  // write_articles call — but the FK-safe check is cheap insurance).
+  // The DELETE is guarded by (queue_item_id, agent_token_id) so we never
+  // wipe a row owned by another agent.
   try {
     const meta = await db
       .select({
@@ -222,7 +292,10 @@ export async function pullQueueItem(args: PullQueueItemArgs): Promise<PullQueueI
       // claimed.locked_until is set by the same statement as the claim, so
       // it's the authoritative lock expiry — we report it back rather than
       // recomputing from the local clock.
-      pulled_at: new Date().toISOString(),
+      // Use the same `pulledAt` we wrote into run_log.started_at so the
+      // value the agent sees matches what `list_my_recent_runs` will
+      // report. Both end up within 1–2 seconds of the claim UPDATE.
+      pulled_at: pulledAt.toISOString(),
       lock_expires_at: new Date(claimed.locked_until).toISOString(),
     }
   } catch (err) {
@@ -236,6 +309,14 @@ export async function pullQueueItem(args: PullQueueItemArgs): Promise<PullQueueI
     // real attempt from their perspective. Decrement it back here so a
     // bad template / missing metadata doesn't burn the attempt budget
     // and trigger spurious back-off / escalation on the next pull.
+    //
+    // Audit round 8: also DELETE the in_progress run_log row we just
+    // inserted at claim time. It has no articles hanging off it (we're
+    // between INSERT and any write_articles call), so the delete is
+    // FK-safe. Guard on (queue_item_id, agent_token_id) so we never wipe
+    // a row that some other unrelated path created. The two operations
+    // are independent — even if one fails, the other should still
+    // attempt — so we wrap each in its own try.
     try {
       await db
         .update(queue)
@@ -251,6 +332,24 @@ export async function pullQueueItem(args: PullQueueItemArgs): Promise<PullQueueI
       logger.error('pull_queue_item_claim_release_failed', {
         queue_item_id: claimed.id,
         message: releaseErr instanceof Error ? releaseErr.message : String(releaseErr),
+      })
+    }
+    try {
+      await db
+        .delete(runLog)
+        .where(
+          and(
+            eq(runLog.queueItemId, claimed.id),
+            eq(runLog.agentTokenId, args.agentTokenId),
+            eq(runLog.status, 'in_progress'),
+          ),
+        )
+    } catch (deleteErr) {
+      // Best-effort cleanup. If this fails the row remains as a stale
+      // 'in_progress' — the reaper will sweep it on its next tick.
+      logger.error('pull_queue_item_run_log_cleanup_failed', {
+        queue_item_id: claimed.id,
+        message: deleteErr instanceof Error ? deleteErr.message : String(deleteErr),
       })
     }
     throw err
