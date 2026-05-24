@@ -33,7 +33,7 @@
  */
 
 import { db } from '@lucidindex/db/client'
-import { and, desc, eq, sql } from '@lucidindex/db/query'
+import { and, desc, eq, isNull, sql } from '@lucidindex/db/query'
 import { agentTokens, articles, targets } from '@lucidindex/db/schema'
 import { generateSlug } from '@lucidindex/shared/slug'
 import type { MockArticle } from '@/app/_mock/articles'
@@ -113,7 +113,7 @@ export async function loadCreatorBySlug(slug: string): Promise<CreatorViewModel 
       createdAt: targets.createdAt,
     })
     .from(targets)
-    .where(eq(targets.slug, null as unknown as string))
+    .where(isNull(targets.slug))
 
   for (const t of nullSlugRows) {
     const candidate = generateSlug(t.label, t.createdAt)
@@ -122,7 +122,7 @@ export async function loadCreatorBySlug(slug: string): Promise<CreatorViewModel 
       await db
         .update(targets)
         .set({ slug: candidate })
-        .where(and(eq(targets.id, t.id), eq(targets.slug, null as unknown as string)))
+        .where(and(eq(targets.id, t.id), isNull(targets.slug)))
       return {
         id: t.id,
         label: t.label,

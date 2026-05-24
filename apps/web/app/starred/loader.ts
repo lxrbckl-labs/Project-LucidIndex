@@ -36,6 +36,7 @@ export async function loadStarredArticles(): Promise<MockArticle[]> {
       agentLabel: agentTokens.label,
       creatorLabel: targets.label,
       creatorSlug: targets.slug,
+      targetCreatedAt: targets.createdAt,
       reasonablenessRating: articles.reasonablenessRating,
       crossSource: articles.crossSource,
       citations: articles.citations,

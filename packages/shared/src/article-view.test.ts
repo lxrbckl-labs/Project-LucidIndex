@@ -104,6 +104,7 @@ describe('mapArticleRowToCard', () => {
     agentLabel: 'compute-watch',
     creatorLabel: 'Web Graphics Lab',
     creatorSlug: 'web-graphics-lab',
+    targetCreatedAt: new Date('2026-01-01T00:00:00Z'),
     reasonablenessRating: 8,
     crossSource: [{ title: 'X', source_url: 'https://x/y' }],
     citations: [],

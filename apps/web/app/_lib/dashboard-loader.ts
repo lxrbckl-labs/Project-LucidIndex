@@ -121,6 +121,7 @@ export async function loadDashboardArticles(
       agentLabel: agentTokens.label,
       creatorLabel: targets.label,
       creatorSlug: targets.slug,
+      targetCreatedAt: targets.createdAt,
       reasonablenessRating: articles.reasonablenessRating,
       crossSource: articles.crossSource,
       citations: articles.citations,

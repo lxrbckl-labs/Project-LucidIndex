@@ -1,3 +1,5 @@
+import { generateSlug } from './slug.js'
+
 /**
  * Pure view-mapping helpers shared between dashboard / creator / article
  * loaders.
@@ -134,6 +136,9 @@ export type ArticleCardRow = {
   agentLabel: string | null
   creatorLabel: string | null
   creatorSlug: string | null
+  /** `targets.created_at` — used to deterministically compute the creator slug
+   * when `targets.slug` is still null (lazy backfill hasn't run yet). */
+  targetCreatedAt: Date | null
   reasonablenessRating: number | null
   crossSource: unknown
   citations: unknown
@@ -263,7 +268,14 @@ export function mapArticleRowToCard(row: ArticleCardRow): ArticleCardView {
     heroImageUrl: heroImageUrlFromHash(row.heroImageHash),
     agentLabel: row.agentLabel ?? 'unknown',
     ...(row.creatorLabel ? { creatorLabel: row.creatorLabel } : {}),
-    ...(row.creatorSlug ? { creatorSlug: row.creatorSlug } : {}),
+    ...(() => {
+      const creatorSlug =
+        row.creatorSlug ??
+        (row.creatorLabel && row.targetCreatedAt
+          ? generateSlug(row.creatorLabel, row.targetCreatedAt)
+          : null)
+      return creatorSlug ? { creatorSlug } : {}
+    })(),
     readMinutes: estimateCardReadMinutes(row.summary),
     reasonablenessRating: row.reasonablenessRating,
     crossSource: decodeCrossSource(row.crossSource),

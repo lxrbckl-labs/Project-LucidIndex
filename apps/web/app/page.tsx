@@ -108,9 +108,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
 
   const badgeOptions = badgeNames.map((name) => ({ name }))
 
-  // Compute topic-focus card metadata (cheap, in-memory from the already-loaded articles list)
+  // Compute topic-focus card metadata (cheap, in-memory from the already-loaded articles list).
+  // Use creatorLabel as the author key when present, falling back to creatorSlug —
+  // counting on creatorSlug alone produced 0 when targets had a label but no slug.
   const topicFocusCreatorCount = new Set(
-    articles.map((a) => (a as { creatorSlug?: string }).creatorSlug).filter(Boolean),
+    articles
+      .map((a) => {
+        const x = a as { creatorLabel?: string; creatorSlug?: string }
+        return x.creatorLabel ?? x.creatorSlug ?? null
+      })
+      .filter((v): v is string => Boolean(v)),
   ).size
 
   return (

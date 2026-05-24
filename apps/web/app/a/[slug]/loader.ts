@@ -24,6 +24,7 @@
 import { db } from '@lucidindex/db/client'
 import { eq } from '@lucidindex/db/query'
 import { agentTokens, articles, targets } from '@lucidindex/db/schema'
+import { generateSlug } from '@lucidindex/shared/slug'
 import { findMockArticleBySlug, getMockCreatedAt, mockArticles } from '@/app/_mock/articles'
 
 const MOCK_MODE = process.env.LUCIDINDEX_MOCK === '1'
@@ -157,6 +158,7 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
       agentLabel: agentTokens.label,
       creatorLabel: targets.label,
       creatorSlug: targets.slug,
+      targetCreatedAt: targets.createdAt,
       reasonablenessRating: articles.reasonablenessRating,
       crossSource: articles.crossSource,
       citations: articles.citations,
@@ -230,7 +232,11 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
     heroImageUrl,
     agentLabel: row.agentLabel ?? 'unknown',
     creatorLabel: row.creatorLabel ?? null,
-    creatorSlug: row.creatorSlug ?? null,
+    creatorSlug:
+      row.creatorSlug ??
+      (row.creatorLabel && row.targetCreatedAt
+        ? generateSlug(row.creatorLabel, row.targetCreatedAt)
+        : null),
     reasonablenessRating: row.reasonablenessRating ?? null,
     crossSource,
     citations,

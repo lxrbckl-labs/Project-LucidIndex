@@ -157,7 +157,7 @@ function CreatorPageLayout({
   return (
     <div className="min-h-screen bg-background">
       <TopNav />
-      <main className="px-4 pb-4">{children}</main>
+      <main className="px-4 pt-4 pb-4">{children}</main>
       <SiteFooter />
     </div>
   )
