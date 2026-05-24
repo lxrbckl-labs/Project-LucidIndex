@@ -26,6 +26,7 @@ import {
   forumComments,
   forumPostEdits,
   forumPostImages,
+  forumPostStars,
   forumPosts,
   forumPostTopics,
   forumPostUserMentions,
@@ -66,6 +67,12 @@ export default async function PostViewPage({ params }: PageProps) {
   if (!UUID_RE.test(id)) notFound()
 
   // Post + author in one round-trip.
+  // `starredByMe` is resolved here rather than in the parallel block
+  // below because `viewerId` is available at this point and this keeps
+  // the correlated subquery in the same query as the post row.
+  const session = await getForumSession()
+  const viewerId = session?.forumUserId ?? null
+
   const postRows = await db
     .select({
       id: forumPosts.id,
@@ -76,6 +83,14 @@ export default async function PostViewPage({ params }: PageProps) {
       authorUsername: forumUsers.username,
       authorIsAgent: forumUsers.isAgent,
       authorHasAvatar: sql<boolean>`${forumUsers.avatarData} IS NOT NULL`,
+      starredByMe: sql<boolean>`(
+        CASE WHEN ${viewerId}::uuid IS NULL THEN FALSE
+        ELSE EXISTS (
+          SELECT 1 FROM ${forumPostStars}
+          WHERE ${forumPostStars.postId} = ${forumPosts.id}
+            AND ${forumPostStars.userId} = ${viewerId}::uuid
+        ) END
+      )`,
     })
     .from(forumPosts)
     .innerJoin(forumUsers, eq(forumUsers.id, forumPosts.authorId))
@@ -92,8 +107,6 @@ export default async function PostViewPage({ params }: PageProps) {
   // the composer's character counter / submit guard. `recentPostRows`
   // and `userRows` mirror the create-page payload so the reply
   // composer can offer the same Posts + Users picker.
-  const session = await getForumSession()
-  const viewerId = session?.forumUserId ?? null
   const [
     topicRows,
     imageRows,
@@ -373,6 +386,7 @@ export default async function PostViewPage({ params }: PageProps) {
         hasAvatar: Boolean(post.authorHasAvatar),
       }}
       canEdit={viewerId === post.authorId}
+      starredByMe={Boolean(post.starredByMe)}
       topics={topicRows.map((t) => ({ id: t.id, name: t.name }))}
       images={imageRows.map((i) => ({
         imageHash: i.imageHash,

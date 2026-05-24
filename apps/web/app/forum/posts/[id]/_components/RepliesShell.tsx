@@ -31,8 +31,9 @@
  * separate context, no prop-drilling.
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
+import { useRepliesPaneVisibility } from '@/lib/replies-pane-visibility'
 import { PostView, type PostViewProps } from './PostView'
 import { type CommentRow, type PostOption, RepliesPane, type UserOption } from './RepliesPane'
 
@@ -91,16 +92,17 @@ export function RepliesShell({
   // composer's `@`-dropdown can offer them as `@ImageN` insertions
   // and so submitted comments render image tokens as inline figures.
   const postImages = postViewProps.images
-  // Replies start OPEN by default — Alex's preferred posture for the
-  // post view. Closing it is a one-click affordance via the X icon or
-  // the metadata strip's Replies toggle. The matchMedia hook still
-  // gates between inline-grid (lg+) and Sheet (below lg).
-  const [open, setOpen] = useState(true)
+  // Replies open/close state is owned by the shared hook so the TopNav
+  // button and the X icon in the pane stay in sync across renders. The
+  // hook defaults to visible=true and persists to localStorage.
+  const { visible: open, toggle } = useRepliesPaneVisibility()
   const [comments, setComments] = useState<CommentRow[]>(initialComments)
   const isLg = useIsLg()
 
-  const toggle = useCallback(() => setOpen((v) => !v), [])
-  const close = useCallback(() => setOpen(false), [])
+  // `close` is just toggle when the pane is open. Both callsites (the X
+  // button inside RepliesPane and the Sheet onOpenChange handler) only
+  // fire when the pane is already open, so toggle() always closes here.
+  const close = toggle
 
   const replyCount = comments.length
   const postId = postViewProps.post.id
@@ -109,12 +111,6 @@ export function RepliesShell({
 
   return (
     <>
-      {/* Edge-to-edge top border. Pulled out of the main padding with
-          -mx-6 -mt-6 so it extends flush with the sidebar rail on the
-          left and the viewport edge on the right — same pattern as the
-          heading bands on /forum. */}
-      <div className="-mx-6 -mt-6 border-t" />
-
       {/* When the inline replies pane is open, we split <main> into two
           flex columns: a flexible centering wrapper for the post and a
           fixed-width spacer matching the pane (44rem). This way the post
@@ -127,7 +123,7 @@ export function RepliesShell({
           the pane is closed, main stays in its old centered-640px layout
           inside the parent's `p-6`. */}
       <main
-        className="flex transition-[margin,padding] duration-200 ease-out"
+        className="flex transition-[margin] duration-200 ease-linear"
         style={{
           marginLeft: inlineOpen ? '-1.5rem' : undefined,
           marginRight: inlineOpen ? '-1.5rem' : undefined,
@@ -143,7 +139,11 @@ export function RepliesShell({
             />
           </article>
         </div>
-        {inlineOpen && <div aria-hidden="true" className="w-[44rem] shrink-0" />}
+        <div
+          aria-hidden="true"
+          className="hidden lg:block shrink-0 transition-[width] duration-200 ease-linear"
+          style={{ width: inlineOpen ? '44rem' : '0px' }}
+        />
       </main>
 
       {/* Right-side designated sidebar — mirrors the left ForumSidebar's
@@ -166,7 +166,7 @@ export function RepliesShell({
         aria-hidden={!inlineOpen}
         data-testid="replies-aside"
         data-state={inlineOpen ? 'open' : 'closed'}
-        className="hidden lg:block fixed right-0 top-[68px] bottom-0 z-30 w-[44rem] border-l bg-sidebar text-sidebar-foreground overflow-hidden transition-transform duration-200 ease-out data-[state=closed]:translate-x-full data-[state=open]:translate-x-0"
+        className="hidden lg:block fixed right-0 top-[68px] bottom-0 z-30 w-[44rem] border-l bg-sidebar text-sidebar-foreground overflow-hidden transition-transform duration-200 ease-linear data-[state=closed]:translate-x-full data-[state=open]:translate-x-0"
       >
         <RepliesPane
           postId={postId}

@@ -166,11 +166,16 @@ export function ForumSidebar({ username, hasAvatar = false, drafts = [] }: Props
 
   return (
     <>
-      <Sidebar collapsible="icon" className="border-t">
+      <Sidebar collapsible="icon">
         {/* Header CTA — primary-tinted Create button. Lives at the very top
           of the sidebar so the most common write action is always one
           click away. Collapses to an icon-only square in icon-rail mode. */}
-        <SidebarHeader>
+        {/* pt-[14px]: sidebar is fixed at top-[68px] but TopNav is 73px tall,
+          so only (8 - 5) = 3px of the default p-2 top-padding is visible below
+          the TopNav border. The right padding reads as 9px (p-2=8px + 1px border).
+          Setting pt-[14px] makes visible top gap = 14 - 5 = 9px, matching the
+          right gap exactly. */}
+        <SidebarHeader className="pt-[14px]">
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton

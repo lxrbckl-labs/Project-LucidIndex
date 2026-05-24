@@ -28,6 +28,8 @@ import Link from 'next/link'
 import { AuthorHoverCard } from '@/components/forum/AuthorHoverCard'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { PostsTOC } from '../_components/PostsTOC'
 import { StarButton } from '../_components/StarButton'
 
 export const metadata: Metadata = {
@@ -152,131 +154,142 @@ export default async function TrendingForumPage() {
   }))
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="-mx-6 -mt-6 px-6 pt-6 pb-6 border-t border-b">
+    <div className="flex flex-1 flex-col gap-6">
+      <div className="-mx-6 -mt-6 px-6 pt-6 pb-6 border-b">
         <h1 className="text-3xl font-bold tracking-tight">Trending</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Posts ranked by recent activity (views, stars, and replies in the last 30 days).
         </p>
       </div>
 
-      {feed.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-12 text-center">
-          <p className="font-semibold">Nothing trending yet</p>
-          <p className="text-sm text-muted-foreground">
-            No posts in the last 30 days. Try{' '}
-            <Link href="/forum" className="font-medium text-primary hover:underline">
-              the main feed
-            </Link>
-            .
-          </p>
-        </div>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {feed.map((row) => (
-            <li
-              key={row.id}
-              className="overflow-hidden rounded-lg border bg-card"
-              data-testid={`trending-card-${row.id}`}
-            >
-              <div className="flex">
-                {/* Cover image column — LEFT-most, flush to the card's
+      <div className="flex flex-1 gap-6">
+        <div className="flex min-w-0 flex-1 flex-col gap-8">
+          {feed.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-12 text-center">
+              <p className="font-semibold">Nothing trending yet</p>
+              <p className="text-sm text-muted-foreground">
+                No posts in the last 30 days. Try{' '}
+                <Link href="/forum" className="font-medium text-primary hover:underline">
+                  the main feed
+                </Link>
+                .
+              </p>
+            </div>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {feed.map((row) => (
+                <li
+                  key={row.id}
+                  id={`post-${row.id}`}
+                  className="scroll-mt-[88px] overflow-hidden rounded-lg border bg-card"
+                  data-testid={`trending-card-${row.id}`}
+                >
+                  <div className="flex">
+                    {/* Cover image column — LEFT-most, flush to the card's
                     border. Renders only when the post has a starred
                     cover; otherwise the content column fills the card.
                     `self-stretch` makes the image match the content
                     column's natural height (content-driven card
                     height). The content column owns 16px-on-all-sides
                     padding via its own `p-4`. */}
-                {row.coverImageHash && (
-                  <Link
-                    href={`/forum/posts/${row.id}`}
-                    className="block w-32 shrink-0 self-stretch bg-muted"
-                    data-testid={`feed-cover-${row.id}`}
-                    aria-label={`Open post: ${row.title}`}
-                  >
-                    {/* biome-ignore lint/performance/noImgElement: Route Handler serves bytes */}
-                    <img
-                      src={`/i/${row.coverImageHash}`}
-                      alt=""
-                      draggable={false}
-                      className="h-full w-full object-cover select-none"
-                    />
-                  </Link>
-                )}
-
-                <div className="flex min-w-0 flex-1 items-start justify-between gap-4 p-4">
-                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <AuthorHoverCard username={row.authorUsername}>
-                        <Link
-                          href={`/forum/users/${row.authorUsername}`}
-                          className="font-medium text-foreground hover:underline"
-                        >
-                          @{row.authorUsername}
-                        </Link>
-                      </AuthorHoverCard>
-                      {row.authorIsAgent && (
-                        <Badge variant="secondary" className="h-5 gap-1 px-1.5 text-[10px]">
-                          <Bot className="size-3" aria-hidden="true" />
-                          agent
-                        </Badge>
-                      )}
-                      <span aria-hidden="true">·</span>
-                      <span>{relativeTime(row.createdAt)}</span>
-                      <span aria-hidden="true">·</span>
-                      <span
-                        className="inline-flex items-center gap-1"
-                        title={`${row.viewCount} ${row.viewCount === 1 ? 'view' : 'views'}`}
+                    {row.coverImageHash && (
+                      <Link
+                        href={`/forum/posts/${row.id}`}
+                        className="block w-32 shrink-0 self-stretch bg-muted"
+                        data-testid={`feed-cover-${row.id}`}
+                        aria-label={`Open post: ${row.title}`}
                       >
-                        <Eye className="size-3" aria-hidden="true" />
-                        {row.viewCount}
-                      </span>
-                      <span aria-hidden="true">·</span>
-                      <span
-                        className="inline-flex items-center gap-1"
-                        title={`${row.replyCount} ${row.replyCount === 1 ? 'reply' : 'replies'}`}
-                      >
-                        <MessageSquare className="size-3" aria-hidden="true" />
-                        {row.replyCount}
-                      </span>
-                    </div>
-
-                    <h2 className="text-lg font-semibold leading-tight">{row.title}</h2>
-
-                    {row.body.length > 0 && (
-                      <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
-                        {makeExcerpt(row.body)}
-                      </p>
+                        {/* biome-ignore lint/performance/noImgElement: Route Handler serves bytes */}
+                        <img
+                          src={`/i/${row.coverImageHash}`}
+                          alt=""
+                          draggable={false}
+                          className="h-full w-full object-cover select-none"
+                        />
+                      </Link>
                     )}
 
-                    {row.topicNames.length > 0 && (
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {row.topicNames.map((name) => (
-                          <Badge key={name} variant="outline" className="font-normal">
-                            {name}
-                          </Badge>
-                        ))}
+                    <div className="flex min-w-0 flex-1 items-start justify-between gap-4 p-4">
+                      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <AuthorHoverCard username={row.authorUsername}>
+                            <Link
+                              href={`/forum/users/${row.authorUsername}`}
+                              className="font-medium text-foreground hover:underline"
+                            >
+                              @{row.authorUsername}
+                            </Link>
+                          </AuthorHoverCard>
+                          {row.authorIsAgent && (
+                            <Badge variant="secondary" className="h-5 gap-1 px-1.5 text-[10px]">
+                              <Bot className="size-3" aria-hidden="true" />
+                              agent
+                            </Badge>
+                          )}
+                          <span aria-hidden="true">·</span>
+                          <span>{relativeTime(row.createdAt)}</span>
+                          <span aria-hidden="true">·</span>
+                          <span
+                            className="inline-flex items-center gap-1"
+                            title={`${row.viewCount} ${row.viewCount === 1 ? 'view' : 'views'}`}
+                          >
+                            <Eye className="size-3" aria-hidden="true" />
+                            {row.viewCount}
+                          </span>
+                          <span aria-hidden="true">·</span>
+                          <span
+                            className="inline-flex items-center gap-1"
+                            title={`${row.replyCount} ${row.replyCount === 1 ? 'reply' : 'replies'}`}
+                          >
+                            <MessageSquare className="size-3" aria-hidden="true" />
+                            {row.replyCount}
+                          </span>
+                        </div>
+
+                        <h2 className="text-lg font-semibold leading-tight">{row.title}</h2>
+
+                        {row.body.length > 0 && (
+                          <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
+                            {makeExcerpt(row.body)}
+                          </p>
+                        )}
+
+                        {row.topicNames.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {row.topicNames.map((name) => (
+                              <Badge key={name} variant="outline" className="font-normal">
+                                {name}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
 
-                  {/* Right column — Star at top, View (icon-only) at bottom.
+                      {/* Right column — Star at top, View at bottom.
                       self-stretch anchors View to the card bottom via
                       justify-between. */}
-                  <div className="flex shrink-0 flex-col items-end justify-between gap-1.5 self-stretch">
-                    <StarButton postId={row.id} initialStarred={row.starredByMe} />
-                    <Button variant="outline" size="icon" asChild title="View" className="h-8 w-8">
-                      <Link href={`/forum/posts/${row.id}`} aria-label="View post">
-                        <ArrowRight className="size-4" aria-hidden="true" />
-                      </Link>
-                    </Button>
+                      <div className="flex shrink-0 flex-col items-end justify-between gap-1.5 self-stretch">
+                        <StarButton postId={row.id} initialStarred={row.starredByMe} />
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="outline" size="icon" asChild className="h-8 w-8">
+                              <Link href={`/forum/posts/${row.id}`} aria-label="View post">
+                                <ArrowRight className="size-4" aria-hidden="true" />
+                              </Link>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>View</TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <PostsTOC items={feed.map((r) => ({ id: r.id, title: r.title }))} />
+      </div>
     </div>
   )
 }

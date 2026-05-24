@@ -35,7 +35,7 @@
  * No editing / deleting / reactions on comments in v1.
  */
 
-import { X } from 'lucide-react'
+import { Send, X } from 'lucide-react'
 import {
   type ChangeEvent,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -746,6 +746,7 @@ export function RepliesPane({
             disabled={submitDisabled}
             data-testid="reply-submit-button"
           >
+            <Send className="size-4" aria-hidden="true" />
             {inFlight ? 'Posting…' : 'Reply'}
           </Button>
         </div>

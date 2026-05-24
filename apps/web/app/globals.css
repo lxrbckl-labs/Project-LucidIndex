@@ -273,9 +273,34 @@
     animation: none;
     transform: none;
   }
-  .lucidindex-belt-track > [data-belt-copy='duplicate'] {
+  .lucidindex-belt-track > [data-belt-copy="duplicate"] {
     display: none;
   }
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes toc-flash {
+  0% {
+    background-color: hsl(var(--primary) / 0.18);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+.toc-flash {
+  animation: toc-flash 1.4s ease-out;
+}
+
+.toc-clip {
+  overflow-x: clip;
+  overflow-clip-margin: 1.5rem;
 }
 
 :root {

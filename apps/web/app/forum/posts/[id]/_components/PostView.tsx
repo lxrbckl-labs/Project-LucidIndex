@@ -46,6 +46,7 @@ import { AuthorHoverCard } from '@/components/forum/AuthorHoverCard'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { StarButton } from '../../../_components/StarButton'
 import { CitationsSection } from './CitationsSection'
 import { EditHistoryIndicator } from './EditHistoryIndicator'
 import { GallerySection } from './GallerySection'
@@ -118,6 +119,13 @@ export type PostViewProps = {
    * RSC — never trust client state for this.
    */
   canEdit: boolean
+  /**
+   * True when the current session viewer has starred this post. Drives
+   * the initial fill state of the StarButton in the topics row.
+   * Server-resolved by the parent RSC — defaults to false for
+   * unauthenticated visitors.
+   */
+  starredByMe: boolean
   /**
    * Whether the replies sidebar is currently open. Drives the Replies
    * button's aria-pressed state in the metadata strip. Owned by
@@ -334,8 +342,9 @@ export function PostView({
   viewCount,
   edits,
   canEdit,
-  repliesOpen,
-  onToggleReplies,
+  starredByMe,
+  repliesOpen: _repliesOpen,
+  onToggleReplies: _onToggleReplies,
   replyCount,
 }: PostViewProps) {
   const imageBySeq = new Map<number, PostViewImage>()
@@ -368,29 +377,51 @@ export function PostView({
     // only the article contents — the parent wraps it in the right
     // container based on the replies-open toggle.
     <>
-      {/* Header — topic badges row at the top. Each topic links to a
-          `?topic=<id>` filter on /forum (not yet wired). */}
-      {topics.length > 0 && (
-        <header className="flex flex-wrap items-center gap-3">
+      {/* Header — topic badges row at the top. Topics sit on the left;
+          the Star + Share + Edit action cluster floats right. This row
+          always renders (even when there are no topics) so the action
+          cluster always has a home. Each topic links to a `?topic=<id>`
+          filter on /forum (not yet wired). */}
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {topics.map((t) => (
             <Link
               key={t.id}
               href={`/forum?topic=${encodeURIComponent(t.id)}`}
               className="rounded-md hover:opacity-80 transition-opacity"
             >
-              <Badge variant="outline" className="border-foreground">
+              <Badge variant="outline" className="">
                 {t.name}
               </Badge>
             </Link>
           ))}
-        </header>
-      )}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <StarButton postId={post.id} initialStarred={starredByMe} />
+          <ShareLinkButton />
+          {canEdit && (
+            <Button
+              variant="outline"
+              size="icon"
+              asChild
+              className="h-8 w-8"
+              title="Edit post"
+              data-testid="post-edit-button"
+            >
+              <Link href={`/forum/posts/${post.id}/edit`} aria-label="Edit post">
+                <Pencil className="size-4" aria-hidden="true" />
+              </Link>
+            </Button>
+          )}
+        </div>
+      </header>
 
       {/* Title — h1. */}
       <h1 className="mt-3 text-3xl font-bold tracking-tight text-foreground">{post.title}</h1>
 
-      {/* Author byline — avatar + handle + optional agent badge.
-          Avatar links to the profile alongside the @username. */}
+      {/* Author byline — avatar + handle + optional agent badge only.
+          The action cluster (Star + Share + Edit) has moved to the
+          topics row above. */}
       <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
         <Link
           href={`/forum/users/${author.username}`}
@@ -422,23 +453,6 @@ export function PostView({
             agent
           </Badge>
         )}
-        <div className="ml-auto flex items-center gap-1.5">
-          <ShareLinkButton />
-          {canEdit && (
-            <Button
-              variant="outline"
-              size="icon"
-              asChild
-              className="h-8 w-8"
-              title="Edit post"
-              data-testid="post-edit-button"
-            >
-              <Link href={`/forum/posts/${post.id}/edit`} aria-label="Edit post">
-                <Pencil className="size-4" aria-hidden="true" />
-              </Link>
-            </Button>
-          )}
-        </div>
       </div>
 
       {/* Metadata strip — "Posted D Month YYYY" segment, followed by
@@ -460,19 +474,12 @@ export function PostView({
               {viewCount} {viewCount === 1 ? 'view' : 'views'}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={onToggleReplies}
-            aria-pressed={repliesOpen}
-            aria-label={repliesOpen ? 'Close replies' : 'Open replies'}
-            data-testid="replies-toggle-button"
-            className="flex items-center gap-1.5 hover:text-foreground transition-colors"
-          >
+          <div data-testid="replies-count" className="flex items-center gap-1.5">
             <MessageSquare className="size-4" aria-hidden="true" />
             <span>
               {replyCount} {replyCount === 1 ? 'reply' : 'replies'}
             </span>
-          </button>
+          </div>
           {edits.length > 0 && <EditHistoryIndicator edits={edits.map((d) => d.toISOString())} />}
         </div>
       </div>
@@ -483,17 +490,34 @@ export function PostView({
           rendered as inline React elements. */}
       <section
         data-testid="post-body"
-        className="mt-10 break-words text-base leading-relaxed text-foreground"
+        className="mt-4 break-words text-base leading-relaxed text-foreground text-justify"
       >
         {tokens.map((t, idx) => {
           if (t.kind === 'text') {
+            // Preserve user-typed leading/trailing whitespace around @-mentions
+            // (CommonMark trims paragraph whitespace, which would eat the
+            // spaces surrounding inline citation tokens). Strip the
+            // whitespace off, render it as plain text siblings, and run the
+            // trimmed core through ReactMarkdown for `**bold**` / `*em*` etc.
+            const lead = t.value.match(/^\s+/)?.[0] ?? ''
+            const tail = t.value.match(/\s+$/)?.[0] ?? ''
+            const core = t.value.slice(lead.length, t.value.length - tail.length)
             return (
               // biome-ignore lint/suspicious/noArrayIndexKey: parsed token sequence is stable across renders
-              <div key={`t-${idx}`} className="prose-segment">
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                  {t.value}
-                </ReactMarkdown>
-              </div>
+              <span key={`t-${idx}`} className="prose-segment whitespace-pre-wrap">
+                {lead}
+                {core.length > 0 && (
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
+                    disallowedElements={['p']}
+                    unwrapDisallowed
+                  >
+                    {core}
+                  </ReactMarkdown>
+                )}
+                {tail}
+              </span>
             )
           }
           if (t.kind === 'image') {
