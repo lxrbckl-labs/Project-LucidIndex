@@ -147,7 +147,23 @@ export const queue = pgTable(
 
 /**
  * Append-only log of every queue-item ack from an agent. One row per
- * completed (or failed) run. `articles_count` is 0 on failed runs.
+ * agent run.
+ *
+ * Lifecycle (audit round 8, migration 0034):
+ *   - `pull_queue_item` INSERTs with status='in_progress', started_at=now(),
+ *     completed_at=NULL. This is what makes `started_at` an honest "pull
+ *     time" — previously the first writer was `write_articles`, which fires
+ *     N seconds (or minutes) after the claim once the agent has finished
+ *     researching.
+ *   - `write_articles` UPDATEs articles_count as it goes.
+ *   - `ack_queue_item` UPDATEs status → 'succeeded' | 'failed' and stamps
+ *     completed_at = now(). For failed acks, also sets failure_reason.
+ *
+ * Orphan recovery: if an agent crashes between pull and ack, the queue-row
+ * reaper releases the claim AND deletes the orphan in_progress run_log
+ * row (the row has no `articles` rows hanging off it — we verified the
+ * agent never made it to write_articles before deleting). See
+ * apps/cron/src/jobs/reaper.ts.
  */
 export const runLog = pgTable(
   'run_log',
@@ -166,14 +182,21 @@ export const runLog = pgTable(
     failureReason: text('failure_reason'),
     articlesCount: integer('articles_count').notNull().default(0),
     startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
-    completedAt: timestamp('completed_at', { withTimezone: true }).notNull(),
+    // Nullable as of migration 0034: in_progress rows have no completion
+    // timestamp yet. ack_queue_item stamps now() on the transition to
+    // 'succeeded' / 'failed'.
+    completedAt: timestamp('completed_at', { withTimezone: true }),
   },
   (t) => [
-    check('run_log_status_check', sql`${t.status} in ('succeeded', 'failed')`),
+    // Status set widened from ('succeeded','failed') by migration 0034 so
+    // pull_queue_item can create the row in 'in_progress' at claim time.
+    // ack_queue_item flips it to a terminal value.
+    check('run_log_status_check', sql`${t.status} in ('in_progress', 'succeeded', 'failed')`),
     // Audit round 6 (migration 0032): UNIQUE on (queue_item_id,
-    // agent_token_id) so the find-or-create path in `write_articles`
-    // can use INSERT ... ON CONFLICT DO NOTHING to win the race
-    // against a concurrent writer.
+    // agent_token_id) so the find-or-create path can use INSERT ...
+    // ON CONFLICT DO NOTHING to win the race against a concurrent writer.
+    // Still relevant post-0034: pull_queue_item creates the row, but a
+    // defensive find-or-create on the write/ack path is cheap insurance.
     unique('run_log_queue_item_agent_unique').on(t.queueItemId, t.agentTokenId),
   ],
 )

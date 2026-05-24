@@ -239,6 +239,13 @@
       "when": 1779090004000,
       "tag": "0033_forum_query_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1779090005000,
+      "tag": "0034_run_log_in_progress_status",
+      "breakpoints": true
     }
   ]
 }
