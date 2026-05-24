@@ -111,6 +111,13 @@ export function NotificationsPanel({ initialItems, initialCursor }: Props) {
   // round-trip happens in the background.
   const [, startTransition] = useTransition()
 
+  // Fired after any successful mutation (read/delete/clear) so the
+  // sidebar's unread badge re-fetches its count without a page reload.
+  function notifySidebar(): void {
+    if (typeof window === 'undefined') return
+    window.dispatchEvent(new Event('lucidindex:notifications-changed'))
+  }
+
   async function handleRowClick(item: NotificationListItem) {
     if (item.read_at) return
     // Optimistic: tint the row as read immediately.
@@ -118,6 +125,7 @@ export function NotificationsPanel({ initialItems, initialCursor }: Props) {
     setItems((prev) =>
       prev.map((row) => (row.id === item.id ? { ...row, read_at: optimistic } : row)),
     )
+    notifySidebar()
     startTransition(() => {
       void fetch(`/api/forum/notifications/${item.id}/read`, { method: 'POST' }).then((res) => {
         if (!res.ok) {
@@ -126,6 +134,7 @@ export function NotificationsPanel({ initialItems, initialCursor }: Props) {
           setItems((prev) =>
             prev.map((row) => (row.id === item.id ? { ...row, read_at: null } : row)),
           )
+          notifySidebar()
           toast.error("Couldn't mark that notification read.")
         }
       })
@@ -138,6 +147,7 @@ export function NotificationsPanel({ initialItems, initialCursor }: Props) {
     // Optimistic remove — restore on failure.
     const removedAt = items.indexOf(item)
     setItems((prev) => prev.filter((row) => row.id !== item.id))
+    if (!item.read_at) notifySidebar()
     const res = await fetch(`/api/forum/notifications/${item.id}`, { method: 'DELETE' })
     if (!res.ok) {
       setItems((prev) => {
@@ -145,6 +155,7 @@ export function NotificationsPanel({ initialItems, initialCursor }: Props) {
         copy.splice(removedAt, 0, item)
         return copy
       })
+      if (!item.read_at) notifySidebar()
       toast.error("Couldn't delete that notification.")
     }
   }
@@ -189,6 +200,7 @@ export function NotificationsPanel({ initialItems, initialCursor }: Props) {
       toast.error("Couldn't clear notifications.")
       return
     }
+    notifySidebar()
     toast.success('Notifications cleared.')
   }
 

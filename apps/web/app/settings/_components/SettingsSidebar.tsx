@@ -112,31 +112,35 @@ export function SettingsSidebar() {
 
   // Unread notification count — surfaced as a numerical Badge on the
   // Notifications menu item. Server-rendered would have been simpler
-  // but the sidebar is a 'use client' shell; we fetch once on mount
-  // and re-poll on pathname changes (so a click into /settings/notifications
-  // and back updates the count). Falls back to 0 on fetch failure —
-  // the badge just hides instead of throwing.
+  // but the sidebar is a 'use client' shell; we fetch once on mount,
+  // re-poll on pathname changes (so a click into /settings/notifications
+  // and back updates the count), AND re-poll on a `lucidindex:notifications-changed`
+  // CustomEvent the panel dispatches on mark-read / delete / clear-all
+  // (so the badge updates immediately while staying on the page).
+  // Falls back to 0 on fetch failure — the badge just hides instead of throwing.
   const [unread, setUnread] = useState(0)
   useEffect(() => {
     let cancelled = false
-    // Tag the URL with the pathname so the linter sees the dependency
-    // referenced inside the effect body too. The server route ignores
-    // unknown query params.
-    const url = `/api/forum/notifications?count_only=true&p=${encodeURIComponent(pathname)}`
-    void fetch(url, {
-      // App-Router cache would freeze the count; the API itself is
-      // force-dynamic so no-store ensures we always get fresh data.
-      cache: 'no-store',
-    })
-      .then((res) => (res.ok ? res.json() : { count: 0 }))
-      .then((data: { count?: number }) => {
-        if (!cancelled) setUnread(typeof data.count === 'number' ? data.count : 0)
+    function refetch(): void {
+      const url = `/api/forum/notifications?count_only=true&p=${encodeURIComponent(pathname)}`
+      void fetch(url, {
+        // App-Router cache would freeze the count; the API itself is
+        // force-dynamic so no-store ensures we always get fresh data.
+        cache: 'no-store',
       })
-      .catch(() => {
-        if (!cancelled) setUnread(0)
-      })
+        .then((res) => (res.ok ? res.json() : { count: 0 }))
+        .then((data: { count?: number }) => {
+          if (!cancelled) setUnread(typeof data.count === 'number' ? data.count : 0)
+        })
+        .catch(() => {
+          if (!cancelled) setUnread(0)
+        })
+    }
+    refetch()
+    window.addEventListener('lucidindex:notifications-changed', refetch)
     return () => {
       cancelled = true
+      window.removeEventListener('lucidindex:notifications-changed', refetch)
     }
   }, [pathname])
 
