@@ -24,6 +24,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import env from './env.js'
 import { logger } from './logger.js'
+import { startTokenRevocationListener } from './token-revocation-listener.js'
 import { registerTools } from './tools/index.js'
 import { startHttpTransport } from './transports/http.js'
 import { startStdioTransport } from './transports/stdio.js'
@@ -45,11 +46,26 @@ function buildMcpServer(): McpServer {
 async function main() {
   let shutdown: () => Promise<void>
 
+  // Audit round 9: start the LISTEN/NOTIFY subscription on
+  // `agent_token_revoked` BEFORE we accept traffic. The listener
+  // evicts the matching token from the in-process verify cache the
+  // moment apps/web fires the NOTIFY (typically <10ms), so revoke
+  // takes effect within the round-trip instead of waiting up to 60s
+  // for the cache TTL. Subscription holds a dedicated postgres-js
+  // connection — see `token-revocation-listener.ts` for the rationale.
+  // Only relevant on the HTTP transport (stdio has no shared cache
+  // surface to invalidate across processes), but cheap to start in
+  // either case.
+  const tokenRevocationListener = await startTokenRevocationListener()
+
   if (env.MCP_DASHBOARD_TRANSPORT === 'stdio') {
     // stdio holds one long-lived server for the life of the process.
     const server = buildMcpServer()
     const handle = await startStdioTransport(server)
-    shutdown = handle.shutdown
+    shutdown = async () => {
+      await handle.shutdown()
+      await tokenRevocationListener.shutdown()
+    }
   } else {
     logger.info('mcp_dashboard_starting', {
       port: env.MCP_DASHBOARD_PORT,
@@ -57,10 +73,31 @@ async function main() {
     })
     // HTTP builds a fresh server per request via the factory.
     const handle = await startHttpTransport(buildMcpServer)
-    shutdown = handle.shutdown
+    shutdown = async () => {
+      await handle.shutdown()
+      await tokenRevocationListener.shutdown()
+    }
   }
 
+  // Audit round 9: graceful SIGTERM. The transport's `shutdown()`
+  // contract is: flip a `shuttingDown` flag so /healthz returns 503,
+  // wait up to 30s for in-flight requests to drain, then close the
+  // listener. Only after that do we exit. The previous implementation
+  // called `process.exit(0)` inside `.finally(...)` immediately, which
+  // race-killed in-flight tool calls — agents would see ECONNRESET on
+  // a perfectly legitimate request just because the pod was rotating.
+  //
+  // Double-signal guard: a second SIGTERM/SIGINT during the drain is a
+  // no-op (logged at warn). Operators who want to force-kill can send
+  // SIGKILL; SIGINT/SIGTERM cannot subvert the drain budget once it's
+  // started.
+  let shuttingDown = false
   const onSignal = (signal: NodeJS.Signals) => {
+    if (shuttingDown) {
+      logger.warn('mcp_dashboard_shutdown_signal_during_drain', { signal })
+      return
+    }
+    shuttingDown = true
     logger.info('mcp_dashboard_shutting_down', { signal })
     shutdown()
       .catch((err) => {

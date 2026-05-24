@@ -41,6 +41,31 @@
 // from the source publish date; on a `slug` unique-violation we retry
 // once with a 6-char source-URL hash suffix. The earlier random-suffix
 // strategy has been removed.
+//
+// Audit round 3 (P0/P1/P2) restructure:
+// ------------------------------------
+// The per-article work now runs in THREE PASSES so slow hero-image hosts
+// don't hold row locks and one bad insert doesn't roll back its siblings:
+//
+//   Pass 1 (no DB txn): normalize URL via `@lucidindex/shared/url`, then
+//     run the source dedup lookup. Decide which articles will insert and
+//     which return as `deduped: true`. URL-parse failures collect into
+//     `failures` with code `invalid_source_url`.
+//   Pass 2 (no DB txn): for each article that will insert, fetch + store
+//     the hero image in parallel via `Promise.all`. Each fetch can fail
+//     independently — failure stores `heroImageHash: null` and does not
+//     block its siblings.
+//   Pass 3 (one outer txn, per-article savepoints inside): insert the
+//     non-deduped articles with their pre-resolved hero hashes. Each
+//     insert is wrapped in `tx.transaction(async sp => {...})` so a
+//     slug-collision retry inside one savepoint doesn't roll back its
+//     neighbors; a hard insert failure becomes a per-article entry in
+//     `failures` and the rest still land.
+//
+// Suggestion attribution (P2): when EVERY article that introduced a given
+// unknown badge gets deduped, we now still upsert the suggestion with
+// `article_id = NULL` so the curation inbox sees the sighting. Migration
+// 0030 relaxed the FK NOT NULL.
 
 import { db } from '@lucidindex/db/client'
 import {
@@ -52,6 +77,7 @@ import {
   topicBadges,
 } from '@lucidindex/db/schema'
 import { disambiguate, generateSlug } from '@lucidindex/shared/slug'
+import { InvalidSourceUrlError, normalizeSourceUrl } from '@lucidindex/shared/url'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { findExistingArticleId } from '../lib/dedup.js'
@@ -67,7 +93,12 @@ const citationSchema = z.object({
 })
 
 const articleSchema = z.object({
-  source_url: z.string().min(1),
+  // Parity with `check_article_exists` (audit round 6): both tools reject
+  // non-URLs at the same layer so callers get a consistent error mode.
+  // `normalizeSourceUrl()` in Pass 1 still catches the harder
+  // canonicalization edge cases (mailto:, javascript:, etc.) via
+  // `InvalidSourceUrlError` → per-article `failures` entry.
+  source_url: z.string().url(),
   title: z.string().min(1),
   summary: z.string().min(1),
   agent_deep_dive: z.string().optional(),
@@ -95,10 +126,52 @@ export type WriteArticlesArgs = z.infer<typeof writeArticlesArgs> & {
   agentTokenId: string
 }
 
+export type WriteArticleResult = {
+  index: number
+  id: string
+  deduped: boolean
+  source_url: string
+}
+
+export type WriteArticleFailure = {
+  index: number
+  source_url: string
+  code: string
+  message: string
+}
+
 export type WriteArticlesResult = {
   accepted: number
-  results: { id: string; deduped: boolean }[]
+  results: WriteArticleResult[]
+  failures: WriteArticleFailure[]
 }
+
+/**
+ * Per-article plan built in Pass 1 (dedup + URL normalize). Carries the
+ * canonical source_url, the dedup outcome, and (when we plan to insert)
+ * a slot for the hero hash that Pass 2 fills in.
+ */
+type ArticlePlan =
+  | {
+      kind: 'insert'
+      index: number
+      sourceUrl: string // normalized
+      heroImageHash: string | null // resolved in Pass 2
+    }
+  | {
+      kind: 'deduped'
+      index: number
+      sourceUrl: string // normalized
+      existingId: string
+    }
+  | {
+      kind: 'failure'
+      index: number
+      // Raw source_url for the wire (so the agent sees what they sent).
+      sourceUrl: string
+      code: string
+      message: string
+    }
 
 export async function writeArticles(args: WriteArticlesArgs): Promise<WriteArticlesResult> {
   // Verify the queue row is currently claimed by this agent.
@@ -206,76 +279,186 @@ export async function writeArticles(args: WriteArticlesArgs): Promise<WriteArtic
   // Find or create. Idempotent: a previous write_articles for this same
   // queue_item_id + agent reuses its run_log row so articles_count keeps
   // accumulating across calls (rare, but possible).
-  const existingRunLog = await db
-    .select({ id: runLog.id })
-    .from(runLog)
-    .where(and(eq(runLog.queueItemId, q.id), eq(runLog.agentTokenId, args.agentTokenId)))
-    .limit(1)
-
-  let runLogId: string
+  //
+  // Audit round 6 — duplicate-insert race: a plain SELECT-then-INSERT
+  // race is possible when two concurrent `write_articles` calls from
+  // the same agent on the same queue item both miss the SELECT and both
+  // INSERT. Migration 0032 added a UNIQUE on (queue_item_id,
+  // agent_token_id); we now do `INSERT ... ON CONFLICT DO NOTHING
+  // RETURNING id`. If RETURNING comes back empty the conflict fired —
+  // re-SELECT to get the winning row's id.
   const now = new Date()
-  if (existingRunLog.length > 0) {
-    // biome-ignore lint/style/noNonNullAssertion: length-checked above
-    runLogId = existingRunLog[0]!.id
-  } else {
-    const inserted = await db
-      .insert(runLog)
-      .values({
-        targetId: q.targetId,
-        queueItemId: q.id,
-        agentTokenId: args.agentTokenId,
-        // 'succeeded' is the optimistic terminal status. ack_queue_item
-        // overwrites this if the run is acked as 'failed'.
-        status: 'succeeded',
-        articlesCount: 0,
-        startedAt: q.enqueuedAt,
-        completedAt: now,
-      })
-      .returning({ id: runLog.id })
+  let runLogId: string
+  const inserted = await db
+    .insert(runLog)
+    .values({
+      targetId: q.targetId,
+      queueItemId: q.id,
+      agentTokenId: args.agentTokenId,
+      // 'succeeded' is the optimistic terminal status. ack_queue_item
+      // overwrites this if the run is acked as 'failed'.
+      status: 'succeeded',
+      articlesCount: 0,
+      startedAt: q.enqueuedAt,
+      completedAt: now,
+    })
+    .onConflictDoNothing({ target: [runLog.queueItemId, runLog.agentTokenId] })
+    .returning({ id: runLog.id })
+
+  if (inserted.length > 0) {
     // biome-ignore lint/style/noNonNullAssertion: just inserted one row
     runLogId = inserted[0]!.id
+  } else {
+    // Conflict fired — another concurrent writer (or a prior call from
+    // this agent) already created the row. Re-SELECT to fetch its id.
+    const existingRunLog = await db
+      .select({ id: runLog.id })
+      .from(runLog)
+      .where(and(eq(runLog.queueItemId, q.id), eq(runLog.agentTokenId, args.agentTokenId)))
+      .limit(1)
+    if (existingRunLog.length === 0) {
+      // Defensive: ON CONFLICT fired but the row also isn't visible to
+      // our snapshot. Should be effectively impossible under READ
+      // COMMITTED, but surface a clean error instead of a NaN id.
+      throw new ToolError(
+        'internal_error',
+        'run_log find-or-create: ON CONFLICT fired but re-SELECT returned no rows.',
+      )
+    }
+    // biome-ignore lint/style/noNonNullAssertion: length-checked above
+    runLogId = existingRunLog[0]!.id
   }
 
-  // ---- per-article processing ----
+  // ====================================================================
+  // PASS 1 (no DB txn) — URL normalize + dedup decision per article.
+  // ====================================================================
   //
-  // We do dedup + insert + suggestion-upsert + image-fetch in a
-  // transaction so a mid-batch failure leaves the DB consistent. The
-  // image-fetch IS NOT in the transaction's critical path — we resolve
-  // the hash before opening the transaction so we don't hold a DB tx
-  // open across an HTTP fetch.
-  const heroHashes = new Map<number, string | null>()
+  // We build one ArticlePlan per input article. Three outcomes:
+  //   - 'failure'  → URL parse failed; nothing further to do for this row.
+  //   - 'deduped'  → canonical source_url already in `articles`; surface
+  //                  the existing id.
+  //   - 'insert'   → fresh; we'll fetch hero in Pass 2 and insert in Pass 3.
+  const plans: ArticlePlan[] = []
   for (let i = 0; i < args.articles.length; i++) {
     // biome-ignore lint/style/noNonNullAssertion: index in range
     const a = args.articles[i]!
-    if (a.hero_image_url) {
-      const result = await fetchAndStoreHeroImage(a.hero_image_url)
-      heroHashes.set(i, result.ok ? result.hash : null)
+    let canonical: string
+    try {
+      canonical = normalizeSourceUrl(a.source_url)
+    } catch (err) {
+      if (err instanceof InvalidSourceUrlError) {
+        plans.push({
+          kind: 'failure',
+          index: i,
+          sourceUrl: a.source_url,
+          code: 'invalid_source_url',
+          message: err.message,
+        })
+        continue
+      }
+      throw err
+    }
+
+    const existingId = await findExistingArticleId(q.targetId, canonical)
+    if (existingId) {
+      plans.push({ kind: 'deduped', index: i, sourceUrl: canonical, existingId })
     } else {
-      heroHashes.set(i, null)
+      plans.push({ kind: 'insert', index: i, sourceUrl: canonical, heroImageHash: null })
     }
   }
 
-  const results: { id: string; deduped: boolean }[] = []
+  // ====================================================================
+  // PASS 2 (no DB txn) — hero-image fetch with bounded concurrency.
+  // ====================================================================
+  //
+  // Each insert plan can have its own hero fetch. Failures are
+  // non-blocking: a missing hero stores hash=null, but the article
+  // still inserts in Pass 3.
+  //
+  // Audit round 6 — bounded concurrency: a previous version used a flat
+  // `Promise.all`, which lets a 50-article batch spawn 50 parallel
+  // image fetches × 25 MB each = 1.25 GB worst-case in flight. We now
+  // cap concurrency at HERO_FETCH_CONCURRENCY via a tiny inline
+  // semaphore (no new dep). Each "worker" pulls the next pending plan
+  // off the queue until the queue is empty.
+  const HERO_FETCH_CONCURRENCY = 5
+  const pendingHeroIndexes: number[] = []
+  for (let i = 0; i < plans.length; i++) {
+    const p = plans[i]
+    if (!p || p.kind !== 'insert') continue
+    // biome-ignore lint/style/noNonNullAssertion: index in range
+    const a = args.articles[p.index]!
+    if (a.hero_image_url) pendingHeroIndexes.push(i)
+  }
+  let nextHero = 0
+  async function heroWorker() {
+    while (true) {
+      const slot = nextHero++
+      if (slot >= pendingHeroIndexes.length) return
+      // biome-ignore lint/style/noNonNullAssertion: slot in range
+      const planIdx = pendingHeroIndexes[slot]!
+      // biome-ignore lint/style/noNonNullAssertion: index in range
+      const p = plans[planIdx]!
+      if (p.kind !== 'insert') continue
+      // biome-ignore lint/style/noNonNullAssertion: index in range
+      const a = args.articles[p.index]!
+      if (!a.hero_image_url) continue
+      try {
+        const result = await fetchAndStoreHeroImage(a.hero_image_url)
+        p.heroImageHash = result.ok ? result.hash : null
+      } catch {
+        // fetchAndStoreHeroImage logs internally; swallow here so a hero
+        // fetch never blocks the insert pass.
+        p.heroImageHash = null
+      }
+    }
+  }
+  const workerCount = Math.min(HERO_FETCH_CONCURRENCY, pendingHeroIndexes.length)
+  const workers: Promise<void>[] = []
+  for (let i = 0; i < workerCount; i++) workers.push(heroWorker())
+  await Promise.all(workers)
+
+  // ====================================================================
+  // PASS 3 (one outer txn, per-article savepoints inside) — INSERTs.
+  // ====================================================================
+  //
+  // The outer transaction holds the suggestion-upsert and the run_log
+  // articles_count bump as one atomic unit; per-article inserts each
+  // get a savepoint so a slug-collision retry or a per-row error doesn't
+  // roll back its siblings.
+  const results: WriteArticleResult[] = []
+  const failures: WriteArticleFailure[] = []
+
+  // Push deduped + Pass-1 failures first so the result array is index-ordered
+  // by the original input shape on the way out.
+  for (const p of plans) {
+    if (p.kind === 'deduped') {
+      // biome-ignore lint/style/noNonNullAssertion: index in range
+      const a = args.articles[p.index]!
+      results.push({
+        index: p.index,
+        id: p.existingId,
+        deduped: true,
+        source_url: p.sourceUrl,
+      })
+      // Suppress unused-warning: we read p.index but want the original
+      // raw source_url available for debugging; intentionally not used.
+      void a
+    } else if (p.kind === 'failure') {
+      failures.push({
+        index: p.index,
+        source_url: p.sourceUrl,
+        code: p.code,
+        message: p.message,
+      })
+    }
+  }
 
   await db.transaction(async (tx) => {
-    // Suggestion upserts run AFTER the article inserts because
-    // topic_badge_suggestions.article_id is NOT NULL — we need a real
-    // article id to attribute each suggestion to. The block below the
-    // article loop emits one ON CONFLICT (name) DO UPDATE per unknown
-    // badge.
-    for (let i = 0; i < args.articles.length; i++) {
+    for (const p of plans) {
+      if (p.kind !== 'insert') continue
       // biome-ignore lint/style/noNonNullAssertion: index in range
-      const a = args.articles[i]!
-
-      // Pre-insert dedup. If `(target_id, source_url)` already exists,
-      // return the existing id and skip the insert. We still keep the
-      // DB UNIQUE constraint for last-resort safety against a
-      // concurrent insert that races between the SELECT and the INSERT.
-      const existingId = await findExistingArticleId(q.targetId, a.source_url)
-      if (existingId) {
-        results.push({ id: existingId, deduped: true })
-        continue
-      }
+      const a = args.articles[p.index]!
 
       // #65: slug is `YYYY-MM-DD-<kebab-title>` from the source publish
       // date when present, otherwise the run's "now". On a slug-unique
@@ -287,7 +470,7 @@ export async function writeArticles(args: WriteArticlesArgs): Promise<WriteArtic
         targetId: q.targetId,
         agentTokenId: args.agentTokenId,
         runLogId,
-        sourceUrl: a.source_url,
+        sourceUrl: p.sourceUrl, // canonical form from Pass 1
         title: a.title,
         summary: a.summary,
         agentDeepDive: a.agent_deep_dive ?? null,
@@ -299,81 +482,122 @@ export async function writeArticles(args: WriteArticlesArgs): Promise<WriteArtic
         sentiment: a.sentiment ?? null,
         sourcePublishedAt: a.source_published_at ? new Date(a.source_published_at) : null,
         sourcePublishedAtEstimated: a.source_published_at_estimated ?? false,
-        heroImageHash: heroHashes.get(i) ?? null,
+        heroImageHash: p.heroImageHash, // resolved in Pass 2
         // jsonb columns — pass the arrays as-is; drizzle handles the cast.
         // biome-ignore lint/suspicious/noExplicitAny: jsonb column
         crossSource: (a.cross_source ?? []) as any,
         // biome-ignore lint/suspicious/noExplicitAny: jsonb column
         citations: (a.citations ?? []) as any,
       } as const
-      try {
-        const inserted = await tx
-          .insert(articles)
-          .values({ ...insertValues, slug: primarySlug })
-          .returning({ id: articles.id })
 
-        // biome-ignore lint/style/noNonNullAssertion: just inserted one row
-        const id = inserted[0]!.id
-        results.push({ id, deduped: false })
-      } catch (err) {
-        if (isUniqueViolation(err)) {
-          // 23505 has two flavors here:
-          //
-          //   (a) `(target_id, source_url)` collision — a concurrent writer
-          //       beat us to inserting this article. Re-resolve and treat
-          //       as deduped.
-          //   (b) `slug` collision — a different article ended up with the
-          //       same primary slug (same date + title, different source).
-          //       Retry once with `disambiguate(slug, source_url)`.
-          //
-          // We can't easily tell which constraint fired without inspecting
-          // the driver-specific error fields, so try the source-URL dedup
-          // first; if no existing row exists, fall through to a slug retry.
-          const existingId = await findExistingArticleId(q.targetId, a.source_url)
-          if (existingId) {
-            results.push({ id: existingId, deduped: true })
-            continue
+      // Per-article savepoint so a hard insert failure for this row
+      // doesn't roll back its siblings. Slug-retry stays inside the
+      // savepoint so the retry's own conflict surface is local.
+      try {
+        await tx.transaction(async (sp) => {
+          try {
+            const inserted = await sp
+              .insert(articles)
+              .values({ ...insertValues, slug: primarySlug })
+              .returning({ id: articles.id })
+            // biome-ignore lint/style/noNonNullAssertion: just inserted one row
+            const id = inserted[0]!.id
+            results.push({
+              index: p.index,
+              id,
+              deduped: false,
+              source_url: p.sourceUrl,
+            })
+          } catch (err) {
+            if (!isUniqueViolation(err)) throw err
+            // 23505 has two flavors here:
+            //
+            //   (a) `(target_id, source_url)` collision — a concurrent writer
+            //       beat us to inserting this article. Re-resolve and treat
+            //       as deduped.
+            //   (b) `slug` collision — a different article ended up with the
+            //       same primary slug (same date + title, different source).
+            //       Retry once with `disambiguate(slug, source_url)`.
+            //
+            // Drizzle's postgres-js driver doesn't surface the constraint
+            // name reliably, so try the source-URL dedup first; if no
+            // existing row exists, fall through to a slug retry.
+            const existingId = await findExistingArticleId(q.targetId, p.sourceUrl)
+            if (existingId) {
+              results.push({
+                index: p.index,
+                id: existingId,
+                deduped: true,
+                source_url: p.sourceUrl,
+              })
+              return
+            }
+            // Slug collision path — retry with disambiguator. If THIS also
+            // 23505s the savepoint rolls back; the outer catch records it
+            // as a per-article failure.
+            const retrySlug = disambiguate(primarySlug, p.sourceUrl)
+            const inserted = await sp
+              .insert(articles)
+              .values({ ...insertValues, slug: retrySlug })
+              .returning({ id: articles.id })
+            // biome-ignore lint/style/noNonNullAssertion: just inserted one row
+            const id = inserted[0]!.id
+            results.push({
+              index: p.index,
+              id,
+              deduped: false,
+              source_url: p.sourceUrl,
+            })
           }
-          // Slug collision path — retry with disambiguator. If THIS also
-          // 23505s we let it bubble up; in practice the 6-char hash makes
-          // a second collision astronomically unlikely.
-          const retrySlug = disambiguate(primarySlug, a.source_url)
-          const inserted = await tx
-            .insert(articles)
-            .values({ ...insertValues, slug: retrySlug })
-            .returning({ id: articles.id })
-          // biome-ignore lint/style/noNonNullAssertion: just inserted one row
-          const id = inserted[0]!.id
-          results.push({ id, deduped: false })
-          continue
-        }
-        throw err
+        })
+      } catch (err) {
+        // Savepoint already rolled back — capture as a per-article
+        // failure and continue to the next plan.
+        const message = err instanceof Error ? err.message : String(err)
+        const code = isUniqueViolation(err) ? 'unique_violation' : 'insert_failed'
+        failures.push({
+          index: p.index,
+          source_url: p.sourceUrl,
+          code,
+          message,
+        })
       }
     }
 
-    // Suggestion-inbox upserts. We need at least one inserted article to
-    // attribute a suggestion to (the FK on topic_badge_suggestions
-    // requires article_id). Pick the first non-deduped result; if every
-    // article in this batch was a dedup, attribute to the first deduped
-    // article id (still a real article row).
-    if (unknownBadges.length > 0 && results.length > 0) {
-      // Find which article first mentioned each unknown badge.
+    // ---- Suggestion-inbox upserts ----
+    //
+    // We attribute each unknown badge to the FIRST article in this batch
+    // that BOTH (a) mentions the badge AND (b) was actually INSERTED
+    // (not deduped). When NO article in the batch carrying a given
+    // unknown badge was inserted (every introducer was deduped), we
+    // STILL upsert the suggestion with `article_id = NULL` so the
+    // curation inbox sees the sighting (migration 0030 relaxed the
+    // NOT NULL on the FK).
+    if (unknownBadges.length > 0) {
       const firstArticleForBadge = new Map<string, string>()
+      // results contains both inserts and dedups; only the inserts (i.e.
+      // results with deduped:false) are eligible to anchor a suggestion.
+      const insertedIndexToId = new Map<number, string>()
+      for (const r of results) {
+        if (!r.deduped) insertedIndexToId.set(r.index, r.id)
+      }
       for (let i = 0; i < args.articles.length; i++) {
         // biome-ignore lint/style/noNonNullAssertion: index in range
         const article = args.articles[i]!
-        // biome-ignore lint/style/noNonNullAssertion: results parallels articles
-        const result = results[i]!
+        const articleId = insertedIndexToId.get(i)
+        if (!articleId) continue
         for (const b of article.topic_badges) {
           if (unknownBadges.includes(b) && !firstArticleForBadge.has(b)) {
-            firstArticleForBadge.set(b, result.id)
+            firstArticleForBadge.set(b, articleId)
           }
         }
       }
 
       for (const badgeName of unknownBadges) {
-        const articleId = firstArticleForBadge.get(badgeName)
-        if (!articleId) continue
+        const articleId = firstArticleForBadge.get(badgeName) ?? null
+        // ON CONFLICT (name) DO UPDATE keeps the original article_id
+        // (we only set it on INSERT). count++ and last_seen_at bump
+        // both apply on conflict.
         await tx.execute(sql`
           INSERT INTO topic_badge_suggestions (name, article_id, target_id, agent_token_id, count, last_seen_at)
           VALUES (${badgeName}, ${articleId}, ${q.targetId}, ${args.agentTokenId}, 1, now())
@@ -395,7 +619,13 @@ export async function writeArticles(args: WriteArticlesArgs): Promise<WriteArtic
     }
   })
 
-  return { accepted: results.length, results }
+  // Sort results by original input index so the wire response is
+  // deterministic regardless of insert order.
+  results.sort((a, b) => a.index - b.index)
+  failures.sort((a, b) => a.index - b.index)
+
+  const accepted = results.filter((r) => !r.deduped).length
+  return { accepted, results, failures }
 }
 
 function isUniqueViolation(err: unknown): boolean {

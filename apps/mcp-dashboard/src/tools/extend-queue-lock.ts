@@ -2,10 +2,11 @@
 //
 // An agent doing slow work (long fetch, expensive analysis) can blow past
 // `MCP_DASHBOARD_QUEUE_LOCK_TTL_SEC`; once `locked_until < now()` the cron reaper
-// will unstick the row and a second agent can claim it — duplicate work,
-// FK contention on run_log, the works. This tool lets the caller push
-// `locked_until` forward by another TTL window without touching anything
-// else on the row.
+// (apps/cron/src/jobs/reaper.ts, runs every minute) will unstick the row
+// and a second agent can claim it — duplicate work, FK contention on
+// run_log, the works. This tool lets the caller push `locked_until`
+// forward by another TTL window without touching anything else on the
+// row.
 //
 // Ownership check: only the original claimant (`queue.claimed_by ==
 // agent_token_id`) can extend. Every other case errors out — already

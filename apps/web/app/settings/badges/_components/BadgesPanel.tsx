@@ -73,7 +73,7 @@ export type SuggestionRow = {
   count: number
   createdAt: string
   lastSeenAt: string
-  articleId: string
+  articleId: string | null
   articleSlug: string | null
   articleTitle: string | null
 }

@@ -9,12 +9,15 @@
 // URL validation: must parse via the URL constructor and use http/https.
 // Length cap: 200 chars (anything longer is almost certainly a tracking-
 // laden share-link, not the canonical author URL we want).
+//
+// Audit round 6 — optional `tx` handle for atomic three-field writes
+// driven by `write_target_profile`.
 
 import { db } from '@lucidindex/db/client'
 import { targets } from '@lucidindex/db/schema'
 import { and, eq, isNull } from 'drizzle-orm'
 import { z } from 'zod'
-import { ToolError } from './index.js'
+import { type DrizzleHandle, ToolError } from './index.js'
 
 const SOCIAL_URL_MAX = 200
 
@@ -34,6 +37,7 @@ export type WriteTargetSocialUrlResult = {
 
 export async function writeTargetSocialUrl(
   args: WriteTargetSocialUrlArgs,
+  tx?: DrizzleHandle,
 ): Promise<WriteTargetSocialUrlResult> {
   // URL shape — accept http/https only. Reject mailto:, javascript:, etc.
   let parsed: URL
@@ -46,7 +50,8 @@ export async function writeTargetSocialUrl(
     throw new ToolError('invalid_social_url', 'social_url must use http or https.')
   }
 
-  const exists = await db
+  const handle: DrizzleHandle = tx ?? (db as unknown as DrizzleHandle)
+  const exists = await handle
     .select({ id: targets.id })
     .from(targets)
     .where(eq(targets.id, args.target_id))
@@ -57,7 +62,7 @@ export async function writeTargetSocialUrl(
 
   // Conditional update — only writes when social_url is currently null.
   // If already populated, WHERE matches zero rows → written:false.
-  const updated = await db
+  const updated = await handle
     .update(targets)
     .set({ socialUrl: args.social_url })
     .where(and(eq(targets.id, args.target_id), isNull(targets.socialUrl)))

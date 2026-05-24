@@ -92,6 +92,14 @@ const env = {
   // untouched. EXIF is stripped unconditionally.
   MCP_IMAGE_MAX_WIDTH: Number(process.env.MCP_IMAGE_MAX_WIDTH ?? 1600),
 
+  // CORS allowlist for the Streamable HTTP transport. Comma-separated
+  // list of permitted Origin headers, or `*` (default) for any origin.
+  // The transport echoes back the request's Origin header verbatim when
+  // it matches an entry, or sends `*` when the env value is literally
+  // `*`. Audit round 6 — added so deployments fronting agents in a
+  // browser can lock down to a specific dashboard origin.
+  MCP_DASHBOARD_CORS_ORIGINS: process.env.MCP_DASHBOARD_CORS_ORIGINS ?? '*',
+
   NODE_ENV: process.env.NODE_ENV ?? 'production',
 }
 

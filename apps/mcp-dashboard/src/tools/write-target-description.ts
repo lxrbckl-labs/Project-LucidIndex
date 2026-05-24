@@ -10,12 +10,18 @@
 // creator card UI, loose enough for "X is a software-engineering blog
 // covering distributed systems and infrastructure, with a focus on
 // operational realism over hype".
+//
+// Audit round 6 — optional `tx` handle: the three single-field writers
+// can now run inside a caller-supplied transaction (used by
+// `write_target_profile` for atomic three-field writes). When `tx` is
+// absent we fall back to the module-level `db` so the standalone tool
+// surface is unchanged.
 
 import { db } from '@lucidindex/db/client'
 import { targets } from '@lucidindex/db/schema'
 import { and, eq, isNull } from 'drizzle-orm'
 import { z } from 'zod'
-import { ToolError } from './index.js'
+import { type DrizzleHandle, ToolError } from './index.js'
 
 const DESCRIPTION_MAX = 500
 
@@ -35,9 +41,11 @@ export type WriteTargetDescriptionResult = {
 
 export async function writeTargetDescription(
   args: WriteTargetDescriptionArgs,
+  tx?: DrizzleHandle,
 ): Promise<WriteTargetDescriptionResult> {
+  const handle: DrizzleHandle = tx ?? (db as unknown as DrizzleHandle)
   // Confirm the target exists at all.
-  const exists = await db
+  const exists = await handle
     .select({ id: targets.id })
     .from(targets)
     .where(eq(targets.id, args.target_id))
@@ -49,7 +57,7 @@ export async function writeTargetDescription(
   // Conditional update — only writes when description is currently null.
   // If the row's description is already populated, the WHERE clause matches
   // zero rows and the agent gets `written: false` in the response.
-  const updated = await db
+  const updated = await handle
     .update(targets)
     .set({ description: args.description })
     .where(and(eq(targets.id, args.target_id), isNull(targets.description)))

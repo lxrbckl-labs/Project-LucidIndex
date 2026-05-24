@@ -7,12 +7,15 @@
 //
 // URL validation: must parse via the URL constructor and use http/https.
 // Length cap: 500 chars (CDN URLs with cache-busters can be long).
+//
+// Audit round 6 — optional `tx` handle for atomic three-field writes
+// driven by `write_target_profile`.
 
 import { db } from '@lucidindex/db/client'
 import { targets } from '@lucidindex/db/schema'
 import { and, eq, isNull } from 'drizzle-orm'
 import { z } from 'zod'
-import { ToolError } from './index.js'
+import { type DrizzleHandle, ToolError } from './index.js'
 
 const PHOTO_URL_MAX = 500
 
@@ -32,6 +35,7 @@ export type WriteTargetPhotoUrlResult = {
 
 export async function writeTargetPhotoUrl(
   args: WriteTargetPhotoUrlArgs,
+  tx?: DrizzleHandle,
 ): Promise<WriteTargetPhotoUrlResult> {
   let parsed: URL
   try {
@@ -43,7 +47,8 @@ export async function writeTargetPhotoUrl(
     throw new ToolError('invalid_photo_url', 'photo_url must use http or https.')
   }
 
-  const exists = await db
+  const handle: DrizzleHandle = tx ?? (db as unknown as DrizzleHandle)
+  const exists = await handle
     .select({ id: targets.id })
     .from(targets)
     .where(eq(targets.id, args.target_id))
@@ -52,7 +57,7 @@ export async function writeTargetPhotoUrl(
     throw new ToolError('target_not_found', `No target with id=${args.target_id}.`)
   }
 
-  const updated = await db
+  const updated = await handle
     .update(targets)
     .set({ photoUrl: args.photo_url })
     .where(and(eq(targets.id, args.target_id), isNull(targets.photoUrl)))

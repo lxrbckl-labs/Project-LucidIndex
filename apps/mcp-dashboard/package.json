@@ -7,6 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
+    "test": "vitest run",
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
@@ -16,10 +17,12 @@
     "@node-rs/argon2": "2.0.2",
     "drizzle-orm": "0.45.2",
     "liquidjs": "10.21.1",
+    "postgres": "3.4.9",
     "zod": "4.3.6"
   },
   "devDependencies": {
     "@types/node": "25.6.0",
-    "tsx": "4.20.6"
+    "tsx": "4.20.6",
+    "vitest": "3.2.4"
   }
 }

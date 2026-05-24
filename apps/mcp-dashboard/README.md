@@ -11,36 +11,60 @@ database via [`@lucidindex/db`](../../packages/db).
 
 ## Status
 
-Real, production-shaped MCP server as of Phase 3:
+Production-shaped MCP server. **16 tools** registered across four
+categories:
+
+- **Queue ops** — `pull_queue_item`, `ack_queue_item`, `extend_queue_lock`,
+  `get_queue_stats`.
+- **Write ops** — `write_articles` (the only mutation that creates
+  article rows; includes badge validation, suggestion inbox, server-side
+  URL canonicalization, per-article savepoints with partial-success
+  responses, and the hero-image pipeline run outside the insert
+  transaction).
+- **Read / lookup ops** — `get_topic_badges`, `get_high_water_mark`,
+  `get_comparison_sources`, `list_targets`, `search_articles`,
+  `check_article_exists`, `list_my_recent_runs`.
+- **Target-metadata writes (one-shot)** — `write_target_description`,
+  `write_target_social_url`, `write_target_photo_url`,
+  `write_target_profile` (combined one-call wrapper).
+
+Each tool is wrapped in a pre-admin guard that returns
+`no_admin_enrolled` until at least one row exists in `admins`.
+
+For per-tool input shapes, returns, and error codes see the public
+catalog at **[`/agents/dashboard`](/agents/dashboard)** (also linked
+from the apps/web nav). The catalog is the canonical reference — this
+README intentionally does not duplicate it.
+
+### What's here
 
 - **Streamable HTTP transport** with `Authorization: Bearer <token>` auth
-  (default; what docker-compose runs).
-- **stdio transport** for process-local clients (`MCP_DASHBOARD_TRANSPORT=stdio`).
-- **Five tools** registered: `pull_queue_item`, `ack_queue_item`,
-  `write_articles`, `get_topic_badges`, `get_high_water_mark`.
-- **Pre-admin guard** — every tool returns `no_admin_enrolled` until at
-  least one row exists in `admins`.
-- **Atomic claim-lock** on `pull_queue_item` (#42) — `FOR UPDATE SKIP
-  LOCKED` makes concurrent pulls safe under contention.
-- **Liquid render** at queue-pull time (#44) — `rendered_prompt` is the
+  — the default and what docker-compose runs.
+- **stdio transport** for process-local clients
+  (`MCP_DASHBOARD_TRANSPORT=stdio`); bypasses auth.
+- **Atomic claim-lock** on `pull_queue_item` — `FOR UPDATE SKIP LOCKED`
+  makes concurrent pulls safe under contention.
+- **Liquid render** at queue-pull time — `rendered_prompt` is the
   template body run through LiquidJS against the per-target context vars.
-- **Topic-badge validation + suggestion inbox + dedup** in
-  `write_articles` (#43) — strict mode rejects unknown badges; default
-  mode routes them to `topic_badge_suggestions` and proceeds; dedup is
-  silent (`{ id, deduped: true }` for repeat `(target_id, source_url)`).
-- **Hero image pipeline** in `write_articles` (#45) — fetch + sharp
-  resize + WebP/JPEG fallback under `data/images/<content-hash>.<ext>`;
-  failure does not block the article write.
-
-| Ticket | Adds                                                                    |
-| ------ | ----------------------------------------------------------------------- |
-| #38    | Sidecar scaffold                                                        |
-| #39+#40+#41 | HTTP + stdio transports, 5 tools, pre-admin guard                  |
-| #42    | `pull_queue_item` atomic claim-lock with `FOR UPDATE SKIP LOCKED`       |
-| #43    | `write_articles` topic-badge validation + suggestion inbox + dedup      |
-| #44    | Liquid template rendering at queue-pull time                            |
-| #45    | Hero image fetch + sharp pipeline                                       |
-| #47    | Vitest test suite for the sidecar (still pending)                       |
+- **Topic-badge validation + suggestion inbox + silent dedup** in
+  `write_articles` — strict mode rejects unknown badges; default mode
+  routes them to `topic_badge_suggestions` and proceeds; repeat
+  `(target_id, source_url)` returns the existing id with
+  `deduped: true`.
+- **Hero image pipeline** in `write_articles` — fetch + sharp resize +
+  WebP/JPEG fallback under `data/images/<content-hash>.<ext>`; failure
+  does not block the article write.
+- **Source dedup primitives** — `check_article_exists` (O(1) exact
+  source_url lookup) and `search_articles` with `include_suppressed`
+  (deprecated alias: `include_hidden`) give agents a way to abort BEFORE
+  researching a duplicate story.
+- **Server-side URL canonicalization** — every `check_article_exists` and
+  `write_articles` call runs the incoming `source_url` through
+  `@lucidindex/shared/url`'s `normalizeSourceUrl` (lowercase host, strip
+  default ports, strip fragment, drop `www.`, drop tracking params,
+  alphabetize query params, strip trailing slash). Migration
+  `0029_normalize_source_urls` backfilled existing rows. The dedup story
+  is now robust to cosmetic URL variations across the corpus.
 
 ## Transports
 
@@ -71,18 +95,18 @@ applies.
 All tool error responses use `isError: true` with a structured
 `{ error: { code, message } }` payload that callers can branch on.
 
-| Tool                  | Input                                                                 | Output                                                                  | Notes                                                            |
-| --------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `pull_queue_item`     | none                                                                  | claim payload + Liquid-rendered prompt, or `{ queue_item_id: null }`    | Atomic claim-lock; `template_render_failed` on broken templates  |
-| `ack_queue_item`      | `{ queue_item_id, status, failure_reason?, new_high_water_mark? }`    | `{ ok: true }`                                                          | Promotes the run_log row created by write_articles (or inserts) |
-| `write_articles`      | `{ queue_item_id, articles[] }` (each may include `hero_image_url`)   | `{ accepted, results: { id, deduped }[] }`                              | Badge validation + suggestion inbox + dedup + image pipeline    |
-| `get_topic_badges`    | none                                                                  | `{ badges: { name, color, display_order }[] }`                          | Read-only                                                        |
-| `get_high_water_mark` | `{ target_id }`                                                       | `{ high_water_mark }`                                                   | Errors `target_not_found` if id unknown                          |
+The canonical per-tool reference (input shapes, returns, error codes)
+lives at **[`/agents/dashboard`](/agents/dashboard)**. This README
+intentionally does not enumerate the 16 tools — the catalog is generated
+from the same `registerTool({ description })` strings and is what agents
+read.
 
 Auth context (the authenticated `agent_token_id`) is plumbed via the SDK's
 `RequestHandlerExtra.authInfo.extra`. Tools that write rows tagged with
-`agent_token_id` (`ack_queue_item`, `write_articles`) require the HTTP
-transport — they refuse with `unauthenticated` over stdio.
+`agent_token_id` (`ack_queue_item`, `write_articles`, `extend_queue_lock`)
+require the HTTP transport — they refuse with `unauthenticated` over
+stdio. All read-only tools (including `check_article_exists` and
+`search_articles`) work on either transport.
 
 ### Atomic claim-lock (#42) — design notes
 
@@ -287,6 +311,7 @@ docker stop li-mcp-deep
 | `DATABASE_URL`                     | yes      | —             | Shared with `apps/web`. Same Postgres, same schema.                            |
 | `MCP_DASHBOARD_PORT`               | no       | `4000`        | Listen port (HTTP transport only). Bound to `127.0.0.1` in docker-compose.     |
 | `MCP_DASHBOARD_TRANSPORT`          | no       | `http`        | `http` (Streamable HTTP) or `stdio`.                                           |
+| `MCP_DASHBOARD_CORS_ORIGINS`       | no       | `*`           | Comma-separated allowlist for the `Access-Control-Allow-Origin` header, or `*` for any origin. |
 | `MCP_DASHBOARD_LOCK_TTL_MINUTES`   | no       | `15`          | Claim-lock TTL for `pull_queue_item`. Wins over `MCP_DASHBOARD_QUEUE_LOCK_TTL_SEC`. |
 | `MCP_DASHBOARD_QUEUE_LOCK_TTL_SEC` | no       | —             | Legacy seconds-form of the lock TTL. Kept for back-compat.                     |
 | `MCP_IMAGE_DIR`                    | no       | `data/images` | Shared with apps/web + apps/cron. Where the hero-image pipeline writes WebP+JPEG outputs. |

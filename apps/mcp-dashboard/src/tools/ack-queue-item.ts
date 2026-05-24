@@ -48,7 +48,27 @@ export type AckQueueItemArgs = z.infer<typeof ackQueueItemArgs> & {
   agentTokenId: string
 }
 
-export async function ackQueueItem(args: AckQueueItemArgs): Promise<{ ok: true }> {
+export type AckQueueItemResult = {
+  ok: true
+  /**
+   * The values that ACTUALLY landed on the relevant rows after the ack.
+   * Echoed back so the agent can verify what was persisted without a
+   * follow-up read.
+   *
+   * - `articles_count` — authoritative count of articles tied to this
+   *   queue item's run_log row (recomputed here from the articles table,
+   *   not trusted from accumulated write_articles deltas).
+   * - `high_water_mark` — the target's high_water_mark after the ack.
+   *   Unchanged from the pre-call value if `new_high_water_mark` was
+   *   omitted.
+   */
+  persisted: {
+    articles_count: number
+    high_water_mark: unknown
+  }
+}
+
+export async function ackQueueItem(args: AckQueueItemArgs): Promise<AckQueueItemResult> {
   const queueRows = await db
     .select({
       id: queue.id,
@@ -80,69 +100,96 @@ export async function ackQueueItem(args: AckQueueItemArgs): Promise<{ ok: true }
 
   const now = new Date()
 
-  // Locate the run_log row write_articles created (if any).
-  const existingRunLog = (
-    await db
-      .select({ id: runLog.id })
-      .from(runLog)
-      .where(eq(runLog.queueItemId, args.queue_item_id))
-      .limit(1)
-  )[0]
+  // P2 (audit round 3): the queue ack + run_log update + target hwm
+  // update are wrapped in a single transaction so a partial failure
+  // can't leave any of the three rows in a stale state (e.g. queue acked
+  // but target hwm not bumped — agent thinks the run landed but the
+  // next cron tick re-enqueues from the old hwm and re-runs the work).
+  let articlesCount = 0
+  let persistedHwm: unknown = null
 
-  if (existingRunLog) {
-    // Recount articles authoritatively for this run_log row.
-    const counts = await db
-      .select({ c: sql<number>`count(*)::int` })
-      .from(articles)
-      .where(eq(articles.runLogId, existingRunLog.id))
-    const articlesCount = counts[0]?.c ?? 0
+  await db.transaction(async (tx) => {
+    // Locate the run_log row write_articles created (if any).
+    const existingRunLog = (
+      await tx
+        .select({ id: runLog.id })
+        .from(runLog)
+        .where(eq(runLog.queueItemId, args.queue_item_id))
+        .limit(1)
+    )[0]
 
-    await db
-      .update(runLog)
-      .set({
+    if (existingRunLog) {
+      // Recount articles authoritatively for this run_log row.
+      const counts = await tx
+        .select({ c: sql<number>`count(*)::int` })
+        .from(articles)
+        .where(eq(articles.runLogId, existingRunLog.id))
+      articlesCount = counts[0]?.c ?? 0
+
+      await tx
+        .update(runLog)
+        .set({
+          status: args.status,
+          failureReason: args.failure_reason ?? null,
+          articlesCount,
+          completedAt: now,
+          agentTokenId: args.agentTokenId,
+        })
+        .where(eq(runLog.id, existingRunLog.id))
+    } else {
+      // No write_articles call was made — insert a fresh terminal run_log
+      // row with articles_count = 0.
+      articlesCount = 0
+      await tx.insert(runLog).values({
+        targetId: q.targetId,
+        queueItemId: q.id,
+        agentTokenId: args.agentTokenId,
         status: args.status,
         failureReason: args.failure_reason ?? null,
-        articlesCount,
+        articlesCount: 0,
+        startedAt: q.enqueuedAt,
         completedAt: now,
-        agentTokenId: args.agentTokenId,
       })
-      .where(eq(runLog.id, existingRunLog.id))
-  } else {
-    // No write_articles call was made — insert a fresh terminal run_log
-    // row with articles_count = 0.
-    await db.insert(runLog).values({
-      targetId: q.targetId,
-      queueItemId: q.id,
-      agentTokenId: args.agentTokenId,
-      status: args.status,
-      failureReason: args.failure_reason ?? null,
-      articlesCount: 0,
-      startedAt: q.enqueuedAt,
-      completedAt: now,
-    })
-  }
+    }
 
-  await db
-    .update(queue)
-    .set({ ackedAt: now, claimedBy: null, lockedUntil: null })
-    .where(eq(queue.id, q.id))
+    await tx
+      .update(queue)
+      .set({ ackedAt: now, claimedBy: null, lockedUntil: null })
+      .where(eq(queue.id, q.id))
 
-  // Update target's last-run summary fields. high_water_mark only changes
-  // if the caller passed `new_high_water_mark` (jsonb is opaque to us).
-  const targetUpdates: Partial<{
-    lastRunStatus: 'succeeded' | 'failed'
-    lastRunAt: Date
-    lastRunFailureReason: string | null
-    highWaterMark: unknown
-  }> = {
-    lastRunStatus: args.status,
-    lastRunAt: now,
-    lastRunFailureReason: args.failure_reason ?? null,
-  }
-  if (args.new_high_water_mark !== undefined) {
-    targetUpdates.highWaterMark = args.new_high_water_mark
-  }
-  await db.update(targets).set(targetUpdates).where(eq(targets.id, q.targetId))
+    // Update target's last-run summary fields. high_water_mark only changes
+    // if the caller passed `new_high_water_mark` (jsonb is opaque to us).
+    const targetUpdates: Partial<{
+      lastRunStatus: 'succeeded' | 'failed'
+      lastRunAt: Date
+      lastRunFailureReason: string | null
+      highWaterMark: unknown
+    }> = {
+      lastRunStatus: args.status,
+      lastRunAt: now,
+      lastRunFailureReason: args.failure_reason ?? null,
+    }
+    if (args.new_high_water_mark !== undefined) {
+      targetUpdates.highWaterMark = args.new_high_water_mark
+    }
+    await tx.update(targets).set(targetUpdates).where(eq(targets.id, q.targetId))
 
-  return { ok: true }
+    // Re-read the target's high_water_mark inside the transaction so the
+    // persisted value we return reflects the post-update state and is a
+    // consistent read against the same xact's writes.
+    const targetRow = await tx
+      .select({ highWaterMark: targets.highWaterMark })
+      .from(targets)
+      .where(eq(targets.id, q.targetId))
+      .limit(1)
+    persistedHwm = targetRow[0]?.highWaterMark ?? null
+  })
+
+  return {
+    ok: true,
+    persisted: {
+      articles_count: articlesCount,
+      high_water_mark: persistedHwm,
+    },
+  }
 }

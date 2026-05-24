@@ -57,6 +57,49 @@ import { logger } from './logger.js'
 logger.info('cron_sidecar_starting', { tz: env.CRON_TIMEZONE, node_env: env.NODE_ENV })
 
 // ---------------------------------------------------------------------------
+// Graceful-shutdown state (audit round 9).
+//
+// `inFlight` tracks the number of cron job bodies currently executing.
+// node-cron's `stop()` halts FUTURE ticks but does not interrupt or
+// await a tick that's already in flight — so without our own counter
+// the SIGTERM path would `process.exit(0)` mid-job, ripping the
+// postgres-js socket out from under a half-finished INSERT and
+// leaving a dangling cron_runs row (no completed_at).
+//
+// `runTracked()` wraps every scheduled callback: increment on entry,
+// decrement in finally, swallow exceptions (the job bodies have their
+// own error handling — we just need the counter to balance even on
+// throw).
+//
+// `shuttingDown` short-circuits new ticks once the signal arrives, so
+// even though node-cron's `stop()` is best-effort, we never start a
+// new job body after the drain begins.
+// ---------------------------------------------------------------------------
+let shuttingDown = false
+let inFlight = 0
+async function runTracked(name: string, fn: () => Promise<void>): Promise<void> {
+  if (shuttingDown) {
+    logger.debug('cron_tick_skipped_shutting_down', { job: name })
+    return
+  }
+  inFlight++
+  try {
+    await fn()
+  } catch (err) {
+    // Job bodies already log their own failures via runJob() — this
+    // catch only exists so a throw doesn't unbalance `inFlight`. Keep
+    // the message in case a job grows a code path that bypasses
+    // runJob().
+    logger.error('cron_tick_unhandled_error', {
+      job: name,
+      error: err instanceof Error ? err.message : String(err),
+    })
+  } finally {
+    inFlight--
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Heartbeat job (#48) — every minute, write a `cron_runs` row tagged
 // 'heartbeat' to prove the sidecar boots and can talk to Postgres. The
 // Phase 7 Settings → System dashboard surfaces `last_tick_at` per job; an
@@ -70,36 +113,38 @@ logger.info('cron_sidecar_starting', { tz: env.CRON_TIMEZONE, node_env: env.NODE
 const heartbeatTask = cron.schedule(
   '* * * * *',
   async () => {
-    const startedAt = new Date()
-    try {
-      await db.insert(cronRuns).values({
-        job: 'heartbeat',
-        startedAt,
-        completedAt: new Date(),
-        status: 'succeeded',
-        details: { note: 'scaffold heartbeat' },
-      })
-      logger.debug('heartbeat_tick')
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      logger.error('heartbeat_failed', { error: message })
-      // Best-effort failure record — DB is the surface the dashboard
-      // reads, so we try to leave a marker even when the DB is flaky.
-      // If THIS insert also throws, swallow it: stderr already carries
-      // the structured error above.
-      await db
-        .insert(cronRuns)
-        .values({
+    await runTracked('heartbeat', async () => {
+      const startedAt = new Date()
+      try {
+        await db.insert(cronRuns).values({
           job: 'heartbeat',
           startedAt,
           completedAt: new Date(),
-          status: 'failed',
-          details: { error: message },
+          status: 'succeeded',
+          details: { note: 'scaffold heartbeat' },
         })
-        .catch(() => {
-          /* swallow — DB is the failure surface */
-        })
-    }
+        logger.debug('heartbeat_tick')
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        logger.error('heartbeat_failed', { error: message })
+        // Best-effort failure record — DB is the surface the dashboard
+        // reads, so we try to leave a marker even when the DB is flaky.
+        // If THIS insert also throws, swallow it: stderr already carries
+        // the structured error above.
+        await db
+          .insert(cronRuns)
+          .values({
+            job: 'heartbeat',
+            startedAt,
+            completedAt: new Date(),
+            status: 'failed',
+            details: { error: message },
+          })
+          .catch(() => {
+            /* swallow — DB is the failure surface */
+          })
+      }
+    })
   },
   { timezone: env.CRON_TIMEZONE, name: 'heartbeat' },
 )
@@ -110,7 +155,7 @@ const heartbeatTask = cron.schedule(
 const schedulerTask = cron.schedule(
   '* * * * *',
   async () => {
-    await runScheduler()
+    await runTracked('scheduler', runScheduler)
   },
   { timezone: env.CRON_TIMEZONE, name: 'scheduler' },
 )
@@ -121,7 +166,7 @@ const schedulerTask = cron.schedule(
 const reaperTask = cron.schedule(
   '* * * * *',
   async () => {
-    await runReaper()
+    await runTracked('reaper', runReaper)
   },
   { timezone: env.CRON_TIMEZONE, name: 'reaper' },
 )
@@ -132,7 +177,7 @@ const reaperTask = cron.schedule(
 const hwmResetTask = cron.schedule(
   '* * * * *',
   async () => {
-    await runHwmReset()
+    await runTracked('hwm_reset', runHwmReset)
   },
   { timezone: env.CRON_TIMEZONE, name: 'hwm_reset' },
 )
@@ -143,7 +188,7 @@ const hwmResetTask = cron.schedule(
 const retentionPurgeTask = cron.schedule(
   '0 3 * * *',
   async () => {
-    await runRetentionPurge()
+    await runTracked('retention_purge', runRetentionPurge)
   },
   { timezone: env.CRON_TIMEZONE, name: 'retention_purge' },
 )
@@ -154,7 +199,7 @@ const retentionPurgeTask = cron.schedule(
 const localBackupTask = cron.schedule(
   '0 2 * * *',
   async () => {
-    await runLocalBackup()
+    await runTracked('local_backup', runLocalBackup)
   },
   { timezone: env.CRON_TIMEZONE, name: 'local_backup' },
 )
@@ -167,7 +212,7 @@ const localBackupTask = cron.schedule(
 const offSiteBackupTask = cron.schedule(
   '30 2 * * *',
   async () => {
-    await runOffSiteBackup()
+    await runTracked('off_site_backup', runOffSiteBackup)
   },
   { timezone: env.CRON_TIMEZONE, name: 'off_site_backup' },
 )
@@ -194,22 +239,63 @@ logger.info('cron_sidecar_listening', {
   ],
 })
 
-let shuttingDown = false
-function shutdown(signal: NodeJS.Signals) {
-  if (shuttingDown) return
+// ---------------------------------------------------------------------------
+// Shutdown drain (audit round 9).
+//
+// node-cron's `stop()` halts FUTURE ticks but does not interrupt or
+// wait on a tick that's already running. Previously the .finally()
+// fired `process.exit(0)` immediately after the stop() Promise
+// resolved, which meant a long-running job (local_backup spawns
+// pg_dump, off_site_backup invokes rclone) would be SIGKILL'd
+// mid-operation when the orchestrator's grace window expired.
+//
+// New flow:
+//   1. flip shuttingDown — `runTracked` short-circuits any tick that
+//      lands AFTER the flag flips (race window between cron firing
+//      and our wrapper checking the flag).
+//   2. stop() every task so node-cron stops scheduling new ticks.
+//   3. poll `inFlight` until zero or 30s elapses. Backups can take
+//      minutes legitimately; we pick a 30s budget that matches the
+//      mcp-dashboard sidecar's drain budget so docker-compose's stop
+//      grace (10s default, 30s typical) catches both.
+//   4. process.exit(0).
+//
+// A second signal during the drain is logged but does NOT abort the
+// drain. Operators who need to hard-kill can use SIGKILL.
+// ---------------------------------------------------------------------------
+const SHUTDOWN_DRAIN_MS = 30_000
+const SHUTDOWN_DRAIN_POLL_MS = 100
+async function shutdown(signal: NodeJS.Signals): Promise<void> {
+  if (shuttingDown) {
+    logger.warn('cron_sidecar_shutdown_signal_during_drain', { signal })
+    return
+  }
   shuttingDown = true
-  logger.info('cron_sidecar_shutting_down', { signal })
-  // node-cron v4: stop() halts future ticks; in-flight ticks are allowed
-  // to finish naturally (we don't await — the process exits below and the
-  // postgres-js pool closes its sockets, which the running insert will
-  // either complete or have rolled back by Postgres).
-  Promise.all(allTasks.map((t) => Promise.resolve(t.stop()).catch(() => {})))
-    .catch((err) => {
-      logger.error('cron_sidecar_stop_error', {
-        error: err instanceof Error ? err.message : String(err),
-      })
+  logger.info('cron_sidecar_shutting_down', { signal, in_flight: inFlight })
+  // node-cron v4: stop() halts future ticks; in-flight ticks finish
+  // naturally and we wait for them below via the inFlight poll.
+  await Promise.all(allTasks.map((t) => Promise.resolve(t.stop()).catch(() => {}))).catch((err) => {
+    logger.error('cron_sidecar_stop_error', {
+      error: err instanceof Error ? err.message : String(err),
     })
-    .finally(() => process.exit(0))
+  })
+  const deadline = Date.now() + SHUTDOWN_DRAIN_MS
+  while (inFlight > 0 && Date.now() < deadline) {
+    await new Promise<void>((r) => setTimeout(r, SHUTDOWN_DRAIN_POLL_MS).unref())
+  }
+  if (inFlight > 0) {
+    logger.warn('cron_sidecar_shutdown_drain_timeout', {
+      in_flight: inFlight,
+      drain_ms: SHUTDOWN_DRAIN_MS,
+    })
+  } else {
+    logger.info('cron_sidecar_shutdown_drain_complete')
+  }
+  process.exit(0)
 }
-process.on('SIGTERM', () => shutdown('SIGTERM'))
-process.on('SIGINT', () => shutdown('SIGINT'))
+process.on('SIGTERM', () => {
+  void shutdown('SIGTERM')
+})
+process.on('SIGINT', () => {
+  void shutdown('SIGINT')
+})

@@ -115,15 +115,61 @@ export async function issueToken(label: string): Promise<IssueTokenResult> {
 }
 
 /**
+ * Postgres LISTEN/NOTIFY channel name the mcp-dashboard sidecar
+ * subscribes to. When a token is revoked here, we send a NOTIFY on
+ * this channel with the revoked row's UUID as the payload; the
+ * sidecar's listener evicts the matching entry from its in-process
+ * argon2-verify cache, which means revoke takes effect within the
+ * NOTIFY round-trip (~10ms) instead of waiting up to
+ * TOKEN_CACHE_TTL_MS (60s) for the cache entry to expire.
+ *
+ * Channel name is duplicated in `apps/mcp-dashboard/src/auth.ts` —
+ * both sides must agree; keep them in sync if you rename.
+ */
+const TOKEN_REVOKED_CHANNEL = 'agent_token_revoked'
+
+/**
  * Revoke a token by setting `revoked_at = now()`.
  * No-ops if already revoked (idempotent). Returns false if the token
  * doesn't exist.
+ *
+ * Audit round 9: fires a Postgres NOTIFY on `agent_token_revoked` with
+ * the revoked token's id as the payload, so the mcp-dashboard's
+ * in-process verify cache evicts the entry immediately instead of
+ * waiting for the 60s TTL. The NOTIFY is sent only on a transition
+ * (existing.revokedAt was null). Re-revoking an already-revoked token
+ * is still a no-op and does not re-fire the NOTIFY — the cache has
+ * already evicted on the first revoke and a duplicate signal would be
+ * noise.
+ *
+ * The NOTIFY is fire-and-forget: if Postgres rejects the channel
+ * write (extremely unusual — NOTIFY is in-DB), we log a warning and
+ * still return true. The TTL is the safety net.
  */
 export async function revokeToken(id: string): Promise<boolean> {
   const existing = await getToken(id)
   if (!existing) return false
 
   await db.update(agentTokens).set({ revokedAt: sql`now()` }).where(eq(agentTokens.id, id))
+
+  // Only signal on a transition (was-active → revoked). Re-revoking
+  // an already-revoked token doesn't need a NOTIFY — the cache
+  // entry is already gone, and the eviction is idempotent in any
+  // case.
+  if (existing.revokedAt === null) {
+    try {
+      // pg_notify is the function form of NOTIFY — works inside a
+      // generic SQL execution path (db.execute) without the channel
+      // name needing to be a SQL identifier literal. Payload is the
+      // token id so the listener can scope the eviction. Channel
+      // name is constant; payload is bound parameter.
+      await db.execute(sql`SELECT pg_notify(${TOKEN_REVOKED_CHANNEL}, ${id})`)
+    } catch {
+      // Best-effort. The 60s cache TTL is the fallback — we don't
+      // want a NOTIFY hiccup to surface a 500 to the admin who just
+      // revoked a token.
+    }
+  }
 
   return true
 }

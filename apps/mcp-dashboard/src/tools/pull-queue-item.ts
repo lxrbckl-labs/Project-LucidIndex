@@ -13,7 +13,8 @@
 //
 //   UPDATE queue
 //   SET locked_until = now() + interval '<TTL>',
-//       claimed_by   = $agent_token_id
+//       claimed_by   = $agent_token_id,
+//       attempt_count = attempt_count + 1
 //   WHERE id = (
 //     SELECT id FROM queue
 //     WHERE acked_at IS NULL
@@ -28,6 +29,11 @@
 // the UPDATE; concurrent pullers cleanly skip past whatever row another
 // transaction has just claimed.
 //
+// `attempt_count` (migration 0031) is bumped inside the same statement so
+// the post-increment value is returned to the agent on every pull. Agents
+// branch on it for back-off / escalation when the reaper has unstuck a
+// row repeatedly.
+//
 // After the claim, a second SELECT joins targets + prompt_templates to
 // build the response. We split the two so the atomic UPDATE stays small
 // and trivially auditable.
@@ -35,17 +41,34 @@
 // #44: rendered_prompt is the LiquidJS-rendered template body. Render
 // errors surface as `template_render_failed` ToolErrors so the agent
 // sees WHICH target/template broke.
+//
+// Audit round 3 (P1): the metadata-read + Liquid-render block is wrapped
+// in a try/catch that RELEASES the claim before re-throwing. Otherwise a
+// bad template would hold the row locked until the reaper times it out,
+// even though the agent never received the queue_item_id (so it can't
+// ack it or extend the lock). The release UPDATE includes a
+// `claimed_by = $ctx.agentTokenId` guard so we never race the reaper
+// into wiping another agent's claim.
 
 import { db } from '@lucidindex/db/client'
 import { promptTemplates, queue, targets } from '@lucidindex/db/schema'
-import { eq, sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import env from '../env.js'
 import { renderPromptBody } from '../lib/liquid-render.js'
+import { logger } from '../logger.js'
 import { ToolError } from './index.js'
 
 export type PullQueueItemArgs = {
-  /** Authenticated agent_token_id, if any. Stored as `claimed_by` on the row. */
-  agentTokenId: string | null
+  /**
+   * Authenticated agent_token_id. REQUIRED — stored as `claimed_by` on the
+   * claimed row so subsequent `write_articles` / `ack_queue_item` calls can
+   * verify the caller owns the claim. stdio has no auth context and so
+   * cannot legitimately pull (the claim would be unattributable and every
+   * downstream write would fail `queue_item_not_claimed_by_caller`); the
+   * registration wrapper rejects stdio with `stdio_pull_disabled` before
+   * we get here.
+   */
+  agentTokenId: string
 }
 
 export type PullQueueItemResult =
@@ -62,6 +85,13 @@ export type PullQueueItemResult =
       high_water_mark: unknown
       cadence: string
       cross_source_n: number
+      /**
+       * Post-increment attempt count for this queue row. Bumped in the
+       * atomic claim UPDATE so the value the agent sees IS the count of
+       * this attempt (1 on first pull, 2 on a reaper-released retry, etc.).
+       * Agents back off or escalate on a high attempt count.
+       */
+      attempt_count: number
       pulled_at: string
       lock_expires_at: string
     }
@@ -75,6 +105,7 @@ type ClaimedRow = {
   locked_until: Date
   priority: number
   acked_at: Date | null
+  attempt_count: number
 }
 
 export async function pullQueueItem(args: PullQueueItemArgs): Promise<PullQueueItemResult> {
@@ -91,7 +122,8 @@ export async function pullQueueItem(args: PullQueueItemArgs): Promise<PullQueueI
   const claimResult = await db.execute<ClaimedRow>(sql`
     UPDATE queue
     SET locked_until = now() + make_interval(secs => ${ttlSec}),
-        claimed_by   = ${args.agentTokenId}
+        claimed_by   = ${args.agentTokenId},
+        attempt_count = attempt_count + 1
     WHERE id = (
       SELECT id FROM queue
       WHERE acked_at IS NULL
@@ -115,74 +147,112 @@ export async function pullQueueItem(args: PullQueueItemArgs): Promise<PullQueueI
   // Second query: pull the joined target + template metadata for the
   // response payload. The atomic UPDATE above already locked the row
   // for us, so this is a plain read.
-  const meta = await db
-    .select({
-      promptTemplateId: targets.promptTemplateId,
-      urlOrHandle: targets.urlOrHandle,
-      label: targets.label,
-      description: targets.description,
-      socialUrl: targets.socialUrl,
-      photoUrl: targets.photoUrl,
-      cadence: targets.cadence,
-      highWaterMark: targets.highWaterMark,
-      crossSourceN: promptTemplates.crossSourceN,
-      promptBody: promptTemplates.body,
-    })
-    .from(queue)
-    .innerJoin(targets, eq(queue.targetId, targets.id))
-    .innerJoin(promptTemplates, eq(targets.promptTemplateId, promptTemplates.id))
-    .where(eq(queue.id, claimed.id))
-    .limit(1)
-
-  if (meta.length === 0) {
-    // Target or prompt_template was deleted (or FK-broken) between claim
-    // and read — should never happen given the FK constraints, but guard
-    // anyway. Return a recognizable error rather than crashing.
-    throw new ToolError(
-      'queue_item_metadata_missing',
-      `Queue item ${claimed.id} has no joinable target/prompt_template metadata.`,
-    )
-  }
-  // biome-ignore lint/style/noNonNullAssertion: length-checked above
-  const m = meta[0]!
-
-  // #44: render the Liquid template. Pass through any render error as a
-  // tool error so the agent can distinguish "template broken" from
-  // "internal_error".
-  let renderedPrompt: string
+  //
+  // P1 (audit round 3): the metadata-read + Liquid-render are wrapped in
+  // a try/catch that releases this claim on any error. Without the
+  // release, a bad template would hold the row locked until the reaper
+  // times it out, even though the agent never received the queue_item_id
+  // (so it can't extend the lock or ack it).
   try {
-    renderedPrompt = await renderPromptBody(m.promptBody, {
-      creator_name: m.label,
-      target_url: m.urlOrHandle,
+    const meta = await db
+      .select({
+        promptTemplateId: targets.promptTemplateId,
+        urlOrHandle: targets.urlOrHandle,
+        label: targets.label,
+        description: targets.description,
+        socialUrl: targets.socialUrl,
+        photoUrl: targets.photoUrl,
+        cadence: targets.cadence,
+        highWaterMark: targets.highWaterMark,
+        crossSourceN: promptTemplates.crossSourceN,
+        promptBody: promptTemplates.body,
+      })
+      .from(queue)
+      .innerJoin(targets, eq(queue.targetId, targets.id))
+      .innerJoin(promptTemplates, eq(targets.promptTemplateId, promptTemplates.id))
+      .where(eq(queue.id, claimed.id))
+      .limit(1)
+
+    if (meta.length === 0) {
+      // Target or prompt_template was deleted (or FK-broken) between claim
+      // and read — should never happen given the FK constraints, but guard
+      // anyway. Return a recognizable error rather than crashing.
+      throw new ToolError(
+        'queue_item_metadata_missing',
+        `Queue item ${claimed.id} has no joinable target/prompt_template metadata.`,
+      )
+    }
+    // biome-ignore lint/style/noNonNullAssertion: length-checked above
+    const m = meta[0]!
+
+    // #44: render the Liquid template. Pass through any render error as a
+    // tool error so the agent can distinguish "template broken" from
+    // "internal_error".
+    let renderedPrompt: string
+    try {
+      renderedPrompt = await renderPromptBody(m.promptBody, {
+        creator_name: m.label,
+        target_url: m.urlOrHandle,
+        high_water_mark: m.highWaterMark ?? null,
+        cadence: m.cadence,
+        cross_source_n: m.crossSourceN,
+      })
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err)
+      throw new ToolError(
+        'template_render_failed',
+        `Liquid render failed for prompt_template_id=${m.promptTemplateId}: ${reason}`,
+      )
+    }
+
+    return {
+      queue_item_id: claimed.id,
+      target_id: claimed.target_id,
+      url_or_handle: m.urlOrHandle,
+      label: m.label,
+      target_description: m.description,
+      target_social_url: m.socialUrl,
+      target_photo_url: m.photoUrl,
+      prompt_template_id: m.promptTemplateId,
+      rendered_prompt: renderedPrompt,
       high_water_mark: m.highWaterMark ?? null,
       cadence: m.cadence,
       cross_source_n: m.crossSourceN,
-    })
+      attempt_count: claimed.attempt_count,
+      // claimed.locked_until is set by the same statement as the claim, so
+      // it's the authoritative lock expiry — we report it back rather than
+      // recomputing from the local clock.
+      pulled_at: new Date().toISOString(),
+      lock_expires_at: new Date(claimed.locked_until).toISOString(),
+    }
   } catch (err) {
-    const reason = err instanceof Error ? err.message : String(err)
-    throw new ToolError(
-      'template_render_failed',
-      `Liquid render failed for prompt_template_id=${m.promptTemplateId}: ${reason}`,
-    )
-  }
-
-  return {
-    queue_item_id: claimed.id,
-    target_id: claimed.target_id,
-    url_or_handle: m.urlOrHandle,
-    label: m.label,
-    target_description: m.description,
-    target_social_url: m.socialUrl,
-    target_photo_url: m.photoUrl,
-    prompt_template_id: m.promptTemplateId,
-    rendered_prompt: renderedPrompt,
-    high_water_mark: m.highWaterMark ?? null,
-    cadence: m.cadence,
-    cross_source_n: m.crossSourceN,
-    // claimed.locked_until is set by the same statement as the claim, so
-    // it's the authoritative lock expiry — we report it back rather than
-    // recomputing from the local clock.
-    pulled_at: new Date().toISOString(),
-    lock_expires_at: new Date(claimed.locked_until).toISOString(),
+    // Release the claim before re-throwing so the queue row goes back
+    // into rotation immediately. We guard on `claimed_by = $ctx.agentTokenId`
+    // so this never races the reaper into wiping a claim that already
+    // got reassigned.
+    //
+    // Audit round 6: the atomic claim UPDATE bumped `attempt_count` —
+    // but the agent never received the queue_item_id, so this was not a
+    // real attempt from their perspective. Decrement it back here so a
+    // bad template / missing metadata doesn't burn the attempt budget
+    // and trigger spurious back-off / escalation on the next pull.
+    try {
+      await db
+        .update(queue)
+        .set({
+          claimedBy: null,
+          lockedUntil: null,
+          attemptCount: sql`${queue.attemptCount} - 1`,
+        })
+        .where(and(eq(queue.id, claimed.id), eq(queue.claimedBy, args.agentTokenId)))
+    } catch (releaseErr) {
+      // Log the release failure but surface the ORIGINAL error to the
+      // caller — the reaper will catch any orphaned lock on its next tick.
+      logger.error('pull_queue_item_claim_release_failed', {
+        queue_item_id: claimed.id,
+        message: releaseErr instanceof Error ? releaseErr.message : String(releaseErr),
+      })
+    }
+    throw err
   }
 }
