@@ -36,7 +36,7 @@ visual family read the same?"
 To capture:
 
 1. `LUCIDINDEX_MOCK=1 pnpm --filter @lucidindex/web dev`
-2. Open `http://localhost:3000` in a 1440px-wide window.
+2. Open `http://localhost:47892` in a 1440px-wide window.
 3. Take a full-page screenshot (browser dev tools' "capture
    full-size screenshot" or Playwright's `page.screenshot({ fullPage: true })`).
 4. Save under `tests/screenshots/phase5-foundation-<n>.png`. The

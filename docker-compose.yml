@@ -45,14 +45,14 @@ services:
       postgres:
         condition: service_healthy
     # Healthcheck doubles as a "web has finished migrations" signal — the
-    # entrypoint runs `drizzle-kit migrate` and seed before binding port 3000,
-    # so a TCP listener on 3000 means the schema is ready. mcp-dashboard + cron
+    # entrypoint runs `drizzle-kit migrate` and seed before binding port 47892,
+    # so a TCP listener on 47892 means the schema is ready. mcp-dashboard + cron
     # use this via `service_healthy` so they don't try to query a half-
     # migrated DB. We probe with `nc -z` (BusyBox built-in) rather than wget
     # because we only care that the listener is up — HTTP status is irrelevant
     # to "is the schema migrated".
     healthcheck:
-      test: ["CMD", "nc", "-z", "127.0.0.1", "3000"]
+      test: ["CMD", "nc", "-z", "127.0.0.1", "47892"]
       interval: 5s
       timeout: 5s
       retries: 30
@@ -66,7 +66,7 @@ services:
       # WebAuthn relying-party config. Bare hostname (no scheme/port) for RP_ID.
       # Defaults are valid for local dev; production overrides via .env.
       WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:-localhost}
-      WEBAUTHN_ORIGIN: ${WEBAUTHN_ORIGIN:-http://localhost:3000}
+      WEBAUTHN_ORIGIN: ${WEBAUTHN_ORIGIN:-http://localhost:47892}
       # Founding-token guard (Phase 1, ticket #27) — empty default is intentional.
       # Admin must set a value on first deploy; app logic (Phase 1 #27) enforces this.
       LUCIDINDEX_FOUNDING_TOKEN: ${LUCIDINDEX_FOUNDING_TOKEN:-}
@@ -92,13 +92,13 @@ services:
       MCP_IMAGE_MAX_WIDTH: ${MCP_IMAGE_MAX_WIDTH:-1600}
       # Next.js standalone reads HOSTNAME (not HOST) for the bind address.
       # Default behaviour binds to the container's eth0 IP, which makes the
-      # in-container healthcheck (`localhost:3000`) fail even though the
+      # in-container healthcheck (`localhost:47892`) fail even though the
       # listener is up. Forcing 0.0.0.0 fixes that and is also required for
       # the `wget` healthcheck below.
       HOSTNAME: 0.0.0.0
-      PORT: "3000"
+      PORT: "47892"
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:47892:47892"
 
   mcp-dashboard:
     image: lxrbckl/lucidindex-mcp-dashboard:main
@@ -124,6 +124,49 @@ services:
       - mcp_images:/app/data/images
     ports:
       - "127.0.0.1:4000:4000"
+    # /healthz is the auth-bypassed liveness probe exposed by the HTTP
+    # transport (see apps/mcp-dashboard/src/transports/http.ts). wget is
+    # part of the BusyBox shim in the Alpine base image.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  mcp-forum:
+    image: lxrbckl/lucidindex-mcp-forum:main
+    build:
+      context: .
+      dockerfile: apps/mcp-forum/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      # Wait for web to apply migrations before consuming the schema.
+      web:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://lucidindex:${POSTGRES_PASSWORD:-lucidindex_dev}@postgres:5432/lucidindex
+      NODE_ENV: production
+      MCP_FORUM_PORT: "4100"
+      # CORS allowlist for the Streamable HTTP transport. Default `*`
+      # (header-auth, no ambient credentials to protect); narrow to a
+      # known forum dashboard origin when one is fronted.
+      MCP_FORUM_CORS_ORIGINS: ${MCP_FORUM_CORS_ORIGINS:-*}
+    ports:
+      - "127.0.0.1:4100:4100"
+    # /healthz is the auth-bypassed liveness probe exposed by the
+    # HTTP transport (see apps/mcp-forum/src/transports/http.ts).
+    # The probe now does a real `SELECT 1` with a 1s timeout, so a
+    # failing DB correctly flips the container's health status. wget
+    # is part of the BusyBox shim in the Alpine base image.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4100/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   cron:
     image: lxrbckl/lucidindex-cron:main

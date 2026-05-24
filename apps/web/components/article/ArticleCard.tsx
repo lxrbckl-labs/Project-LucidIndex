@@ -32,7 +32,7 @@ import { StarButton } from './StarButton'
 import { TileShareButton } from './TileShareButton'
 
 const BASE_URL =
-  process.env.WEBAUTHN_ORIGIN ?? process.env.LUCIDINDEX_BASE_URL ?? 'http://localhost:3000'
+  process.env.WEBAUTHN_ORIGIN ?? process.env.LUCIDINDEX_BASE_URL ?? 'http://localhost:47892'
 
 type Props = {
   article: MockArticle

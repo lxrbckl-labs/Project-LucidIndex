@@ -74,7 +74,7 @@ export const dynamic = 'force-dynamic'
  *   3. Hard fallback for local dev.
  */
 function getBaseUrl(): string {
-  return process.env.WEBAUTHN_ORIGIN ?? process.env.LUCIDINDEX_BASE_URL ?? 'http://localhost:3000'
+  return process.env.WEBAUTHN_ORIGIN ?? process.env.LUCIDINDEX_BASE_URL ?? 'http://localhost:47892'
 }
 
 /**

@@ -39,11 +39,11 @@
                        │                                                     │
   Internet ──── 443 ──▶│  Caddy (TLS termination, Let's Encrypt)            │
                        │    ├── /mcp/* → 127.0.0.1:4000                     │
-                       │    └── /*     → 127.0.0.1:3000                     │
+                       │    └── /*     → 127.0.0.1:47892                     │
                        │                                                     │
                        │  ┌──── docker-compose stack ──────────────────┐    │
                        │  │                                             │    │
-                       │  │  web          127.0.0.1:3000:3000          │    │
+                       │  │  web          127.0.0.1:47892:47892        │    │
                        │  │  mcp-dashboard    127.0.0.1:4000:4000          │    │
                        │  │  cron         (no HTTP surface)            │    │
                        │  │  postgres     127.0.0.1:5432:5432          │    │
@@ -93,7 +93,7 @@ Next.js 15 App Router application. The human-facing half of the product.
   admin only. 25-second `: ping` heartbeat. In-process bus via `lib/sse/article-bus.ts`
   (cross-process SSE from `mcp-dashboard` is a future ticket, likely Postgres LISTEN/NOTIFY).
 - **Auto-migrate on startup** — `entrypoint.sh` runs `drizzle-kit migrate` then `seed.ts` before
-  binding port 3000. The `web` service's Docker healthcheck therefore doubles as a "schema is ready"
+  binding port 47892. The `web` service's Docker healthcheck therefore doubles as a "schema is ready"
   signal; `mcp-dashboard` and `cron` use `depends_on: web: condition: service_healthy` so they never
   query an un-migrated DB.
 - **Mock mode** — `LUCIDINDEX_MOCK=1` bypasses the session gate and renders fixture articles from

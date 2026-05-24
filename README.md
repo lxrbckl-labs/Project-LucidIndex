@@ -101,7 +101,7 @@ Single-admin enrollment is gated by an environment variable so the deploy window
 
 ## Reverse-proxy with host Caddy
 
-LucidIndex deploys behind the **homelab's existing Caddy** — we do not ship a Caddy container. The host Caddy terminates TLS via automatic Let's Encrypt (ACME) and routes incoming traffic: `/mcp/*` goes to `mcp-dashboard` (port 4000), everything else goes to `web` (port 3000). There is **no tunnel daemon, no Cloudflare account, and no Tailscale account** in this picture — a public DNS A record, port 443 forwarded at the router, and Caddy's built-in ACME client are the entire public-reach stack.
+LucidIndex deploys behind the **homelab's existing Caddy** — we do not ship a Caddy container. The host Caddy terminates TLS via automatic Let's Encrypt (ACME) and routes incoming traffic: `/mcp/*` goes to `mcp-dashboard` (port 4000), everything else goes to `web` (port 47892). There is **no tunnel daemon, no Cloudflare account, and no Tailscale account** in this picture — a public DNS A record, port 443 forwarded at the router, and Caddy's built-in ACME client are the entire public-reach stack.
 
 ### Caddyfile snippet
 
@@ -113,7 +113,7 @@ your-domain.com {
         reverse_proxy <mcp-target>:4000
     }
     handle {
-        reverse_proxy <web-target>:3000
+        reverse_proxy <web-target>:47892
     }
 }
 ```
@@ -130,13 +130,13 @@ Pick `<web-target>` and `<mcp-target>` based on how Caddy runs on your host:
 
 Details on each shape:
 
-- **Caddy on the host directly** (native binary or systemd): use `localhost:3000` / `localhost:4000`. The Compose stack binds both services to `127.0.0.1:<port>`, so Caddy running on the same host can reach them at `localhost`.
-- **Caddy in a Docker container on the same host** (most common self-hosted setup on macOS / Docker Desktop): use `host.docker.internal:3000` / `host.docker.internal:4000`. `localhost` inside the Caddy container points at the Caddy container itself, not the host — using `localhost` here will give you HTTP 502s.
-- **Caddy in the same Docker network as the LucidIndex stack**: use the container names `web:3000` / `mcp-dashboard:4000`. This requires either attaching Caddy explicitly to this stack's Compose network, or adding `web` and `mcp-dashboard` to Caddy's network in `docker-compose.yml`.
+- **Caddy on the host directly** (native binary or systemd): use `localhost:47892` / `localhost:4000`. The Compose stack binds both services to `127.0.0.1:<port>`, so Caddy running on the same host can reach them at `localhost`.
+- **Caddy in a Docker container on the same host** (most common self-hosted setup on macOS / Docker Desktop): use `host.docker.internal:47892` / `host.docker.internal:4000`. `localhost` inside the Caddy container points at the Caddy container itself, not the host — using `localhost` here will give you HTTP 502s.
+- **Caddy in the same Docker network as the LucidIndex stack**: use the container names `web:47892` / `mcp-dashboard:4000`. This requires either attaching Caddy explicitly to this stack's Compose network, or adding `web` and `mcp-dashboard` to Caddy's network in `docker-compose.yml`.
 
 ### Compose port-binding posture
 
-The Compose file already binds `web` to `127.0.0.1:3000` and `mcp-dashboard` to `127.0.0.1:4000`. This means only Caddy (running on the same host) can reach the services directly — the public internet sees them only through the reverse proxy. **Do not change these to `0.0.0.0:<port>` bindings** — that would expose the services directly on the public interface and defeat the security model.
+The Compose file already binds `web` to `127.0.0.1:47892` and `mcp-dashboard` to `127.0.0.1:4000`. This means only Caddy (running on the same host) can reach the services directly — the public internet sees them only through the reverse proxy. **Do not change these to `0.0.0.0:<port>` bindings** — that would expose the services directly on the public interface and defeat the security model.
 
 ### Reload Caddy after editing
 
@@ -186,7 +186,7 @@ Then visit `/settings?token=<LUCIDINDEX_FOUNDING_TOKEN>` to claim founding-admin
 
 ### Migrations on startup (production)
 
-The web container runs Drizzle migrations + the idempotent seed before binding port 3000. The runner image bundles `drizzle-kit`, the SQL files under `packages/db/migrations/`, and the compiled `packages/db/dist/seed.js`. On a fresh database this materialises the schema; on a populated database the migration journal makes it a no-op. The healthcheck on `web` doubles as a "schema is ready" signal — `mcp-dashboard` and `cron` `depends_on: web → service_healthy` so they never query an unmigrated DB. There is no host-side `pnpm db:migrate` step in production.
+The web container runs Drizzle migrations + the idempotent seed before binding port 47892. The runner image bundles `drizzle-kit`, the SQL files under `packages/db/migrations/`, and the compiled `packages/db/dist/seed.js`. On a fresh database this materialises the schema; on a populated database the migration journal makes it a no-op. The healthcheck on `web` doubles as a "schema is ready" signal — `mcp-dashboard` and `cron` `depends_on: web → service_healthy` so they never query an unmigrated DB. There is no host-side `pnpm db:migrate` step in production.
 
 Concrete commands, env var list, and the admin CLI surface (`admin:reset`) get written into this section once the scaffold exists.
 

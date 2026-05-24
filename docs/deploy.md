@@ -82,7 +82,7 @@ your-domain.com {
         reverse_proxy <mcp-target>:4000
     }
     handle {
-        reverse_proxy <web-target>:3000
+        reverse_proxy <web-target>:47892
     }
 }
 ```
@@ -97,7 +97,7 @@ Pick `<web-target>` and `<mcp-target>` based on how Caddy runs:
 
 **Why this matters:** if Caddy is in a container, `localhost` resolves to the
 Caddy container itself, not the host. Using `localhost` in that case gives you
-502s. The Compose file already binds `web` to `127.0.0.1:3000` and `mcp-dashboard`
+502s. The Compose file already binds `web` to `127.0.0.1:47892` and `mcp-dashboard`
 to `127.0.0.1:4000` — only the host (and therefore Caddy) can reach them. Do
 not change these to `0.0.0.0:PORT` bindings.
 
@@ -136,7 +136,7 @@ docker compose up -d --build
 This builds and starts all four services in dependency order:
 
 1. `postgres` boots and becomes healthy (schema not yet migrated)
-2. `web` runs Drizzle migrations + idempotent seed, then binds port 3000
+2. `web` runs Drizzle migrations + idempotent seed, then binds port 47892
 3. `mcp-dashboard` and `cron` wait for `web` to report healthy before starting
 
 Watch startup with:
@@ -164,7 +164,7 @@ docker compose ps
 Quick health checks:
 
 ```sh
-curl http://127.0.0.1:3000/      # should return HTML (the dashboard or login redirect)
+curl http://127.0.0.1:47892/      # should return HTML (the dashboard or login redirect)
 curl http://127.0.0.1:4000/healthz  # should return {"status":"ok"}
 ```
 
@@ -349,7 +349,7 @@ docker compose exec web env | grep WEBAUTHN_ORIGIN
 # Should print: WEBAUTHN_ORIGIN=https://your-domain.com
 ```
 
-If it shows `http://localhost:3000`, you haven't set `WEBAUTHN_ORIGIN` in `.env`.
+If it shows `http://localhost:47892`, you haven't set `WEBAUTHN_ORIGIN` in `.env`.
 Update `.env` and restart: `docker compose up -d web`.
 
 ### Lost all passkeys (recovery path)
@@ -419,7 +419,7 @@ docker compose up -d --build
 ```
 
 Drizzle migrations apply automatically on `web` boot — the entrypoint runs
-`drizzle-kit migrate` before binding port 3000. On a populated database the
+`drizzle-kit migrate` before binding port 47892. On a populated database the
 migration journal makes it a no-op if nothing new landed.
 
 Zero-downtime rolling updates are not a v0.1 goal. Expect a brief outage

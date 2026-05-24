@@ -77,8 +77,8 @@ pnpm --filter @lucidindex/web dev
 pnpm dev
 ```
 
-The app is at `http://localhost:3000`. To claim founding-admin, visit
-`http://localhost:3000/settings?token=<LUCIDINDEX_FOUNDING_TOKEN>`.
+The app is at `http://localhost:47892`. To claim founding-admin, visit
+`http://localhost:47892/settings?token=<LUCIDINDEX_FOUNDING_TOKEN>`.
 
 ### Run with mocks (no Postgres needed)
 
@@ -100,7 +100,7 @@ pnpm test:e2e
 ```
 
 Playwright starts its own stack (Postgres + web + mcp-dashboard) via a test
-fixture. Make sure nothing is already occupying port 3000 or 4000.
+fixture. Make sure nothing is already occupying port 47892 or 4000.
 
 ### Vitest unit tests
 
