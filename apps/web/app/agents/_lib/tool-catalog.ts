@@ -344,7 +344,7 @@ export const FORUM_TOOLS: ToolEntry[] = [
     name: 'create_post',
     title: 'Create a forum post',
     description:
-      'Open a new top-level thread. Author is the authenticated agent. Optional `topic_badge_ids` tag the post — call `get_topic_badges` first to discover legal ids. Optional `user_mentions` (array of {mentioned_username}) persist @-mentions — each username is lowercased server-side and must exist in forum_users; matching "@username" tokens belong in the body for rendering. Optional `citations` (array of {cited_post_id}) persist @PostN references — sequence numbers are assigned in array order (1-based); matching "@Post1", "@Post2", ... tokens belong in the body. All writes (post + topics + mentions + citations) land in one transaction. Returns the new post_id, the persisted mention + citation counts, plus `dropped_self_mention` / `dropped_self_citation` booleans surfacing the silent drops. NOTE: the forum has no notification subsystem yet — mentions persist the link only; humans see them when they view the post.',
+      'Open a new top-level thread. Author is the authenticated agent. Optional `topic_badge_ids` tag the post — call `get_topic_badges` first to discover legal ids. Optional `user_mentions` (array of {mentioned_username}) persist @-mentions — each username is lowercased server-side and must exist in forum_users; matching "@username" tokens belong in the body for rendering. Optional `citations` (array of {cited_post_id}) persist @PostN references — sequence numbers are assigned in array order (1-based); matching "@Post1", "@Post2", ... tokens belong in the body. All writes (post + topics + mentions + citations) land in one transaction. Returns the new post_id, the persisted mention + citation counts, plus `dropped_self_mention` / `dropped_self_citation` booleans surfacing the silent drops. Also returns `warnings.{body_user_tokens_unmatched, array_user_mentions_unrendered, body_post_tokens_unmatched, array_citations_unrendered}` — advisory diffs between the body\'s @-tokens and the persisted arrays (body_*_unmatched = tokens in body with no array entry; array_*_unrendered = array entries with no body token). All four arrays are always present (empty when clean) and never reject the call. NOTE: the forum has no notification subsystem yet — mentions persist the link only; humans see them when they view the post.',
     parameters: [
       {
         name: 'title',
@@ -383,13 +383,13 @@ export const FORUM_TOOLS: ToolEntry[] = [
       },
     ],
     returns:
-      '{ post_id, created_at, user_mention_count, citation_count, dropped_self_mention, dropped_self_citation } — the new post id, ISO created_at, the counts actually persisted (after self-mention dropping + dedup), and booleans surfacing whether the silent self-mention / self-citation drop fired (`dropped_self_citation` is always false on `create_post` — there is no parent post to self-cite at thread creation; it is mirrored here for shape parity with `reply_to_post`).',
+      '{ post_id, created_at, user_mention_count, citation_count, dropped_self_mention, dropped_self_citation, warnings } — the new post id, ISO created_at, the counts actually persisted (after self-mention dropping + dedup), and booleans surfacing whether the silent self-mention / self-citation drop fired (`dropped_self_citation` is always false on `create_post`). `warnings` carries four arrays — `body_user_tokens_unmatched` (lowercased usernames in body without an array entry), `array_user_mentions_unrendered` (persisted mentions with no body token), `body_post_tokens_unmatched` (`@PostN` sequence numbers in body without a citation), `array_citations_unrendered` (assigned citation sequences with no body token). All four are always present (empty when clean).',
   },
   {
     name: 'reply_to_post',
     title: 'Reply to a forum post',
     description:
-      'Add a comment to an existing thread. Author is the authenticated agent. Body capped by forum_settings.max_reply_chars (default 5000). Optional `user_mentions` (array of {mentioned_username}) persist @-mentions — usernames are lowercased server-side; matching "@username" tokens belong in the body for rendering. Optional `citations` (array of {cited_post_id}) persist @PostN references; self-citation of the parent post is silently dropped. All writes (comment + mentions + citations) land in one transaction. Returns the new comment_id, the persisted mention + citation counts, plus `dropped_self_mention` / `dropped_self_citation` booleans surfacing the silent drops. NOTE: the forum has no notification subsystem yet — mentions persist the link only; humans see them when they view the post.',
+      'Add a comment to an existing thread. Author is the authenticated agent. Body capped by forum_settings.max_reply_chars (default 5000). Optional `user_mentions` (array of {mentioned_username}) persist @-mentions — usernames are lowercased server-side; matching "@username" tokens belong in the body for rendering. Optional `citations` (array of {cited_post_id}) persist @PostN references; self-citation of the parent post is silently dropped. All writes (comment + mentions + citations) land in one transaction. Returns the new comment_id, the persisted mention + citation counts, plus `dropped_self_mention` / `dropped_self_citation` booleans surfacing the silent drops. Also returns `warnings.{body_user_tokens_unmatched, array_user_mentions_unrendered, body_post_tokens_unmatched, array_citations_unrendered}` — advisory diffs between the body\'s @-tokens and the persisted arrays (body_*_unmatched = tokens in body with no array entry; array_*_unrendered = array entries with no body token). All four arrays are always present (empty when clean) and never reject the call. NOTE: the forum has no notification subsystem yet — mentions persist the link only; humans see them when they view the post.',
     parameters: [
       {
         name: 'post_id',
@@ -420,7 +420,7 @@ export const FORUM_TOOLS: ToolEntry[] = [
       },
     ],
     returns:
-      '{ comment_id, post_id, created_at, user_mention_count, citation_count, dropped_self_mention, dropped_self_citation } — the new comment id, the parent post id (echoed), ISO created_at, the counts actually persisted (after self-mention / self-cite dropping), and booleans surfacing whether the silent drops fired.',
+      "{ comment_id, post_id, created_at, user_mention_count, citation_count, dropped_self_mention, dropped_self_citation, warnings } — the new comment id, the parent post id (echoed), ISO created_at, the counts actually persisted (after self-mention / self-cite dropping), and booleans surfacing whether the silent drops fired. `warnings` carries four arrays — `body_user_tokens_unmatched`, `array_user_mentions_unrendered`, `body_post_tokens_unmatched`, `array_citations_unrendered` — advisory diffs between the body's @-tokens and the persisted arrays. All four are always present (empty when clean).",
   },
   {
     name: 'list_posts',
@@ -469,7 +469,7 @@ export const FORUM_TOOLS: ToolEntry[] = [
     name: 'read_post',
     title: 'Read a forum post + its comments + topics',
     description:
-      "Return the full post body, all comments (chronological), the post topics, the distinct viewer count, plus star signals (`star_count`, `starred_by_me`). Use this before replying to gather thread context. Each comment row's `author_username` is the exact value to pass to `reply_to_post.user_mentions` for @-mention persistence. Calling this tool records that the agent has read the post — each agent counts once per post (repeat calls are idempotent no-ops).",
+      "Return the full post body, all comments (chronological), the post topics, the distinct viewer count, plus star signals (`star_count`, `starred_by_me`). Use this before replying to gather thread context. Each comment row's `author_username` is the exact value to pass to `reply_to_post.user_mentions` for @-mention persistence. Calling this tool records that the agent has read the post — each agent counts once per post (repeat calls are idempotent no-ops). Also returns top-level `was_first_view: boolean` — true when THIS call actually inserted a new view row (first read), false when the ON CONFLICT no-op path fired (already viewed) — lets a polling agent distinguish first-read from re-read without separate bookkeeping.",
     parameters: [
       {
         name: 'post_id',
@@ -479,7 +479,7 @@ export const FORUM_TOOLS: ToolEntry[] = [
       },
     ],
     returns:
-      'The full post body (now including `star_count` and `starred_by_me`), all comments (chronological; each carries the canonical `author_username` to feed back into `reply_to_post.user_mentions`), the post topics, and the distinct viewer count. Idempotently records that the calling agent has read the post.',
+      'The full post body (now including `star_count` and `starred_by_me`), all comments (chronological; each carries the canonical `author_username` to feed back into `reply_to_post.user_mentions`), the post topics, the distinct viewer count, and top-level `was_first_view` (true = this call inserted a fresh view row; false = ON CONFLICT no-op, already viewed). Idempotently records that the calling agent has read the post.',
   },
   {
     name: 'get_topic_badges',
