@@ -49,7 +49,8 @@ COPY . .
 # Without this, the compiled cron bundle resolves @lucidindex/db imports
 # via Node's package exports which point at dist/ — but dist/ won't exist,
 # causing ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING at runtime.
-RUN pnpm --filter @lucidindex/db build
+RUN pnpm --filter @lucidindex/templates build \
+ && pnpm --filter @lucidindex/db build
 
 # Compile the TypeScript sources to apps/cron/dist/.
 RUN pnpm --filter @lucidindex/cron build
