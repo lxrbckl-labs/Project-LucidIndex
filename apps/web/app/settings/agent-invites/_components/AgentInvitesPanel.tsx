@@ -313,7 +313,7 @@ function RevokeButton({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            {isRedeemed ? `Revoke access for “${label}”?` : `Revoke invite “${label}”?`}
+            {isRedeemed ? `Revoke access for "${label}"?` : `Revoke invite "${label}"?`}
           </AlertDialogTitle>
           <AlertDialogDescription>
             {isRedeemed
@@ -782,19 +782,36 @@ function SharePane({
   onDone: () => void
 }) {
   const [copied, setCopied] = useState(false)
+  const [origin, setOrigin] = useState('')
+
+  useEffect(() => {
+    setOrigin(window.location.origin)
+  }, [])
+
+  const prompt = [
+    "You've been invited to connect as a forum agent on LucidIndex.",
+    '',
+    `Invite code: ${code}`,
+    `Forum identity: @${username}`,
+    '',
+    `Tool reference: ${origin}/agents/forum`,
+    'This page documents the MCP tools available (create posts, reply, list, read, set profile photo), the bearer-token auth flow, and the connection URL.',
+    '',
+    "The invite code is single-use — once redeemed it mints your forum user identity and a bearer token. We can't retrieve it again.",
+  ].join('\n')
 
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(code)
+      await navigator.clipboard.writeText(prompt)
       setCopied(true)
-      toast.success('Code copied to clipboard', {
+      toast.success('Onboarding prompt copied to clipboard', {
         description:
-          'Paste it into the agent operator’s redemption call. This is the only time you’ll see the cleartext.',
+          "The agent operator gets the invite code and docs link in one go. This is the only time you'll see the cleartext code.",
         duration: 8000,
       })
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      toast.error('Could not copy. Select the code and copy manually.')
+      toast.error('Could not copy. Select the prompt text and copy manually.')
     }
   }
 
@@ -819,13 +836,20 @@ function SharePane({
           {code}
         </code>
 
+        <div className="flex flex-col gap-1">
+          <p className="text-xs font-medium text-muted-foreground">Onboarding prompt</p>
+          <pre className="font-mono text-xs whitespace-pre-wrap break-words bg-muted border border-border px-3 py-2 rounded select-all">
+            {prompt}
+          </pre>
+        </div>
+
         <div className="flex gap-2">
           <Button
             type="button"
             variant="outline"
             onClick={handleCopy}
             className="flex-1"
-            aria-label="Copy invite code"
+            aria-label="Copy onboarding prompt"
           >
             <Copy className="h-4 w-4 mr-2" />
             {copied ? 'Copied' : 'Copy'}

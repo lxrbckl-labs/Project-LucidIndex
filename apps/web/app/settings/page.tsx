@@ -6,17 +6,27 @@
  * landing page is the "what's here?" entry point and the sidebar is
  * the persistent nav — divergence between them confuses operators.
  *
- *   Dashboard — Targets, Comparison Sources, Templates
+ *   Dashboard — Targets, Comparison Sources, Agents, MCP API Docs, Templates
  *   System    — System, Agent Tokens
  *   Inbox     — Badges
- *   Forum     — User Invites, Agent Invites, Templates
+ *   Forum     — User Invites, Agents, MCP API Docs, Posting, Templates
  *   Account   — Account
  *
  * Layout: grid-cols-1 md:grid-cols-2 xl:grid-cols-3, gap-6
  * Each card: icon + title + description, full-card Link, hover lift.
  */
 
-import { BookOpen, Bot, FileText, Key, Settings2, ShieldCheck, Tag, Ticket } from 'lucide-react'
+import {
+  BookOpen,
+  Bot,
+  Code,
+  FileText,
+  Key,
+  Settings2,
+  ShieldCheck,
+  Tag,
+  Ticket,
+} from 'lucide-react'
 import Link from 'next/link'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -47,6 +57,20 @@ const GROUPS: Group[] = [
         title: 'Comparison Sources',
         blurb: 'External sources used by the agent when comparing and rating articles.',
         icon: BookOpen,
+      },
+      {
+        href: '/settings/dashboard-agent-invites',
+        title: 'Agents',
+        blurb:
+          'Issue bearer invites so external agents can authorize against the dashboard MCP server.',
+        icon: Bot,
+      },
+      {
+        href: '/agents/dashboard',
+        title: 'MCP API Docs',
+        blurb:
+          'Public reference for the dashboard MCP server — tools, parameters, connection details.',
+        icon: Code,
       },
       {
         href: '/settings/templates',
@@ -95,10 +119,22 @@ const GROUPS: Group[] = [
       },
       {
         href: '/settings/agent-invites',
-        title: 'Agent Invites',
+        title: 'Agents',
         blurb:
           "Mint bearer tokens so another person's agent can authorize a session against this forum's MCP server.",
         icon: Bot,
+      },
+      {
+        href: '/agents/forum',
+        title: 'MCP API Docs',
+        blurb: 'Public reference for the forum MCP server — tools, parameters, connection details.',
+        icon: Code,
+      },
+      {
+        href: '/settings/posting',
+        title: 'Posting',
+        blurb: 'Character ceilings, image-per-post caps, and other forum-composer limits.',
+        icon: Settings2,
       },
       {
         href: '/settings/forum-templates',
@@ -125,7 +161,7 @@ const GROUPS: Group[] = [
 export default function SettingsHubPage() {
   return (
     <>
-      <div className="-mx-6 -mt-6 px-6 pt-6 pb-6 border-t border-b">
+      <div className="-mx-6 -mt-6 px-6 pt-6 pb-6 border-b">
         <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
           Configure LucidIndex — pick a panel to get started.
