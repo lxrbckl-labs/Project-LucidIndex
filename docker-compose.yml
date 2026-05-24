@@ -1,4 +1,5 @@
-# LucidIndex — local / production stack: Postgres 16 + Next.js web + mcp-dashboard + cron.
+# LucidIndex — local / production stack: Postgres 16 + Next.js web + mcp-dashboard
+# + mcp-forum + cron + watchtower.
 #
 # Phase 1: postgres + web.
 # Phase 3: mcp-dashboard sidecar (full MCP server — see apps/mcp-dashboard/README.md).
@@ -9,11 +10,20 @@
 # Ports are bound to 127.0.0.1 so that only the host Caddy reverse proxy
 # (outside this stack) can reach them. No service is exposed to the LAN.
 #
+# Image strategy:
+#   Each app service has `image:` pointing at the DockerHub-published
+#   tag (lxrbckl/lucidindex-<app>:main) AND a `build:` block as a
+#   local-build fallback. CI (.github/workflows/publish.yml) publishes
+#   on `publish` commits to main. Watchtower polls DockerHub every
+#   WATCHTOWER_POLL_INTERVAL seconds and rolling-restarts containers
+#   whose digest changed — so `docker compose up -d` once, and feature
+#   upgrades land automatically.
+#
 # Usage:
-#   cp apps/web/.env.example .env   # fill in IRON_SESSION_PASSWORD at minimum
-#   docker compose up -d postgres   # bring up DB + verify healthy
-#   docker compose up -d --build web
-#   docker compose down -v          # tear down (removes pg_data volume)
+#   cp apps/web/.env.example .env       # fill in IRON_SESSION_PASSWORD at minimum
+#   docker compose up -d                # pulls published images, starts everything
+#   docker compose down -v              # tear down (removes pg_data volume)
+#   # Force a local rebuild instead of pull: `docker compose up -d --build`
 
 services:
   postgres:
@@ -41,6 +51,12 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
     restart: unless-stopped
+    labels:
+      # Opt into Watchtower (see the `watchtower` service below). Scoped so
+      # one host can run multiple Watchtower instances against different
+      # stacks without crosstalk.
+      com.centurylinklabs.watchtower.enable: "true"
+      com.centurylinklabs.watchtower.scope: lucidindex
     depends_on:
       postgres:
         condition: service_healthy
@@ -106,6 +122,9 @@ services:
       context: .
       dockerfile: apps/mcp-dashboard/Dockerfile
     restart: unless-stopped
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+      com.centurylinklabs.watchtower.scope: lucidindex
     depends_on:
       postgres:
         condition: service_healthy
@@ -140,6 +159,9 @@ services:
       context: .
       dockerfile: apps/mcp-forum/Dockerfile
     restart: unless-stopped
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+      com.centurylinklabs.watchtower.scope: lucidindex
     depends_on:
       postgres:
         condition: service_healthy
@@ -174,6 +196,9 @@ services:
       context: .
       dockerfile: apps/cron/Dockerfile
     restart: unless-stopped
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+      com.centurylinklabs.watchtower.scope: lucidindex
     depends_on:
       postgres:
         condition: service_healthy
@@ -190,6 +215,47 @@ services:
       CRON_TIMEZONE: ${CRON_TIMEZONE:-UTC}
     # No `ports:` block — the cron sidecar has no HTTP surface. It is
     # internal-only and reachable only via Postgres state.
+
+  watchtower:
+    # Polls DockerHub for new tags on the 4 LucidIndex app images (web,
+    # mcp-forum, mcp-dashboard, cron) and rolling-restarts containers
+    # whose digest has changed. CI publishes :main on every "publish"
+    # commit to main; this service is how those land on the running host
+    # without manual `docker compose pull && up -d`.
+    #
+    # Scoped via WATCHTOWER_SCOPE=lucidindex + the per-service labels
+    # above, so this Watchtower instance NEVER touches containers
+    # outside the stack (e.g. anything else running on the host). Same
+    # host can run multiple compose stacks each with their own scoped
+    # Watchtower instance.
+    #
+    # Postgres deliberately has NO watchtower label — Postgres major
+    # upgrades require a manual migration, and silently rolling a DB
+    # image is a footgun. Keep DB upgrades human-driven.
+    image: containrrr/watchtower:latest
+    restart: unless-stopped
+    volumes:
+      # Read-only doesn't work — Watchtower needs to start/stop containers.
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      # Poll interval in seconds. 5 min is the sweet spot for a homelab
+      # — short enough that a publish lands within a coffee break, long
+      # enough that DockerHub doesn't rate-limit. Override via .env.
+      WATCHTOWER_POLL_INTERVAL: ${WATCHTOWER_POLL_INTERVAL:-300}
+      # Delete old image versions after a successful upgrade. Without
+      # this the host's disk fills up with stale images.
+      WATCHTOWER_CLEANUP: "true"
+      # Restart one container at a time (vs. all in parallel) — keeps
+      # at least one app instance serving traffic during the swap.
+      WATCHTOWER_ROLLING_RESTART: "true"
+      # Opt-in mode: only containers with `watchtower.enable=true` are
+      # watched. Combined with WATCHTOWER_SCOPE below, this is a tight
+      # whitelist — nothing outside the LucidIndex stack is touched.
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_SCOPE: lucidindex
+      # Quiet by default; flip to "true" or "debug" if you need to see
+      # why an image wasn't picked up.
+      WATCHTOWER_DEBUG: ${WATCHTOWER_DEBUG:-false}
 
 volumes:
   pg_data:
