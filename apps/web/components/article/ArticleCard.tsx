@@ -40,7 +40,7 @@ type Props = {
 
 export function ArticleCard({ article }: Props) {
   return (
-    <Card className="h-full flex flex-col overflow-hidden border-foreground">
+    <Card className="h-full flex flex-col overflow-hidden">
       {/* Hero image or skeleton placeholder — visual only, not clickable */}
       {article.heroImageUrl ? (
         // biome-ignore lint/performance/noImgElement: dev-only mock heroes
@@ -63,7 +63,7 @@ export function ArticleCard({ article }: Props) {
               href={`/?badge=${encodeURIComponent(badge)}`}
               className="rounded-md hover:opacity-80 transition-opacity"
             >
-              <Badge variant="outline" className="border-foreground">
+              <Badge variant="outline" className="">
                 {badge}
               </Badge>
             </Link>
@@ -117,7 +117,7 @@ export function ArticleCard({ article }: Props) {
             initialStarred={article.starred ?? false}
           />
         </div>
-        <Button variant="outline" size="sm" asChild className="border border-foreground">
+        <Button variant="outline" size="sm" asChild className="border">
           <Link href={`/a/${article.slug}`} data-masonry-tile="">
             View
             <ArrowRight className="ml-1 h-4 w-4" />

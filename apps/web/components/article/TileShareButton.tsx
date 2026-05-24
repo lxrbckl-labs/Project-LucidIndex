@@ -85,7 +85,7 @@ export function TileShareButton({ url }: Props) {
           type="button"
           variant="ghost"
           size="icon"
-          className="border border-foreground"
+          className="border"
           onClick={handleClick}
           disabled={copied}
           aria-label="Copy share link"

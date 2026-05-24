@@ -37,7 +37,7 @@ export function StarredTopicsList() {
           >
             <Badge
               variant="secondary"
-              className="border border-foreground text-xs uppercase tracking-[0.1em] px-3 py-1 hover:bg-accent transition-colors"
+              className="border text-xs uppercase tracking-[0.1em] px-3 py-1 hover:bg-accent transition-colors"
             >
               {name}
             </Badge>

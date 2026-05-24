@@ -53,7 +53,7 @@ export function CreatorProfileTile({
   const hue = hueFromString(label)
 
   return (
-    <Card className="h-full flex flex-col overflow-hidden border-foreground">
+    <Card className="h-full flex flex-col overflow-hidden">
       {/* Hero band — photo when available, gradient identicon as fallback. */}
       {photoUrl ? (
         // biome-ignore lint/performance/noImgElement: external creator photos served as-is for v1
@@ -111,7 +111,7 @@ export function CreatorProfileTile({
       <CardFooter className="pt-4 flex items-center justify-end gap-2">
         <CreatorStarButton slug={slug} label={label} />
         {socialUrl && (
-          <Button variant="ghost" size="icon" className="border border-foreground" asChild>
+          <Button variant="ghost" size="icon" className="border" asChild>
             <a
               href={socialUrl}
               target="_blank"

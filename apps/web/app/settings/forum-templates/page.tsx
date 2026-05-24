@@ -37,7 +37,7 @@ export default function ForumTemplatesPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="-mx-6 -mt-6 px-6 pt-6 pb-6 border-t border-b">
+      <div className="-mx-6 -mt-6 px-6 pt-6 pb-6 border-b">
         <h1 className="text-3xl font-bold tracking-tight">Templates</h1>
         <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
           The share-invite copy that goes out with an Agent Invite, plus the role brief that defines

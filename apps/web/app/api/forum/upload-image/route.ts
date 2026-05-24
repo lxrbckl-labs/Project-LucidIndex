@@ -16,14 +16,12 @@
  * step is inlined here.
  *
  * Caps:
- *   - 10 MB hard size cap (v1 — not yet a configurable setting).
  *   - MIME allowlist: png / jpeg / webp / gif.
  *
  * Responses:
  *   - 200 `{ ok: true, hash, mime }` on success.
  *   - 400 `invalid_request` — body parse / missing file.
  *   - 401 `unauthorized` — no forum session.
- *   - 413 `too_large` — payload over 10 MB.
  *   - 415 `invalid_type` — MIME outside allowlist.
  *   - 500 `write_failed` — fs error writing the bytes.
  */
@@ -45,9 +43,6 @@ const MIME_TO_EXT: Record<string, string> = {
   'image/webp': 'webp',
   'image/gif': 'gif',
 }
-
-/** Hardcoded for v1 — see route header. 10 MiB. */
-const MAX_BYTES = 10 * 1024 * 1024
 
 /**
  * Resolved at module load. Same env var the dashboard image pipeline +
@@ -75,9 +70,6 @@ export async function POST(req: Request) {
   if (file.size === 0) {
     return NextResponse.json({ ok: false, reason: 'invalid_request' }, { status: 400 })
   }
-  if (file.size > MAX_BYTES) {
-    return NextResponse.json({ ok: false, reason: 'too_large' }, { status: 413 })
-  }
   if (!ALLOWED_MIME.has(file.type)) {
     return NextResponse.json(
       { ok: false, reason: 'invalid_type', allowed: Array.from(ALLOWED_MIME) },
@@ -86,10 +78,6 @@ export async function POST(req: Request) {
   }
 
   const bytes = Buffer.from(await file.arrayBuffer())
-  // Re-check after read in case the browser lied about size.
-  if (bytes.byteLength > MAX_BYTES) {
-    return NextResponse.json({ ok: false, reason: 'too_large' }, { status: 413 })
-  }
 
   const hash = createHash('sha256').update(bytes).digest('hex')
   const ext = MIME_TO_EXT[file.type]

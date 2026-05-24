@@ -118,7 +118,7 @@ export function StarButton({
           type="button"
           variant="ghost"
           size="icon"
-          className="border border-foreground"
+          className="border"
           onClick={handleClick}
           disabled={disabled || isPending}
           aria-pressed={starred}

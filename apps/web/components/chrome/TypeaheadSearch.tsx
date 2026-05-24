@@ -452,7 +452,7 @@ export function TypeaheadSearch() {
   const showDropdown = open && (loading || hasResults || trimmedQuery.length >= effectiveMinLength)
 
   return (
-    <search aria-label="Site search">
+    <search aria-label="Site search" className="flex-1 min-w-[10rem] max-w-[28rem]">
       <Popover open={showDropdown} onOpenChange={setOpen}>
         <form onSubmit={handleSubmit} data-testid="topnav-search-form">
           <PopoverTrigger asChild>
@@ -479,7 +479,7 @@ export function TypeaheadSearch() {
                 placeholder="Search"
                 autoComplete="off"
                 data-testid="topnav-search-input"
-                className="w-96 pl-8 pr-2 md:w-[28rem] h-9 bg-background focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
+                className="w-full pl-8 pr-2 h-9 bg-background focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
               />
             </div>
           </PopoverTrigger>

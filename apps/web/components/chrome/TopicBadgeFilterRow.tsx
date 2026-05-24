@@ -4,7 +4,7 @@
  * TopicBadgeFilterRow — sub-card with pinned All/Starred + infinite-scroll belt.
  *
  * Layout:
- *   <Card border-foreground>
+ *   <Card>
  *     [All] [Starred]  │  ╱ auto-scrolling belt of topic pills ╱
  *   </Card>
  *
@@ -58,7 +58,7 @@ const PINNED_NONE = '__no_pinned__'
 // ToggleGroupItem variant=outline size=sm produces, since rendering 3
 // copies through Radix would collide on duplicate values.
 const BELT_PILL_CLASS =
-  'shrink-0 cursor-pointer inline-flex items-center justify-center h-9 rounded-full px-4 text-xs uppercase tracking-[0.1em] border border-foreground bg-transparent ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=on]:bg-zinc-200 data-[state=on]:text-zinc-600 dark:data-[state=on]:bg-zinc-800 dark:data-[state=on]:text-zinc-200'
+  'shrink-0 cursor-pointer inline-flex items-center justify-center h-9 rounded-full px-4 text-xs uppercase tracking-[0.1em] border bg-transparent ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=on]:bg-zinc-200 data-[state=on]:text-zinc-600 dark:data-[state=on]:bg-zinc-800 dark:data-[state=on]:text-zinc-200'
 
 const PINNED_PILL_CLASS =
   'shrink-0 cursor-pointer rounded-full px-4 text-xs uppercase tracking-[0.1em] font-extrabold data-[state=on]:bg-zinc-200 data-[state=on]:text-zinc-600 dark:data-[state=on]:bg-zinc-800 dark:data-[state=on]:text-zinc-200'
@@ -97,10 +97,7 @@ export function TopicBadgeFilterRow({ badges }: Props) {
   )
 
   return (
-    <Card
-      className="border-foreground overflow-hidden -mt-4"
-      data-pending={isPending ? '' : undefined}
-    >
+    <Card className="overflow-hidden" data-pending={isPending ? '' : undefined}>
       <nav aria-label="Topic filter" className="flex items-stretch pl-4">
         {/* Pinned cluster — always visible, never scrolls. */}
         <ToggleGroup
@@ -129,7 +126,7 @@ export function TopicBadgeFilterRow({ badges }: Props) {
           </ToggleGroupItem>
         </ToggleGroup>
 
-        <div className="self-stretch w-px bg-foreground shrink-0 ml-3" aria-hidden="true" />
+        <div className="self-stretch w-px bg-border shrink-0 ml-3" aria-hidden="true" />
 
         {/* Auto-scrolling belt — three copies for seamless looping. */}
         <div className="lucidindex-belt-mask flex-1 min-w-0 py-4">

@@ -34,7 +34,7 @@ export default async function AccountPanelPage() {
 
   return (
     <div className="max-w-[640px] flex flex-col gap-8">
-      <div className="-mx-6 -mt-6 px-6 pt-6 pb-6 border-t border-b">
+      <div className="-mx-6 -mt-6 px-6 pt-6 pb-6 border-b">
         <h1 className="text-3xl font-bold tracking-tight">Account</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Manage your passkeys and recovery code.

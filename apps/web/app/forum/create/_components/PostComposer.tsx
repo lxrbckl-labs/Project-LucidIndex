@@ -818,13 +818,11 @@ export function PostComposer({
       if (!res.ok || !data.ok || !data.hash || !data.mime) {
         const reason = data.reason ?? 'upload_failed'
         const msg =
-          reason === 'too_large'
-            ? 'Image is over the 10 MB limit.'
-            : reason === 'invalid_type'
-              ? 'Only PNG, JPEG, WebP, or GIF are accepted.'
-              : reason === 'unauthorized'
-                ? 'Your session expired. Please sign in again.'
-                : "Couldn't upload that image."
+          reason === 'invalid_type'
+            ? 'Only PNG, JPEG, WebP, or GIF are accepted.'
+            : reason === 'unauthorized'
+              ? 'Your session expired. Please sign in again.'
+              : "Couldn't upload that image."
         setImages((prev) =>
           prev.map((s) => (s.localId === localId ? { state: 'error', localId, error: msg } : s)),
         )
@@ -1874,7 +1872,7 @@ function DropZone({
         <ImagePlus className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
         <span className="text-sm text-foreground">Click to add an image</span>
         <span className="text-[11px] text-muted-foreground">
-          PNG, JPEG, WebP, or GIF · up to 10 MB · up to {maxImages} per post
+          PNG, JPEG, WebP, or GIF · up to {maxImages} per post
         </span>
       </label>
       <input

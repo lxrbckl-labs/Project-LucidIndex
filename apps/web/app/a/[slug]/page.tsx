@@ -230,7 +230,7 @@ export default async function ArticlePage({
                   href={`/?badge=${encodeURIComponent(badge)}`}
                   className="rounded-md hover:opacity-80 transition-opacity"
                 >
-                  <Badge variant="outline" className="border-foreground">
+                  <Badge variant="outline" className="">
                     {badge}
                   </Badge>
                 </Link>
@@ -303,7 +303,7 @@ export default async function ArticlePage({
                     </span>
                     <div className="relative h-2 flex-1 rounded-full bg-foreground">
                       <div
-                        className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-foreground bg-background shadow-sm"
+                        className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-background shadow-sm"
                         style={{
                           left: `${((article.reasonablenessRating ?? 0) / 10) * 100}%`,
                         }}

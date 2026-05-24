@@ -24,7 +24,7 @@ export function CreatorStarButton({ slug, label }: Props) {
     <Button
       variant="ghost"
       size="icon"
-      className="border border-foreground shrink-0"
+      className="border shrink-0"
       onClick={() => toggleStarCreator(slug)}
       aria-pressed={isStarred}
       aria-label={isStarred ? `Unstar ${label}` : `Star ${label}`}
