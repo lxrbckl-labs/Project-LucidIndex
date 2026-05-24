@@ -91,7 +91,7 @@ export const DASHBOARD_TOOLS: ToolEntry[] = [
     name: 'write_articles',
     title: 'Write articles for a queue item',
     description:
-      'Insert one or more article rows produced from a queue pull. URLs are canonicalized server-side (tracking params, fragments, default ports, case, www, trailing slashes all collapse), so dedup is robust to cosmetic URL differences. Per-article savepoints + partial-success response: returns `{ accepted, results, failures }`. `results` carries one entry per accepted/deduped article ({ index, id, deduped, source_url }), `failures` carries any per-article rejects ({ index, source_url, code, message }) — one bad insert no longer rolls back its siblings. Prefer calling `check_article_exists` first — `write_articles` will silently dedup repeats, but you will have wasted a research cycle. Requires HTTP transport with bearer auth.',
+      'Insert one or more article rows produced from a queue pull. URLs are canonicalized server-side (tracking params, fragments, default ports, case, www, trailing slashes all collapse), so dedup is robust to cosmetic URL differences. Per-article savepoints + partial-success response: returns `{ accepted, results, failures }`. `results` carries one entry per accepted/deduped article ({ index, id, deduped, source_url }), `failures` carries any per-article rejects ({ index, source_url, code, message }) — one bad insert no longer rolls back its siblings. Prefer calling `check_article_exists` first — `write_articles` will silently dedup repeats, but you will have wasted a research cycle. Article fields: `significance` ∈ `small|medium|large`, `difficulty` ∈ `easy|medium|hard` (string enums — numeric values are rejected with `-32602`). `citations[].url` + `citations[].title` + `citations[].source_name` are all required on each citation; `source_name` must be drawn from `get_comparison_sources` (server rejects unknown names with `unknown_comparison_source`). `source_published_at` is ISO-8601 with strict calendar-date validation (e.g. `2026-02-30` is rejected). Requires HTTP transport with bearer auth.',
     parameters: [
       { name: 'queue_item_id', type: 'string (UUID)', required: true, description: '' },
       {
@@ -99,7 +99,7 @@ export const DASHBOARD_TOOLS: ToolEntry[] = [
         type: 'array of object',
         required: true,
         description:
-          'One or more article rows. Each carries source_url, title, summary, agent_deep_dive?, agent_opinion?, topic_badges, significance (small|medium|large), difficulty (easy|medium|hard), reasonableness_rating? (0–10), sentiment? (-5–5), source_published_at?, source_published_at_estimated?, hero_image_url?, cross_source?, and citations?.',
+          'One or more article rows. Each carries source_url, title, summary, agent_deep_dive?, agent_opinion?, topic_badges, significance (string enum: `small|medium|large` — NOT a number), difficulty (string enum: `easy|medium|hard` — NOT a number), reasonableness_rating? (0–10), sentiment? (-5–5), source_published_at? (ISO-8601 with strict calendar-date validation), source_published_at_estimated?, hero_image_url?, cross_source?, and citations? (each {url, title, source_name} all required; accessed_at? and image_url? optional).',
       },
     ],
     returns:
@@ -262,7 +262,7 @@ export const DASHBOARD_TOOLS: ToolEntry[] = [
     name: 'list_my_recent_runs',
     title: "List the calling agent's recent runs",
     description:
-      "Return run_log rows tied to the caller's `agent_token_id`, newest-first. Optional `target_id` filter; `limit` defaults to 50, max 200. Returns `{ runs: [{ id, target_id, target_label, queue_item_id, status, articles_count, failure_reason, started_at, completed_at }] }`. Requires HTTP transport with bearer auth (each token only sees its own history).",
+      "Return run_log rows tied to the caller's `agent_token_id`, newest-first. Optional `target_id` filter; `limit` defaults to 50, max 200. Returns `{ runs: [{ id, target_id, target_label, queue_item_id, status, articles_count, failure_reason, started_at, completed_at, attempt_count }] }`. `status` is one of `in_progress | succeeded | failed` — `in_progress` rows are claims this agent has pulled but not yet acked (between `pull_queue_item` and `ack_queue_item`); their `completed_at` is null until ack. `started_at` is the actual pull-time wall-clock (set inside `pull_queue_item`, accurate to ~1–2 seconds). `attempt_count` mirrors `queue.attempt_count` so you can spot flapping rows from history alone (the reaper does not reset it across retries). Requires HTTP transport with bearer auth (each token only sees its own history).",
     parameters: [
       {
         name: 'limit',
@@ -278,7 +278,7 @@ export const DASHBOARD_TOOLS: ToolEntry[] = [
       },
     ],
     returns:
-      '{ runs: Array<{ id, target_id, target_label, queue_item_id, status: "succeeded" | "failed", articles_count, failure_reason: string | null, started_at: ISO, completed_at: ISO }> } — sorted newest-first by `completed_at`.',
+      '{ runs: Array<{ id, target_id, target_label, queue_item_id, status: "in_progress" | "succeeded" | "failed", articles_count, failure_reason: string | null, started_at: ISO, completed_at: ISO | null, attempt_count: number }> } — sorted newest-first by `coalesce(completed_at, started_at)` so in_progress rows stay visible alongside recent completions. `completed_at` is `null` for `in_progress` rows; populated on transition to a terminal status. `attempt_count` is the matching queue row\'s current attempt count (non-decreasing across reaper-released retries).',
   },
   {
     name: 'write_target_profile',
