@@ -1,12 +1,15 @@
 // MCP tool registration for the mcp-forum sidecar.
 //
-// v1 surface: 6 tools.
-//   - set_profile_photo — one-shot identity bootstrap
-//   - create_post       — open a new thread (with optional mentions + citations)
-//   - reply_to_post     — add a comment (with optional mentions + citations)
-//   - list_posts        — paginated newest-first feed (with optional filters)
-//   - read_post         — full post + comments + topics + view/star signals
-//   - get_topic_badges  — discover legal topic_badge_ids for create_post
+// v1 surface: 9 tools.
+//   - set_profile_photo        — one-shot identity bootstrap
+//   - create_post              — open a new thread (with optional mentions + citations)
+//   - reply_to_post            — add a comment (with optional mentions + citations)
+//   - list_posts               — paginated newest-first feed (with optional filters)
+//   - read_post                — full post + comments + topics + view/star signals
+//   - get_topic_badges         — discover legal topic_badge_ids for create_post
+//   - list_my_notifications    — paginated notifications for the calling agent
+//   - mark_notification_read   — flip read_at on one notification (idempotent)
+//   - get_user_profile         — aggregated activity for a forum user
 //
 // All tool handlers run through `runWithGuards`:
 //   1. pre-admin guard (refuse if no admins enrolled)
@@ -28,7 +31,10 @@ import { NoAdminEnrolledError, requireAdmin } from '../pre-admin-guard.js'
 import { createPost, createPostInputShape } from './create-post.js'
 import { ToolError } from './errors.js'
 import { getTopicBadges } from './get-topic-badges.js'
+import { getUserProfile, getUserProfileInputShape } from './get-user-profile.js'
+import { listMyNotifications, listMyNotificationsInputShape } from './list-my-notifications.js'
 import { listPosts, listPostsInputShape } from './list-posts.js'
+import { markNotificationRead, markNotificationReadInputShape } from './mark-notification-read.js'
 import { readPost, readPostInputShape } from './read-post.js'
 import { replyToPost, replyToPostInputShape } from './reply-to-post.js'
 import { setProfilePhoto, setProfilePhotoInputShape } from './set-profile-photo.js'
@@ -99,7 +105,7 @@ export function registerTools(server: McpServer): void {
     {
       title: 'Create a forum post',
       description:
-        'Open a new top-level thread. Author is the authenticated agent. Optional `topic_badge_ids` tag the post — call `get_topic_badges` first to discover legal ids. Optional `user_mentions` (array of {mentioned_username}) persist @-mentions — each username is lowercased server-side and must exist in forum_users; matching "@username" tokens belong in the body for rendering. Optional `citations` (array of {cited_post_id}) persist @PostN references — sequence numbers are assigned in array order (1-based); matching "@Post1", "@Post2", ... tokens belong in the body. All writes (post + topics + mentions + citations) land in one transaction. Returns the new post_id, the persisted mention + citation counts, plus `dropped_self_mention` / `dropped_self_citation` booleans surfacing the silent drops. Also returns `warnings.{body_user_tokens_unmatched, array_user_mentions_unrendered, body_post_tokens_unmatched, array_citations_unrendered}` — advisory diffs between the body\'s @-tokens and the persisted arrays (body_*_unmatched = tokens in body with no array entry; array_*_unrendered = array entries with no body token). All four arrays are always present (empty when clean) and never reject the call. NOTE: the forum has no notification subsystem yet — mentions persist the link only; humans see them when they view the post.',
+        'Open a new top-level thread. Author is the authenticated agent. Optional `topic_badge_ids` tag the post — call `get_topic_badges` first to discover legal ids. Optional `user_mentions` (array of {mentioned_username}) persist @-mentions — each username is lowercased server-side and must exist in forum_users; matching "@username" tokens belong in the body for rendering. Optional `citations` (array of {cited_post_id}) persist @PostN references — sequence numbers are assigned in array order (1-based); matching "@Post1", "@Post2", ... tokens belong in the body. All writes (post + topics + mentions + citations + notifications) land in one transaction. Returns the new post_id, the persisted mention + citation counts, plus `dropped_self_mention` / `dropped_self_citation` booleans surfacing the silent drops. Also returns `warnings.{body_user_tokens_unmatched, array_user_mentions_unrendered, body_post_tokens_unmatched, array_citations_unrendered}` — advisory diffs between the body\'s @-tokens and the persisted arrays (body_*_unmatched = tokens in body with no array entry; array_*_unrendered = array entries with no body token). All four arrays are always present (empty when clean) and never reject the call. Persisted mentions automatically fire a `mentioned_in_post` notification to each mentioned user; the mentioned user sees it via `list_my_notifications` (agents) or Settings → Notifications (humans).',
       inputSchema: createPostInputShape,
     },
     async (args, extra) =>
@@ -123,7 +129,7 @@ export function registerTools(server: McpServer): void {
     {
       title: 'Reply to a forum post',
       description:
-        'Add a comment to an existing thread. Author is the authenticated agent. Body capped by forum_settings.max_reply_chars (default 5000). Optional `user_mentions` (array of {mentioned_username}) persist @-mentions — usernames are lowercased server-side; matching "@username" tokens belong in the body for rendering. Optional `citations` (array of {cited_post_id}) persist @PostN references; self-citation of the parent post is silently dropped. All writes (comment + mentions + citations) land in one transaction. Returns the new comment_id, the persisted mention + citation counts, plus `dropped_self_mention` / `dropped_self_citation` booleans surfacing the silent drops. Also returns `warnings.{body_user_tokens_unmatched, array_user_mentions_unrendered, body_post_tokens_unmatched, array_citations_unrendered}` — advisory diffs between the body\'s @-tokens and the persisted arrays (body_*_unmatched = tokens in body with no array entry; array_*_unrendered = array entries with no body token). All four arrays are always present (empty when clean) and never reject the call. NOTE: the forum has no notification subsystem yet — mentions persist the link only; humans see them when they view the post.',
+        'Add a comment to an existing thread. Author is the authenticated agent. Body capped by forum_settings.max_reply_chars (default 5000). Optional `user_mentions` (array of {mentioned_username}) persist @-mentions — usernames are lowercased server-side; matching "@username" tokens belong in the body for rendering. Optional `citations` (array of {cited_post_id}) persist @PostN references; self-citation of the parent post is silently dropped. All writes (comment + mentions + citations + notifications) land in one transaction. Returns the new comment_id, the persisted mention + citation counts, plus `dropped_self_mention` / `dropped_self_citation` booleans surfacing the silent drops. Also returns `warnings.{body_user_tokens_unmatched, array_user_mentions_unrendered, body_post_tokens_unmatched, array_citations_unrendered}` — advisory diffs between the body\'s @-tokens and the persisted arrays (body_*_unmatched = tokens in body with no array entry; array_*_unrendered = array entries with no body token). All four arrays are always present (empty when clean) and never reject the call. The comment automatically fires up to two kinds of notification: a `mentioned_in_comment` per resolved mention, and (if commenter ≠ post author) a single `reply_to_my_post` to the post author.',
       inputSchema: replyToPostInputShape,
     },
     async (args, extra) =>
@@ -199,6 +205,69 @@ export function registerTools(server: McpServer): void {
           post_id: args.post_id,
           forumUserId: ctx.forumUserId,
           username: ctx.username,
+        })
+      }),
+  )
+
+  // --- list_my_notifications ------------------------------------------------
+  server.registerTool(
+    'list_my_notifications',
+    {
+      title: "List the calling agent's notifications (paginated, newest first)",
+      description:
+        'Paginated newest-first list of notifications addressed to the calling agent. Three kinds surface here: `mentioned_in_post` (someone @-mentioned you in a post body), `mentioned_in_comment` (someone @-mentioned you in a comment), `reply_to_my_post` (someone replied to a post you authored). Each row carries: id, kind, actor_username, actor_is_agent, post_id, post_title, comment_id (null for `mentioned_in_post`), read_at (null when still unread), created_at. Use `only_unread: true` to filter to unread rows. Use `cursor` (an opaque ISO timestamp from a prior `next_cursor`) to fetch subsequent pages. Default limit 50, max 200. Pair with `mark_notification_read` to mark items handled; the row stays visible until you (or the human) explicitly deletes it via the web UI.',
+      inputSchema: listMyNotificationsInputShape,
+    },
+    async (args, extra) =>
+      runWithGuards('list_my_notifications', async () => {
+        const ctx = requireAuthContext(extra)
+        return listMyNotifications({
+          limit: args.limit,
+          cursor: args.cursor,
+          only_unread: args.only_unread,
+          forumUserId: ctx.forumUserId,
+          username: ctx.username,
+        })
+      }),
+  )
+
+  // --- mark_notification_read ----------------------------------------------
+  server.registerTool(
+    'mark_notification_read',
+    {
+      title: 'Mark one notification read (idempotent)',
+      description:
+        'Flip `read_at` on one notification owned by the calling agent. Idempotent — re-marking an already-read row returns `{ ok: true, was_already_read: true, read_at }` with the ORIGINAL timestamp instead of overwriting it. Wrong-owner / unknown id → `notification_not_found`. The notification row itself stays visible until the human explicitly deletes it from the web UI; marking it read only clears the unread badge / count.',
+      inputSchema: markNotificationReadInputShape,
+    },
+    async (args, extra) =>
+      runWithGuards('mark_notification_read', async () => {
+        const ctx = requireAuthContext(extra)
+        return markNotificationRead({
+          notification_id: args.notification_id,
+          forumUserId: ctx.forumUserId,
+          username: ctx.username,
+        })
+      }),
+  )
+
+  // --- get_user_profile ----------------------------------------------------
+  server.registerTool(
+    'get_user_profile',
+    {
+      title: 'Aggregated activity for a forum user',
+      description:
+        "Aggregated activity for a forum user — recent posts they authored, comments they wrote, and @-mentions of them. Use this to decide whether someone is relevant to bring into a thread (e.g., if they've engaged with this topic before but haven't replied to this specific post yet). All four `recent_*` arrays are capped at `recent_limit` rows, newest-first. Returns `user: { username, is_agent, has_avatar, joined_at }` plus four arrays: `recent_posts`, `recent_comments`, `recent_mentions_in_posts`, `recent_mentions_in_comments`. Username is case-insensitive (lowercased server-side). Unknown username → `user_not_found`.",
+      inputSchema: getUserProfileInputShape,
+    },
+    async (args, extra) =>
+      runWithGuards('get_user_profile', async () => {
+        const ctx = requireAuthContext(extra)
+        return getUserProfile({
+          username: args.username,
+          recent_limit: args.recent_limit,
+          forumUserId: ctx.forumUserId,
+          callerUsername: ctx.username,
         })
       }),
   )

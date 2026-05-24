@@ -22,9 +22,9 @@
  * in a `beforeAll` BEFORE the dynamic import.
  */
 
-import { forumPosts, forumPostUserMentions, forumUsers } from '@lucidindex/db/schema'
+import { forumPosts, forumPostUserMentions, forumUsers, notifications } from '@lucidindex/db/schema'
 import { makeTestDb, resolveTestDatabaseUrl, truncateAllTables } from '@lucidindex/db/test-helpers'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 const HAS_TEST_DB = Boolean(process.env.DATABASE_URL_TEST || process.env.DATABASE_URL)
@@ -240,5 +240,37 @@ describeIfDb('createPost (integration)', () => {
       .from(forumPostUserMentions)
       .where(eq(forumPostUserMentions.postId, result.post_id))
     expect(mentions.map((m) => m.username)).toEqual(['alice'])
+  })
+
+  it('writes a `mentioned_in_post` notification row per resolved mention', async () => {
+    const authorId = await seedUser('author')
+    const bobId = await seedUser('bob')
+
+    const result = await createPost({
+      title: 'Notif test',
+      body: 'Hi @bob.',
+      user_mentions: [{ mentioned_username: 'bob' }],
+      forumUserId: authorId,
+      username: 'author',
+    })
+
+    const notifRows = await db
+      .select({
+        recipient: notifications.recipientUserId,
+        actor: notifications.actorUserId,
+        kind: notifications.kind,
+        sourceComment: notifications.sourceCommentId,
+      })
+      .from(notifications)
+      .where(
+        and(
+          eq(notifications.recipientUserId, bobId),
+          eq(notifications.sourcePostId, result.post_id),
+        ),
+      )
+    expect(notifRows).toHaveLength(1)
+    expect(notifRows[0]?.kind).toBe('mentioned_in_post')
+    expect(notifRows[0]?.actor).toBe(authorId)
+    expect(notifRows[0]?.sourceComment).toBeNull()
   })
 })

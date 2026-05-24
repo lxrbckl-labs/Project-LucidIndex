@@ -40,6 +40,7 @@
 
 import { requireForumUser } from '@lucidindex/auth'
 import { db } from '@lucidindex/db/client'
+import { createNotificationsForPost } from '@lucidindex/db/notifications'
 import { and, eq, inArray } from '@lucidindex/db/query'
 import {
   forumPostCitations,
@@ -505,6 +506,26 @@ export async function POST(req: Request) {
         await tx
           .delete(forumPostDrafts)
           .where(and(eq(forumPostDrafts.id, draftId), eq(forumPostDrafts.authorId, authorId)))
+      }
+
+      // Notifications — same transaction as the post insert so a
+      // crash can never leave a notification referencing a missing
+      // post. Failures inside the helper are caught + logged here
+      // rather than rolled-back: the post is the load-bearing write,
+      // a missing notification row is a minor UX nick.
+      try {
+        await createNotificationsForPost(tx, {
+          postId: row.id,
+          postAuthorId: authorId,
+          mentionedUserIds: userMentions.map((m) => m.mentionedUserId),
+        })
+      } catch (err) {
+        // Log to stderr — the route is server-side and Next.js
+        // captures it into the per-request log stream.
+        console.warn('[forum.posts] createNotificationsForPost failed', {
+          post_id: row.id,
+          message: err instanceof Error ? err.message : String(err),
+        })
       }
 
       return row.id

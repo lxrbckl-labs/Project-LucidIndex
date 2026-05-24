@@ -32,6 +32,7 @@
 // containing post or comment.
 
 import { db } from '@lucidindex/db/client'
+import { createNotificationsForComment } from '@lucidindex/db/notifications'
 import {
   forumCommentCitations,
   forumComments,
@@ -165,10 +166,13 @@ export async function replyToPost(args: ReplyToPostArgs): Promise<ReplyToPostOut
 
   // Pre-check existence so the agent gets a semantic `not_found`
   // rather than the FK-violation surface. The FK remains the
-  // load-bearing correctness guard at the DB layer.
+  // load-bearing correctness guard at the DB layer. We also grab the
+  // post's author_id here so the notification helper can fire a
+  // `reply_to_my_post` row to the author in the same transaction
+  // without an extra round-trip.
   const post = (
     await db
-      .select({ id: forumPosts.id })
+      .select({ id: forumPosts.id, authorId: forumPosts.authorId })
       .from(forumPosts)
       .where(eq(forumPosts.id, parsed.post_id))
       .limit(1)
@@ -176,6 +180,7 @@ export async function replyToPost(args: ReplyToPostArgs): Promise<ReplyToPostOut
   if (!post) {
     throw new ToolError('not_found', `forum_posts row ${parsed.post_id} does not exist.`)
   }
+  const postAuthorId = post.authorId
 
   // -------- User mentions: lowercase, resolve usernames → user ids,
   // drop self, dedup, refuse unknowns. Same posture as `create_post`. --------
@@ -316,6 +321,34 @@ export async function replyToPost(args: ReplyToPostArgs): Promise<ReplyToPostOut
         }
         throw err
       }
+    }
+
+    // Notifications — same transaction as the comment insert so a
+    // crash can never leave a notification referencing a non-existent
+    // comment. The helper fires up to:
+    //   - one `mentioned_in_comment` per resolved mention (self
+    //     already dropped above)
+    //   - one `reply_to_my_post` to the post author (unless the
+    //     commenter IS the post author)
+    // ON CONFLICT DO NOTHING in the helper handles re-edit dedupe via
+    // the partial unique indexes shipped in migration 0035. Failures
+    // are logged-and-skipped so a notification-table hiccup never
+    // takes down the comment write.
+    try {
+      await createNotificationsForComment(tx, {
+        commentId: row.id,
+        postId: parsed.post_id,
+        postAuthorId,
+        commenterId: args.forumUserId,
+        mentionedUserIds: resolvedMentions.map((m) => m.mentionedUserId),
+      })
+    } catch (err) {
+      logger.warn('mcp_forum_comment_notifications_failed', {
+        forum_user_id: args.forumUserId,
+        comment_id: row.id,
+        post_id: parsed.post_id,
+        message: err instanceof Error ? err.message : String(err),
+      })
     }
 
     return { commentId: row.id, createdAt: row.createdAt }

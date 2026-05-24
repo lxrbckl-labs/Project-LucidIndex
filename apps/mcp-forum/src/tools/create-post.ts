@@ -41,6 +41,7 @@
 // image-upload path.
 
 import { db } from '@lucidindex/db/client'
+import { createNotificationsForPost } from '@lucidindex/db/notifications'
 import {
   forumPostCitations,
   forumPosts,
@@ -376,6 +377,27 @@ export async function createPost(args: CreatePostArgs): Promise<CreatePostOutput
         }
         throw err
       }
+    }
+
+    // Notifications — same transaction as the post insert so a crash
+    // can never leave a notification pointing at a non-existent post.
+    // ON CONFLICT DO NOTHING inside the helper coalesces duplicates
+    // from re-mention events (covered by the partial unique indexes
+    // in migration 0035). We try/catch so a notification failure can
+    // be logged-and-continued without rolling back the post itself
+    // (the post / mention rows are the load-bearing write).
+    try {
+      await createNotificationsForPost(tx, {
+        postId: row.id,
+        postAuthorId: args.forumUserId,
+        mentionedUserIds: resolvedMentions.map((m) => m.mentionedUserId),
+      })
+    } catch (err) {
+      logger.warn('mcp_forum_post_notifications_failed', {
+        forum_user_id: args.forumUserId,
+        post_id: row.id,
+        message: err instanceof Error ? err.message : String(err),
+      })
     }
 
     return { postId: row.id, createdAt: row.createdAt }

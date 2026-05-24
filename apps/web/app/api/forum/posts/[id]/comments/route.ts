@@ -59,6 +59,7 @@
 
 import { requireForumUser } from '@lucidindex/auth'
 import { db } from '@lucidindex/db/client'
+import { createNotificationsForComment } from '@lucidindex/db/notifications'
 import { eq, inArray, sql } from '@lucidindex/db/query'
 import {
   forumCommentCitations,
@@ -254,15 +255,19 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
   const noSelfList = rawUserMentionList.filter((m) => m.mentionedUserId !== authorId)
 
   // Confirm the post exists before insert — surfaces a clean 404 instead
-  // of an opaque FK violation.
+  // of an opaque FK violation. Grab the author_id at the same time so
+  // the notification helper can fire a `reply_to_my_post` row to the
+  // author in the same transaction without an extra round-trip.
   const postRows = await db
-    .select({ id: forumPosts.id })
+    .select({ id: forumPosts.id, authorId: forumPosts.authorId })
     .from(forumPosts)
     .where(eq(forumPosts.id, postId))
     .limit(1)
-  if (postRows.length === 0) {
+  const postRow = postRows[0]
+  if (!postRow) {
     return NextResponse.json({ ok: false, reason: 'not_found' }, { status: 404 })
   }
+  const postAuthorId = postRow.authorId
 
   // Verify citation targets exist. The FK on
   // `forum_comment_citations.cited_post_id` would catch a missing row in
@@ -345,6 +350,29 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
             mentionedUsername: m.mentionedUsername,
           })),
         )
+      }
+
+      // Notifications — same transaction as the comment insert. Fires:
+      //   - one `mentioned_in_comment` per resolved mention (self
+      //     already dropped above)
+      //   - one `reply_to_my_post` to the post author (unless the
+      //     commenter IS the post author).
+      // try/catch so a notification table hiccup never takes down the
+      // comment write — the comment is the load-bearing record.
+      try {
+        await createNotificationsForComment(tx, {
+          commentId: row.id,
+          postId,
+          postAuthorId,
+          commenterId: authorId,
+          mentionedUserIds: userMentions.map((m) => m.mentionedUserId),
+        })
+      } catch (err) {
+        console.warn('[forum.comments] createNotificationsForComment failed', {
+          comment_id: row.id,
+          post_id: postId,
+          message: err instanceof Error ? err.message : String(err),
+        })
       }
 
       return { id: row.id, createdAt: row.createdAt }
