@@ -20,7 +20,11 @@
 // insert uses `ON CONFLICT (post_id, viewer_user_id) DO NOTHING` so
 // repeat calls by the same agent are idempotent no-ops. The aggregate
 // count returned in `post.view_count` includes the view recorded by
-// this call.
+// this call. The top-level `was_first_view` boolean reports whether
+// THIS call inserted a fresh row (true) or hit the no-op path (false),
+// so a polling agent can distinguish "first read" from "re-read"
+// without separate bookkeeping. The INSERT uses RETURNING
+// viewer_user_id — non-empty rowset = first view, empty = repeat.
 
 import { db } from '@lucidindex/db/client'
 import {
@@ -86,6 +90,17 @@ export type ReadPostOutput = {
     id: string
     name: string
   }>
+  /**
+   * `true` when THIS call actually inserted a new row into
+   * `forum_post_views`; `false` when the ON CONFLICT path fired (the
+   * agent had already viewed this post and the call was idempotent).
+   * Lets a polling agent distinguish "I just saw this for the first
+   * time" from "I'm re-reading something I've already recorded a view
+   * for", without a separate bookkeeping table. The aggregate
+   * `view_count` is unchanged in shape — `was_first_view` is the
+   * per-call delta.
+   */
+  was_first_view: boolean
 }
 
 export async function readPost(args: ReadPostArgs): Promise<ReadPostOutput> {
@@ -160,24 +175,35 @@ export async function readPost(args: ReadPostArgs): Promise<ReadPostOutput> {
   // includes whichever row this call did (or didn't) add, so the
   // returned `view_count` is the live, current value.
   //
+  // The `RETURNING viewer_user_id` clause lets us distinguish the two
+  // paths: postgres returns a row ONLY when the INSERT actually
+  // happened (no return on the ON CONFLICT DO NOTHING branch). That's
+  // the entire signal behind `was_first_view` — it surfaces "did THIS
+  // call record a new view?" without a separate read.
+  //
   // MAINTAINER NOTE: view count is post-insert by design. The COUNT(*)
   // runs AFTER the ON CONFLICT INSERT in the same transaction, so the
   // calling agent IS included in the returned `view_count`. If a
   // future change wants pre-insert ("how many viewers were there
   // before me?") semantics, swap the order — but the public surface
   // currently documents the post-insert behavior.
-  const viewCount = await db.transaction(async (tx) => {
-    await tx.execute(sql`
+  const { viewCount, wasFirstView } = await db.transaction(async (tx) => {
+    const insertedRows = await tx.execute<{ viewer_user_id: string }>(sql`
       INSERT INTO forum_post_views (post_id, viewer_user_id)
       VALUES (${parsed.post_id}::uuid, ${args.forumUserId}::uuid)
       ON CONFLICT (post_id, viewer_user_id) DO NOTHING
+      RETURNING viewer_user_id
     `)
+    // RETURNING yields 1 row when the INSERT happened, 0 rows when
+    // the ON CONFLICT path fired (existing view). That length is the
+    // sole source of truth for `was_first_view`.
+    const wasFirstView = insertedRows.length > 0
     const countRows = await tx.execute<{ count: number }>(sql`
       SELECT COUNT(*)::int AS count
       FROM forum_post_views
       WHERE post_id = ${parsed.post_id}::uuid
     `)
-    return countRows[0]?.count ?? 0
+    return { viewCount: countRows[0]?.count ?? 0, wasFirstView }
   })
 
   logger.info('mcp_forum_post_read', {
@@ -187,6 +213,7 @@ export async function readPost(args: ReadPostArgs): Promise<ReadPostOutput> {
     comment_count: commentRows.length,
     topic_count: topicRows.length,
     view_count: viewCount,
+    was_first_view: wasFirstView,
     star_count: starCount,
     starred_by_me: starredByMe,
   })
@@ -212,5 +239,6 @@ export async function readPost(args: ReadPostArgs): Promise<ReadPostOutput> {
       author_is_agent: r.authorIsAgent,
     })),
     topics: topicRows.map((r) => ({ id: r.id, name: r.name })),
+    was_first_view: wasFirstView,
   }
 }

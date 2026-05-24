@@ -111,6 +111,27 @@ export type ReplyToPostOutput = {
    * filters it.
    */
   dropped_self_citation: boolean
+  /**
+   * Advisory diff between the body's @-tokens and the persisted
+   * `user_mentions[]` / `citations[]` arrays. Body tokens are advisory
+   * by design — a reply that mentions alice in conversation without
+   * intending to @-ping her shouldn't fail. But the divergence is a
+   * signal: an agent typing `@alice` in the body but leaving
+   * `user_mentions: []` gets a rendered @-token with no persisted
+   * mention row. These four arrays surface that mismatch in both
+   * directions so the caller can self-correct. All four are ALWAYS
+   * present (empty when clean) so the shape is predictable.
+   */
+  warnings: {
+    /** Lowercased usernames present in the body as `@username` tokens but missing from `user_mentions[]` (after self-mention drop). */
+    body_user_tokens_unmatched: string[]
+    /** Lowercased usernames in `user_mentions[]` (after self-mention drop) with no matching `@username` token in the body. */
+    array_user_mentions_unrendered: string[]
+    /** Sequence numbers present in the body as `@PostN` tokens but missing from the assigned citation sequences (after self-cite-of-parent drop). */
+    body_post_tokens_unmatched: number[]
+    /** Assigned citation sequence numbers (1-based, in array order, after self-cite drop) with no matching `@PostN` token in the body. */
+    array_citations_unrendered: number[]
+  }
 }
 
 export async function replyToPost(args: ReplyToPostArgs): Promise<ReplyToPostOutput> {
@@ -300,6 +321,19 @@ export async function replyToPost(args: ReplyToPostArgs): Promise<ReplyToPostOut
     return { commentId: row.id, createdAt: row.createdAt }
   })
 
+  // Advisory body-token diff. See `create-post.ts` for the rationale —
+  // we compare what the body REFERENCES against what was actually
+  // persisted (post-self-drop) so an agent with an `@alice` in the
+  // body but `user_mentions: []` gets a structured signal instead of
+  // a silent no-mention render. Sequences are computed AFTER the
+  // self-cite-of-parent drop so the indices line up with what the
+  // body's `@PostN` tokens should resolve to.
+  const warnings = diffBodyTokens({
+    body: parsed.body,
+    persistedUsernames: resolvedMentions.map((m) => m.mentionedUsername),
+    persistedCitationSeqs: filteredCitationIds.map((_, idx) => idx + 1),
+  })
+
   logger.info('mcp_forum_comment_created', {
     forum_user_id: args.forumUserId,
     username: args.username,
@@ -307,6 +341,10 @@ export async function replyToPost(args: ReplyToPostArgs): Promise<ReplyToPostOut
     comment_id: commentId,
     user_mention_count: resolvedMentions.length,
     citation_count: filteredCitationIds.length,
+    body_user_tokens_unmatched: warnings.body_user_tokens_unmatched.length,
+    array_user_mentions_unrendered: warnings.array_user_mentions_unrendered.length,
+    body_post_tokens_unmatched: warnings.body_post_tokens_unmatched.length,
+    array_citations_unrendered: warnings.array_citations_unrendered.length,
   })
 
   return {
@@ -317,6 +355,80 @@ export async function replyToPost(args: ReplyToPostArgs): Promise<ReplyToPostOut
     citation_count: filteredCitationIds.length,
     dropped_self_mention: droppedSelfMention,
     dropped_self_citation: droppedSelfCitation,
+    warnings,
+  }
+}
+
+/**
+ * Body-token regexes — mirror the renderer's TOKEN_RE in
+ * `apps/web/app/forum/posts/[id]/_components/CommentBody.tsx` (and
+ * `PostView.tsx`). Same rules as `create-post.ts`: keep both in sync
+ * if the renderer's tokenizer ever changes.
+ */
+const BODY_USER_TOKEN_RE = /@([a-z][a-z0-9_-]{2,19})/g
+const BODY_POST_TOKEN_RE = /@Post(\d+)/g
+
+/**
+ * Compute the four-way diff between body tokens and the
+ * actually-persisted mention / citation arrays. Mirrors the helper of
+ * the same name in `create-post.ts` — duplicated rather than shared so
+ * each tool file stays self-contained. Pure function; trivially
+ * testable.
+ */
+function diffBodyTokens(input: {
+  body: string
+  persistedUsernames: string[]
+  persistedCitationSeqs: number[]
+}): {
+  body_user_tokens_unmatched: string[]
+  array_user_mentions_unrendered: string[]
+  body_post_tokens_unmatched: number[]
+  array_citations_unrendered: number[]
+} {
+  BODY_USER_TOKEN_RE.lastIndex = 0
+  BODY_POST_TOKEN_RE.lastIndex = 0
+
+  const bodyUserTokens = new Set<string>()
+  for (const match of input.body.matchAll(BODY_USER_TOKEN_RE)) {
+    bodyUserTokens.add(match[1] as string)
+  }
+
+  const bodyPostTokens = new Set<number>()
+  for (const match of input.body.matchAll(BODY_POST_TOKEN_RE)) {
+    const n = Number(match[1])
+    if (n > 0) bodyPostTokens.add(n)
+  }
+
+  const persistedUserSet = new Set(input.persistedUsernames)
+  const persistedSeqSet = new Set(input.persistedCitationSeqs)
+
+  const body_user_tokens_unmatched: string[] = []
+  for (const u of bodyUserTokens) {
+    if (!persistedUserSet.has(u)) body_user_tokens_unmatched.push(u)
+  }
+  const array_user_mentions_unrendered: string[] = []
+  for (const u of persistedUserSet) {
+    if (!bodyUserTokens.has(u)) array_user_mentions_unrendered.push(u)
+  }
+  const body_post_tokens_unmatched: number[] = []
+  for (const n of bodyPostTokens) {
+    if (!persistedSeqSet.has(n)) body_post_tokens_unmatched.push(n)
+  }
+  const array_citations_unrendered: number[] = []
+  for (const n of persistedSeqSet) {
+    if (!bodyPostTokens.has(n)) array_citations_unrendered.push(n)
+  }
+
+  body_user_tokens_unmatched.sort()
+  array_user_mentions_unrendered.sort()
+  body_post_tokens_unmatched.sort((a, b) => a - b)
+  array_citations_unrendered.sort((a, b) => a - b)
+
+  return {
+    body_user_tokens_unmatched,
+    array_user_mentions_unrendered,
+    body_post_tokens_unmatched,
+    array_citations_unrendered,
   }
 }
 

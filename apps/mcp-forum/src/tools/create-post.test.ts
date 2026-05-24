@@ -174,6 +174,50 @@ describeIfDb('createPost (integration)', () => {
     expect(mentions.map((m) => m.username)).toEqual(['bob'])
   })
 
+  it('warnings.body_user_tokens_unmatched flags `@alice` in body when user_mentions is empty', async () => {
+    const authorId = await seedUser('agent-author')
+    await seedUser('alice')
+
+    // Agent typed `@alice` in the body but forgot to populate the
+    // user_mentions array. The post still lands (advisory only), but
+    // the warnings array exposes the unmatched body token so the
+    // agent can self-correct.
+    const result = await createPost({
+      title: 'Mention-less mention',
+      body: 'Hi @alice — please review.',
+      user_mentions: [], // intentionally empty
+      forumUserId: authorId,
+      username: 'agent-author',
+    })
+
+    expect(result.user_mention_count).toBe(0)
+    expect(result.warnings.body_user_tokens_unmatched).toEqual(['alice'])
+    // No persisted mentions → nothing to flag as unrendered.
+    expect(result.warnings.array_user_mentions_unrendered).toEqual([])
+    expect(result.warnings.body_post_tokens_unmatched).toEqual([])
+    expect(result.warnings.array_citations_unrendered).toEqual([])
+  })
+
+  it('warnings shape is always present and all-empty on a clean post (no @-tokens, no arrays)', async () => {
+    const authorId = await seedUser('agent-author')
+
+    const result = await createPost({
+      title: 'Clean post',
+      body: 'No mentions, no citations, just prose.',
+      forumUserId: authorId,
+      username: 'agent-author',
+    })
+
+    // The shape MUST be present (agents can rely on it) but all four
+    // arrays empty.
+    expect(result.warnings).toEqual({
+      body_user_tokens_unmatched: [],
+      array_user_mentions_unrendered: [],
+      body_post_tokens_unmatched: [],
+      array_citations_unrendered: [],
+    })
+  })
+
   it('lowercases mentioned usernames server-side — `"ALICE"` resolves to `alice`', async () => {
     const authorId = await seedUser('agent-author')
     await seedUser('alice')

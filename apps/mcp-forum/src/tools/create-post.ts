@@ -133,6 +133,28 @@ export type CreatePostOutput = {
    * which keeps client-side branching consistent across both surfaces.
    */
   dropped_self_citation: boolean
+  /**
+   * Advisory diff between the body's @-tokens and the persisted
+   * `user_mentions[]` / `citations[]` arrays. Body tokens are advisory
+   * by design — a post that talks ABOUT alice without intending to
+   * @-mention her shouldn't fail. But the divergence is a signal: an
+   * agent typing `@alice` in the body but leaving `user_mentions: []`
+   * gets a rendered @-token with no persisted mention row (no
+   * notification / cross-reference). These four arrays surface that
+   * mismatch in both directions so the caller can self-correct. All
+   * four are ALWAYS present (empty when clean) so the shape is
+   * predictable.
+   */
+  warnings: {
+    /** Lowercased usernames present in the body as `@username` tokens but missing from `user_mentions[]` (after self-mention drop). */
+    body_user_tokens_unmatched: string[]
+    /** Lowercased usernames in `user_mentions[]` (after self-mention drop) with no matching `@username` token in the body. */
+    array_user_mentions_unrendered: string[]
+    /** Sequence numbers present in the body as `@PostN` tokens but missing from the assigned citation sequences. */
+    body_post_tokens_unmatched: number[]
+    /** Assigned citation sequence numbers (1-based, in array order) with no matching `@PostN` token in the body. */
+    array_citations_unrendered: number[]
+  }
 }
 
 export async function createPost(args: CreatePostArgs): Promise<CreatePostOutput> {
@@ -359,6 +381,19 @@ export async function createPost(args: CreatePostArgs): Promise<CreatePostOutput
     return { postId: row.id, createdAt: row.createdAt }
   })
 
+  // Advisory body-token diff. Build sets of what the body REFERENCES
+  // vs what was persisted, then compute the two-way mismatch in both
+  // dimensions (usernames + post sequences). This is a signal only —
+  // we never reject on the basis of these arrays, but agents need to
+  // see the divergence so a `@alice` typed in the body without a
+  // corresponding `user_mentions[]` entry doesn't silently render
+  // without a notification path / audit row.
+  const warnings = diffBodyTokens({
+    body: parsed.body,
+    persistedUsernames: resolvedMentions.map((m) => m.mentionedUsername),
+    persistedCitationSeqs: requestedCitationIds.map((_, idx) => idx + 1),
+  })
+
   logger.info('mcp_forum_post_created', {
     forum_user_id: args.forumUserId,
     username: args.username,
@@ -366,6 +401,10 @@ export async function createPost(args: CreatePostArgs): Promise<CreatePostOutput
     topic_badge_count: uniqueTopicIds.length,
     user_mention_count: resolvedMentions.length,
     citation_count: requestedCitationIds.length,
+    body_user_tokens_unmatched: warnings.body_user_tokens_unmatched.length,
+    array_user_mentions_unrendered: warnings.array_user_mentions_unrendered.length,
+    body_post_tokens_unmatched: warnings.body_post_tokens_unmatched.length,
+    array_citations_unrendered: warnings.array_citations_unrendered.length,
   })
 
   return {
@@ -379,6 +418,94 @@ export async function createPost(args: CreatePostArgs): Promise<CreatePostOutput
     // aligned with `reply_to_post` for downstream callers that union
     // both surfaces.
     dropped_self_citation: false,
+    warnings,
+  }
+}
+
+/**
+ * Body-token regexes — mirror the renderer's TOKEN_RE in
+ * `apps/web/app/forum/posts/[id]/_components/PostView.tsx` and
+ * `CommentBody.tsx`. Same rules: usernames are lowercase, 3–20 chars
+ * (1 letter + 2..19 of `[a-z0-9_-]`), post tokens are `@Post<digits>`.
+ * Keep these in sync if the renderer's tokenizer ever changes.
+ */
+const BODY_USER_TOKEN_RE = /@([a-z][a-z0-9_-]{2,19})/g
+const BODY_POST_TOKEN_RE = /@Post(\d+)/g
+
+/**
+ * Compute the four-way diff between body tokens and the
+ * actually-persisted mention / citation arrays. Pure function — no DB
+ * access — so it's trivially testable.
+ *
+ * Both dimensions are diffed bidirectionally:
+ *   - tokens in body NOT in persisted set → body_*_unmatched
+ *   - persisted entries NOT in body       → array_*_unrendered
+ *
+ * Output arrays are sorted (alphabetical for usernames, numeric for
+ * sequences) so the response is deterministic.
+ */
+function diffBodyTokens(input: {
+  body: string
+  /** Lowercased usernames actually persisted to forum_post_user_mentions. */
+  persistedUsernames: string[]
+  /** Sequence numbers (1-based) actually assigned to forum_post_citations. */
+  persistedCitationSeqs: number[]
+}): {
+  body_user_tokens_unmatched: string[]
+  array_user_mentions_unrendered: string[]
+  body_post_tokens_unmatched: number[]
+  array_citations_unrendered: number[]
+} {
+  // Reset regex .lastIndex defensively — `/g` regexes are stateful.
+  BODY_USER_TOKEN_RE.lastIndex = 0
+  BODY_POST_TOKEN_RE.lastIndex = 0
+
+  const bodyUserTokens = new Set<string>()
+  for (const match of input.body.matchAll(BODY_USER_TOKEN_RE)) {
+    // Capture group 1 is the bare username (sans `@`); the renderer
+    // tokenizer is lowercase-only, so no further normalization needed.
+    bodyUserTokens.add(match[1] as string)
+  }
+
+  const bodyPostTokens = new Set<number>()
+  for (const match of input.body.matchAll(BODY_POST_TOKEN_RE)) {
+    const n = Number(match[1])
+    // Skip zero / NaN guards — the regex constrains the capture to `\d+`,
+    // so the cast is safe. We still drop 0 because @Post0 isn't a
+    // legal sequence number in the citations table.
+    if (n > 0) bodyPostTokens.add(n)
+  }
+
+  const persistedUserSet = new Set(input.persistedUsernames)
+  const persistedSeqSet = new Set(input.persistedCitationSeqs)
+
+  const body_user_tokens_unmatched: string[] = []
+  for (const u of bodyUserTokens) {
+    if (!persistedUserSet.has(u)) body_user_tokens_unmatched.push(u)
+  }
+  const array_user_mentions_unrendered: string[] = []
+  for (const u of persistedUserSet) {
+    if (!bodyUserTokens.has(u)) array_user_mentions_unrendered.push(u)
+  }
+  const body_post_tokens_unmatched: number[] = []
+  for (const n of bodyPostTokens) {
+    if (!persistedSeqSet.has(n)) body_post_tokens_unmatched.push(n)
+  }
+  const array_citations_unrendered: number[] = []
+  for (const n of persistedSeqSet) {
+    if (!bodyPostTokens.has(n)) array_citations_unrendered.push(n)
+  }
+
+  body_user_tokens_unmatched.sort()
+  array_user_mentions_unrendered.sort()
+  body_post_tokens_unmatched.sort((a, b) => a - b)
+  array_citations_unrendered.sort((a, b) => a - b)
+
+  return {
+    body_user_tokens_unmatched,
+    array_user_mentions_unrendered,
+    body_post_tokens_unmatched,
+    array_citations_unrendered,
   }
 }
 
