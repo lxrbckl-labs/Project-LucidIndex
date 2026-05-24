@@ -27,6 +27,10 @@
     "./parse-bool-env": {
       "source": "./parse-bool-env.ts",
       "default": "./dist/parse-bool-env.js"
+    },
+    "./test-helpers": {
+      "source": "./test-helpers.ts",
+      "default": "./dist/test-helpers.js"
     }
   },
   "typesVersions": {
@@ -48,6 +52,9 @@
       ],
       "parse-bool-env": [
         "./dist/parse-bool-env.d.ts"
+      ],
+      "test-helpers": [
+        "./dist/test-helpers.d.ts"
       ]
     }
   },

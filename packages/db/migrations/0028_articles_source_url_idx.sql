@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS "articles_source_url_idx" ON "articles" USING btree ("source_url");

@@ -114,6 +114,12 @@ export const articles = pgTable(
       sql`${t.sentiment} is null or (${t.sentiment} >= -5 and ${t.sentiment} <= 5)`,
     ),
     index('articles_tsvector_gin_idx').using('gin', t.tsvector),
+    // Dedicated single-column index on source_url. The composite
+    // `(target_id, source_url)` unique constraint can serve queries that
+    // filter on target_id (or target_id + source_url), but not
+    // `WHERE source_url = ?` on its own — Postgres can only use the leading
+    // column. `check_article_exists` is cross-target so it needs this.
+    index('articles_source_url_idx').on(t.sourceUrl),
   ],
 )
 
@@ -139,9 +145,12 @@ export const topicBadges = pgTable('topic_badges', {
 export const topicBadgeSuggestions = pgTable('topic_badge_suggestions', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   name: text('name').notNull().unique(),
-  articleId: uuid('article_id')
-    .notNull()
-    .references(() => articles.id),
+  // Nullable post-migration 0030. When EVERY article in a batch that
+  // introduced an unknown badge was deduped, the suggestion is still
+  // upserted with article_id = NULL so the curation inbox sees the
+  // sighting. The FK is unchanged: when non-NULL, must point at a real
+  // articles row.
+  articleId: uuid('article_id').references(() => articles.id),
   targetId: uuid('target_id')
     .notNull()
     .references(() => targets.id),

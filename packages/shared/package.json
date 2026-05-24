@@ -19,6 +19,10 @@
     "./article-density": {
       "source": "./src/article-density.ts",
       "default": "./dist/article-density.js"
+    },
+    "./url": {
+      "source": "./src/url.ts",
+      "default": "./dist/url.js"
     }
   },
   "typesVersions": {
@@ -34,6 +38,9 @@
       ],
       "article-density": [
         "./dist/article-density.d.ts"
+      ],
+      "url": [
+        "./dist/url.d.ts"
       ]
     }
   },

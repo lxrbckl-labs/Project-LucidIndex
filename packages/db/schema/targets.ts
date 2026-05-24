@@ -8,6 +8,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uuid,
 } from 'drizzle-orm/pg-core'
 import { agentTokens, promptTemplates } from './agent.js'
@@ -130,6 +131,14 @@ export const queue = pgTable(
     lockedUntil: timestamp('locked_until', { withTimezone: true }),
     priority: integer('priority').notNull().default(0),
     ackedAt: timestamp('acked_at', { withTimezone: true }),
+    /**
+     * Post-migration 0031. Bumped by `pull_queue_item` inside the atomic
+     * claim UPDATE so agents can see how many prior attempts have been made
+     * (the reaper releases the claim on each timeout but does not reset
+     * attempt_count). Returned to the caller in the pull response so the
+     * agent can back off / escalate on a high attempt count.
+     */
+    attemptCount: integer('attempt_count').notNull().default(0),
   },
   (t) => [
     index('queue_locked_until_unacked_idx').on(t.lockedUntil).where(sql`${t.ackedAt} is null`),
@@ -159,5 +168,12 @@ export const runLog = pgTable(
     startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
     completedAt: timestamp('completed_at', { withTimezone: true }).notNull(),
   },
-  (t) => [check('run_log_status_check', sql`${t.status} in ('succeeded', 'failed')`)],
+  (t) => [
+    check('run_log_status_check', sql`${t.status} in ('succeeded', 'failed')`),
+    // Audit round 6 (migration 0032): UNIQUE on (queue_item_id,
+    // agent_token_id) so the find-or-create path in `write_articles`
+    // can use INSERT ... ON CONFLICT DO NOTHING to win the race
+    // against a concurrent writer.
+    unique('run_log_queue_item_agent_unique').on(t.queueItemId, t.agentTokenId),
+  ],
 )

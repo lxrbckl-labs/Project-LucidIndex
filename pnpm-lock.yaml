@@ -57,6 +57,9 @@ importers:
       liquidjs:
         specifier: 10.21.1
         version: 10.21.1
+      postgres:
+        specifier: 3.4.9
+        version: 3.4.9
       zod:
         specifier: 4.3.6
         version: 4.3.6
@@ -67,6 +70,9 @@ importers:
       tsx:
         specifier: 4.20.6
         version: 4.20.6
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.2)(tsx@4.20.6)
 
   apps/mcp-forum:
     dependencies:
@@ -82,6 +88,9 @@ importers:
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(postgres@3.4.9)
+      postgres:
+        specifier: 3.4.9
+        version: 3.4.9
       zod:
         specifier: 4.3.6
         version: 4.3.6
@@ -92,6 +101,9 @@ importers:
       tsx:
         specifier: 4.20.6
         version: 4.20.6
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.2)(tsx@4.20.6)
 
   apps/web:
     dependencies:

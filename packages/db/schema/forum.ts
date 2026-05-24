@@ -4,6 +4,7 @@ import {
   boolean,
   check,
   customType,
+  index,
   integer,
   pgTable,
   primaryKey,
@@ -342,7 +343,16 @@ export const forumPostTopics = pgTable(
       .notNull()
       .references(() => topicBadges.id, { onDelete: 'restrict' }),
   },
-  (t) => [primaryKey({ columns: [t.postId, t.topicBadgeId] })],
+  (t) => [
+    primaryKey({ columns: [t.postId, t.topicBadgeId] }),
+    // (topic_badge_id, post_id) — supports `list_posts`' `topic_badge_id`
+    // EXISTS subquery. The composite PK above is (post_id,
+    // topic_badge_id), which Postgres can only use for badge lookups
+    // when post_id is the leading filter. Migration 0033 added this
+    // sibling index — keep this declaration in sync so a future
+    // `drizzle-kit generate` doesn't regress.
+    index('forum_post_topics_badge_idx').on(t.topicBadgeId, t.postId),
+  ],
 )
 
 /**
@@ -590,6 +600,12 @@ export const forumPostCitations = pgTable(
     check('forum_post_citations_sequence_number_check', sql`${t.sequenceNumber} >= 1`),
     unique('forum_post_citations_post_seq_unique').on(t.postId, t.sequenceNumber),
     unique('forum_post_citations_post_cited_unique').on(t.postId, t.citedPostId),
+    // Supports "show me everything that cites post X" lookups — the
+    // unique constraints above both lead with post_id, so neither can
+    // service a cited_post_id-only query. Added in migration 0033 —
+    // keep this declaration in sync so a future `drizzle-kit generate`
+    // doesn't regress.
+    index('forum_post_citations_post_idx').on(t.citedPostId),
   ],
 )
 
@@ -668,7 +684,15 @@ export const forumPostUserMentions = pgTable(
     mentionedUsername: text('mentioned_username').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
   },
-  (t) => [unique('forum_post_user_mentions_post_user_unique').on(t.postId, t.mentionedUserId)],
+  (t) => [
+    unique('forum_post_user_mentions_post_user_unique').on(t.postId, t.mentionedUserId),
+    // Supports "show me everything that mentions user X" lookups —
+    // the unique constraint above leads with post_id, so it can't
+    // service a mentioned_user_id-only query. Added in migration
+    // 0033 — keep this declaration in sync so a future
+    // `drizzle-kit generate` doesn't regress.
+    index('forum_post_user_mentions_user_idx').on(t.mentionedUserId),
+  ],
 )
 
 /**
@@ -831,6 +855,11 @@ export const forumCommentCitations = pgTable(
     check('forum_comment_citations_sequence_number_check', sql`${t.sequenceNumber} >= 1`),
     unique('forum_comment_citations_comment_seq_unique').on(t.commentId, t.sequenceNumber),
     unique('forum_comment_citations_comment_cited_unique').on(t.commentId, t.citedPostId),
+    // Supports "show me what comments cite post X" lookups — the
+    // unique constraints above lead with comment_id. Added in
+    // migration 0033 — keep this declaration in sync so a future
+    // `drizzle-kit generate` doesn't regress.
+    index('forum_comment_citations_post_idx').on(t.citedPostId),
   ],
 )
 
@@ -864,5 +893,10 @@ export const forumCommentUserMentions = pgTable(
   },
   (t) => [
     unique('forum_comment_user_mentions_comment_user_unique').on(t.commentId, t.mentionedUserId),
+    // Supports "show me what comments mention user X" lookups — the
+    // unique constraint above leads with comment_id. Added in
+    // migration 0033 — keep this declaration in sync so a future
+    // `drizzle-kit generate` doesn't regress.
+    index('forum_comment_user_mentions_user_idx').on(t.mentionedUserId),
   ],
 )
