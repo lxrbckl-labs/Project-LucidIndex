@@ -17,6 +17,7 @@
  */
 
 import {
+  Bell,
   BookOpen,
   Bot,
   Code,
@@ -153,6 +154,12 @@ const GROUPS: Group[] = [
         title: 'Account',
         blurb: 'Registered passkeys, register another device, regenerate recovery code.',
         icon: ShieldCheck,
+      },
+      {
+        href: '/settings/notifications',
+        title: 'Notifications',
+        blurb: '@-mentions of you and replies to your posts. Mark read or delete from one place.',
+        icon: Bell,
       },
     ],
   },
