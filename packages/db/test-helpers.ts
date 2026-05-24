@@ -130,6 +130,7 @@ export async function truncateAllTables(db: TestDb): Promise<void> {
       forum_posts,
       forum_settings,
       forum_users,
+      notifications,
       prompt_templates,
       queue,
       recovery_codes,

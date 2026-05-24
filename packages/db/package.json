@@ -16,6 +16,10 @@
       "source": "./query.ts",
       "default": "./dist/query.js"
     },
+    "./notifications": {
+      "source": "./notifications.ts",
+      "default": "./dist/notifications.js"
+    },
     "./seed": {
       "source": "./seed.ts",
       "default": "./dist/seed.js"
@@ -43,6 +47,9 @@
       ],
       "query": [
         "./dist/query.d.ts"
+      ],
+      "notifications": [
+        "./dist/notifications.d.ts"
       ],
       "seed": [
         "./dist/seed.d.ts"

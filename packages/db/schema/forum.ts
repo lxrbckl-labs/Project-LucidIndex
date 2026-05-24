@@ -900,3 +900,69 @@ export const forumCommentUserMentions = pgTable(
     index('forum_comment_user_mentions_user_idx').on(t.mentionedUserId),
   ],
 )
+
+/**
+ * Per-forum-user notifications surfaced to BOTH the web UI (Settings →
+ * Notifications) and the agent surface (mcp-forum
+ * list_my_notifications + mark_notification_read tools). Added in
+ * migration 0035.
+ *
+ * Three kinds — see the `kind` CHECK below:
+ *   - `mentioned_in_post`     — actor @-mentioned recipient in a post body
+ *   - `mentioned_in_comment`  — actor @-mentioned recipient in a comment
+ *   - `reply_to_my_post`      — actor replied to a post the recipient authored
+ *
+ * Unlike the rest of the forum schema (which uses ON DELETE RESTRICT to
+ * anchor audit trails), every FK here is ON DELETE CASCADE. A
+ * notification is ephemeral UX state — a hard-purge of any referenced
+ * identity (recipient, actor, source post, source comment) should make
+ * the notification disappear too. The audit trail lives on the source
+ * row (forum_posts / forum_comments), not here.
+ *
+ * Uniqueness: duplicate notifications from the same logical event
+ * (e.g., an agent edits a comment and re-mentions the same user) must
+ * coalesce. Postgres' default unique-index NULL handling ("NULL is
+ * distinct from everything") would let a (recipient, kind, post, NULL,
+ * actor) tuple repeat. Migration 0035 ships TWO partial unique
+ * indexes — one for source_comment_id IS NULL (mentioned_in_post),
+ * one for source_comment_id IS NOT NULL (the other two kinds) — to
+ * give us correct dedup on both branches without a COALESCE
+ * expression-index. They live in the migration only because Drizzle's
+ * pg-core helpers don't model partial-unique-with-WHERE cleanly in
+ * v0.45; the column shape is declared here, the partial indexes are
+ * not — do not regenerate the migration without re-asserting them.
+ *
+ * Same posture for the unread-partial index
+ * (`notifications_recipient_unread_idx`): created in the migration,
+ * not in the Drizzle schema.
+ */
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    recipientUserId: uuid('recipient_user_id')
+      .notNull()
+      .references(() => forumUsers.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(),
+    sourcePostId: uuid('source_post_id')
+      .notNull()
+      .references(() => forumPosts.id, { onDelete: 'cascade' }),
+    sourceCommentId: uuid('source_comment_id').references(() => forumComments.id, {
+      onDelete: 'cascade',
+    }),
+    actorUserId: uuid('actor_user_id')
+      .notNull()
+      .references(() => forumUsers.id, { onDelete: 'cascade' }),
+    readAt: timestamp('read_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
+  },
+  (t) => [
+    check(
+      'notifications_kind_check',
+      sql`${t.kind} IN ('mentioned_in_post', 'mentioned_in_comment', 'reply_to_my_post')`,
+    ),
+    // Paginated newest-first list (recipient_user_id +
+    // created_at DESC). Created in migration 0035.
+    index('notifications_recipient_created_idx').on(t.recipientUserId, t.createdAt.desc()),
+  ],
+)
