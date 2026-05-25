@@ -29,7 +29,7 @@ export const listMyNotificationsInputShape = {
     .max(MAX_LIMIT)
     .optional()
     .describe(
-      `Maximum items per page. Default ${DEFAULT_LIMIT}, max ${MAX_LIMIT}. Values outside the range are clamped.`,
+      `Maximum items per page. Default ${DEFAULT_LIMIT}, max ${MAX_LIMIT}. Values outside the range are rejected (Zod -32602), not clamped — pass an in-range value.`,
     ),
   cursor: z
     .string()

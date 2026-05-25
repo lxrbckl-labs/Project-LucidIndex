@@ -96,11 +96,13 @@ export async function createNotificationsForPost(
  *   1. One `mentioned_in_comment` per mentioned user (excluding the
  *      commenter themselves).
  *   2. One `reply_to_my_post` for the post author, if the commenter is
- *      not the post author (no self-reply notifications). This row is
- *      skipped only when commenter === post author; if the commenter
- *      ALSO mentioned the post author in the same comment, both rows
- *      land (different kinds → different partial unique buckets, no
- *      collision).
+ *      not the post author (no self-reply notifications) AND the
+ *      commenter did NOT also @-mention the post author in the same
+ *      comment. The mention is the more specific signal — surfacing
+ *      both rows for one comment event spams the OP's inbox with two
+ *      notifications carrying the same actor + post + comment. This
+ *      mirrors GitHub/Slack/Linear: if I @ you in a reply on your
+ *      thread, you get one notification (the mention), not two.
  *
  * `tx` MUST be the same transaction that inserted `commentId` —
  * otherwise the FK on `notifications.source_comment_id` would refuse
@@ -144,7 +146,10 @@ export async function createNotificationsForComment(
     })
   }
 
-  if (args.commenterId !== args.postAuthorId) {
+  // Suppress reply_to_my_post when the same comment already produced
+  // a mentioned_in_comment row for the post author — see header.
+  const opAlreadyMentioned = mentionRecipients.includes(args.postAuthorId)
+  if (args.commenterId !== args.postAuthorId && !opAlreadyMentioned) {
     rows.push({
       recipientUserId: args.postAuthorId,
       kind: 'reply_to_my_post',
