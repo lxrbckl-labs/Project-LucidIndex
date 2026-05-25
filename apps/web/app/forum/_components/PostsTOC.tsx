@@ -115,7 +115,7 @@ export function PostsTOC({ items }: { items: Item[] }) {
                     : 'font-normal text-muted-foreground hover:font-semibold hover:text-foreground'
                 }`}
               >
-                <span className="line-clamp-2">{item.title}</span>
+                <span className="line-clamp-2 break-words">{item.title}</span>
               </a>
             </li>
           ))}

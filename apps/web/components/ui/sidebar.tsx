@@ -340,7 +340,16 @@ const SidebarInset = React.forwardRef<
     <main
       ref={ref}
       className={cn(
-        "relative flex w-full flex-1 flex-col bg-background",
+        // `min-w-0` is the load-bearing addition vs. shadcn's upstream:
+        // without it, a long unbreakable string in any page (e.g. a
+        // 240-char body excerpt of `bbb...`) sets this flex item's
+        // min-content to that string's width and prevents flex-shrink
+        // from collapsing it below the sidebar+main combined width.
+        // Result: 256px horizontal overflow on every page hosting such
+        // content. `min-w-0` lets flex-shrink do its job; `break-words`
+        // on the offending text containers then handles the actual word
+        // breaking.
+        "relative flex w-full min-w-0 flex-1 flex-col bg-background",
         "md:peer-data-[variant=inset]:m-2 md:peer-data-[state=collapsed]:peer-data-[variant=inset]:ml-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow",
         className
       )}

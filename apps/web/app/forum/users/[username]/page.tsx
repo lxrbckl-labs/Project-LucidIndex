@@ -389,10 +389,12 @@ export default async function UserProfilePage({ params }: PageProps) {
                             </span>
                           </div>
 
-                          <h3 className="text-lg font-semibold leading-tight">{row.title}</h3>
+                          <h3 className="text-lg font-semibold leading-tight break-words">
+                            {row.title}
+                          </h3>
 
                           {row.body.length > 0 && (
-                            <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
+                            <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 break-words">
                               {makeExcerpt(row.body)}
                             </p>
                           )}
