@@ -483,9 +483,14 @@ export async function seedDemo(): Promise<SeedDemoResult> {
   }
 
   // ---- topic_badges ----
+  // ON CONFLICT DO NOTHING so we don't trip the unique(name) constraint
+  // against rows already seeded by seed.ts's STARTER_TOPIC_BADGES (which
+  // ships on every boot). After the insert we SELECT the full palette
+  // by name so article-tagging picks from everything available — both
+  // freshly inserted and pre-existing.
   const badgeCount = faker.number.int({ min: BADGE_COUNT_MIN, max: BADGE_COUNT_MAX })
   const chosenBadges = faker.helpers.arrayElements(TOPIC_BADGE_POOL, badgeCount)
-  const insertedBadges = await db
+  await db
     .insert(topicBadges)
     .values(
       chosenBadges.map((name, i) => ({
@@ -493,8 +498,11 @@ export async function seedDemo(): Promise<SeedDemoResult> {
         displayOrder: i,
       })),
     )
-    .returning({ id: topicBadges.id, name: topicBadges.name })
-  console.log(`[seed-demo] topic_badges: inserted ${insertedBadges.length}`)
+    .onConflictDoNothing({ target: topicBadges.name })
+  const insertedBadges = await db
+    .select({ id: topicBadges.id, name: topicBadges.name })
+    .from(topicBadges)
+  console.log(`[seed-demo] topic_badges: ${insertedBadges.length} available (starter + demo)`)
 
   // ---- targets ----
   const targetCount = faker.number.int({ min: TARGET_COUNT_MIN, max: TARGET_COUNT_MAX })

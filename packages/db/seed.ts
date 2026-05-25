@@ -8,6 +8,10 @@
  *      shipping a seed list means agents have something to cite from the
  *      moment the DB comes up (without seeding, `get_comparison_sources`
  *      returns [] on fresh installs and agents skip the cross-source step).
+ *   3. A starter topic-badge palette (12 broad names) so the forum has
+ *      legal `topic_badge_ids` for `create_post` from boot, and the
+ *      dashboard has a starter article-topic palette. Admins can
+ *      add/remove/hide via Settings → Badges.
  *
  * The script is idempotent — re-running it on a populated DB is a no-op,
  * because each insert is `ON CONFLICT (<unique>) DO NOTHING`.
@@ -24,7 +28,7 @@
 
 import { STARTER_TEMPLATES } from '@lucidindex/templates'
 import { db } from './client.js'
-import { comparisonSources, promptTemplates } from './schema/index.js'
+import { comparisonSources, promptTemplates, topicBadges } from './schema/index.js'
 
 /**
  * Starter comparison sources — reputable outlets agents are likely to
@@ -90,6 +94,44 @@ const STARTER_COMPARISON_SOURCES: ReadonlyArray<{
   },
 ]
 
+/**
+ * Starter topic-badge palette for both the forum (post tagging) and the
+ * dashboard (article topics). Broad enough to be useful out-of-the-box on
+ * any deploy regardless of which sources are being monitored. Admins can
+ * add/remove/hide via Settings → Badges; deactivation is soft (hidden
+ * flag) so existing references are preserved.
+ *
+ * Kept intentionally short — better to ship a small useful set and let
+ * the admin curate, than to dump a 30-item palette they have to prune.
+ */
+const STARTER_TOPIC_BADGES: ReadonlyArray<string> = [
+  'AI',
+  'Tech Industry',
+  'Politics',
+  'Economics',
+  'Science',
+  'Climate',
+  'Health',
+  'Long Reads',
+  'Books',
+  'Film',
+  'Music',
+  'Design',
+]
+
+export async function seedTopicBadges(): Promise<number> {
+  const values = STARTER_TOPIC_BADGES.map((name, displayOrder) => ({
+    name,
+    displayOrder,
+  }))
+  const inserted = await db
+    .insert(topicBadges)
+    .values(values)
+    .onConflictDoNothing({ target: topicBadges.name })
+    .returning({ id: topicBadges.id })
+  return inserted.length
+}
+
 export async function seedComparisonSources(): Promise<number> {
   const values = STARTER_COMPARISON_SOURCES.map((s) => ({
     name: s.name,
@@ -113,6 +155,7 @@ export async function seedComparisonSources(): Promise<number> {
 export async function seed(): Promise<{
   promptTemplatesInserted: number
   comparisonSourcesInserted: number
+  topicBadgesInserted: number
 }> {
   const values = STARTER_TEMPLATES.map((t) => ({
     slug: t.slug,
@@ -130,10 +173,12 @@ export async function seed(): Promise<{
     .returning({ id: promptTemplates.id })
 
   const comparisonSourcesInserted = await seedComparisonSources()
+  const topicBadgesInserted = await seedTopicBadges()
 
   return {
     promptTemplatesInserted: inserted.length,
     comparisonSourcesInserted,
+    topicBadgesInserted,
   }
 }
 
@@ -154,13 +199,16 @@ const isDirectRun = (() => {
 
 if (isDirectRun) {
   seed()
-    .then(({ promptTemplatesInserted, comparisonSourcesInserted }) => {
+    .then(({ promptTemplatesInserted, comparisonSourcesInserted, topicBadgesInserted }) => {
       // Keep this terse — verbose logging is the orchestration layer's job.
       console.log(
         `[seed] prompt_templates: inserted ${promptTemplatesInserted} new (existing rows skipped via ON CONFLICT)`,
       )
       console.log(
         `[seed] comparison_sources: inserted ${comparisonSourcesInserted} new (existing rows skipped via ON CONFLICT)`,
+      )
+      console.log(
+        `[seed] topic_badges: inserted ${topicBadgesInserted} new (existing rows skipped via ON CONFLICT)`,
       )
       // The drizzle `postgres-js` client doesn't auto-close — exit cleanly.
       process.exit(0)
