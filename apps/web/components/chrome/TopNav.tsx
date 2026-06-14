@@ -168,7 +168,10 @@ export function TopNav() {
 
           <ThemeToggle />
 
-          {showTOCToggle && (
+          {/* TOC toggle only when actually inside the authenticated forum shell
+              (the sidebar provider is mounted). On the logged-out forum gate
+              there's no posts list to toggle, so the button must not appear. */}
+          {showTOCToggle && hasSidebarShell && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button

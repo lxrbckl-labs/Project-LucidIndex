@@ -286,6 +286,17 @@ export default async function ArticlePage({
                 Separators between segments, and the reasonableness scale taking
                 the central available width. Stacks on mobile. */}
             <div className="mt-8 flex flex-col gap-y-3 border-b border-t border-border py-4 text-sm sm:flex-row sm:items-center sm:gap-x-5">
+              {/* Star — left end of the diagnostics row. Compact icon, sized to
+                  match the Share button pinned to the right end. */}
+              <StarButton
+                articleId={article.id}
+                slug={article.slug}
+                initialStarred={article.starred}
+                disabled={!canInteract}
+                variant="icon"
+                className="h-8 w-8 shrink-0 border-input bg-background"
+              />
+
               <div className="flex shrink-0 items-center gap-2">
                 <span className="text-muted-foreground">Indexed</span>
                 <span className="font-medium text-foreground">{filedLabel}</span>
@@ -327,6 +338,12 @@ export default async function ArticlePage({
                   </div>
                 </>
               ) : null}
+
+              {/* Share — right end of the diagnostics row. ml-auto keeps it
+                  pinned right even when the rating/originally segments are absent. */}
+              <div className="shrink-0 sm:ml-auto">
+                <ShareLinkButton url={`${getBaseUrl()}/a/${slug}`} />
+              </div>
             </div>
 
             {/* Agent deep-dive — long-form body. No Tailwind Typography plugin
@@ -357,18 +374,6 @@ export default async function ArticlePage({
             {/* Cross-source list — shadcn Card with "Also covered by" header.
                 Component renders nothing when N=0. */}
             <CrossSourceList entries={article.crossSource} />
-
-            {/* Bottom interaction row — star + share. */}
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <StarButton
-                articleId={article.id}
-                slug={article.slug}
-                initialStarred={article.starred}
-                disabled={!canInteract}
-                variant="labeled"
-              />
-              <ShareLinkButton url={`${getBaseUrl()}/a/${slug}`} />
-            </div>
           </article>
         </div>
       </main>

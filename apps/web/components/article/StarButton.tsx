@@ -31,6 +31,7 @@ import { toast } from 'sonner'
 import { toggleStar } from '@/app/a/[slug]/actions'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
 
 const STARRED_ONCE_KEY = 'lucidindex:has-starred-once'
 
@@ -46,6 +47,8 @@ type Props = {
    *   detail page to match ShareLinkButton.
    */
   variant?: 'icon' | 'labeled'
+  /** Extra classes merged onto the icon-variant button (e.g. size overrides). */
+  className?: string
 }
 
 export function StarButton({
@@ -54,6 +57,7 @@ export function StarButton({
   initialStarred,
   disabled = false,
   variant = 'icon',
+  className,
 }: Props) {
   const [starred, setStarred] = useState(initialStarred)
   const [isPending, startTransition] = useTransition()
@@ -118,7 +122,7 @@ export function StarButton({
           type="button"
           variant="ghost"
           size="icon"
-          className="border"
+          className={cn('border', className)}
           onClick={handleClick}
           disabled={disabled || isPending}
           aria-pressed={starred}
