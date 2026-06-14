@@ -129,7 +129,9 @@ export function TopNav() {
             <img src="/logo-light.png" alt="" className="h-10 w-10 rounded-sm dark:hidden" />
             {/* biome-ignore lint/performance/noImgElement: small static asset, no Next/Image needed */}
             <img src="/logo-dark.png" alt="" className="hidden h-10 w-10 rounded-sm dark:block" />
-            LUCIDINDEX
+            {/* Wordmark text is icon-only on mobile — hide the LUCIDINDEX
+                text below the sm breakpoint, show it on tablet/desktop. */}
+            <span className="hidden sm:inline">LUCIDINDEX</span>
           </Link>
         </div>
 
