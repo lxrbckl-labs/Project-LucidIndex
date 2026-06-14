@@ -115,6 +115,13 @@ services:
       PORT: "47892"
     ports:
       - "127.0.0.1:47892:47892"
+    volumes:
+      # Shared hero-image store. web SERVES /i/<hash> from here and also WRITES
+      # forum upload images here (apps/web/app/api/forum/upload-image), so it
+      # must be read-write and must point at the same volume mcp-dashboard uses
+      # — otherwise every hero image and forum upload 404s. (Previously left as
+      # a "deployment-time choice"; in practice every deployment needs it.)
+      - mcp_images:/app/data/images
 
   mcp-dashboard:
     image: lxrbckl/lucidindex-mcp-dashboard:main
