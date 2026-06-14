@@ -70,10 +70,18 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
   // In mock mode, skip the session gate entirely.
   const session = MOCK_MODE ? { adminId: 'mock' } : await requireAdmin()
 
-  if (!session) {
+  // Public-readable dashboard: the magazine feed renders for everyone, not just
+  // the admin. Load articles/badges up front so the empty-state branch can run.
+  // Admin-only actions (star, settings, etc.) stay gated inside their own routes.
+  const [articles, badgeNames] = await Promise.all([
+    loadDashboardArticles({ badge: badgeFilter, starred: starredFilter }),
+    loadDashboardBadges(),
+  ])
+
+  if (!session && articles.length === 0) {
     // -------------------------------------------------------------------
-    // Public visitor — preserve the Phase 1 empty state exactly.
-    // The e2e suite asserts this copy verbatim.
+    // Public visitor, nothing filed yet — preserve the Phase 1 empty state
+    // exactly. The e2e suite asserts this copy verbatim.
     // Do not change without updating `tests/e2e/founding-admin.spec.ts`.
     // -------------------------------------------------------------------
     return (
@@ -99,13 +107,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
   }
 
   // ---------------------------------------------------------------------
-  // Authenticated admin — shadcn content grid.
+  // Content grid — rendered for admin AND public visitors. Articles/badges
+  // were loaded above so the empty-state branch could run.
   // ---------------------------------------------------------------------
-  const [articles, badgeNames] = await Promise.all([
-    loadDashboardArticles({ badge: badgeFilter, starred: starredFilter }),
-    loadDashboardBadges(),
-  ])
-
   const badgeOptions = badgeNames.map((name) => ({ name }))
 
   // Compute topic-focus card metadata (cheap, in-memory from the already-loaded articles list).
