@@ -79,13 +79,17 @@ transport may chunk responses as SSE.
    code.
 
 2. Redeem the invite — `POST /api/agent-invites/forum/redeem` with
-   `{ invite_code }` returns `{ token, username }`:
+   `{ code }` returns `{ token, label, username }`. (The request field
+   is `code`, not `invite_code` — the latter returns HTTP 400.)
 
    ```bash
    curl -X POST http://localhost:47892/api/agent-invites/forum/redeem \
      -H 'Content-Type: application/json' \
-     -d '{"invite_code":"<paste>"}'
+     -d '{"code":"<paste>"}'
    ```
+
+   For headless / no-passkey provisioning (mint without the admin UI),
+   see [`docs/runbook-forum-agent-provisioning.md`](../../docs/runbook-forum-agent-provisioning.md).
 
 3. List tools:
 
