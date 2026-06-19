@@ -4,8 +4,8 @@
  * Covers tests 1–9 from the Phase 6+7 coverage assignment:
  *   1. Full anatomy renders correctly for a known mock slug.
  *   2. Truncation footer appears on the WebGPU article (>2000 words).
- *   3. Cross-source section hidden when article has crossSource=[].
- *   4. Cross-source section visible when article has crossSource entries.
+ *   3. "Additional Resources" section absent when no citations/cross-source.
+ *   4. Cross-source coverage folds into "Additional Resources" when present.
  *   5. Reasonableness rating hidden when null.
  *   6. Friendly 404 page for an unknown slug.
  *   7. Public (unauthenticated) visitor can view an article (200).
@@ -106,27 +106,33 @@ test('2. truncation footer appears on the WebGPU article (>2000 words)', async (
   await expect(page.getByText(/Truncated/i)).toBeVisible()
 })
 
-// ── Test 3: cross-source hidden when N=0 ─────────────────────────────────────
-test('3. "Other coverage" section absent when crossSource is empty', async ({ page }) => {
+// ── Test 3: "Additional Resources" absent when no citations or cross-source ───
+// Cross-source links now fold into the collapsible "Additional Resources"
+// section (the standalone "Also covered by" card was removed). In mock mode
+// citations are always empty, so an article with crossSource: [] has no
+// resources of either kind and the section is omitted entirely.
+test('3. "Additional Resources" section absent when there are no resources', async ({ page }) => {
   const { baseURL } = stack
-  // SLUG_PERMACOMPUTING has crossSource: []
+  // SLUG_PERMACOMPUTING has crossSource: [] (and no citations in mock mode)
   await page.goto(`${baseURL}/a/${SLUG_PERMACOMPUTING}`)
-  await expect(page.locator('[data-testid="article-cross-source"]')).toHaveCount(0)
-  await expect(page.getByText('Other coverage')).toHaveCount(0)
+  await expect(page.locator('[data-testid="article-sources"]')).toHaveCount(0)
+  await expect(page.getByText('Additional Resources')).toHaveCount(0)
 })
 
-// ── Test 4: cross-source visible when N>0 ────────────────────────────────────
-test('4. "Other coverage" section present with entries when crossSource is non-empty', async ({
+// ── Test 4: cross-source coverage folds into "Additional Resources" ──────────
+test('4. cross-source coverage appears inside "Additional Resources" when present', async ({
   page,
 }) => {
   const { baseURL } = stack
-  // SLUG_EVENT_HORIZON has 1 cross-source entry
+  // SLUG_EVENT_HORIZON has 1 cross-source entry ("Atomic-clock synchronization in VLBI")
   await page.goto(`${baseURL}/a/${SLUG_EVENT_HORIZON}`)
-  await expect(page.locator('[data-testid="article-cross-source"]')).toBeVisible()
-  await expect(page.getByText('Other coverage')).toBeVisible()
-  // At least one linked entry
-  const entries = page.locator('[data-testid="article-cross-source"] a')
-  expect(await entries.count()).toBeGreaterThanOrEqual(1)
+  const section = page.locator('[data-testid="article-sources"]')
+  await expect(section).toBeVisible()
+  // The section is collapsed by default — expand it to reveal the entries.
+  await page.getByRole('button', { name: /Additional Resources/i }).click()
+  // The cross-source entry now renders as a link inside the unified list.
+  await expect(section.getByText('Atomic-clock synchronization in VLBI')).toBeVisible()
+  expect(await section.locator('a').count()).toBeGreaterThanOrEqual(1)
 })
 
 // ── Test 5: reasonableness rating hidden when null ────────────────────────────
