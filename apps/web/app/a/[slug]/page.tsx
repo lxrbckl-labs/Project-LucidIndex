@@ -47,7 +47,6 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { AgentOpinionSection } from '@/components/article/AgentOpinionSection'
-import { CrossSourceList } from '@/components/article/CrossSourceList'
 import { MarkSeenOnMount } from '@/components/article/MarkSeenOnMount'
 import { ShareLinkButton } from '@/components/article/ShareLinkButton'
 import { SourcesSection } from '@/components/article/SourcesSection'
@@ -363,17 +362,15 @@ export default async function ArticlePage({
               </section>
             ) : null}
 
-            {/* Sources — original source + external citations. */}
-            <SourcesSection citations={article.citations} />
+            {/* Additional Resources — unified list of structured citations
+                plus folded-in cross-source coverage. Renders nothing when
+                there are no resources of either kind. */}
+            <SourcesSection citations={article.citations} crossSource={article.crossSource} />
 
             {/* Agent opinion — collapsible subjective take on the source.
                 Positioned after Sources; always rendered (shows placeholder
                 when null so the section is consistently discoverable). */}
             <AgentOpinionSection agentOpinion={article.agentOpinion} />
-
-            {/* Cross-source list — shadcn Card with "Also covered by" header.
-                Component renders nothing when N=0. */}
-            <CrossSourceList entries={article.crossSource} />
           </article>
         </div>
       </main>

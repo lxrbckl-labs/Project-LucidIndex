@@ -110,7 +110,16 @@ const articleSchema = z.object({
   sentiment: z.number().int().min(-5).max(5).optional(),
   source_published_at: z.string().datetime().optional(),
   source_published_at_estimated: z.boolean().optional(),
-  hero_image_url: z.string().url().optional(),
+  // REQUIRED: every article must ship with a related hero image. Presence
+  // is enforced here; relevance is the agent's responsibility (see the tool
+  // description and editorial templates). A fetch failure on a valid URL
+  // stays non-fatal (heroImageHash → null), but the URL itself is mandatory.
+  hero_image_url: z
+    .string()
+    .url()
+    .describe(
+      'REQUIRED. URL of an image clearly relevant to this story — its lead/OG image or another on-topic photo. Every article must have a related hero image; do not submit without one.',
+    ),
   cross_source: z.array(z.unknown()).optional(),
   citations: z.array(citationSchema).optional(),
 })
