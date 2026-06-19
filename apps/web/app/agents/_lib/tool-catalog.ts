@@ -99,7 +99,7 @@ export const DASHBOARD_TOOLS: ToolEntry[] = [
         type: 'array of object',
         required: true,
         description:
-          'One or more article rows. Each carries source_url, title, summary, agent_deep_dive?, agent_opinion?, topic_badges, significance (string enum: `small|medium|large` — NOT a number), difficulty (string enum: `easy|medium|hard` — NOT a number), reasonableness_rating? (0–10), sentiment? (-5–5), source_published_at? (ISO-8601 with strict calendar-date validation), source_published_at_estimated?, hero_image_url?, cross_source?, and citations? (each {url, title, source_name} all required; accessed_at? and image_url? optional).',
+          'One or more article rows. Each carries source_url, title, summary, agent_deep_dive?, agent_opinion?, topic_badges, significance (string enum: `small|medium|large` — NOT a number), difficulty (string enum: `easy|medium|hard` — NOT a number), reasonableness_rating? (0–10), sentiment? (-5–5), source_published_at? (ISO-8601 with strict calendar-date validation), source_published_at_estimated?, hero_image_url (REQUIRED — a URL for an image clearly related to the story; every article must ship with one), cross_source?, and citations? (each {url, title, source_name} all required; accessed_at? and image_url? optional).',
       },
     ],
     returns:

@@ -159,7 +159,13 @@ inserting a fresh terminal row with `articles_count = 0`.
 
 ### Hero image pipeline (#45) — design notes
 
-When an article carries `hero_image_url`:
+`hero_image_url` is **required** on every article (it must be a URL for an
+image clearly related to the story — see
+[`docs/editorial-image-policy.md`](../../docs/editorial-image-policy.md)).
+Presence is enforced by the input schema; the fetch/store below is
+best-effort and a fetch failure stays non-fatal.
+
+When an article is written with its `hero_image_url`:
 
 1. `fetch(url)` with a 10s timeout and a 25 MB body cap (both
    configurable via env). Stream is aborted on overrun.
