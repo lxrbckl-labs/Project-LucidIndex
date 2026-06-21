@@ -1,54 +1,42 @@
 'use client'
 
 /**
- * FoundingGate — claim the first admin, in the swipe-card dialog style.
+ * FoundingGate — claim the first admin ("Generate token" flow).
  *
- * Mirrors SettingsAuthGate / ForumGate: a centered card with a translateX
- * slide-track and two panes:
- *   0 — Token:  verify the founding token.
- *   1 — Create: name + passkey enrollment, then a one-time passcode modal.
+ * Mirrors the swipe-card dialog style with two panes:
+ *   0 — Claim: a single "Generate token" button. POSTs /api/auth/founding/claim,
+ *       which creates the admin + a reusable passcode (lipc_) and signs you in.
+ *   1 — Setup: shows the passcode once (save it — your backup sign-in), then
+ *       offers to enroll a passkey (the authenticated register flow) as your
+ *       primary sign-in. Either button lands you in /settings.
  *
- * Wires the three founding API routes (/api/auth/founding/{start,finish,
- * finalize}) and the server-side token check. The passcode is shown once in a
- * Dialog before the session is minted (setting the cookie mid-render would
- * unmount the form before the user reads the code).
+ * No founding-token input and no .env: founding is open only while the admins
+ * table is empty, and the first claim wins (enforced server-side).
  */
 
 import { startRegistration } from '@simplewebauthn/browser'
-import { ArrowLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { type FormEvent, forwardRef, type ReactNode, useEffect, useRef, useState } from 'react'
-import { verifyFoundingToken } from '@/app/settings/found/actions'
+import { forwardRef, type ReactNode, useEffect, useRef, useState } from 'react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
-const DEFAULT_DEVICE_LABEL = 'Founding device'
-const GENERIC_FAILURE = "Couldn't claim founding admin — try again"
+const DEVICE_LABEL = 'Founding device'
+const GENERIC_FAILURE = "Couldn't claim admin — try again."
 
-type Mode = 'token' | 'create'
+type Mode = 'claim' | 'setup'
 
 export function FoundingGate() {
-  const router = useRouter()
-  const [mode, setMode] = useState<Mode>('token')
-  const [verifiedToken, setVerifiedToken] = useState<string | null>(null)
-  const index = mode === 'token' ? 0 : 1
+  const [mode, setMode] = useState<Mode>('claim')
+  const [passcode, setPasscode] = useState<string | null>(null)
+  const index = mode === 'claim' ? 0 : 1
 
-  const tokenRef = useRef<HTMLDivElement>(null)
-  const createRef = useRef<HTMLDivElement>(null)
+  const claimRef = useRef<HTMLDivElement>(null)
+  const setupRef = useRef<HTMLDivElement>(null)
   const [trackHeight, setTrackHeight] = useState<number | undefined>(undefined)
 
   useEffect(() => {
-    const node = mode === 'token' ? tokenRef.current : createRef.current
+    const node = mode === 'claim' ? claimRef.current : setupRef.current
     if (!node) return
     const update = () => setTrackHeight(node.getBoundingClientRect().height)
     update()
@@ -58,7 +46,7 @@ export function FoundingGate() {
   }, [mode])
 
   return (
-    <div className="mx-auto flex flex-col items-center gap-5 rounded-xl border bg-background p-6 shadow-sm max-w-sm w-full text-center">
+    <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-5 rounded-xl border bg-background p-6 text-center shadow-sm">
       <div
         className="w-full overflow-hidden transition-[height] duration-300 ease-out"
         style={trackHeight !== undefined ? { height: trackHeight } : undefined}
@@ -67,24 +55,16 @@ export function FoundingGate() {
           className="flex items-start transition-transform duration-300 ease-out"
           style={{ transform: `translateX(-${index * 100}%)` }}
         >
-          <Pane ref={tokenRef} active={mode === 'token'}>
-            <TokenPane
-              onVerified={(token) => {
-                setVerifiedToken(token)
-                setMode('create')
+          <Pane ref={claimRef} active={mode === 'claim'}>
+            <ClaimPane
+              onClaimed={(code) => {
+                setPasscode(code)
+                setMode('setup')
               }}
             />
           </Pane>
-          <Pane ref={createRef} active={mode === 'create'}>
-            <CreatePane
-              isActive={mode === 'create'}
-              verifiedToken={verifiedToken}
-              onBack={() => setMode('token')}
-              onSuccess={() => {
-                router.replace('/settings')
-                router.refresh()
-              }}
-            />
+          <Pane ref={setupRef} active={mode === 'setup'}>
+            <SetupPane passcode={passcode} />
           </Pane>
         </div>
       </div>
@@ -109,66 +89,157 @@ const Pane = forwardRef<HTMLDivElement, { active: boolean; children: ReactNode }
   )
 })
 
-function TokenPane({ onVerified }: { onVerified: (token: string) => void }) {
-  const [token, setToken] = useState('')
+// ---------------------------------------------------------------------------
+// Pane 0 — Generate the admin token (claims the admin + signs you in)
+// ---------------------------------------------------------------------------
+
+function ClaimPane({ onClaimed }: { onClaimed: (passcode: string) => void }) {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    const t = setTimeout(() => inputRef.current?.focus(), 100)
-    return () => clearTimeout(t)
-  }, [])
-
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault()
+  async function generate() {
     if (pending) return
-    const candidate = token.trim()
-    if (!candidate) {
-      setError('Enter your founding token.')
-      inputRef.current?.focus()
-      return
-    }
     setPending(true)
     setError(null)
     try {
-      const res = await verifyFoundingToken(candidate)
-      if (res.ok) {
-        onVerified(candidate)
+      const res = await fetch('/api/auth/founding/claim', { method: 'POST' })
+      const data = (await res.json()) as
+        | { ok: true; passcode: string }
+        | { ok: false; reason?: string }
+      if (data.ok) {
+        onClaimed(data.passcode)
         return
       }
-      setError('Token is incorrect. Double-check and try again.')
+      setError(
+        data.reason === 'not_available' ? 'This LucidIndex already has an admin.' : GENERIC_FAILURE,
+      )
     } catch {
-      setError('Something went wrong. Please try again.')
+      setError(GENERIC_FAILURE)
     } finally {
       setPending(false)
     }
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4 w-full text-left">
+    <div className="flex w-full flex-col gap-4">
       <div className="flex flex-col gap-2 text-center">
         <h2 className="text-xl font-semibold tracking-tight">Claim Admin</h2>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          No admin yet. Enter your founding token to take ownership of this LucidIndex.
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          No admin yet. Generate your sign-in token to take ownership of this LucidIndex.
+        </p>
+      </div>
+
+      {error && (
+        <Alert variant="destructive" role="alert">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      <Button
+        type="button"
+        onClick={generate}
+        disabled={pending}
+        data-testid="founding-generate"
+        className="w-full"
+      >
+        {pending ? 'Generating…' : 'Generate token'}
+      </Button>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Pane 1 — Save the token, then (optionally) enroll a passkey
+// ---------------------------------------------------------------------------
+
+function SetupPane({ passcode }: { passcode: string | null }) {
+  const router = useRouter()
+  const [stage, setStage] = useState<'idle' | 'enrolling'>('idle')
+  const [error, setError] = useState<string | null>(null)
+
+  function finish() {
+    // The claim already minted the session; land on the authenticated hub.
+    router.replace('/settings')
+    router.refresh()
+  }
+
+  async function enrollPasskey() {
+    if (stage !== 'idle') return
+    setStage('enrolling')
+    setError(null)
+    try {
+      const startRes = await fetch('/api/auth/passkey/register/start', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ deviceLabel: DEVICE_LABEL }),
+      })
+      const start = (await startRes.json()) as
+        | {
+            ok: true
+            options: Parameters<typeof startRegistration>[0]['optionsJSON']
+            challengeToken: string
+          }
+        | { ok: false }
+      if (!start.ok) {
+        setError("Couldn't start passkey enrollment.")
+        setStage('idle')
+        return
+      }
+
+      let attestation: Awaited<ReturnType<typeof startRegistration>>
+      try {
+        attestation = await startRegistration({ optionsJSON: start.options })
+      } catch (err) {
+        // Cancelled the platform sheet — silently return to the pane.
+        if (err instanceof Error && err.name === 'NotAllowedError') {
+          setStage('idle')
+          return
+        }
+        setError("Couldn't enroll a passkey on this device.")
+        setStage('idle')
+        return
+      }
+
+      const finishRes = await fetch('/api/auth/passkey/register/finish', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          challengeToken: start.challengeToken,
+          deviceLabel: DEVICE_LABEL,
+          attestation,
+        }),
+      })
+      const data = (await finishRes.json()) as { ok: true } | { ok: false }
+      if (!data.ok) {
+        setError("Couldn't finish passkey enrollment.")
+        setStage('idle')
+        return
+      }
+      finish()
+    } catch {
+      setError("Couldn't enroll a passkey on this device.")
+      setStage('idle')
+    }
+  }
+
+  return (
+    <div className="flex w-full flex-col gap-4 text-left">
+      <div className="flex flex-col gap-2 text-center">
+        <h2 className="text-xl font-semibold tracking-tight">Save your token</h2>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Shown once. Store it somewhere safe — it's your backup sign-in if you lose your passkey.
         </p>
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="founding-token">Founding token</Label>
-        <Input
-          ref={inputRef}
-          id="founding-token"
-          type="password"
-          autoComplete="off"
-          spellCheck={false}
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-          disabled={pending}
-          placeholder="Paste your founding token"
-          data-testid="founding-token-input"
-          className="font-mono focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
-        />
+        <Label htmlFor="founding-passcode">Sign-in token</Label>
+        <pre
+          id="founding-passcode"
+          className="select-all break-all rounded-md bg-muted px-4 py-3 text-left font-mono text-sm tracking-tight"
+          data-testid="founding-passcode"
+        >
+          {passcode}
+        </pre>
       </div>
 
       {error && (
@@ -179,224 +250,25 @@ function TokenPane({ onVerified }: { onVerified: (token: string) => void }) {
 
       <div className="flex flex-col gap-2">
         <Button
-          type="submit"
-          disabled={pending}
-          data-testid="founding-token-submit"
+          type="button"
+          onClick={enrollPasskey}
+          disabled={stage !== 'idle'}
+          data-testid="founding-enroll-passkey"
           className="w-full"
         >
-          {pending ? 'Verifying…' : 'Continue'}
+          {stage === 'enrolling' ? 'Enrolling…' : 'Enroll a passkey'}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={finish}
+          disabled={stage !== 'idle'}
+          data-testid="founding-skip"
+          className="w-full"
+        >
+          I've saved it — finish
         </Button>
       </div>
-    </form>
-  )
-}
-
-function CreatePane({
-  isActive,
-  verifiedToken,
-  onBack,
-  onSuccess,
-}: {
-  isActive: boolean
-  verifiedToken: string | null
-  onBack: () => void
-  onSuccess: () => void
-}) {
-  const [name, setName] = useState('')
-  const [stage, setStage] = useState<'idle' | 'working' | 'recovery-modal' | 'finalizing'>('idle')
-  const [error, setError] = useState<string | null>(null)
-  const [recoveryCode, setRecoveryCode] = useState<string | null>(null)
-  const [pending, setPending] = useState<{ adminId: string; credentialId: string } | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (!isActive) return
-    const t = setTimeout(() => inputRef.current?.focus(), 320)
-    return () => clearTimeout(t)
-  }, [isActive])
-
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault()
-    if (stage !== 'idle') return
-    const trimmed = name.trim()
-    if (!trimmed) {
-      setError('Enter your name.')
-      inputRef.current?.focus()
-      return
-    }
-    setError(null)
-    setStage('working')
-    try {
-      const startRes = await fetch('/api/auth/founding/start', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ deviceLabel: DEFAULT_DEVICE_LABEL }),
-      })
-      const start = (await startRes.json()) as
-        | {
-            ok: true
-            options: Parameters<typeof startRegistration>[0]['optionsJSON']
-            challengeToken: string
-          }
-        | { ok: false }
-      if (!start.ok) {
-        setError(GENERIC_FAILURE)
-        setStage('idle')
-        return
-      }
-      let attestation: Awaited<ReturnType<typeof startRegistration>>
-      try {
-        attestation = await startRegistration({ optionsJSON: start.options })
-      } catch (err) {
-        if (err instanceof Error && err.name === 'NotAllowedError') {
-          setStage('idle')
-          return
-        }
-        setError("Couldn't enroll a passkey on this device.")
-        setStage('idle')
-        return
-      }
-      const finishRes = await fetch('/api/auth/founding/finish', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          challengeToken: start.challengeToken,
-          name: trimmed,
-          deviceLabel: DEFAULT_DEVICE_LABEL,
-          attestation,
-          foundingToken: verifiedToken,
-        }),
-      })
-      const finish = (await finishRes.json()) as
-        | { ok: true; adminId: string; credentialId: string; recoveryCode: string }
-        | { ok: false }
-      if (!finish.ok) {
-        setError(GENERIC_FAILURE)
-        setStage('idle')
-        return
-      }
-      setPending({ adminId: finish.adminId, credentialId: finish.credentialId })
-      setRecoveryCode(finish.recoveryCode)
-      setStage('recovery-modal')
-    } catch {
-      setError(GENERIC_FAILURE)
-      setStage('idle')
-    }
-  }
-
-  async function handleDismiss() {
-    if (!pending) return
-    setStage('finalizing')
-    setError(null)
-    try {
-      const res = await fetch('/api/auth/founding/finalize', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(pending),
-      })
-      const data = (await res.json()) as { ok: true } | { ok: false }
-      if (!data.ok) {
-        setError(GENERIC_FAILURE)
-        setStage('recovery-modal')
-        return
-      }
-      onSuccess()
-    } catch {
-      setError(GENERIC_FAILURE)
-      setStage('recovery-modal')
-    }
-  }
-
-  const modalOpen = (stage === 'recovery-modal' || stage === 'finalizing') && !!recoveryCode
-
-  return (
-    <>
-      <form onSubmit={onSubmit} className="flex flex-col gap-4 w-full text-left">
-        <div className="flex flex-col gap-2 text-center">
-          <h2 className="text-xl font-semibold tracking-tight">Create Account</h2>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Choose your name, then enroll a passkey on this device.
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="founding-name">Your name</Label>
-          <Input
-            ref={inputRef}
-            id="founding-name"
-            type="text"
-            autoComplete="name"
-            maxLength={100}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={stage !== 'idle'}
-            placeholder="Alex"
-            data-testid="founding-name"
-          />
-        </div>
-
-        {error && (
-          <Alert variant="destructive" role="alert">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        <div className="flex flex-col gap-2">
-          <Button
-            type="submit"
-            disabled={stage !== 'idle'}
-            data-testid="founding-submit"
-            className="w-full"
-          >
-            {stage === 'working' ? 'Enrolling…' : 'Claim Admin'}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={onBack}
-            disabled={stage !== 'idle'}
-            className="w-full"
-          >
-            <ArrowLeft className="h-6 w-6 mr-2" />
-            Back
-          </Button>
-        </div>
-      </form>
-
-      {/* One-time passcode — stays mounted until the session is finalized. */}
-      <Dialog open={modalOpen} onOpenChange={() => {}}>
-        <DialogContent
-          data-testid="recovery-modal"
-          onPointerDownOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-        >
-          <DialogHeader>
-            <DialogTitle>Save your passcode</DialogTitle>
-            <DialogDescription>
-              This passcode is shown once. Store it somewhere safe — it's how you sign in if you
-              lose your passkey.
-            </DialogDescription>
-          </DialogHeader>
-
-          <pre
-            className="rounded-md bg-muted px-4 py-3 font-mono text-sm tracking-widest select-all break-all"
-            data-testid="recovery-code"
-          >
-            {recoveryCode}
-          </pre>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              onClick={handleDismiss}
-              disabled={stage === 'finalizing'}
-              data-testid="recovery-dismiss"
-            >
-              {stage === 'finalizing' ? 'Signing in…' : "I've saved it — continue"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+    </div>
   )
 }

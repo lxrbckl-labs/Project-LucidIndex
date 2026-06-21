@@ -30,7 +30,6 @@ import { SettingsAuthGate } from '@/components/auth/SettingsAuthGate'
 import { SiteFooter } from '@/components/chrome/SiteFooter'
 import { TopNav } from '@/components/chrome/TopNav'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
-import { foundingTokenIsConfigured } from '../../lib/founding-token'
 import { SettingsSidebar } from './_components/SettingsSidebar'
 import SettingsHubPage from './page'
 
@@ -80,7 +79,7 @@ export default async function SettingsLayout({ children }: { children: ReactNode
     // the swipe-card dialog directly fixes the blank-on-first-click.
     return (
       <LockedSettingsShell>
-        {foundingTokenIsConfigured() ? <FoundingGate /> : <FoundingDisabled />}
+        <FoundingGate />
       </LockedSettingsShell>
     )
   }
@@ -120,21 +119,6 @@ export default async function SettingsLayout({ children }: { children: ReactNode
         </div>
       </div>
     </SidebarProvider>
-  )
-}
-
-function FoundingDisabled() {
-  return (
-    <div className="mx-auto flex flex-col items-center gap-3 rounded-xl border bg-background p-6 shadow-sm max-w-sm w-full text-center">
-      <h2 className="text-xl font-semibold tracking-tight">Founding disabled</h2>
-      <p className="text-xs text-muted-foreground leading-relaxed">
-        Founding-admin enrollment is disabled. Set{' '}
-        <code className="font-mono text-[11px] bg-muted px-1 py-0.5 rounded">
-          LUCIDINDEX_FOUNDING_TOKEN
-        </code>{' '}
-        in your environment and reload.
-      </p>
-    </div>
   )
 }
 

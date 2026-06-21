@@ -35,6 +35,8 @@ export {
   requireForumUser,
 } from './forum-session.js'
 export {
+  type ClaimFoundingAdminResult,
+  claimFoundingAdmin,
   type FinalizeFoundingSessionResult,
   type FinishFoundingEnrollmentInput,
   type FinishFoundingEnrollmentResult,

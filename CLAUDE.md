@@ -68,7 +68,7 @@ Docker Compose stack — four services: `web`, `cron`, `mcp-dashboard`, `postgre
 - **Single-admin.** v0.1 is one admin only. There is no shared cross-admin data — there's only one admin. Multi-admin is parking lot (not v0.1).
 - **Passkey auth only.** No email/password, no magic link, no OAuth. No email/SMS fallback by design.
 - **Recovery is the recovery code, redeemed on the web.** "Lost your passkey?" on `/settings/login` → `/settings/recover`: the admin enters their one-time recovery code, which authorizes enrolling a NEW passkey (old code burned, fresh one issued). Routes: `/api/auth/recovery/{start,finish,finalize}`; logic in `@lucidindex/auth` (`recovery-login.ts` + the seam-tested `recovery-login-core.ts`); brute-force throttle in `apps/web/lib/recovery-throttle.ts`. This supersedes the originally-planned `admin:reset` CLI, which was never built.
-- **Founding-admin claim only.** No invite-based signup. The first admin claims their account via `/settings?token=<LUCIDINDEX_FOUNDING_TOKEN>`. No open registration.
+- **Founding-admin claim only.** No invite-based signup. On a fresh install (zero admins), `/settings` shows "Claim Admin" → **Generate token** mints a reusable `lipc_` passcode (saved as the backup sign-in) and signs you in, then you enroll a passkey (primary). **First claim wins**; the gate closes once an admin exists. The `LUCIDINDEX_FOUNDING_TOKEN` env var is no longer used — founding is the on-page Generate flow (`claimFoundingAdmin` / `POST /api/auth/founding/claim`). No open registration.
 - **Visual Identity is a first-class constraint.** If the dashboard doesn't read like Fyrre Magazine, it's not done — regardless of whether it works functionally. All visual decisions must consult `[[Visual Identity]]` first.
 
 ---

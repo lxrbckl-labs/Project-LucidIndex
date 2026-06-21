@@ -45,6 +45,7 @@ import {
   foundFirstAdmin,
   isAdminsTableEmpty,
 } from './found-core.js'
+import { PASSCODE_SESSION_MARKER } from './passcode-login.js'
 import { generatePlaintextCode, hashCode } from './recovery.js'
 import { establishSession, getSession } from './session.js'
 import { getRelyingParty } from './webauthn.js'
@@ -130,6 +131,59 @@ export async function isFoundingFlowAvailable(): Promise<boolean> {
   // the developer experience.
   if (isDevAuthBypassActive()) return false
   return isAdminsTableEmpty(makeDrizzleFoundingStore())
+}
+
+export type ClaimFoundingAdminResult =
+  | { ok: true; adminId: string; passcode: string }
+  | { ok: false; reason: 'not_available' | 'tx_failed' }
+
+/**
+ * Passcode-first founding (the "Generate token" flow).
+ *
+ * Creates the first admin with a freshly generated passcode (the reusable
+ * `lipc_` backup-login secret) and NO passkey yet, then mints a session so the
+ * caller can immediately enroll a passkey through the authenticated
+ * `/api/auth/passkey/register/*` flow — no separate login. The plaintext
+ * passcode is returned for one-time display.
+ *
+ * Gate: founding is open only while `admins` is empty. The check is enforced
+ * twice — a cheap `isFoundingFlowAvailable()` read up front (also honours the
+ * dev bypass), and `foundFirstAdmin`'s authoritative in-transaction
+ * empty-table recheck. First claim wins; concurrent losers get `tx_failed`.
+ *
+ * There is no token gate: an unset `LUCIDINDEX_FOUNDING_TOKEN` no longer
+ * disables founding. The deployment's protection is "the admins table is empty
+ * exactly once" — whoever claims first becomes the sole admin.
+ */
+export async function claimFoundingAdmin(input?: {
+  name?: string
+}): Promise<ClaimFoundingAdminResult> {
+  if (!(await isFoundingFlowAvailable())) {
+    return { ok: false, reason: 'not_available' }
+  }
+
+  const name = (input?.name ?? '').trim() || 'Admin'
+  const passcode = generatePlaintextCode()
+  const hashedRecovery = await hashCode(passcode)
+
+  // No `credential` → `foundFirstAdmin` records a passkey-less admin + the
+  // hashed passcode, atomically, re-checking the empty table inside the tx.
+  const result = await foundFirstAdmin(makeDrizzleFoundingStore(), {
+    name,
+    hashedRecoveryCode: hashedRecovery,
+  })
+
+  if (!result.ok) {
+    return { ok: false, reason: 'tx_failed' }
+  }
+
+  // Mint a passcode-origin session so the new admin can enroll a passkey via
+  // the authenticated register endpoint. Safe to set the cookie here: this
+  // runs in a route handler (a plain fetch), not a server action, so it does
+  // not trigger an RSC refresh that would unmount the claim card.
+  await establishSession({ adminId: result.adminId, credentialId: PASSCODE_SESSION_MARKER })
+
+  return { ok: true, adminId: result.adminId, passcode }
 }
 
 export type StartFoundingEnrollmentResult =
