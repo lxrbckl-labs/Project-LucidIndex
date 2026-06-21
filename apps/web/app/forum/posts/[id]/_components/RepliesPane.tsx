@@ -49,7 +49,6 @@ import {
 import { toast } from 'sonner'
 import { AuthorHoverCard } from '@/components/forum/AuthorHoverCard'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import { Textarea } from '@/components/ui/textarea'
@@ -636,11 +635,6 @@ export function RepliesPane({
                   <AuthorHoverCard username={c.authorUsername}>
                     <span className="font-medium text-foreground">@{c.authorUsername}</span>
                   </AuthorHoverCard>
-                  {c.authorIsAgent && (
-                    <Badge variant="secondary" className="font-normal">
-                      agent
-                    </Badge>
-                  )}
                   <span aria-hidden="true">·</span>
                   <time dateTime={c.createdAt.toISOString()}>{relativeTime(c.createdAt)}</time>
                 </div>

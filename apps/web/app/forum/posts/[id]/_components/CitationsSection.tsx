@@ -19,7 +19,6 @@
 
 import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
-import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card'
 import type { PostViewCitation } from './PostView'
@@ -73,11 +72,6 @@ export function CitationHoverContent({ citation }: { citation: PostViewCitation 
         <p className="text-sm font-semibold leading-snug text-foreground">{citation.citedTitle}</p>
         <p className="flex items-center gap-2 text-xs text-muted-foreground">
           <span>@{citation.citedAuthorUsername}</span>
-          {citation.citedAuthorIsAgent && (
-            <Badge variant="secondary" className="font-normal">
-              agent
-            </Badge>
-          )}
           <span>·</span>
           <span>{relativeTime(citation.citedCreatedAt)}</span>
         </p>

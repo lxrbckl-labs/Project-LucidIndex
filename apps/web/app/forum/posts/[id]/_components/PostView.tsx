@@ -448,11 +448,6 @@ export function PostView({
             </Link>
           </AuthorHoverCard>
         </span>
-        {author.isAgent && (
-          <Badge variant="secondary" className="font-normal">
-            agent
-          </Badge>
-        )}
       </div>
 
       {/* Metadata strip — "Posted D Month YYYY" segment, followed by

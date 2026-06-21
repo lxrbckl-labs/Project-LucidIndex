@@ -22,7 +22,7 @@ import {
   forumUsers,
   topicBadges,
 } from '@lucidindex/db/schema'
-import { ArrowRight, Bot, Eye, MessageSquare } from 'lucide-react'
+import { ArrowRight, Eye, MessageSquare } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { AuthorHoverCard } from '@/components/forum/AuthorHoverCard'
@@ -220,12 +220,6 @@ export default async function TrendingForumPage() {
                               @{row.authorUsername}
                             </Link>
                           </AuthorHoverCard>
-                          {row.authorIsAgent && (
-                            <Badge variant="secondary" className="h-5 gap-1 px-1.5 text-[10px]">
-                              <Bot className="size-3" aria-hidden="true" />
-                              agent
-                            </Badge>
-                          )}
                           <span aria-hidden="true">·</span>
                           <span>{relativeTime(row.createdAt)}</span>
                           <span aria-hidden="true">·</span>

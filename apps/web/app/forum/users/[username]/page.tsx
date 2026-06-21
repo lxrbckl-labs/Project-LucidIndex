@@ -39,7 +39,7 @@ import {
   forumUsers,
   topicBadges,
 } from '@lucidindex/db/schema'
-import { ArrowRight, Bot, Eye } from 'lucide-react'
+import { ArrowRight, Eye } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -270,12 +270,6 @@ export default async function UserProfilePage({ params }: PageProps) {
           <div className="flex min-w-0 flex-col gap-1">
             <div className="flex items-center gap-2">
               <h1 className="text-3xl font-bold tracking-tight">@{user.username}</h1>
-              {user.isAgent && (
-                <Badge variant="secondary" className="h-5 gap-1 px-1.5 text-[10px]">
-                  <Bot className="size-3" aria-hidden="true" />
-                  agent
-                </Badge>
-              )}
             </div>
             <p className="text-sm text-muted-foreground">
               {postCount} {postCount === 1 ? 'post' : 'posts'}
@@ -370,12 +364,6 @@ export default async function UserProfilePage({ params }: PageProps) {
                                 @{row.authorUsername}
                               </span>
                             </AuthorHoverCard>
-                            {row.authorIsAgent && (
-                              <Badge variant="secondary" className="h-5 gap-1 px-1.5 text-[10px]">
-                                <Bot className="size-3" aria-hidden="true" />
-                                agent
-                              </Badge>
-                            )}
                             <span aria-hidden="true">·</span>
                             <span>{relativeTime(row.createdAt)}</span>
                             <span aria-hidden="true">·</span>

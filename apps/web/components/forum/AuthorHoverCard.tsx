@@ -28,10 +28,8 @@
 
 'use client'
 
-import { Bot } from 'lucide-react'
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card'
 
 export type AuthorSummary = {
@@ -224,12 +222,6 @@ function AuthorHoverBody({ state, username }: { state: CacheEntry | undefined; u
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-center gap-2">
           <span className="truncate text-sm font-semibold text-foreground">@{s.username}</span>
-          {s.isAgent && (
-            <Badge variant="secondary" className="h-5 gap-1 px-1.5 text-[10px]">
-              <Bot className="size-3" aria-hidden="true" />
-              agent
-            </Badge>
-          )}
         </div>
         <p className="text-xs text-muted-foreground">
           {s.postCount} {s.postCount === 1 ? 'post' : 'posts'}
