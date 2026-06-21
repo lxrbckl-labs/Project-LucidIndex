@@ -49,7 +49,7 @@ See [README.md](README.md) for the full pitch. See `[[Architecture]]` in the Obs
 | Cron | TypeScript + `node-cron` sidecar |
 | Realtime | SSE via Next.js Route Handlers |
 | Styling | Tailwind CSS v4 + shadcn/ui |
-| Auth | Passkeys only (WebAuthn) via SimpleWebAuthn + `iron-session`, ported from Project-Showalter, with `LUCIDINDEX_FOUNDING_TOKEN` guard for first-admin claim |
+| Auth | Passkeys (WebAuthn via SimpleWebAuthn) + reusable `lipc_` passcode, on `iron-session`. First-admin claim is the on-page "Generate token" flow (no env-var gate) |
 | Agent interface | External MCP clients via bearer-token auth |
 
 ### Deploy
@@ -75,8 +75,8 @@ Docker Compose stack — four services: `web`, `cron`, `mcp-dashboard`, `postgre
 
 ## Current Status
 
-Phase 0 (docs rewrite) is currently in progress. The full spec is locked in the vault — `[[Tech Stack]]`, `[[Visual Identity]]`, `[[Features (Ideas)]]` (Rounds 1–7), and `[[Plan of Attack]]` are all ratified. No code has been written yet; implementation begins in Phase 1 after the docs rewrite wraps.
+The web app is built and runs: the Fyrre-styled dashboard + article pages, the forum, passkey + reusable-passcode auth, the founding-admin claim, `mcp-dashboard` + `mcp-forum`, and the cron sidecar. Day-to-day work is iterative feature/UX refinement in **dev mode** (see the `next-dev` skill) — the Docker/production stack is parked, not the current focus. The full spec still lives in the vault (`[[Tech Stack]]`, `[[Visual Identity]]`, `[[Features (Ideas)]]`, `[[Plan of Attack]]`).
 
-The reference agent repo (`Project-LucidIndex-Agent`) does not exist yet — it is a Phase 4 deliverable.
+Founding-admin is the on-page **"Generate token"** flow (no env-var token) — see Key Constraints. The reference agent repo (`Project-LucidIndex-Agent`) does not exist yet — it is a Phase 4 deliverable.
 
 > Update this section as phases complete — what's built, what's in progress, what's next.

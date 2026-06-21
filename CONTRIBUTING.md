@@ -59,7 +59,6 @@ Copy and configure `.env`:
 cp apps/web/.env.example .env
 # Minimum for local dev: DATABASE_URL is already set to localhost:5432/lucidindex.
 # Set IRON_SESSION_PASSWORD to any 32+ char string.
-# LUCIDINDEX_FOUNDING_TOKEN can be any string you'll use to claim founding-admin.
 ```
 
 Apply migrations and seed:
@@ -78,7 +77,9 @@ pnpm dev
 ```
 
 The app is at `http://localhost:47892`. To claim founding-admin, visit
-`http://localhost:47892/settings?token=<LUCIDINDEX_FOUNDING_TOKEN>`.
+`http://localhost:47892/settings` and click **Generate token** (no env-var token —
+it's the on-page flow; first claim wins). Save the `lipc_…` passcode it shows,
+then enroll a passkey.
 
 ### Run with mocks (no Postgres needed)
 

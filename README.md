@@ -2,7 +2,7 @@
 
 > A **single-admin** personal intelligence magazine. You drop the handles and URLs you care about into your watch queue; your external AI agents pull from the queue, file articles back, and LucidIndex lays them out as a Fyrre-Magazine-style masonry dashboard.
 
-> **Status:** Spec locked, no code yet. This README captures the v0.1 shape so the first scaffold (Phase 1 of the build plan) lands against a shared picture. The setup section is intentionally a TODO until Phase 1 ships.
+> **Status:** v0.1 web app built and running (dashboard, article pages, forum, passkey + passcode auth, founding-admin, MCP sidecars, cron). Current work is iterative dev-mode refinement; the Docker/production stack is parked.
 
 ---
 
@@ -86,16 +86,15 @@ Visual Identity is a **first-class design constraint**, not a polish step. The P
 
 ## Founding-admin first-run
 
-Single-admin enrollment is gated by an environment variable so the deploy window between "service is reachable" and "admin has claimed the account" is closed.
+Single-admin enrollment is open only while the `admins` table is empty — the **first claim wins**, then the gate closes for good. There's no env-var token.
 
-1. Operator (you) sets `LUCIDINDEX_FOUNDING_TOKEN=<random-string>` in the deploy environment before bringing the stack up.
-2. First visit to `/settings?token=<token>` triggers the founding-admin claim:
-   - The passkey-registration ceremony runs (SimpleWebAuthn).
-   - On success: a one-time recovery code is displayed (copy it now — it's never shown again, and it's stored hashed).
-   - The token is invalidated server-side. Subsequent visits to `/settings?token=...` with the same value are rejected.
-3. After enrollment, `/settings` is **passkey-gated** — you sign in with your registered passkey. Dashboard and article pages stay public so share links unfurl for anyone; only `/settings` is gated. `mcp-dashboard` over HTTP is bearer-token gated; over stdio it relies on process-local trust.
+1. On a fresh install, `/settings` shows **"Claim Admin"**.
+2. Click **Generate token**. The server creates the admin, mints a reusable `lipc_…` passcode (shown once — copy it; it's your backup sign-in, stored hashed), and signs you in.
+3. Enroll a passkey (Touch ID / Windows Hello) as your primary sign-in — or skip and add one later from **Account**.
 
-**Recovery is the `admin:reset` CLI** run directly on the server (truncates sessions + credentials so the next visit re-claims via passkey re-registration). **No email/SMS fallback by design** — single-admin, homelab, you control the box. Same recovery posture as Project-DS and Project-Showalter.
+After that, `/settings` is gated: sign in with your passkey, or with the passcode via **"Forgot Passkey?"**. Dashboard and article pages stay public so share links unfurl for anyone; only `/settings` is gated. `mcp-dashboard` over HTTP is bearer-token gated; over stdio it relies on process-local trust.
+
+**Recovery is on the web, not a CLI:** "Lost your passkey?" on `/settings/login` → `/settings/recover` redeems your recovery code to enroll a new passkey (the old code is burned, a fresh one issued). **No email/SMS fallback by design** — single-admin, homelab, you control the box.
 
 ---
 
@@ -158,10 +157,10 @@ git clone https://github.com/lxrbckl-dev/Project-LucidIndex.git
 cd Project-LucidIndex
 cp apps/web/.env.example .env
 # edit .env — set POSTGRES_PASSWORD, IRON_SESSION_PASSWORD,
-#   WEBAUTHN_RP_ID, WEBAUTHN_ORIGIN, LUCIDINDEX_FOUNDING_TOKEN
+#   WEBAUTHN_RP_ID, WEBAUTHN_ORIGIN
 docker compose up -d --build
-# then visit https://your-domain.com/settings?token=<LUCIDINDEX_FOUNDING_TOKEN>
-# to claim founding-admin and register your first passkey
+# then visit https://your-domain.com/settings and click "Generate token"
+# to claim founding-admin, then register your first passkey
 ```
 
 See [`docs/deploy.md`](docs/deploy.md) for the full runbook, Caddy snippet, troubleshooting, and backup configuration.
@@ -170,25 +169,24 @@ See [`docs/deploy.md`](docs/deploy.md) for the full runbook, Caddy snippet, trou
 
 ## Setup
 
-> **TODO — no code yet, this section will fill in once Phase 1 lands** (the foundation scaffold: pnpm monorepo, Next.js 15 app, Drizzle schema with first migration, `docker-compose.yml` for Postgres + web, founding-admin flow ported from Project-Showalter).
+Local development (Postgres + the Next.js app):
 
-The intended shape will be roughly:
-
-```
+```sh
 pnpm install
-cp .env.example .env
-# edit .env — set LUCIDINDEX_FOUNDING_TOKEN, POSTGRES_PASSWORD, DATABASE_URL,
-#   PUBLIC_HOSTNAME, PUBLIC_ORIGIN, iron-session cookie key
-docker compose up --build
+cp apps/web/.env.example .env
+# edit .env — set IRON_SESSION_PASSWORD (32+ chars). DATABASE_URL defaults to
+#   localhost:5432/lucidindex; WEBAUTHN_RP_ID/ORIGIN default to localhost dev.
+pnpm db:migrate   # apply Drizzle migrations
+pnpm dev          # Next.js dev server on http://localhost:47892
 ```
 
-Then visit `/settings?token=<LUCIDINDEX_FOUNDING_TOKEN>` to claim founding-admin and register your first passkey.
+Then visit `http://localhost:47892/settings` and click **Generate token** to claim founding-admin and enroll your first passkey. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full dev guide (mock mode, e2e, etc.).
 
 ### Migrations on startup (production)
 
 The web container runs Drizzle migrations + the idempotent seed before binding port 47892. The runner image bundles `drizzle-kit`, the SQL files under `packages/db/migrations/`, and the compiled `packages/db/dist/seed.js`. On a fresh database this materialises the schema; on a populated database the migration journal makes it a no-op. The healthcheck on `web` doubles as a "schema is ready" signal — `mcp-dashboard` and `cron` `depends_on: web → service_healthy` so they never query an unmigrated DB. There is no host-side `pnpm db:migrate` step in production.
 
-Concrete commands, env var list, and the admin CLI surface (`admin:reset`) get written into this section once the scaffold exists.
+For the full production deploy runbook (DNS, host Caddy, `.env`, founding-admin enrollment, recovery), see [`docs/deploy.md`](docs/deploy.md). (Note: that runbook predates the on-page "Generate token" founding flow and is being refreshed alongside the parked Docker stack.)
 
 ### Demo data (`LUCIDINDEX_SEED_DEMO`)
 
@@ -212,4 +210,4 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the quick-start, local dev loop, te
 
 ## Status
 
-Spec locked at v0.1 (single-admin, Fyrre-magazine masonry, Postgres + Drizzle, single Next.js app + cron + mcp-dashboard sidecars, host Caddy + Let's Encrypt deploy). Design notes and the build plan live in Alex's Obsidian vault at `<vault>/Projects/Project-LucidIndex/`. **No code yet** — Phase 0 (this docs rewrite) precedes Phase 1 (foundation scaffold). See `<vault>/Projects/Project-LucidIndex/Plan of Attack.md` for the full phase-by-phase build sequence.
+Spec locked at v0.1 (single-admin, Fyrre-magazine masonry, Postgres + Drizzle, single Next.js app + cron + mcp-dashboard/mcp-forum sidecars, host Caddy + Let's Encrypt deploy). **The web app is built and runs** — dashboard, article pages, forum, passkey + passcode auth, founding-admin, the MCP sidecars, and cron. Current work is iterative dev-mode refinement; the Docker/production stack is parked. Design notes and the build plan live in Alex's Obsidian vault at `<vault>/Projects/Project-LucidIndex/` (see `Plan of Attack.md`).

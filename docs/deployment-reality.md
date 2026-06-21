@@ -27,7 +27,7 @@ reproduce the running system.
 
 | File | In git? | Holds | Notes |
 |---|---|---|---|
-| `.env` (repo root) | gitignored | `POSTGRES_PASSWORD`, `IRON_SESSION_PASSWORD`, `WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGIN`, `LUCIDINDEX_FOUNDING_TOKEN` (blank after first admin claim), `LUCIDINDEX_SEED_DEMO`, `LUCIDINDEX_DEV_SKIP_AUTH` | Per-deploy secrets. Generate via `deploy.md` Step 1. |
+| `.env` (repo root) | gitignored | `POSTGRES_PASSWORD`, `IRON_SESSION_PASSWORD`, `WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGIN`, `LUCIDINDEX_SEED_DEMO`, `LUCIDINDEX_DEV_SKIP_AUTH` | Per-deploy secrets. Generate via `deploy.md` Step 1. (Founding is the on-page "Generate token" flow — no `LUCIDINDEX_FOUNDING_TOKEN`.) |
 | `docker-compose.override.yml` (repo root) | untracked | **host port remaps only** (no secrets) | Project-DS already binds 4000/5432, so LucidIndex remaps host publishes. Uses the `!override` YAML tag so the ports list is replaced, not merged. |
 | `~/caddyfile` (shared host Caddy) | not in this repo | the `lucidindex.lxrbckl.com` site block | Caddy is a shared container fronting all sites; config bind-mounted from `~/caddyfile`. |
 
