@@ -1,20 +1,21 @@
 /**
  * Global 404 — rendered by Next.js for any unmatched route in the app.
  *
- * Standalone (no TopNav) to avoid SidebarProvider-context dependencies
- * when this page is hit at a /settings/* path that didn't match a route.
+ * Matches the shared compact-card 404 style (see app/a/[slug]/not-found.tsx and
+ * the dashboard empty-state): TopNav + a centered rounded-xl card with a
+ * normal-weight heading, muted tagline, and a full-width primary button.
  *
- * The redirect button is context-aware: if the user was last on the
- * forum (Referer header starts with /forum, or the missing route itself
- * is under /forum), it offers Forum; otherwise Dashboard. Falls back to
- * Dashboard whenever the referer is missing, malformed, or off-origin.
+ * The button is context-aware: forum routes (or a forum referer) offer Forum;
+ * everything else offers Dashboard, falling back to Dashboard whenever the
+ * signal is missing/off-origin. TopNav reads SidebarContext defensively (null
+ * when there's no SidebarProvider), so it renders fine standalone here.
  */
 
 import { LayoutDashboard, MessagesSquare } from 'lucide-react'
 import { headers } from 'next/headers'
 import Link from 'next/link'
+import { TopNav } from '@/components/chrome/TopNav'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 async function cameFromForum(): Promise<boolean> {
   const h = await headers()
@@ -24,7 +25,7 @@ async function cameFromForum(): Promise<boolean> {
   // `x-pathname` depending on how the request entered the runtime.
   const candidatePaths = [h.get('next-url'), h.get('x-invoke-path'), h.get('x-pathname')]
   for (const p of candidatePaths) {
-    if (p && p.startsWith('/forum')) return true
+    if (p?.startsWith('/forum')) return true
   }
 
   // Otherwise the referer — wherever the user was before they hit this
@@ -32,8 +33,7 @@ async function cameFromForum(): Promise<boolean> {
   const referer = h.get('referer')
   if (!referer) return false
   try {
-    const url = new URL(referer)
-    return url.pathname.startsWith('/forum')
+    return new URL(referer).pathname.startsWith('/forum')
   } catch {
     return false
   }
@@ -43,36 +43,32 @@ export default async function NotFound() {
   const forumContext = await cameFromForum()
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-24">
-      <Card className="w-full max-w-md text-center">
-        <CardHeader className="gap-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            LUCIDINDEX
-          </p>
-          <CardTitle className="text-3xl font-bold tracking-tight">404</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center gap-6">
-          <p className="max-w-[360px] text-sm leading-relaxed text-muted-foreground">
+    <div className="flex min-h-screen flex-col bg-background">
+      <TopNav />
+      <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
+        <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-3 rounded-xl border bg-background p-6 text-center shadow-sm">
+          <h2 className="text-xl font-semibold tracking-tight">Page not found</h2>
+          <p className="text-xs leading-relaxed text-muted-foreground">
             That page didn't make it to the press. It may have been moved, removed, or never
             existed.
           </p>
           {forumContext ? (
-            <Button asChild>
+            <Button variant="default" asChild className="mt-2 w-full">
               <Link href="/forum">
+                <MessagesSquare className="mr-2 h-5 w-5" />
                 Forum
-                <MessagesSquare className="ml-2 h-4 w-4" />
               </Link>
             </Button>
           ) : (
-            <Button asChild>
+            <Button variant="default" asChild className="mt-2 w-full">
               <Link href="/">
+                <LayoutDashboard className="mr-2 h-5 w-5 rotate-90" />
                 Dashboard
-                <LayoutDashboard className="ml-2 h-4 w-4 rotate-90" />
               </Link>
             </Button>
           )}
-        </CardContent>
-      </Card>
-    </main>
+        </div>
+      </main>
+    </div>
   )
 }
