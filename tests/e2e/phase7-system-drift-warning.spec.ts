@@ -22,9 +22,7 @@
 import { execFileSync } from 'node:child_process'
 import { expect, test } from '@playwright/test'
 import { type StackHandle, startStack } from './support/dev-server'
-import { setupVirtualAuthenticator } from './support/webauthn'
-
-const FOUNDING_TOKEN = 'phase7-drift-warning-acceptance-test-token-do-not-use-in-prod'
+import { foundAdmin } from './support/found-admin'
 
 // ── SQL helpers ───────────────────────────────────────────────────────────────
 
@@ -52,7 +50,7 @@ function psql(sql: string): void {
 let stack: StackHandle
 
 test.beforeAll(async () => {
-  stack = await startStack({ foundingToken: FOUNDING_TOKEN })
+  stack = await startStack()
 })
 
 test.afterAll(async () => {
@@ -67,15 +65,7 @@ test('20–21. drift warning absent at 10% large; fires at ~38% large', async ({
   // ── Claim founding admin ──────────────────────────────────────────────────
   const ctx = await browser.newContext({ baseURL })
   const page = await ctx.newPage()
-  const auth = await setupVirtualAuthenticator(page)
-
-  await page.goto(`/settings/found?token=${encodeURIComponent(FOUNDING_TOKEN)}`)
-  await page.getByTestId('founding-name').fill('Phase7 Drift Warning Admin')
-  await page.getByTestId('founding-device').fill('Phase7 Drift Virtual Authenticator')
-  await page.getByTestId('founding-submit').click()
-  await expect(page.getByTestId('recovery-modal')).toBeVisible()
-  await page.getByTestId('recovery-dismiss').click()
-  await page.waitForURL(/\/settings(\/|$)/, { timeout: 30_000 })
+  const auth = await foundAdmin(page)
   await expect
     .poll(
       async () => {

@@ -31,9 +31,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { type APIRequestContext, expect, request, test } from '@playwright/test'
 import { type StackHandle, startStack } from './support/dev-server'
-import { setupVirtualAuthenticator } from './support/webauthn'
-
-const FOUNDING_TOKEN = 'phase7-image-system-acceptance-test-token-do-not-use-in-prod'
+import { foundAdmin } from './support/found-admin'
 
 // 64 hex chars — well-formed sha-256 shape so we exercise the read-from-disk
 // branch, not the regex-rejects branch. The `aaaa…` prefix makes the file
@@ -69,7 +67,7 @@ test.beforeAll(async () => {
 
   process.env.MCP_IMAGE_DIR = imageDir
 
-  stack = await startStack({ foundingToken: FOUNDING_TOKEN })
+  stack = await startStack()
 })
 
 test.afterAll(async () => {
@@ -141,14 +139,7 @@ test('phase7 image route + system page', async ({ browser }) => {
   const page = await ctx.newPage()
 
   // Claim the founding admin first so we can navigate authenticated.
-  const auth = await setupVirtualAuthenticator(page)
-  await page.goto(`/settings/found?token=${encodeURIComponent(FOUNDING_TOKEN)}`)
-  await page.getByTestId('founding-name').fill('Phase7 System')
-  await page.getByTestId('founding-device').fill('Phase7 Virtual Authenticator')
-  await page.getByTestId('founding-submit').click()
-  await expect(page.getByTestId('recovery-modal')).toBeVisible()
-  await page.getByTestId('recovery-dismiss').click()
-  await page.waitForURL(/\/settings(\/|$)/, { timeout: 30_000 })
+  const auth = await foundAdmin(page)
   await expect
     .poll(
       async () => {

@@ -26,9 +26,7 @@
 import { execFileSync } from 'node:child_process'
 import { expect, test } from '@playwright/test'
 import { type StackHandle, startStack } from './support/dev-server'
-import { setupVirtualAuthenticator } from './support/webauthn'
-
-const FOUNDING_TOKEN = 'phase6-hide-restore-acceptance-test-token-do-not-use-in-prod'
+import { foundAdmin } from './support/found-admin'
 
 // ── SQL helpers ───────────────────────────────────────────────────────────────
 
@@ -76,7 +74,7 @@ const ARTICLE_SOURCE_URL = 'https://example.com/phase6-hide-test'
 let stack: StackHandle
 
 test.beforeAll(async () => {
-  stack = await startStack({ foundingToken: FOUNDING_TOKEN })
+  stack = await startStack()
 })
 
 test.afterAll(async () => {
@@ -159,15 +157,7 @@ test('13. hide flow: insert article → hide from article page → 404 → resto
   // ── Step 1: claim founding admin ──────────────────────────────────────────
   const ctx = await browser.newContext({ baseURL })
   const page = await ctx.newPage()
-  const auth = await setupVirtualAuthenticator(page)
-
-  await page.goto(`/settings/found?token=${encodeURIComponent(FOUNDING_TOKEN)}`)
-  await page.getByTestId('founding-name').fill('Phase6 Hide Test Admin')
-  await page.getByTestId('founding-device').fill('Phase6 Hide Virtual Authenticator')
-  await page.getByTestId('founding-submit').click()
-  await expect(page.getByTestId('recovery-modal')).toBeVisible()
-  await page.getByTestId('recovery-dismiss').click()
-  await page.waitForURL(/\/settings(\/|$)/, { timeout: 30_000 })
+  const auth = await foundAdmin(page)
   await expect
     .poll(
       async () => {

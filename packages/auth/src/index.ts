@@ -37,15 +37,8 @@ export {
 export {
   type ClaimFoundingAdminResult,
   claimFoundingAdmin,
-  type FinalizeFoundingSessionResult,
-  type FinishFoundingEnrollmentInput,
-  type FinishFoundingEnrollmentResult,
-  finalizeFoundingSession,
-  finishFoundingEnrollment,
   isFoundingFlowAvailable,
   makeDrizzleFoundingStore,
-  type StartFoundingEnrollmentResult,
-  startFoundingEnrollment,
 } from './found.js'
 export {
   type FoundFirstAdminFailure,

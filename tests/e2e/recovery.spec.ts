@@ -20,14 +20,13 @@
 
 import { expect, test } from '@playwright/test'
 import { type StackHandle, startStack } from './support/dev-server'
+import { foundAdmin } from './support/found-admin'
 import { setupVirtualAuthenticator } from './support/webauthn'
-
-const FOUNDING_TOKEN = 'recovery-acceptance-test-token-do-not-use-in-prod'
 
 let stack: StackHandle
 
 test.beforeAll(async () => {
-  stack = await startStack({ foundingToken: FOUNDING_TOKEN })
+  stack = await startStack()
 })
 
 test.afterAll(async () => {
@@ -46,22 +45,13 @@ test('recovery: found -> lose device -> recover with code -> signed in, old code
   // -----------------------------------------------------------------------
   const claimCtx = await browser.newContext({ baseURL })
   const claim = await claimCtx.newPage()
-  const claimAuth = await setupVirtualAuthenticator(claim)
 
-  await claim.goto('/settings/found')
-  await claim.getByTestId('founding-token-input').fill(FOUNDING_TOKEN)
-  await claim.getByTestId('founding-token-submit').click()
-  await expect(claim.getByTestId('founding-name')).toBeVisible()
-  await claim.getByTestId('founding-name').fill('Recovery Acceptance')
-  await claim.getByTestId('founding-submit').click()
+  // Found via the Generate-token flow; the passcode is also a burnable
+  // recovery code, which the recovery flow below consumes + rotates.
+  const { passcode: originalCode, cleanup: claimCleanup } = await foundAdmin(claim)
+  expect(originalCode).toMatch(/^lipc_/)
 
-  await expect(claim.getByTestId('recovery-modal')).toBeVisible()
-  const originalCode = (await claim.getByTestId('recovery-code').textContent())?.trim() ?? ''
-  expect(originalCode.length).toBeGreaterThan(8)
-
-  await claim.getByTestId('recovery-dismiss').click()
-  await claim.waitForURL(/\/settings(\/|$)/, { timeout: 30_000 })
-  await claimAuth.cleanup()
+  await claimCleanup()
   await claimCtx.close()
 
   // -----------------------------------------------------------------------
