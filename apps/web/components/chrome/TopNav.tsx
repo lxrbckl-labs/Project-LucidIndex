@@ -42,7 +42,13 @@ import { useRepliesPaneVisibility } from '@/lib/replies-pane-visibility'
 import { ThemeToggle } from './ThemeToggle'
 import { TypeaheadSearch } from './TypeaheadSearch'
 
-export function TopNav() {
+export function TopNav({
+  hideSearch = false,
+  hideSidebarTrigger = false,
+}: {
+  hideSearch?: boolean
+  hideSidebarTrigger?: boolean
+} = {}) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
@@ -83,7 +89,7 @@ export function TopNav() {
               3. EscapeToBack — article / creator / topic-focus / forum
                  post pages. */}
         <div className="flex items-center justify-start gap-2">
-          {(isSettingsPage || isForumPage) && hasSidebarShell && (
+          {(isSettingsPage || isForumPage) && hasSidebarShell && !hideSidebarTrigger && (
             <SidebarTrigger className="h-9 w-9 shrink-0 border border-input bg-background" />
           )}
           {!isForumPage && (
@@ -140,7 +146,7 @@ export function TopNav() {
             suppressed on its own surface (you can't jump from
             /settings to /settings, or from / to /). */}
         <div className="flex items-center justify-end gap-2 min-w-0">
-          <TypeaheadSearch />
+          {!hideSearch && <TypeaheadSearch />}
 
           {pathname !== '/' && !isSettingsPage && (
             <Tooltip>

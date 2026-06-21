@@ -1,37 +1,28 @@
 /**
- * Recovery-code generation, hashing, and verification.
+ * Passcode generation, hashing, and verification.
  *
- * Ported from Project-Showalter (`src/features/auth/recovery.ts`), with two
- * adaptations:
- *   - argon2id (via `@node-rs/argon2`) replaces bcryptjs. argon2id is the
- *     OWASP-recommended modern KDF and `@node-rs/argon2` is a fast Rust
- *     binding — Showalter pre-dates that switch but it's the right hash.
- *   - LucidIndex admin ids are uuids (strings), not integers.
+ * The passcode is a reusable alternate-login secret (the artifact formerly
+ * called the "recovery code"): the admin enters it to sign in when they don't
+ * have their passkey. It is an API-token-style high-entropy string — copy-
+ * pasted, not typed from memory — so brute-forcing it is infeasible.
  *
- * Codes are shown in plaintext exactly ONCE — at founding-admin enrollment,
- * and again after a successful recovery rotation. Hashed at rest. The
- * plaintext alphabet omits look-alikes (O / 0 / I / 1) so a user reading a
- * code aloud or off a screen doesn't fat-finger it.
+ * Format: `lipc_` + 32 random bytes encoded base64url (256 bits of entropy).
+ * Hashed at rest with argon2id (the OWASP-recommended KDF, via the fast
+ * `@node-rs/argon2` Rust binding). Shown in plaintext exactly once — at
+ * founding-admin enrollment and after a passcode regeneration.
  */
 
 import { randomBytes } from 'node:crypto'
 import { hash as argonHash, verify as argonVerify } from '@node-rs/argon2'
 
-const CODE_LENGTH = 12
+/** Distinguishes a LucidIndex passcode at a glance (mirrors API-token prefixes). */
+const PASSCODE_PREFIX = 'lipc_'
+/** 32 bytes → 256 bits of entropy → ~43 base64url chars. */
+const PASSCODE_BYTES = 32
 
-// Crockford-ish: A–Z minus O+I, 2–9. 32 symbols → 60 bits of entropy at
-// length 12, plenty for an offline-resistant secondary auth factor.
-const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-
-/** Returns a random 12-character plaintext recovery code. */
+/** Returns a random `lipc_`-prefixed 256-bit passcode. */
 export function generatePlaintextCode(): string {
-  const buf = randomBytes(CODE_LENGTH)
-  let out = ''
-  for (let i = 0; i < CODE_LENGTH; i++) {
-    // biome-ignore lint/style/noNonNullAssertion: index is bounded by loop condition
-    out += ALPHABET[buf[i]! % ALPHABET.length]
-  }
-  return out
+  return PASSCODE_PREFIX + randomBytes(PASSCODE_BYTES).toString('base64url')
 }
 
 /** argon2id hash, defaults are the @node-rs/argon2 sensible-defaults preset. */

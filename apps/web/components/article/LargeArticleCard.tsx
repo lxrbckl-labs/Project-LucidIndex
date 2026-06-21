@@ -104,11 +104,7 @@ export function LargeArticleCard({ article }: Props) {
       <CardFooter className="pt-4 flex items-center justify-between">
         <div className="flex gap-1">
           <TileShareButton url={`${BASE_URL}/a/${article.slug}`} />
-          <StarButton
-            articleId={article.id}
-            slug={article.slug}
-            initialStarred={article.starred ?? false}
-          />
+          <StarButton articleId={article.id} />
         </div>
         <Button variant="outline" size="sm" asChild className="border">
           <Link href={`/a/${article.slug}`} data-masonry-tile="">

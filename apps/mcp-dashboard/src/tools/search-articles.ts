@@ -7,7 +7,7 @@
 // from the caller, plain words are fine.
 //
 // Returns a small projection (id, slug, title, summary, source_url,
-// target_id, source_published_at, created_at, hidden, dashboard_visible)
+// target_id, created_at, hidden, dashboard_visible)
 // ranked by `ts_rank` descending, capped at `limit` (default 10, max 50).
 //
 // By default suppressed rows are excluded so normal browsing doesn't
@@ -58,7 +58,6 @@ export type SearchArticleHit = {
   summary: string
   source_url: string
   target_id: string
-  source_published_at: string | null
   created_at: string
   hidden: boolean
   dashboard_visible: boolean
@@ -102,7 +101,6 @@ export async function searchArticles(
       summary: articles.summary,
       sourceUrl: articles.sourceUrl,
       targetId: articles.targetId,
-      sourcePublishedAt: articles.sourcePublishedAt,
       createdAt: articles.createdAt,
       hidden: articles.hidden,
       dashboardVisible: articles.dashboardVisible,
@@ -121,7 +119,6 @@ export async function searchArticles(
       summary: r.summary,
       source_url: r.sourceUrl,
       target_id: r.targetId,
-      source_published_at: r.sourcePublishedAt ? r.sourcePublishedAt.toISOString() : null,
       created_at: r.createdAt.toISOString(),
       hidden: r.hidden,
       dashboard_visible: r.dashboardVisible,

@@ -10,24 +10,28 @@
  *
  * The pinned cluster (All + Starred) sits in a non-scrolling flex slot
  * on the left so users can always click them. The belt fills the
- * remaining width and auto-scrolls right-to-left via CSS keyframes.
+ * remaining width and auto-scrolls right-to-left via a main-thread
+ * requestAnimationFrame loop (see the rAF effect below).
  *
  * Topics are rendered three times in the track ([copy0][copy1][copy2])
  * to give the impression of an infinite belt without ballooning the DOM.
- * At translateX(-33.33%) (one copy width) the loop wraps back to 0
- * seamlessly because the visible window now contains [copy1][copy2] in
- * the same screen positions copy0 and copy1 occupied at start.
+ * After translating one copy width the loop wraps back to 0 seamlessly
+ * because the visible window now contains [copy1][copy2] in the same
+ * screen positions copy0 and copy1 occupied at start.
  *
- * Hover pauses the scroll. Touch / coarse-pointer / reduced-motion get a
- * non-animated, native horizontal-scroll variant with duplicates hidden.
- * See `globals.css` `.lucidindex-belt-*`.
+ * Hover pauses the scroll (a CSS animation paused on hover snaps backward
+ * as the compositor reconciles to the main thread — the rAF loop commits
+ * the transform on the main thread every frame, so the pause is jolt-free).
+ * Touch / coarse-pointer / reduced-motion get a non-animated, native
+ * horizontal-scroll variant with duplicates hidden. See `globals.css`
+ * `.lucidindex-belt-*`.
  *
  * URL writeback (unchanged): Active badge → ?badge=<name>;
  * starred → ?starred=1; All → params cleared.
  */
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useTransition } from 'react'
+import { useCallback, useEffect, useRef, useTransition } from 'react'
 import { Card } from '@/components/ui/card'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useTopicPrefs } from '@/lib/topic-prefs'
@@ -68,6 +72,102 @@ export function TopicBadgeFilterRow({ badges }: Props) {
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
   const { starred } = useTopicPrefs()
+
+  // The belt is driven by a main-thread rAF loop rather than a CSS keyframe
+  // animation. A compositor-run CSS animation paused on hover snaps backward —
+  // the pause reconciles the compositor's few-frame lead back to the main
+  // thread. Writing the transform on the main thread every frame keeps the
+  // displayed position equal to the committed position, so hover-pause is
+  // jolt-free. `pausedRef` is a ref (not state) so toggling it on hover never
+  // re-renders the 3×N belt.
+  const trackRef = useRef<HTMLDivElement>(null)
+  const pausedRef = useRef(false)
+
+  useEffect(() => {
+    const track = trackRef.current
+    if (!track) return
+
+    // Touch / coarse-pointer / reduced-motion get the native horizontal-scroll
+    // variant (CSS media query); the JS loop stays out of their way.
+    const mq = window.matchMedia(
+      '(prefers-reduced-motion: reduce), (hover: none), (pointer: coarse)',
+    )
+
+    let raf = 0
+    let lastTs = 0
+    let offset = 0
+    let period = 0
+
+    // One copy width = the seamless wrap distance (three identical copies).
+    const measure = () => {
+      period = track.scrollWidth / 3
+    }
+
+    const step = (ts: number) => {
+      if (period > 0 && lastTs !== 0 && !pausedRef.current) {
+        // Match the prior cadence: one copy width per 35s.
+        offset -= (period / 35_000) * (ts - lastTs)
+        if (-offset >= period) offset += period
+        track.style.transform = `translate3d(${offset}px, 0, 0)`
+      }
+      lastTs = ts
+      raf = requestAnimationFrame(step)
+    }
+
+    const startLoop = () => {
+      if (mq.matches) {
+        track.style.transform = ''
+        return
+      }
+      measure()
+      lastTs = 0
+      raf = requestAnimationFrame(step)
+    }
+
+    const stopLoop = () => {
+      if (raf) cancelAnimationFrame(raf)
+      raf = 0
+    }
+
+    startLoop()
+
+    // Hover-pause, attached natively (not via JSX) so it stays a pure
+    // pointer-only visual nicety with no a11y semantics on the wrapper. The
+    // mask is the track's parent.
+    const mask = track.parentElement
+    const pause = () => {
+      pausedRef.current = true
+    }
+    const resume = () => {
+      pausedRef.current = false
+    }
+    mask?.addEventListener('mouseenter', pause)
+    mask?.addEventListener('mouseleave', resume)
+
+    // Recompute the wrap distance when the belt's width changes (font load,
+    // viewport resize, badge list changes).
+    const ro = new ResizeObserver(() => {
+      if (!mq.matches) measure()
+    })
+    ro.observe(track)
+
+    // Re-evaluate if the user switches pointer/motion mode mid-session.
+    const onModeChange = () => {
+      stopLoop()
+      offset = 0
+      track.style.transform = ''
+      startLoop()
+    }
+    mq.addEventListener('change', onModeChange)
+
+    return () => {
+      stopLoop()
+      ro.disconnect()
+      mask?.removeEventListener('mouseenter', pause)
+      mask?.removeEventListener('mouseleave', resume)
+      mq.removeEventListener('change', onModeChange)
+    }
+  }, [])
 
   const starredActive = searchParams.get(STARRED_PARAM) === '1'
   const badgeActive = searchParams.get(BADGE_PARAM)?.trim() ?? ''
@@ -128,9 +228,13 @@ export function TopicBadgeFilterRow({ badges }: Props) {
 
         <div className="self-stretch w-px bg-border shrink-0 ml-3" aria-hidden="true" />
 
-        {/* Auto-scrolling belt — three copies for seamless looping. */}
+        {/* Auto-scrolling belt — three copies for seamless looping.
+            Hover-pause listeners are attached natively in the rAF effect. */}
         <div className="lucidindex-belt-mask flex-1 min-w-0 py-4">
-          <div className="lucidindex-belt-track flex flex-nowrap items-center gap-2 w-max">
+          <div
+            ref={trackRef}
+            className="lucidindex-belt-track flex flex-nowrap items-center gap-2 w-max"
+          >
             {[0, 1, 2].map((copyIdx) =>
               badges.map((b) => {
                 const isActive = active === b.name

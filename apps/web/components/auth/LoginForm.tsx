@@ -12,7 +12,7 @@ import { useState } from 'react'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
 
 const GENERIC_FAILURE = "Couldn't sign in — try again or use your recovery code"
 
@@ -71,25 +71,25 @@ export function LoginForm({ startLogin, finishLogin, onSuccess, className }: Log
   }
 
   return (
-    <Card className={className}>
-      <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} data-testid="login-form" className="flex flex-col gap-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+    <form
+      onSubmit={handleSubmit}
+      data-testid="login-form"
+      className={cn('flex flex-col gap-4', className)}
+    >
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-          <Button
-            type="submit"
-            disabled={stage === 'working'}
-            data-testid="login-submit"
-            className="w-full"
-          >
-            {stage === 'working' ? 'Working…' : 'Sign in with passkey'}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+      <Button
+        type="submit"
+        disabled={stage === 'working'}
+        data-testid="login-submit"
+        className="w-full"
+      >
+        {stage === 'working' ? 'Working…' : 'Sign In'}
+      </Button>
+    </form>
   )
 }

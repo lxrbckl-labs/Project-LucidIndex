@@ -48,7 +48,7 @@ export type TypeaheadArticle = {
   id: string
   slug: string
   title: string
-  sourcePublishedAt: string | null
+  createdAt: string | null
   creatorLabel: string | null
   heroImageHash: string | null
 }
@@ -96,7 +96,7 @@ export async function GET(req: Request) {
       id: a.id,
       slug: a.slug,
       title: a.title,
-      sourcePublishedAt: a.publishedAt ?? null,
+      createdAt: a.publishedAt ?? null,
       creatorLabel: a.creatorLabel ?? null,
       // Mock heroImageUrl is a full URL like /i/<hash>; extract the hash.
       heroImageHash: a.heroImageUrl ? a.heroImageUrl.replace(/^\/i\//, '') : null,
@@ -141,7 +141,7 @@ export async function GET(req: Request) {
     id: string
     slug: string
     title: string
-    source_published_at: string | null
+    created_at: string | null
     creator_label: string | null
     hero_image_hash: string | null
   }
@@ -165,7 +165,7 @@ export async function GET(req: Request) {
         a.id,
         a.slug,
         a.title,
-        a.source_published_at::text AS source_published_at,
+        a.created_at::text AS created_at,
         t.label                     AS creator_label,
         a.hero_image_hash
       FROM articles a
@@ -176,7 +176,7 @@ export async function GET(req: Request) {
           a.title ILIKE ${`%${query}%`}
           OR a.tsvector @@ plainto_tsquery('english', ${query})
         )
-      ORDER BY a.source_published_at DESC NULLS LAST
+      ORDER BY a.created_at DESC
       LIMIT ${ARTICLE_LIMIT}
     `),
 
@@ -227,7 +227,7 @@ export async function GET(req: Request) {
         a.id,
         a.slug,
         a.title,
-        a.source_published_at::text AS source_published_at,
+        a.created_at::text AS created_at,
         t.label                     AS creator_label,
         a.hero_image_hash
       FROM articles a
@@ -239,7 +239,7 @@ export async function GET(req: Request) {
           a.title ILIKE ${`%${query}%`}
           OR a.tsvector @@ plainto_tsquery('english', ${query})
         )
-      ORDER BY a.source_published_at DESC NULLS LAST
+      ORDER BY a.created_at DESC
       LIMIT ${STARRED_LIMIT}
     `),
   ])
@@ -248,7 +248,7 @@ export async function GET(req: Request) {
     id: r.id,
     slug: r.slug,
     title: r.title,
-    sourcePublishedAt: r.source_published_at ?? null,
+    createdAt: r.created_at ?? null,
     creatorLabel: r.creator_label ?? null,
     heroImageHash: r.hero_image_hash ?? null,
   })

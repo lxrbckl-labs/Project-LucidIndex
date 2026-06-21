@@ -5,7 +5,8 @@
  *
  * Route: `/a/<slug>` — the per-article home and the canonical share-link
  * target. Public by design (friends opening a share link must NOT hit a
- * login wall); admin-only interactions (star toggle) gate themselves.
+ * login wall). Starring is a client-only localStorage preference, open to
+ * everyone (no sign-in) — see `article-prefs.ts`.
  *
  * Anatomy (rendered top-to-bottom inside a single 640px column):
  *
@@ -30,7 +31,7 @@
  *     - shadcn <Card> with "Also covered by" header
  *
  *   Bottom interactions:
- *     - Star toggle (admin-gated; renders disabled for public visitors)
+ *     - Star toggle (client-only localStorage; open to all visitors)
  *     - Share button (shadcn Button variant="outline" + Share2)
  *
  * Read-state: this page calls `markRead(article.id)` server-side on
@@ -41,8 +42,7 @@
  * 404 handling: the loader returns null for missing slugs.
  * The page calls Next.js `notFound()` in that case.
  */
-
-import { requireAdmin } from '@lucidindex/auth'
+import { sentimentToSliderPercent } from '@lucidindex/shared/article-view'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -58,8 +58,7 @@ import { Separator } from '@/components/ui/separator'
 import { markRead } from './actions'
 import { applyFairUseCap, loadArticleBySlug } from './loader'
 
-// DB-backed (loadArticleBySlug, markRead) + session-aware (canInteract via
-// requireAdmin) — never statically renderable.
+// DB-backed (loadArticleBySlug, markRead) — never statically renderable.
 export const dynamic = 'force-dynamic'
 
 /**
@@ -133,8 +132,6 @@ export async function generateMetadata({
   }
 }
 
-const MOCK_MODE = process.env.LUCIDINDEX_MOCK === '1'
-
 export default async function ArticlePage({
   params,
 }: {
@@ -163,16 +160,15 @@ export default async function ArticlePage({
     void markRead(article.id)
   }
 
-  // Public visitors can read but can't star. The button still renders
-  // (so the visual anchor stays) but it goes inert.
-  const session = MOCK_MODE ? { adminId: 'mock' } : await requireAdmin()
-  const canInteract = !!session
-
   // Apply the fair-use cap to the deep-dive body.
   const bodyText = article.agentDeepDive ?? ''
   const { text: cappedBody, truncated } = applyFairUseCap(bodyText)
 
-  const showRating = article.reasonablenessRating !== null
+  // Bearish/Bullish gauge is driven by the agent's `sentiment` (-5..+5) —
+  // the literal bearish→bullish signal. Hidden when the agent didn't supply
+  // one (the reasonableness rating is a separate "how credible" measure and
+  // is intentionally not surfaced here).
+  const showSentiment = article.sentiment !== null
 
   // Filed date — when our system ingested this article. Shown as the
   // primary date pill in the header (replaces source-published date,
@@ -185,22 +181,8 @@ export default async function ArticlePage({
     return `${day} ${month} ${year}`
   })()
 
-  // Source-published date — supplementary "Originally published" line.
-  // Null when the source didn't surface a date.
-  const originallyPublishedLabel = (() => {
-    const sp = article.sourcePublishedAt
-    if (!sp) return null
-    const prefix = article.publishedEstimated ? '~ ' : ''
-    const d = new Date(sp)
-    if (Number.isNaN(d.getTime())) return null
-    const day = d.getUTCDate()
-    const month = new Intl.DateTimeFormat('en-GB', { month: 'long', timeZone: 'UTC' }).format(d)
-    const year = d.getUTCFullYear()
-    return `${prefix}${day} ${month} ${year}`
-  })()
-
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-screen flex-col bg-background">
       {/* Same chrome as the dashboard so the article reads as a
           magazine page within the same product. */}
       <TopNav />
@@ -214,7 +196,7 @@ export default async function ArticlePage({
           mobile traffic lands here, so polish matters. Px-4 on mobile
           tightens up the page edges; px-6 / md:px-18 picks back up at
           tablet+. */}
-      <main className="px-4 pt-4 pb-4 sm:px-6 sm:pt-6 sm:pb-6 md:px-18">
+      <main className="flex-1 px-4 pt-4 pb-4 sm:px-6 sm:pt-6 sm:pb-6 md:px-18">
         {/* Reading column — max-w-4xl per assignment spec; preserved
             narrower 640px inner column for prose readability. */}
         <div className="mx-auto max-w-4xl px-0">
@@ -289,19 +271,16 @@ export default async function ArticlePage({
                   match the Share button pinned to the right end. */}
               <StarButton
                 articleId={article.id}
-                slug={article.slug}
-                initialStarred={article.starred}
-                disabled={!canInteract}
                 variant="icon"
                 className="h-8 w-8 shrink-0 border-input bg-background"
               />
 
               <div className="flex shrink-0 items-center gap-2">
-                <span className="text-muted-foreground">Indexed</span>
+                <span className="text-muted-foreground">Created</span>
                 <span className="font-medium text-foreground">{filedLabel}</span>
               </div>
 
-              {showRating ? (
+              {showSentiment ? (
                 <>
                   <Separator orientation="vertical" className="hidden h-5 sm:block" />
                   <div
@@ -315,10 +294,10 @@ export default async function ArticlePage({
                       <div
                         className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-background shadow-sm"
                         style={{
-                          left: `${((article.reasonablenessRating ?? 0) / 10) * 100}%`,
+                          left: `${sentimentToSliderPercent(article.sentiment ?? 0)}%`,
                         }}
                         role="img"
-                        aria-label={`Rating ${article.reasonablenessRating} of 10`}
+                        aria-label={`Sentiment ${article.sentiment} on a -5 (bearish) to +5 (bullish) scale`}
                       />
                     </div>
                     <span className="shrink-0 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
@@ -328,18 +307,8 @@ export default async function ArticlePage({
                 </>
               ) : null}
 
-              {originallyPublishedLabel ? (
-                <>
-                  <Separator orientation="vertical" className="hidden h-5 sm:block" />
-                  <div className="flex shrink-0 items-center gap-2">
-                    <span className="text-muted-foreground">Originally</span>
-                    <span className="font-medium text-foreground">{originallyPublishedLabel}</span>
-                  </div>
-                </>
-              ) : null}
-
               {/* Share — right end of the diagnostics row. ml-auto keeps it
-                  pinned right even when the rating/originally segments are absent. */}
+                  pinned right even when the rating segment is absent. */}
               <div className="shrink-0 sm:ml-auto">
                 <ShareLinkButton url={`${getBaseUrl()}/a/${slug}`} />
               </div>

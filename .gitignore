@@ -47,3 +47,6 @@ lefthook-local.yml
 tests/screenshots/
 tests/test-results/
 tests/playwright-report/
+
+# Playwright MCP scratch dir (screenshots, console logs, snapshots) — local only.
+.playwright-mcp/

@@ -1,19 +1,16 @@
 /**
  * Favorites page — `/favorites`.
  *
- * Aggregates four sections:
- *   1. Starred articles      — server-rendered via loadStarredArticles()
- *   2. Starred topics        — client-rendered from localStorage
- *   3. Starred creators      — client-rendered from localStorage
- *   4. Not-interested topics — client-rendered from localStorage
+ * Aggregates four sections, all client-rendered from localStorage:
+ *   1. Starred articles      — via <StarredArticlesMasonry> (/api/articles/by-ids)
+ *   2. Starred topics        — from localStorage
+ *   3. Starred creators      — from localStorage
+ *   4. Not-interested topics — from localStorage
  *
- * Auth-gated: redirects unauthenticated visitors to /settings/login.
+ * Public — stars/prefs are a client-only guest preference, no sign-in.
  */
 
-import { requireAdmin } from '@lucidindex/auth'
-import { redirect } from 'next/navigation'
-import { loadStarredArticles } from '@/app/starred/loader'
-import { ArticleMasonry } from '@/components/article/ArticleMasonry'
+import { StarredArticlesMasonry } from '@/components/article/StarredArticlesMasonry'
 import { SiteFooter } from '@/components/chrome/SiteFooter'
 import { TopNav } from '@/components/chrome/TopNav'
 import { NotInterestedTopicsList } from './NotInterestedTopicsList'
@@ -22,33 +19,18 @@ import { StarredTopicsList } from './StarredTopicsList'
 
 export const dynamic = 'force-dynamic'
 
-const MOCK_MODE = process.env.LUCIDINDEX_MOCK === '1'
-
-export default async function FavoritesPage() {
-  const session = MOCK_MODE ? { adminId: 'mock' } : await requireAdmin()
-
-  if (!session) {
-    redirect('/settings/login')
-  }
-
-  const starredArticles = await loadStarredArticles()
-
+export default function FavoritesPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-screen flex-col bg-background">
       <TopNav />
 
-      <main className="px-4 pt-4 pb-4">
+      <main className="flex-1 px-4 pt-4 pb-4">
         {/* ----------------------------------------------------------------
-            Section 1 — Starred articles (server-rendered)
+            Section 1 — Starred articles (client, localStorage)
         ---------------------------------------------------------------- */}
         <section className="mb-12">
           <h2 className="text-2xl font-bold tracking-tight mb-4">Starred articles</h2>
-
-          {starredArticles.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No starred articles yet.</p>
-          ) : (
-            <ArticleMasonry articles={starredArticles} />
-          )}
+          <StarredArticlesMasonry />
         </section>
 
         {/* ----------------------------------------------------------------

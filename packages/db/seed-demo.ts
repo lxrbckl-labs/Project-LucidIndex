@@ -628,7 +628,8 @@ export async function seedDemo(): Promise<SeedDemoResult> {
     difficulty: 'easy' | 'medium' | 'hard'
     reasonablenessRating: number | null
     sentiment: number | null
-    sourcePublishedAt: Date
+    /** Demo-only date used for the slug + `created_at` spread (no DB column). */
+    publishedDate: Date
     dashboardVisible: boolean
     hidden: boolean
     starred: boolean
@@ -673,7 +674,7 @@ export async function seedDemo(): Promise<SeedDemoResult> {
       if (r < 0.9) return faker.number.int({ min: 31, max: 90 })
       return faker.number.int({ min: 91, max: 180 })
     })()
-    const sourcePublishedAt = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000)
+    const publishedDate = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000)
 
     const badgeNames = faker.helpers
       .arrayElements(insertedBadges, { min: 1, max: 3 })
@@ -702,7 +703,7 @@ export async function seedDemo(): Promise<SeedDemoResult> {
       // exercised both ways across creators.
       sentiment:
         faker.number.float({ min: 0, max: 1 }) < 0.9 ? faker.number.int({ min: -5, max: 5 }) : null,
-      sourcePublishedAt,
+      publishedDate,
       dashboardVisible: faker.number.float({ min: 0, max: 1 }) < 0.85,
       hidden: faker.number.float({ min: 0, max: 1 }) < 0.05,
       starred: faker.number.float({ min: 0, max: 1 }) < 0.05,
@@ -718,7 +719,7 @@ export async function seedDemo(): Promise<SeedDemoResult> {
   // simple deterministic slug from the article index. Production code
   // path is unaffected.
   const slugFor = (i: number, plan: Plan): string => {
-    const dateStr = plan.sourcePublishedAt.toISOString().split('T')[0]
+    const dateStr = plan.publishedDate.toISOString().split('T')[0]
     const titleSlug = plan.title
       .toLowerCase()
       .replace(/['‘’]/g, '')
@@ -767,8 +768,8 @@ export async function seedDemo(): Promise<SeedDemoResult> {
           difficulty: plan.difficulty,
           reasonablenessRating: plan.reasonablenessRating,
           sentiment: plan.sentiment,
-          sourcePublishedAt: plan.sourcePublishedAt,
-          sourcePublishedAtEstimated: false,
+          // Spread created_at across the demo window (was source_published_at).
+          createdAt: plan.publishedDate,
           heroImageHash: heroHash,
           dashboardVisible: plan.dashboardVisible,
           hidden: plan.hidden,

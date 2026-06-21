@@ -108,8 +108,6 @@ const articleSchema = z.object({
   difficulty: z.enum(['easy', 'medium', 'hard']),
   reasonableness_rating: z.number().int().min(0).max(10).optional(),
   sentiment: z.number().int().min(-5).max(5).optional(),
-  source_published_at: z.string().datetime().optional(),
-  source_published_at_estimated: z.boolean().optional(),
   // REQUIRED: every article must ship with a related hero image. Presence
   // is enforced here; relevance is the agent's responsibility (see the tool
   // description and editorial templates). A fetch failure on a valid URL
@@ -476,11 +474,10 @@ export async function writeArticles(args: WriteArticlesArgs): Promise<WriteArtic
       // biome-ignore lint/style/noNonNullAssertion: index in range
       const a = args.articles[p.index]!
 
-      // #65: slug is `YYYY-MM-DD-<kebab-title>` from the source publish
-      // date when present, otherwise the run's "now". On a slug-unique
-      // collision (different source URL, same title + date), retry once
-      // with the source-URL hash disambiguator suffix.
-      const slugDate = a.source_published_at ? new Date(a.source_published_at) : new Date()
+      // #65: slug is `YYYY-MM-DD-<kebab-title>` from the run's "now". On a
+      // slug-unique collision (different source URL, same title + date), retry
+      // once with the source-URL hash disambiguator suffix.
+      const slugDate = new Date()
       const primarySlug = generateSlug(a.title, slugDate)
       const insertValues = {
         targetId: q.targetId,
@@ -496,8 +493,6 @@ export async function writeArticles(args: WriteArticlesArgs): Promise<WriteArtic
         difficulty: a.difficulty,
         reasonablenessRating: a.reasonableness_rating ?? null,
         sentiment: a.sentiment ?? null,
-        sourcePublishedAt: a.source_published_at ? new Date(a.source_published_at) : null,
-        sourcePublishedAtEstimated: a.source_published_at_estimated ?? false,
         heroImageHash: p.heroImageHash, // resolved in Pass 2
         // jsonb columns — pass the arrays as-is; drizzle handles the cast.
         // biome-ignore lint/suspicious/noExplicitAny: jsonb column

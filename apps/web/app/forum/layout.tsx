@@ -58,8 +58,11 @@ export default async function ForumLayout({ children }: { children: ReactNode })
     // single-page behavior).
     return (
       <div className="h-screen overflow-hidden bg-background flex flex-col">
-        <TopNav />
-        <main className="flex-1 overflow-hidden px-4 pt-4">
+        {/* Search is hidden on the forum gate (login surface). */}
+        <TopNav hideSearch />
+        {/* No padding — the blurred feed behind the gate must run edge-to-edge
+            (any inset leaves a visible unblurred gutter at the window edges). */}
+        <main className="flex-1 overflow-hidden">
           <ForumGate username={null}>{children}</ForumGate>
         </main>
       </div>

@@ -66,7 +66,8 @@ Docker Compose stack — four services: `web`, `cron`, `mcp-dashboard`, `postgre
 - **No LLM / summarization pipeline.** Summarization is whatever the agent does before write-back. LucidIndex stores what it receives.
 - **Dashboard is read/write by the admin, write-only by agents.** Agents never touch the UI — they go through `mcp-dashboard`.
 - **Single-admin.** v0.1 is one admin only. There is no shared cross-admin data — there's only one admin. Multi-admin is parking lot (not v0.1).
-- **Passkey auth only.** No email/password, no magic link, no OAuth. Recovery is `admin:reset` CLI. No email/SMS fallback by design.
+- **Passkey auth only.** No email/password, no magic link, no OAuth. No email/SMS fallback by design.
+- **Recovery is the recovery code, redeemed on the web.** "Lost your passkey?" on `/settings/login` → `/settings/recover`: the admin enters their one-time recovery code, which authorizes enrolling a NEW passkey (old code burned, fresh one issued). Routes: `/api/auth/recovery/{start,finish,finalize}`; logic in `@lucidindex/auth` (`recovery-login.ts` + the seam-tested `recovery-login-core.ts`); brute-force throttle in `apps/web/lib/recovery-throttle.ts`. This supersedes the originally-planned `admin:reset` CLI, which was never built.
 - **Founding-admin claim only.** No invite-based signup. The first admin claims their account via `/settings?token=<LUCIDINDEX_FOUNDING_TOKEN>`. No open registration.
 - **Visual Identity is a first-class constraint.** If the dashboard doesn't read like Fyrre Magazine, it's not done — regardless of whether it works functionally. All visual decisions must consult `[[Visual Identity]]` first.
 

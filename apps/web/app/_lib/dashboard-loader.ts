@@ -23,10 +23,7 @@
  *                                   the dashboard but stay reachable via
  *                                   share-link / "Include archived" search.
  *
- * Order:  `source_published_at DESC NULLS LAST, created_at DESC`. The
- *         secondary `created_at` tiebreaker keeps ordering deterministic
- *         for articles with the same (or null) `source_published_at` —
- *         agent-insertion order is the natural fallback.
+ * Order:  `created_at DESC` — newest agent-insertion first.
  *
  * Cap:    {@link DASHBOARD_ARTICLE_LIMIT} (100). The masonry's first-page
  *         needs are well-served at this size; new arrivals stream in via
@@ -115,8 +112,6 @@ export async function loadDashboardArticles(
       summary: articles.summary,
       topicBadges: articles.topicBadges,
       significance: articles.significance,
-      sourcePublishedAt: articles.sourcePublishedAt,
-      sourcePublishedAtEstimated: articles.sourcePublishedAtEstimated,
       heroImageHash: articles.heroImageHash,
       agentLabel: agentTokens.label,
       creatorLabel: targets.label,
@@ -133,10 +128,8 @@ export async function loadDashboardArticles(
     .leftJoin(agentTokens, eq(articles.agentTokenId, agentTokens.id))
     .leftJoin(targets, eq(articles.targetId, targets.id))
     .where(where)
-    // Newest-first; secondary tiebreaker on `created_at` so the order
-    // is fully deterministic (same source_published_at + same agent
-    // insertion bucket would otherwise be non-deterministic).
-    .orderBy(sql`${articles.sourcePublishedAt} DESC NULLS LAST`, desc(articles.createdAt))
+    // Newest-first by agent-insertion time.
+    .orderBy(desc(articles.createdAt))
     .limit(DASHBOARD_ARTICLE_LIMIT)
 
   // The mapper returns an `ArticleCardView` — structurally compatible

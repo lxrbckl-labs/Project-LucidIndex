@@ -25,10 +25,14 @@ import { isFoundingFlowAvailable, requireAdmin } from '@lucidindex/auth'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import type { ReactNode } from 'react'
+import { FoundingGate } from '@/components/auth/FoundingGate'
+import { SettingsAuthGate } from '@/components/auth/SettingsAuthGate'
 import { SiteFooter } from '@/components/chrome/SiteFooter'
 import { TopNav } from '@/components/chrome/TopNav'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { foundingTokenIsConfigured } from '../../lib/founding-token'
 import { SettingsSidebar } from './_components/SettingsSidebar'
+import SettingsHubPage from './page'
 
 // The settings shell decides routing per-request based on the admins table
 // + iron-session cookie + the request URL header. Forcing dynamic here also
@@ -37,6 +41,7 @@ export const dynamic = 'force-dynamic'
 
 const FOUND_PATH = '/settings/found'
 const LOGIN_PATH = '/settings/login'
+const RECOVER_PATH = '/settings/recover'
 
 /**
  * Read the current path from the `next-url` (or `x-invoke-path`) header
@@ -67,25 +72,41 @@ export default async function SettingsLayout({ children }: { children: ReactNode
   ])
 
   if (foundingAvailable) {
-    if (path !== FOUND_PATH) {
-      redirect(FOUND_PATH)
-    }
-    return <AuthSurface>{children}</AuthSurface>
+    // Render the founding gate INLINE for every signed-out /settings/* path —
+    // never redirect. A server redirect to /settings/found during a soft
+    // (in-app) navigation makes Next's client router loop on
+    // history.replaceState, so the page "loads nothing" until a hard refresh
+    // (same failure mode the login gate hit). Keeping the URL put and rendering
+    // the swipe-card dialog directly fixes the blank-on-first-click.
+    return (
+      <LockedSettingsShell>
+        {foundingTokenIsConfigured() ? <FoundingGate /> : <FoundingDisabled />}
+      </LockedSettingsShell>
+    )
   }
 
   if (!session) {
-    if (path !== LOGIN_PATH) {
-      redirect(LOGIN_PATH)
-    }
-    return <AuthSurface>{children}</AuthSurface>
+    // Render the auth gate INLINE — never redirect here. A server redirect to
+    // /settings/login during a soft (in-app) navigation makes Next's client
+    // router loop on history.replaceState, so the page "loads nothing" until a
+    // hard refresh. Rendering the gate for every signed-out /settings/* path
+    // keeps the URL put and shows the sign-in / passcode dialog immediately.
+    return (
+      <LockedSettingsShell>
+        <SettingsAuthGate />
+      </LockedSettingsShell>
+    )
   }
 
   // Authenticated — but if they wandered onto an auth-surface URL, send
   // them to the hub instead of rendering the form behind a logged-in shell.
-  if (path === LOGIN_PATH || path === FOUND_PATH) {
+  if (path === LOGIN_PATH || path === FOUND_PATH || path === RECOVER_PATH) {
     redirect('/settings')
   }
 
+  // Authenticated: the normal, fully-usable settings shell. No blur here —
+  // the frosted/locked treatment belongs to the signed-out gate, the same way
+  // the forum is only blurred behind its login dialog and plain once you're in.
   return (
     <SidebarProvider>
       <div className="flex w-full flex-col">
@@ -102,10 +123,64 @@ export default async function SettingsLayout({ children }: { children: ReactNode
   )
 }
 
-function AuthSurface({ children }: { children: ReactNode }) {
+function FoundingDisabled() {
   return (
-    <main className="min-h-screen bg-background text-foreground flex flex-col items-center justify-start px-6 pt-24 pb-24">
-      <div className="w-full max-w-[480px]">{children}</div>
-    </main>
+    <div className="mx-auto flex flex-col items-center gap-3 rounded-xl border bg-background p-6 shadow-sm max-w-sm w-full text-center">
+      <h2 className="text-xl font-semibold tracking-tight">Founding disabled</h2>
+      <p className="text-xs text-muted-foreground leading-relaxed">
+        Founding-admin enrollment is disabled. Set{' '}
+        <code className="font-mono text-[11px] bg-muted px-1 py-0.5 rounded">
+          LUCIDINDEX_FOUNDING_TOKEN
+        </code>{' '}
+        in your environment and reload.
+      </p>
+    </div>
+  )
+}
+
+/**
+ * LockedSettingsShell — the signed-out admin surface.
+ *
+ * Renders the static Overview hub as a *locked* backdrop: the content is
+ * `inert` (no clicks, no tab focus, no selection, removed from the a11y tree)
+ * and frosted by a backdrop-blur scrim, with the sign-in / founding dialog
+ * floated foremost on top.
+ *
+ * Mirrors the forum gate: signed-out = the app, locked behind a dialog;
+ * signed-in = the same app, live.
+ *
+ * No sidebar here on purpose. It's "closed until you sign in", AND a collapsed
+ * icon rail can't be frosted flat: the blur spreads its light icon glyphs
+ * across the narrow rail, so it reads as a lighter vertical band against the
+ * otherwise-uniform dark surface (every other surface is one flat #242322).
+ * Dropping it keeps the whole backdrop a single black.
+ *
+ * The blur is a `backdrop-blur` overlay, NOT a `filter: blur` wrapper — `filter`
+ * establishes a containing block that complicates fixed/positioned descendants;
+ * the overlay just frosts everything painted behind it.
+ */
+function LockedSettingsShell({ children }: { children: ReactNode }) {
+  return (
+    // Pinned to the viewport with overflow clipped — the locked content behind
+    // the dialog must not scroll (the Overview hub is taller than the viewport).
+    <div className="flex h-svh w-full flex-col overflow-hidden bg-background text-foreground">
+      {/* Header stays crisp + interactive, like the forum gate. */}
+      <TopNav hideSearch hideSidebarTrigger />
+      <div className="relative flex flex-1 overflow-hidden">
+        {/* The settings content underneath — rendered for real, but inert. */}
+        <div className="flex flex-1 flex-col gap-4 overflow-hidden p-6" inert aria-hidden="true">
+          <SettingsHubPage />
+        </div>
+        {/* Frosted glass: dims + blurs the locked content behind it. */}
+        <div
+          className="pointer-events-none absolute inset-0 z-40 bg-background/40 backdrop-blur-md"
+          aria-hidden="true"
+        />
+        {/* Sign-in / founding dialog — foremost and interactive. */}
+        <div className="absolute inset-0 z-50 flex items-center justify-center px-6 py-12">
+          <div className="w-full max-w-[480px]">{children}</div>
+        </div>
+      </div>
+    </div>
   )
 }

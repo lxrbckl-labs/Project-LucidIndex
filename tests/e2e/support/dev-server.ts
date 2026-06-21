@@ -164,10 +164,16 @@ export async function startStack(input: StartStackInput): Promise<StackHandle> {
   await prewarm(`${baseURL}/api/auth/founding/finalize`)
   await prewarm(`${baseURL}/api/auth/passkey/authenticate/start`)
   await prewarm(`${baseURL}/api/auth/passkey/authenticate/finish`)
+  // Recovery shares the same challenge-store race: warm start/finish/finalize
+  // together so a challenge stashed by `start` survives `finish`'s first build.
+  await prewarm(`${baseURL}/api/auth/recovery/start`)
+  await prewarm(`${baseURL}/api/auth/recovery/finish`)
+  await prewarm(`${baseURL}/api/auth/recovery/finalize`)
   // Also pre-render the gated pages so the layout's redirect logic is
   // compiled before the test asserts on it.
   await prewarm(`${baseURL}/settings`)
   await prewarm(`${baseURL}/settings/login`)
+  await prewarm(`${baseURL}/settings/recover`)
 
   log(`stack ready at ${baseURL}`)
 

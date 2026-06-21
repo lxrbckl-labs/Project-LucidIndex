@@ -63,6 +63,11 @@ export {
   startLogin,
 } from './login.js'
 export {
+  PASSCODE_SESSION_MARKER,
+  type PasscodeSignInResult,
+  signInWithPasscode,
+} from './passcode-login.js'
+export {
   generatePlaintextCode,
   hashCode,
   verifyHash,
@@ -71,6 +76,16 @@ export {
   type RegenerateRecoveryCodeResult,
   regenerateRecoveryCode,
 } from './recovery-actions.js'
+export {
+  type FinalizeRecoverySessionResult,
+  type FinishRecoveryEnrollmentInput,
+  type FinishRecoveryEnrollmentResult,
+  finalizeRecoverySession,
+  finishRecoveryEnrollment,
+  makeDrizzleRecoveryStore,
+  type StartRecoveryEnrollmentResult,
+  startRecoveryEnrollment,
+} from './recovery-login.js'
 export {
   type FinishPasskeyRegistrationInput,
   type FinishPasskeyRegistrationResult,

@@ -253,6 +253,13 @@
       "when": 1779090006000,
       "tag": "0035_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1779090007000,
+      "tag": "0036_drop_source_published_at",
+      "breakpoints": true
     }
   ]
 }

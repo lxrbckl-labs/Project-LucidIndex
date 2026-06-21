@@ -51,8 +51,9 @@ test('founding-admin smoke: empty state -> claim -> recovery code -> /settings i
   const publicCtx = await browser.newContext({ baseURL })
   const landing = await publicCtx.newPage()
   await landing.goto('/')
-  await expect(landing.getByRole('heading', { name: 'LUCIDINDEX' })).toBeVisible()
-  await expect(landing.getByText('Nothing has been filed yet.')).toBeVisible()
+  // TopNav brand (a link) + the dialog-style empty-state heading.
+  await expect(landing.getByRole('link', { name: 'LUCIDINDEX' })).toBeVisible()
+  await expect(landing.getByRole('heading', { name: 'Nothing has been filed yet.' })).toBeVisible()
   await publicCtx.close()
 
   // -----------------------------------------------------------------------
@@ -67,17 +68,19 @@ test('founding-admin smoke: empty state -> claim -> recovery code -> /settings i
   // the admins table is empty; we go directly to the canonical URL.
   await claim.goto('/settings/found')
   await expect(claim).toHaveURL(/\/settings\/found/)
-  await expect(claim.getByRole('heading', { name: /claim founding admin/i })).toBeVisible()
+  // FoundingGate swipe-card — token pane is the entry point.
+  await expect(claim.getByTestId('founding-token-input')).toBeVisible()
 
-  // Stage A — enter the founding token to unlock the passkey form.
+  // Token pane — enter the founding token to unlock the create pane.
   await claim.getByTestId('founding-token-input').fill(FOUNDING_TOKEN)
   await claim.getByTestId('founding-token-submit').click()
 
-  // Wait for Stage B — the claim form should now be visible.
-  await expect(claim.getByTestId('founding-name')).toBeVisible()
+  // Wait for the create pane to slide in and autofocus its name field — this
+  // guarantees the pane is active (not the inert off-screen pane) before we
+  // type, so the controlled input doesn't revert the fill.
+  await expect(claim.getByTestId('founding-name')).toBeFocused()
 
   // Fill the form (name only — device label is auto-defaulted) and submit.
-  // The data-testid anchors are stable contracts in the FoundingAdminForm component.
   await claim.getByTestId('founding-name').fill('Phase1 Acceptance')
   await claim.getByTestId('founding-submit').click()
 
@@ -100,13 +103,15 @@ test('founding-admin smoke: empty state -> claim -> recovery code -> /settings i
   await claimCtx.close()
 
   // -----------------------------------------------------------------------
-  // 3. Fresh context (no session) hitting /settings should land on
-  //    /settings/login, NOT /settings/found.
+  // 3. Fresh context (no session) hitting /settings renders the LOGIN gate
+  //    inline (admins is now non-empty), NOT the founding gate. The layout
+  //    renders the gate inline rather than redirecting (avoids the soft-nav
+  //    replaceState loop), so the URL stays at /settings.
   // -----------------------------------------------------------------------
   const gateCtx = await browser.newContext({ baseURL })
   const gate = await gateCtx.newPage()
   await gate.goto('/settings')
-  await expect(gate).toHaveURL(/\/settings\/login/)
   await expect(gate.getByTestId('login-submit')).toBeVisible()
+  await expect(gate.getByTestId('founding-token-input')).toHaveCount(0)
   await gateCtx.close()
 })

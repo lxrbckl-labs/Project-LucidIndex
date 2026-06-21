@@ -20,36 +20,23 @@
  *       <ArticleMasonry> (starred articles)   OR   empty state
  */
 
-import { requireAdmin } from '@lucidindex/auth'
 import { ChevronLeft } from 'lucide-react'
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
 import { StarredCreatorsList } from '@/app/favorites/StarredCreatorsList'
 import { StarredTopicsList } from '@/app/favorites/StarredTopicsList'
-import { ArticleMasonry } from '@/components/article/ArticleMasonry'
+import { StarredArticlesMasonry } from '@/components/article/StarredArticlesMasonry'
 import { SiteFooter } from '@/components/chrome/SiteFooter'
 import { TopNav } from '@/components/chrome/TopNav'
 import { Button } from '@/components/ui/button'
-import { loadStarredArticles } from './loader'
 
 export const dynamic = 'force-dynamic'
 
-const MOCK_MODE = process.env.LUCIDINDEX_MOCK === '1'
-
-export default async function StarredPage() {
-  const session = MOCK_MODE ? { adminId: 'mock' } : await requireAdmin()
-
-  if (!session) {
-    redirect('/settings/login')
-  }
-
-  const articles = await loadStarredArticles()
-
+export default function StarredPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-screen flex-col bg-background">
       <TopNav />
 
-      <main className="px-4 pt-4 pb-4">
+      <main className="flex-1 px-4 pt-4 pb-4">
         <div className="mb-6 flex items-center gap-3">
           <Button
             variant="ghost"
@@ -86,25 +73,25 @@ export default async function StarredPage() {
         </section>
 
         {/* ----------------------------------------------------------------
-            Articles section (server-rendered)
+            Articles section (client-rendered from localStorage)
         ---------------------------------------------------------------- */}
         <section>
           <p className="text-sm font-medium uppercase tracking-[0.08em] text-muted-foreground mb-3">
             Articles
           </p>
-          {articles.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 text-center">
-              <p className="text-lg font-medium text-foreground">No starred articles yet.</p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Star an article from the dashboard or article page to save it here.
-              </p>
-              <Button variant="outline" size="sm" asChild className="mt-6">
-                <Link href="/">Browse dashboard</Link>
-              </Button>
-            </div>
-          ) : (
-            <ArticleMasonry articles={articles} />
-          )}
+          <StarredArticlesMasonry
+            empty={
+              <div className="flex flex-col items-center justify-center py-24 text-center">
+                <p className="text-lg font-medium text-foreground">No starred articles yet.</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Star an article from the dashboard or article page to save it here.
+                </p>
+                <Button variant="outline" size="sm" asChild className="mt-6">
+                  <Link href="/">Browse dashboard</Link>
+                </Button>
+              </div>
+            }
+          />
         </section>
       </main>
       <SiteFooter />

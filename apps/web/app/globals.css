@@ -26,7 +26,8 @@
     --card-foreground: 200 6% 10%;
     --popover: 40 27% 96%;
     --popover-foreground: 200 6% 10%;
-    --primary: 200 6% 10%;
+    /* Primary action color — #242322 (was the brand black #181A1B). */
+    --primary: 30 3% 13.7%;
     --primary-foreground: 40 27% 96%;
     --secondary: 40 18% 92%;
     --secondary-foreground: 200 6% 10%;
@@ -48,14 +49,17 @@
   }
 
   .dark {
-    --background: 200 6% 10%;
+    /* Dark surfaces use #1e1e1e (hsl 0 0% 11.8%) — a neutral black chosen to
+       match Safari's default dark toolbar/chrome so the browser frame and the
+       page read as one continuous surface (no seam at the top of the window). */
+    --background: 0 0% 11.8%;
     --foreground: 40 27% 96%;
-    --card: 200 6% 10%;
+    --card: 0 0% 11.8%;
     --card-foreground: 40 27% 96%;
-    --popover: 200 6% 10%;
+    --popover: 0 0% 11.8%;
     --popover-foreground: 40 27% 96%;
     --primary: 40 27% 96%;
-    --primary-foreground: 200 6% 10%;
+    --primary-foreground: 30 3% 13.7%;
     --secondary: 200 6% 16%;
     --secondary-foreground: 40 27% 96%;
     --muted: 200 6% 16%;
@@ -223,14 +227,14 @@
 /* -----------------------------------------------------------------------------
  * TopicBadgeFilterRow — infinite-scroll belt.
  *
- * The belt-track contains the topic list rendered three times. The
- * animation translates it left by 33.33% of total width (= one copy
- * width) per cycle, then loops; because copies 1 and 2 are identical to
- * copy 0, the wrap is visually seamless. Hover pauses the animation.
+ * The belt-track contains the topic list rendered three times. A
+ * requestAnimationFrame loop in the component translates it left by one
+ * copy width per cycle, then wraps; because copies 1 and 2 are identical
+ * to copy 0, the wrap is visually seamless. Hover pauses the loop.
  *
  * On touch / coarse-pointer devices and for users who've opted into
- * reduced motion, we disable the animation entirely and let the belt
- * scroll horizontally on its own (native overflow-x: auto, scrollbar
+ * reduced motion, the rAF loop stays idle and the belt scrolls
+ * horizontally on its own (native overflow-x: auto, scrollbar
  * suppressed). Duplicate copies are hidden in that mode — they only
  * exist to enable the seamless desktop loop and would just be redundant
  * tap targets otherwise.
@@ -238,26 +242,15 @@
 .lucidindex-belt-mask {
   overflow: hidden;
 }
-.lucidindex-belt-track {
-  animation: lucidindex-belt-scroll 35s linear infinite;
-  /*
-   * No `will-change: transform` here. It pins a GPU compositor layer
-   * for the lifetime of the page, which is fine for short transitions
-   * but wasteful for an infinite-loop animation — we'd be holding ~30
-   * to 80 MB hostage 24/7 for no rendering benefit.
-   */
-}
-.lucidindex-belt-track:hover {
-  animation-play-state: paused;
-}
-@keyframes lucidindex-belt-scroll {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-  to {
-    transform: translate3d(-33.3333%, 0, 0);
-  }
-}
+/*
+ * The belt is driven by a requestAnimationFrame loop in TopicBadgeFilterRow
+ * (it writes `transform` on the main thread each frame), NOT a CSS keyframe
+ * animation. A compositor-run CSS animation paused on hover snaps backward:
+ * the pause reconciles the compositor's few-frame lead back to the main
+ * thread. Committing the transform on the main thread every frame keeps the
+ * displayed position equal to the committed position, so hover-pause is
+ * jolt-free. See the rAF effect + `pausedRef` in TopicBadgeFilterRow.
+ */
 @media (prefers-reduced-motion: reduce), (hover: none), (pointer: coarse) {
   .lucidindex-belt-mask {
     overflow-x: auto;
@@ -268,10 +261,6 @@
   }
   .lucidindex-belt-mask::-webkit-scrollbar {
     display: none;
-  }
-  .lucidindex-belt-track {
-    animation: none;
-    transform: none;
   }
   .lucidindex-belt-track > [data-belt-copy="duplicate"] {
     display: none;
@@ -315,7 +304,8 @@
 }
 
 .dark {
-  --sidebar: hsl(200 6% 10%);
+  /* Match the page background (#1e1e1e = 0 0% 11.8%, Safari-chrome black). */
+  --sidebar: hsl(0 0% 11.8%);
   --sidebar-foreground: hsl(40 27% 96%);
   --sidebar-primary: hsl(40 27% 96%);
   --sidebar-primary-foreground: hsl(200 6% 10%);

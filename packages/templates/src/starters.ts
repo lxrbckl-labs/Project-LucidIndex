@@ -113,7 +113,7 @@ For each new upload:
     the same story or topic. Independent outlets only — no aggregators, no
     other uploads from this same channel.
   - Call write_articles with the summary, topic_badges, significance,
-    difficulty, source_published_at, and the cross_source list.
+    difficulty, and the cross_source list.
 
 Cadence for this target: {{ cadence }}. Stop once you've processed every new
 upload past the high_water_mark.`
@@ -139,7 +139,7 @@ For each new post:
     the same idea, release, or controversy from a different angle. Skip
     syndicated copies of this exact post.
   - Call write_articles with summary, deep_dive, topic_badges,
-    significance, difficulty, source_published_at, and cross_source.
+    significance, difficulty, and cross_source.
 
 Cadence: {{ cadence }}. Process every new post past the high_water_mark,
 then stop.`
@@ -160,8 +160,7 @@ For each new issue:
     one article for the whole issue. If it's a single coherent essay, file
     one.
   - For each filed item: 3-6 sentence summary, topic_badges, significance,
-    difficulty, source_published_at (use the issue's publish date for all
-    sections from that issue).
+    and difficulty.
   - Cross-source roughly {{ cross_references }} independent entries per filed
     item that cover the same story from a different outlet.
   - Call write_articles with the full payload.
@@ -190,7 +189,7 @@ For each new story:
     covering the same story. The whole point of cross-sourcing news is
     triangulation — duplicates from the same outlet add no signal.
   - Call write_articles with summary, topic_badges, significance, difficulty,
-    source_published_at, and cross_source.
+    and cross_source.
 
 Cadence: {{ cadence }}. Process every story past the high_water_mark, then
 stop.`
@@ -217,7 +216,7 @@ For each new post:
   - Cross-source roughly {{ cross_references }} independent entries
     discussing the same thing from non-Instagram surfaces.
   - Call write_articles with summary, topic_badges, significance,
-    difficulty, source_published_at, and cross_source.
+    difficulty, and cross_source.
 
 Cadence: {{ cadence }}. Stop once every new post past the high_water_mark
 is filed.`
@@ -270,7 +269,7 @@ For each new piece of content:
   - Cross-source roughly {{ cross_references }} independent entries covering
     the same announcement, release, or topic from a different source.
   - Call write_articles with summary, topic_badges, significance,
-    difficulty, source_published_at, and cross_source.
+    difficulty, and cross_source.
 
 If the page genuinely has nothing new (the high_water_mark covers
 everything visible), file nothing and ack the queue item as succeeded

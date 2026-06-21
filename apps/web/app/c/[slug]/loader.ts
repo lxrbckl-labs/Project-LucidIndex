@@ -185,8 +185,6 @@ export async function loadCreatorArticles(targetId: string): Promise<MockArticle
       summary: articles.summary,
       topicBadges: articles.topicBadges,
       significance: articles.significance,
-      sourcePublishedAt: articles.sourcePublishedAt,
-      sourcePublishedAtEstimated: articles.sourcePublishedAtEstimated,
       heroImageHash: articles.heroImageHash,
       agentLabel: agentTokens.label,
       creatorLabel: targets.label,
@@ -205,7 +203,7 @@ export async function loadCreatorArticles(targetId: string): Promise<MockArticle
     .orderBy(desc(articles.createdAt))
 
   return rows.map((row) => {
-    const publishedAt = row.sourcePublishedAt?.toISOString() ?? row.createdAt.toISOString()
+    const publishedAt = row.createdAt.toISOString()
     const publishedLabel = formatPublishLabel(publishedAt)
     const words = `${row.summary ?? ''} `.split(/\s+/).length
     const readMinutes = Math.max(1, Math.round(words / 250))
@@ -237,7 +235,7 @@ export async function loadCreatorArticles(targetId: string): Promise<MockArticle
       topicBadges: row.topicBadges,
       significance: (row.significance as 'small' | 'medium' | 'large') ?? 'small',
       publishedLabel,
-      publishedEstimated: row.sourcePublishedAtEstimated,
+      publishedEstimated: false,
       publishedAt,
       heroImageUrl,
       agentLabel: row.agentLabel ?? 'unknown',

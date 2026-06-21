@@ -91,7 +91,7 @@ export const DASHBOARD_TOOLS: ToolEntry[] = [
     name: 'write_articles',
     title: 'Write articles for a queue item',
     description:
-      'Insert one or more article rows produced from a queue pull. URLs are canonicalized server-side (tracking params, fragments, default ports, case, www, trailing slashes all collapse), so dedup is robust to cosmetic URL differences. Per-article savepoints + partial-success response: returns `{ accepted, results, failures }`. `results` carries one entry per accepted/deduped article ({ index, id, deduped, source_url }), `failures` carries any per-article rejects ({ index, source_url, code, message }) — one bad insert no longer rolls back its siblings. Prefer calling `check_article_exists` first — `write_articles` will silently dedup repeats, but you will have wasted a research cycle. Article fields: `significance` ∈ `small|medium|large`, `difficulty` ∈ `easy|medium|hard` (string enums — numeric values are rejected with `-32602`). `citations[].url` + `citations[].title` + `citations[].source_name` are all required on each citation; `source_name` must be drawn from `get_comparison_sources` (server rejects unknown names with `unknown_comparison_source`). `source_published_at` is ISO-8601 with strict calendar-date validation (e.g. `2026-02-30` is rejected). Requires HTTP transport with bearer auth.',
+      'Insert one or more article rows produced from a queue pull. URLs are canonicalized server-side (tracking params, fragments, default ports, case, www, trailing slashes all collapse), so dedup is robust to cosmetic URL differences. Per-article savepoints + partial-success response: returns `{ accepted, results, failures }`. `results` carries one entry per accepted/deduped article ({ index, id, deduped, source_url }), `failures` carries any per-article rejects ({ index, source_url, code, message }) — one bad insert no longer rolls back its siblings. Prefer calling `check_article_exists` first — `write_articles` will silently dedup repeats, but you will have wasted a research cycle. Article fields: `significance` ∈ `small|medium|large`, `difficulty` ∈ `easy|medium|hard` (string enums — numeric values are rejected with `-32602`). `citations[].url` + `citations[].title` + `citations[].source_name` are all required on each citation; `source_name` must be drawn from `get_comparison_sources` (server rejects unknown names with `unknown_comparison_source`). Requires HTTP transport with bearer auth.',
     parameters: [
       { name: 'queue_item_id', type: 'string (UUID)', required: true, description: '' },
       {
@@ -99,7 +99,7 @@ export const DASHBOARD_TOOLS: ToolEntry[] = [
         type: 'array of object',
         required: true,
         description:
-          'One or more article rows. Each carries source_url, title, summary, agent_deep_dive?, agent_opinion?, topic_badges, significance (string enum: `small|medium|large` — NOT a number), difficulty (string enum: `easy|medium|hard` — NOT a number), reasonableness_rating? (0–10), sentiment? (-5–5), source_published_at? (ISO-8601 with strict calendar-date validation), source_published_at_estimated?, hero_image_url (REQUIRED — a URL for an image clearly related to the story; every article must ship with one), cross_source?, and citations? (each {url, title, source_name} all required; accessed_at? and image_url? optional).',
+          'One or more article rows. Each carries source_url, title, summary, agent_deep_dive?, agent_opinion?, topic_badges, significance (string enum: `small|medium|large` — NOT a number), difficulty (string enum: `easy|medium|hard` — NOT a number), reasonableness_rating? (0–10), sentiment? (-5–5), hero_image_url (REQUIRED — a URL for an image clearly related to the story; every article must ship with one), cross_source?, and citations? (each {url, title, source_name} all required; accessed_at? and image_url? optional).',
       },
     ],
     returns:
@@ -170,7 +170,7 @@ export const DASHBOARD_TOOLS: ToolEntry[] = [
       },
     ],
     returns:
-      'Ranked array of hits: { id, slug, title, summary, source_url, target_id, source_published_at, created_at, hidden, dashboard_visible, rank }. The `hidden` and `dashboard_visible` flags tell you WHY a result came back when `include_suppressed: true`. For dedup work where you have a known source_url, prefer `check_article_exists` — it is the faster lookup primitive.',
+      'Ranked array of hits: { id, slug, title, summary, source_url, target_id, created_at, hidden, dashboard_visible, rank }. The `hidden` and `dashboard_visible` flags tell you WHY a result came back when `include_suppressed: true`. For dedup work where you have a known source_url, prefer `check_article_exists` — it is the faster lookup primitive.',
   },
   {
     name: 'check_article_exists',

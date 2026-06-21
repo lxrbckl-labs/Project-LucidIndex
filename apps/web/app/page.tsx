@@ -27,15 +27,18 @@
  */
 
 import { requireAdmin } from '@lucidindex/auth'
+import { LayoutDashboard } from 'lucide-react'
+import Link from 'next/link'
 import { AuthenticatedEmptyState } from '@/components/article/AuthenticatedEmptyState'
 import { FilteredArticleMasonry } from '@/components/article/FilteredArticleMasonry'
 import { LiveArticleStream } from '@/components/article/LiveArticleStream'
 import { MasonryKeyboardNav } from '@/components/article/MasonryKeyboardNav'
+import { StarredArticlesMasonry } from '@/components/article/StarredArticlesMasonry'
 import { TopicFocusCard } from '@/components/article/TopicFocusCard'
 import { SiteFooter } from '@/components/chrome/SiteFooter'
 import { TopicBadgeFilterRow } from '@/components/chrome/TopicBadgeFilterRow'
 import { TopNav } from '@/components/chrome/TopNav'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { loadDashboardArticles, loadDashboardBadges } from './_lib/dashboard-loader'
 
 // Reads the iron-session cookie via requireAdmin() and queries the DB for
@@ -74,7 +77,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
   // the admin. Load articles/badges up front so the empty-state branch can run.
   // Admin-only actions (star, settings, etc.) stay gated inside their own routes.
   const [articles, badgeNames] = await Promise.all([
-    loadDashboardArticles({ badge: badgeFilter, starred: starredFilter }),
+    // Stars are a client-only localStorage preference now, so the Starred
+    // filter renders client-side (below) — the server feed ignores `starred`.
+    loadDashboardArticles({ badge: badgeFilter }),
     loadDashboardBadges(),
   ])
 
@@ -85,24 +90,24 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
     // Do not change without updating `tests/e2e/founding-admin.spec.ts`.
     // -------------------------------------------------------------------
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center px-6 py-24">
-        <Card className="w-full max-w-lg">
-          <CardHeader>
-            {/* h1 heading — e2e asserts getByRole('heading', { name: 'LUCIDINDEX' }) */}
-            <h1 className="text-xl font-semibold uppercase tracking-wider text-card-foreground">
-              LUCIDINDEX
-            </h1>
-          </CardHeader>
-          <CardContent>
-            <p className="text-base font-semibold text-foreground leading-snug">
-              Nothing has been filed yet.
-            </p>
-            <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
+      <div className="flex min-h-screen flex-col bg-background">
+        {/* TopNav supplies the LUCIDINDEX wordmark heading the e2e asserts on. */}
+        <TopNav />
+        <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
+          <div className="mx-auto flex flex-col items-center gap-3 rounded-xl border bg-background p-6 shadow-sm max-w-sm w-full text-center">
+            <h2 className="text-xl font-semibold tracking-tight">Nothing has been filed yet.</h2>
+            <p className="text-xs text-muted-foreground leading-relaxed">
               Your agents will be filing articles here. Check back soon.
             </p>
-          </CardContent>
-        </Card>
-      </main>
+            <Button variant="default" asChild className="w-full mt-2">
+              <Link href="/" data-testid="dashboard-link">
+                <LayoutDashboard className="h-5 w-5 mr-2 rotate-90" />
+                Dashboard
+              </Link>
+            </Button>
+          </div>
+        </main>
+      </div>
     )
   }
 
@@ -146,7 +151,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
         {/* Live arrivals strip — SSE-driven horizontal scroll. */}
         <LiveArticleStream badgeFilter={badgeFilter} />
 
-        {articles.length === 0 ? (
+        {starredFilter ? (
+          /* Starred filter: client-rendered from the viewer's localStorage stars. */
+          <StarredArticlesMasonry />
+        ) : articles.length === 0 ? (
           <AuthenticatedEmptyState />
         ) : (
           <>

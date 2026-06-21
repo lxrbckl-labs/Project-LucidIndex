@@ -730,9 +730,9 @@ export function TypeaheadSearch() {
                       <Star className="shrink-0 h-3.5 w-3.5 text-amber-400 fill-current" />
 
                       {/* Date */}
-                      {r.sourcePublishedAt && (
+                      {r.createdAt && (
                         <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                          {formatDate(r.sourcePublishedAt)}
+                          {formatDate(r.createdAt)}
                         </span>
                       )}
                     </CommandItem>
@@ -778,9 +778,9 @@ export function TypeaheadSearch() {
                       </div>
 
                       {/* Date */}
-                      {r.sourcePublishedAt && (
+                      {r.createdAt && (
                         <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                          {formatDate(r.sourcePublishedAt)}
+                          {formatDate(r.createdAt)}
                         </span>
                       )}
                     </CommandItem>

@@ -32,8 +32,8 @@ import { generateSlug } from './slug.js'
  * environments and the SSR output is stable across regions.
  *
  * Returns the original string when parsing fails so we never throw on a
- * malformed `articles.source_published_at` value (defensive: that
- * column is nullable, but the loaders pre-filter null before calling).
+ * malformed timestamp value (defensive — callers pass a valid ISO string
+ * derived from `created_at`).
  */
 export function formatPublishLabel(iso: string): string {
   const d = new Date(iso)
@@ -130,8 +130,6 @@ export type ArticleCardRow = {
   summary: string
   topicBadges: string[]
   significance: string
-  sourcePublishedAt: Date | null
-  sourcePublishedAtEstimated: boolean
   heroImageHash: string | null
   agentLabel: string | null
   creatorLabel: string | null
@@ -230,18 +228,29 @@ export function heroImageUrlFromHash(hash: string | null): string {
 }
 
 /**
+ * Map an agent-assigned `sentiment` (the bearish→bullish signal, -5..+5 per
+ * the `articles_sentiment_check` constraint) to a 0–100% slider position for
+ * the article page's Bearish/Bullish gauge. -5 → 0% (fully bearish),
+ * 0 → 50% (neutral), +5 → 100% (fully bullish). Out-of-range inputs are
+ * clamped so a bad row can never push the handle off the track.
+ */
+export function sentimentToSliderPercent(sentiment: number): number {
+  const clamped = Math.max(-5, Math.min(5, sentiment))
+  return ((clamped + 5) / 10) * 100
+}
+
+/**
  * Map a raw DB row to the `ArticleCardView` consumed by `ArticleMasonry`.
  * Centralizes the shared decoding logic (publish-label format, hero URL
  * resolution, jsonb decoding, byline/creator fallbacks).
  *
- * `publishedAt` falls back to `createdAt` when `source_published_at` is
- * null — the agent-insertion timestamp is always populated, so we never
- * surface an empty pill. The `publishedEstimated` flag is preserved
- * verbatim so the UI can prefix "~" when the agent guessed the date.
+ * `publishedAt` / `publishedLabel` derive from `createdAt` (the agent-
+ * insertion timestamp). The source-published date was removed; `published
+ * Estimated` is retained as a now-always-false vestige for payload-shape
+ * compatibility with the SSE bus and mock fixtures.
  */
 export function mapArticleRowToCard(row: ArticleCardRow): ArticleCardView {
-  const publishedDate = row.sourcePublishedAt ?? row.createdAt
-  const publishedAtIso = publishedDate.toISOString()
+  const publishedAtIso = row.createdAt.toISOString()
   const publishedLabel = formatPublishLabel(publishedAtIso)
 
   const significance = ((): ArticleSignificance => {
@@ -263,7 +272,7 @@ export function mapArticleRowToCard(row: ArticleCardRow): ArticleCardView {
     topicBadges: row.topicBadges,
     significance,
     publishedLabel,
-    publishedEstimated: row.sourcePublishedAtEstimated,
+    publishedEstimated: false,
     publishedAt: publishedAtIso,
     heroImageUrl: heroImageUrlFromHash(row.heroImageHash),
     agentLabel: row.agentLabel ?? 'unknown',

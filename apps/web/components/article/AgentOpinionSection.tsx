@@ -48,7 +48,6 @@ export function AgentOpinionSection({ agentOpinion }: Props) {
           </div>
         </CollapsibleContent>
       </Collapsible>
-      <Separator />
     </div>
   )
 }

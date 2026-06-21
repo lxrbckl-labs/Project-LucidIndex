@@ -77,6 +77,9 @@ export type MockArticle = {
   readMinutes: number
   /** 1-10 reasonableness rating; null when the agent skipped the field. */
   reasonablenessRating: number | null
+  /** Bearish→bullish sentiment (-5..+5); null when the agent skipped it.
+   * Drives the article page's Bearish/Bullish gauge. */
+  sentiment?: number | null
   /** Cross-source list rendered under "Other coverage" on the article page. */
   crossSource: MockCrossSource[]
   /** Source URL — drives slug disambiguation and the cross-source link out. */

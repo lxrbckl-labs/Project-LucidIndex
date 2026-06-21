@@ -69,6 +69,9 @@ export type ArticleViewModel = {
    * (lazy backfill — will be populated on first creator-page visit). */
   creatorSlug: string | null
   reasonablenessRating: number | null
+  /** Agent-assigned bearish→bullish sentiment (-5..+5). Drives the article
+   * page's Bearish/Bullish gauge. Null when the agent didn't supply one. */
+  sentiment: number | null
   crossSource: ArticleCrossSource[]
   citations: ArticleCitation[]
   starred: boolean
@@ -82,12 +85,6 @@ export type ArticleViewModel = {
    * synthesize one from `insertedAtOffsetHours`.
    */
   createdAt: Date
-  /**
-   * Original source publication date (`articles.source_published_at`).
-   * Null when the source didn't surface a date. Displayed on the detail
-   * page as supplementary "Originally published" metadata.
-   */
-  sourcePublishedAt: Date | null
 }
 
 /**
@@ -131,6 +128,7 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
       creatorLabel: mock.creatorLabel ?? null,
       creatorSlug: mock.creatorSlug ?? null,
       reasonablenessRating: mock.reasonablenessRating,
+      sentiment: mock.sentiment ?? null,
       crossSource: mock.crossSource,
       citations: [],
       starred: mock.starred ?? false,
@@ -138,7 +136,6 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
       agentOpinion: null,
       sourceUrl: mock.sourceUrl,
       createdAt: getMockCreatedAt(mock),
-      sourcePublishedAt: mock.publishedAt ? new Date(mock.publishedAt) : null,
     }
   }
 
@@ -152,14 +149,13 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
       summary: articles.summary,
       agentDeepDive: articles.agentDeepDive,
       topicBadges: articles.topicBadges,
-      sourcePublishedAt: articles.sourcePublishedAt,
-      sourcePublishedAtEstimated: articles.sourcePublishedAtEstimated,
       heroImageHash: articles.heroImageHash,
       agentLabel: agentTokens.label,
       creatorLabel: targets.label,
       creatorSlug: targets.slug,
       targetCreatedAt: targets.createdAt,
       reasonablenessRating: articles.reasonablenessRating,
+      sentiment: articles.sentiment,
       crossSource: articles.crossSource,
       citations: articles.citations,
       starred: articles.starred,
@@ -177,7 +173,8 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
   const row = rows[0]
   if (!row) return null
 
-  const publishedIso = row.sourcePublishedAt ? row.sourcePublishedAt.toISOString() : null
+  // The source-published date was removed; publishedAt now reflects createdAt.
+  const publishedIso = row.createdAt.toISOString()
   // Image-serve route at `/i/<hash>` (Phase 7 #74). Returns null when the
   // article has no hero image; the article page falls back to a placeholder.
   const heroImageUrl = row.heroImageHash ? `/i/${row.heroImageHash}` : null
@@ -227,8 +224,8 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
     agentDeepDive: row.agentDeepDive,
     topicBadges: row.topicBadges,
     publishedAtIso: publishedIso,
-    publishedLabel: publishedIso ? formatPublishLabel(publishedIso) : '',
-    publishedEstimated: row.sourcePublishedAtEstimated,
+    publishedLabel: formatPublishLabel(publishedIso),
+    publishedEstimated: false,
     heroImageUrl,
     agentLabel: row.agentLabel ?? 'unknown',
     creatorLabel: row.creatorLabel ?? null,
@@ -238,6 +235,7 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
         ? generateSlug(row.creatorLabel, row.targetCreatedAt)
         : null),
     reasonablenessRating: row.reasonablenessRating ?? null,
+    sentiment: row.sentiment ?? null,
     crossSource,
     citations,
     starred: row.starred,
@@ -245,7 +243,6 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
     agentOpinion: row.agentOpinion ?? null,
     sourceUrl: row.sourceUrl,
     createdAt: row.createdAt,
-    sourcePublishedAt: row.sourcePublishedAt ?? null,
   }
 }
 

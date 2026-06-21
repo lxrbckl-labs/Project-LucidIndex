@@ -12,6 +12,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Bebas_Neue, Inter } from 'next/font/google'
 import type { ReactNode } from 'react'
+import { ThemeColorMeta } from '@/components/chrome/ThemeColorMeta'
 import { ThemeProvider } from '@/components/chrome/ThemeProvider'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -50,6 +51,13 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  // Browser UI tint (Safari toolbar, mobile address bar) — matched to the page
+  // `--background`. Static media values cover SSR + the default `system` theme;
+  // <ThemeColorMeta /> refines them to the resolved theme after hydration.
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f8f6f2' },
+    { media: '(prefers-color-scheme: dark)', color: '#1e1e1e' },
+  ],
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -57,6 +65,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" className={`${display.variable} ${body.variable}`} suppressHydrationWarning>
       <body className="font-body antialiased">
         <ThemeProvider>
+          <ThemeColorMeta />
           <TooltipProvider delayDuration={200}>{children}</TooltipProvider>
           <Toaster />
         </ThemeProvider>

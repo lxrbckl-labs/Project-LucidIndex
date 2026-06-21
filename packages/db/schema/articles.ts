@@ -51,8 +51,6 @@ export type ArticleCitation = {
  * - `hidden` / `hidden_at` — admin-driven hide-from-everywhere toggle.
  * - `dashboard_visible` — flipped to false by the 14-day retention purge so
  *   the article rolls off the dashboard but stays accessible via share-link.
- * - `source_published_at_estimated` — when true, the agent fell back to its
- *   own run time as the publish date and the UI prefixes with "~".
  * - `tsvector` — generated column over `title || summary || agent_deep_dive`,
  *   indexed with GIN for FTS.
  *
@@ -89,8 +87,6 @@ export const articles = pgTable(
      * Aggregated per-author on /c/[slug] for a sentiment gauge.
      */
     sentiment: smallint('sentiment'),
-    sourcePublishedAt: timestamp('source_published_at', { withTimezone: true }),
-    sourcePublishedAtEstimated: boolean('source_published_at_estimated').notNull().default(false),
     heroImageHash: text('hero_image_hash'),
     crossSource: jsonb('cross_source').notNull().default(sql`'[]'::jsonb`),
     citations: jsonb('citations').notNull().default(sql`'[]'::jsonb`),

@@ -10,7 +10,7 @@
  *
  * Props:
  *   articleId — used to check/update the seen set
- *   date      — the date to display (sourcePublishedAt ?? createdAt).
+ *   date      — the date to display (the article's createdAt).
  *               Accepts a Date, an ISO string, or null. Null renders nothing.
  */
 

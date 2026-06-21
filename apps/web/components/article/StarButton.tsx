@@ -1,101 +1,68 @@
 'use client'
 
 /**
- * StarButton — star/unstar tile action (#66).
+ * StarButton — star/unstar an article.
  *
- * Phase 4 rebuild: shadcn `<Button variant="ghost" size="icon">` with
- * lucide `<Star>` icon (filled when starred). Preserves existing optimistic
- * toggle state + server action. Used on both dashboard tiles and the
- * article detail page.
+ * Stars are a CLIENT-ONLY, guest-friendly preference stored in localStorage
+ * (`article-prefs.ts`) — no sign-in required, mirroring starred topics/
+ * creators. There is no admin gate and the button is never disabled. Used on
+ * dashboard tiles (`variant="icon"`) and the article detail page
+ * (`variant="labeled"`).
  *
- * Authorization: the parent server component decides whether to render
- * this button at all. When no admin session is present, the parent
- * passes `disabled` so the button renders as a non-interactive icon.
- *
- * `variant="labeled"` — used on the article detail page. Renders as a
- * polished outlined pill (icon + "Star" / "Starred" label) to match the
- * ShareLinkButton visual treatment. Tiles use the default `"icon"` mode.
- *
- * Toasts on every toggle:
- *   - Starred → toast.success('Starred')
- *   - Unstarred → toast('Unstarred')
- * First-time star: replaces the basic "Starred" toast with a longer-duration
- * one that links to /starred. Tracked via localStorage key
+ * First-time star shows a longer toast linking to /starred, tracked via
  * `lucidindex:has-starred-once`.
  */
 
 import { Star } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useState, useTransition } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { toggleStar } from '@/app/a/[slug]/actions'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { isArticleStarred, toggleStarredArticle } from '@/lib/article-prefs'
 import { cn } from '@/lib/utils'
 
 const STARRED_ONCE_KEY = 'lucidindex:has-starred-once'
 
 type Props = {
   articleId: string
-  slug: string
-  initialStarred: boolean
-  /** True when no admin session is present — render visible-but-inert. */
-  disabled?: boolean
   /**
    * `'icon'` (default) — ghost icon-only button, used on dashboard tiles.
-   * `'labeled'` — outlined pill with icon + text label, used on the article
-   *   detail page to match ShareLinkButton.
+   * `'labeled'` — outlined pill with icon + text, used on the article page.
    */
   variant?: 'icon' | 'labeled'
   /** Extra classes merged onto the icon-variant button (e.g. size overrides). */
   className?: string
 }
 
-export function StarButton({
-  articleId,
-  slug,
-  initialStarred,
-  disabled = false,
-  variant = 'icon',
-  className,
-}: Props) {
-  const [starred, setStarred] = useState(initialStarred)
-  const [isPending, startTransition] = useTransition()
+export function StarButton({ articleId, variant = 'icon', className }: Props) {
+  const [starred, setStarred] = useState(false)
   const router = useRouter()
+
+  // Hydrate from localStorage after mount (client-only; avoids SSR mismatch).
+  useEffect(() => {
+    setStarred(isArticleStarred(articleId))
+  }, [articleId])
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     e.preventDefault()
-    if (disabled) return
-    const next = !starred
-    setStarred(next) // optimistic flip
-    startTransition(async () => {
-      try {
-        await toggleStar(articleId, slug)
-        if (next) {
-          // Starring — check first-time hint
-          if (typeof window !== 'undefined' && !localStorage.getItem(STARRED_ONCE_KEY)) {
-            localStorage.setItem(STARRED_ONCE_KEY, '1')
-            toast.success('Starred', {
-              description: 'Find your starred articles at /starred',
-              duration: 8000,
-              action: {
-                label: 'View',
-                onClick: () => router.push('/starred'),
-              },
-            })
-          } else {
-            toast.success('Starred')
-          }
-        } else {
-          // Unstarring
-          toast('Unstarred')
-        }
-      } catch {
-        // Revert on failure.
-        setStarred(!next)
+    const next = toggleStarredArticle(articleId)
+    setStarred(next)
+    if (next) {
+      if (typeof window !== 'undefined' && !localStorage.getItem(STARRED_ONCE_KEY)) {
+        localStorage.setItem(STARRED_ONCE_KEY, '1')
+        toast.success('Starred', {
+          description: 'Find your starred articles at /starred',
+          duration: 8000,
+          action: { label: 'View', onClick: () => router.push('/starred') },
+        })
+      } else {
+        toast.success('Starred')
       }
-    })
+    } else {
+      toast('Unstarred')
+    }
   }
 
   if (variant === 'labeled') {
@@ -104,7 +71,6 @@ export function StarButton({
         type="button"
         variant="outline"
         onClick={handleClick}
-        disabled={disabled || isPending}
         aria-pressed={starred}
         aria-label={starred ? 'Remove star' : 'Star this article'}
         data-testid="article-star"
@@ -124,7 +90,6 @@ export function StarButton({
           size="icon"
           className={cn('border', className)}
           onClick={handleClick}
-          disabled={disabled || isPending}
           aria-pressed={starred}
           aria-label={starred ? 'Remove star' : 'Star this article'}
           data-testid="article-star"

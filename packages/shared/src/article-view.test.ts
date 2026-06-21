@@ -16,6 +16,7 @@ import {
   formatPublishLabel,
   heroImageUrlFromHash,
   mapArticleRowToCard,
+  sentimentToSliderPercent,
 } from './article-view.js'
 
 describe('formatPublishLabel', () => {
@@ -47,6 +48,29 @@ describe('estimateCardReadMinutes', () => {
   it('returns 1 for an empty summary', () => {
     expect(estimateCardReadMinutes('')).toBe(1)
     expect(estimateCardReadMinutes('   ')).toBe(1)
+  })
+})
+
+describe('sentimentToSliderPercent', () => {
+  it('maps the most bearish sentiment (-5) to 0%', () => {
+    expect(sentimentToSliderPercent(-5)).toBe(0)
+  })
+
+  it('maps neutral sentiment (0) to the midpoint (50%)', () => {
+    expect(sentimentToSliderPercent(0)).toBe(50)
+  })
+
+  it('maps the most bullish sentiment (+5) to 100%', () => {
+    expect(sentimentToSliderPercent(5)).toBe(100)
+  })
+
+  it('maps an intermediate bearish value (-3) to 20%', () => {
+    expect(sentimentToSliderPercent(-3)).toBe(20)
+  })
+
+  it('clamps out-of-range values to [0, 100]', () => {
+    expect(sentimentToSliderPercent(-99)).toBe(0)
+    expect(sentimentToSliderPercent(99)).toBe(100)
   })
 })
 
@@ -98,8 +122,6 @@ describe('mapArticleRowToCard', () => {
     summary: 'A short summary of the article.',
     topicBadges: ['AI', 'GRAPHICS'],
     significance: 'large',
-    sourcePublishedAt: new Date('2026-04-24T12:00:00Z'),
-    sourcePublishedAtEstimated: false,
     heroImageHash: 'abc123',
     agentLabel: 'compute-watch',
     creatorLabel: 'Web Graphics Lab',
@@ -118,7 +140,7 @@ describe('mapArticleRowToCard', () => {
     expect(card.id).toBe('a1')
     expect(card.slug).toBe('2026-04-24-webgpu')
     expect(card.publishedLabel).toBe('24. April 2026')
-    expect(card.publishedAt).toBe('2026-04-24T12:00:00.000Z')
+    expect(card.publishedAt).toBe('2026-04-24T13:00:00.000Z')
     expect(card.publishedEstimated).toBe(false)
     expect(card.heroImageUrl).toBe('/i/abc123')
     expect(card.agentLabel).toBe('compute-watch')
@@ -128,12 +150,6 @@ describe('mapArticleRowToCard', () => {
     expect(card.crossSource).toEqual([{ title: 'X', source_url: 'https://x/y' }])
     expect(card.readMinutes).toBe(1)
     expect(card.createdAt).toEqual(new Date('2026-04-24T13:00:00Z'))
-  })
-
-  it('falls back to created_at when source_published_at is null', () => {
-    const card = mapArticleRowToCard({ ...baseRow, sourcePublishedAt: null })
-    expect(card.publishedAt).toBe('2026-04-24T13:00:00.000Z')
-    expect(card.publishedLabel).toBe('24. April 2026')
   })
 
   it('falls back agent label to "unknown" when join missed', () => {
@@ -161,8 +177,8 @@ describe('mapArticleRowToCard', () => {
     expect(card.significance).toBe('small')
   })
 
-  it('preserves the publishedEstimated flag for the "~" UI prefix', () => {
-    const card = mapArticleRowToCard({ ...baseRow, sourcePublishedAtEstimated: true })
-    expect(card.publishedEstimated).toBe(true)
+  it('always reports publishedEstimated false (source-published date removed)', () => {
+    const card = mapArticleRowToCard(baseRow)
+    expect(card.publishedEstimated).toBe(false)
   })
 })

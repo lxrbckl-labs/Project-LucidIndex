@@ -32,8 +32,8 @@
  * interpreted via `new Date(...)` and reduced to its ISO date prefix
  * (`YYYY-MM-DD`). UTC is the contract; the publish-day pill on the
  * article page derives its display label from a separate field (the
- * raw `source_published_at` timestamp), not the slug, so a UTC slug
- * with a local-tz pill is correct and unambiguous.
+ * `created_at` timestamp), not the slug, so a UTC slug with a local-tz
+ * pill is correct and unambiguous.
  */
 
 import { createHash } from 'node:crypto'
