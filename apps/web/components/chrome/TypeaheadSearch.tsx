@@ -48,6 +48,7 @@ import type {
   TypeaheadCreator,
   TypeaheadTopic,
 } from '@/app/api/search/typeahead/route'
+import { Button } from '@/components/ui/button'
 import {
   Command,
   CommandEmpty,
@@ -58,6 +59,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { type SettingsIndexEntry, searchSettingsIndex } from '@/lib/settings-index'
+import { cn } from '@/lib/utils'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -164,10 +166,30 @@ export function TypeaheadSearch() {
   const [forumTopics, setForumTopics] = useState<ForumTopicHit[]>([])
   const [loading, setLoading] = useState(false)
 
+  // Mobile (< sm): the search collapses to an icon and expands into a
+  // full-width bar over the header when tapped. No effect on sm+.
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   /** AbortController for the current in-flight fetch. */
   const abortRef = useRef<AbortController | null>(null)
+
+  // Collapse the mobile search whenever the route changes — covers selecting a
+  // result (which navigates) without touching the eight per-type select
+  // handlers. TopNav stays mounted across navigations, so without this the
+  // overlay would linger open on the destination page.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: collapse on path change only
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname])
+
+  function openMobileSearch() {
+    setMobileOpen(true)
+    // Focus once the overlay has mounted/animated in.
+    setTimeout(() => inputRef.current?.focus(), 50)
+  }
 
   function clearDashboardResults() {
     setArticles([])
@@ -452,345 +474,393 @@ export function TypeaheadSearch() {
   const showDropdown = open && (loading || hasResults || trimmedQuery.length >= effectiveMinLength)
 
   return (
-    <search aria-label="Site search" className="flex-1 min-w-[10rem] max-w-[28rem]">
-      <Popover open={showDropdown} onOpenChange={setOpen}>
-        <form onSubmit={handleSubmit} data-testid="topnav-search-form">
-          <PopoverTrigger asChild>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-              <Input
-                ref={inputRef}
-                id="topnav-search"
-                type="search"
-                name="q"
-                value={query}
-                onChange={(e) => handleChange(e.target.value)}
-                onFocus={() => {
-                  // Open popover on focus when there's already enough input,
-                  // or always on settings pages (browse mode shows all settings).
-                  if (onSettingsPage) {
-                    // Browse mode: even empty query should open to show all settings
-                    updateSettingsResults(query)
-                    setOpen(true)
-                  } else if (trimmedQuery.length >= MIN_LENGTH) {
-                    setOpen(true)
-                  }
-                }}
-                placeholder="Search"
-                autoComplete="off"
-                data-testid="topnav-search-input"
-                className="w-full pl-8 pr-2 h-9 bg-background focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
-              />
-            </div>
-          </PopoverTrigger>
-        </form>
-
-        <PopoverContent
-          className="p-0 w-[var(--radix-popover-trigger-width)] min-w-[320px]"
-          align="start"
-          onOpenAutoFocus={(e) => e.preventDefault()}
+    <search
+      aria-label="Site search"
+      className="shrink-0 sm:flex-1 sm:min-w-[10rem] sm:max-w-[28rem]"
+    >
+      {/* Mobile (< sm): collapsed search icon. Tapping it expands the bar. */}
+      {!mobileOpen && (
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          onClick={openMobileSearch}
+          aria-label="Search"
+          data-testid="topnav-search-icon"
+          className="h-9 w-9 sm:hidden"
         >
-          <Command shouldFilter={false}>
-            <CommandList>
-              {loading && (
-                <CommandEmpty className="py-3 text-sm text-muted-foreground">
-                  Searching…
-                </CommandEmpty>
-              )}
-              {!loading && !hasResults && trimmedQuery.length >= effectiveMinLength && (
-                <CommandEmpty className="py-3 text-sm text-muted-foreground">
-                  No matches for &ldquo;{truncate(query, 40)}&rdquo;
-                </CommandEmpty>
-              )}
+          <Search className="h-4 w-4" />
+        </Button>
+      )}
 
-              {/* ── Settings group (shown first on /settings/* routes) ── */}
-              {!loading && !onForumPage && settingsResults.length > 0 && (
-                <CommandGroup heading="Settings">
-                  {settingsResults.map((entry) => (
-                    <CommandItem
-                      key={entry.href}
-                      value={entry.href}
-                      onSelect={() => handleSelectSetting(entry.href)}
-                      className="flex items-center gap-3 px-3 py-2 cursor-pointer"
-                    >
-                      {/* Settings icon */}
-                      <div className="shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                        <Settings className="h-4 w-4 text-muted-foreground" />
-                      </div>
+      {/* The field. On sm+ it's the inline bar (always shown). On mobile it's
+          hidden until tapped, then a full-width bar over the whole header
+          (absolute inset-0 resolves against the sticky <header>). */}
+      <div
+        className={cn(
+          mobileOpen
+            ? 'absolute inset-0 z-50 flex items-center bg-background px-4 duration-200 animate-in fade-in slide-in-from-right-6'
+            : 'hidden',
+          'sm:static sm:inset-auto sm:z-auto sm:flex sm:animate-none sm:items-stretch sm:gap-0 sm:bg-transparent sm:p-0',
+        )}
+      >
+        {/* No back arrow — the full bar fills the overlay; clicking away
+            (input blur) collapses it back to the icon. */}
+        <Popover open={showDropdown} onOpenChange={setOpen}>
+          <form
+            onSubmit={handleSubmit}
+            data-testid="topnav-search-form"
+            className="flex-1 sm:w-full"
+          >
+            <PopoverTrigger asChild>
+              <div className="relative w-full">
+                <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                <Input
+                  ref={inputRef}
+                  id="topnav-search"
+                  type="search"
+                  name="q"
+                  value={query}
+                  onChange={(e) => handleChange(e.target.value)}
+                  onFocus={() => {
+                    // Keep the mobile overlay open while focused — cancel any
+                    // pending collapse queued by a transient blur.
+                    if (blurTimerRef.current) clearTimeout(blurTimerRef.current)
+                    // Open popover on focus when there's already enough input,
+                    // or always on settings pages (browse mode shows all settings).
+                    if (onSettingsPage) {
+                      // Browse mode: even empty query should open to show all settings
+                      updateSettingsResults(query)
+                      setOpen(true)
+                    } else if (trimmedQuery.length >= MIN_LENGTH) {
+                      setOpen(true)
+                    }
+                  }}
+                  onBlur={() => {
+                    // Mobile: collapse the overlay back to the icon shortly after
+                    // blur. The delay lets a result tap register first; a route
+                    // change also collapses it via the pathname effect above.
+                    if (blurTimerRef.current) clearTimeout(blurTimerRef.current)
+                    blurTimerRef.current = setTimeout(() => setMobileOpen(false), 150)
+                  }}
+                  placeholder="Search"
+                  autoComplete="off"
+                  data-testid="topnav-search-input"
+                  className="w-full pl-8 pr-2 h-9 bg-background focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
+                />
+              </div>
+            </PopoverTrigger>
+          </form>
 
-                      {/* Title + description */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm leading-tight truncate">
-                          {highlightMatch(entry.title, trimmedQuery)}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                          {highlightMatch(entry.description, trimmedQuery)}
-                        </p>
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
+          <PopoverContent
+            className="p-0 w-[var(--radix-popover-trigger-width)] min-w-[320px]"
+            align="start"
+            onOpenAutoFocus={(e) => e.preventDefault()}
+          >
+            <Command shouldFilter={false}>
+              <CommandList>
+                {loading && (
+                  <CommandEmpty className="py-3 text-sm text-muted-foreground">
+                    Searching…
+                  </CommandEmpty>
+                )}
+                {!loading && !hasResults && trimmedQuery.length >= effectiveMinLength && (
+                  <CommandEmpty className="py-3 text-sm text-muted-foreground">
+                    No matches for &ldquo;{truncate(query, 40)}&rdquo;
+                  </CommandEmpty>
+                )}
 
-              {/* ── Forum Posts group ─────────────────────────────────── */}
-              {!loading && onForumPage && forumPosts.length > 0 && (
-                <CommandGroup heading="Forum Posts">
-                  {forumPosts.map((p) => (
-                    <CommandItem
-                      key={p.id}
-                      value={`forum-post-${p.id}`}
-                      onSelect={() => handleSelectForumPost(p.id)}
-                      className="flex items-center gap-3 px-3 py-2 cursor-pointer"
-                    >
-                      {/* Post icon */}
-                      <div className="shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                        <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                      </div>
+                {/* ── Settings group (shown first on /settings/* routes) ── */}
+                {!loading && !onForumPage && settingsResults.length > 0 && (
+                  <CommandGroup heading="Settings">
+                    {settingsResults.map((entry) => (
+                      <CommandItem
+                        key={entry.href}
+                        value={entry.href}
+                        onSelect={() => handleSelectSetting(entry.href)}
+                        className="flex items-center gap-3 px-3 py-2 cursor-pointer"
+                      >
+                        {/* Settings icon */}
+                        <div className="shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                          <Settings className="h-4 w-4 text-muted-foreground" />
+                        </div>
 
-                      {/* Title + author */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm leading-tight truncate">
-                          {highlightMatch(truncate(p.title, 60), trimmedQuery)}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5 truncate flex items-center gap-1">
-                          <span>@{p.authorUsername}</span>
-                          {p.authorIsAgent && (
-                            <Bot className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
+                        {/* Title + description */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm leading-tight truncate">
+                            {highlightMatch(entry.title, trimmedQuery)}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                            {highlightMatch(entry.description, trimmedQuery)}
+                          </p>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
+
+                {/* ── Forum Posts group ─────────────────────────────────── */}
+                {!loading && onForumPage && forumPosts.length > 0 && (
+                  <CommandGroup heading="Forum Posts">
+                    {forumPosts.map((p) => (
+                      <CommandItem
+                        key={p.id}
+                        value={`forum-post-${p.id}`}
+                        onSelect={() => handleSelectForumPost(p.id)}
+                        className="flex items-center gap-3 px-3 py-2 cursor-pointer"
+                      >
+                        {/* Post icon */}
+                        <div className="shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                          <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                        </div>
+
+                        {/* Title + author */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm leading-tight truncate">
+                            {highlightMatch(truncate(p.title, 60), trimmedQuery)}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5 truncate flex items-center gap-1">
+                            <span>@{p.authorUsername}</span>
+                            {p.authorIsAgent && (
+                              <Bot className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
+                            )}
+                          </p>
+                        </div>
+
+                        {/* Date */}
+                        {p.createdAt && (
+                          <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                            {formatDate(p.createdAt)}
+                          </span>
+                        )}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
+
+                {/* ── Authors group (forum mode) ────────────────────────── */}
+                {!loading && onForumPage && forumAuthors.length > 0 && (
+                  <CommandGroup heading="Authors">
+                    {forumAuthors.map((a) => (
+                      <CommandItem
+                        key={a.id}
+                        value={`forum-author-${a.id}`}
+                        onSelect={() => handleSelectForumAuthor(a.username)}
+                        className="flex items-center gap-3 px-3 py-2 cursor-pointer"
+                      >
+                        {/* Avatar circle */}
+                        <div className="shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                          {a.isAgent ? (
+                            <Bot className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <User className="h-4 w-4 text-muted-foreground" />
                           )}
-                        </p>
-                      </div>
+                        </div>
 
-                      {/* Date */}
-                      {p.createdAt && (
-                        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                          {formatDate(p.createdAt)}
-                        </span>
-                      )}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
+                        {/* Username */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm leading-tight truncate">
+                            @{highlightMatch(a.username, trimmedQuery)}
+                          </p>
+                          {a.isAgent && (
+                            <p className="text-xs text-muted-foreground mt-0.5">agent</p>
+                          )}
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
 
-              {/* ── Authors group (forum mode) ────────────────────────── */}
-              {!loading && onForumPage && forumAuthors.length > 0 && (
-                <CommandGroup heading="Authors">
-                  {forumAuthors.map((a) => (
-                    <CommandItem
-                      key={a.id}
-                      value={`forum-author-${a.id}`}
-                      onSelect={() => handleSelectForumAuthor(a.username)}
-                      className="flex items-center gap-3 px-3 py-2 cursor-pointer"
-                    >
-                      {/* Avatar circle */}
-                      <div className="shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                        {a.isAgent ? (
-                          <Bot className="h-4 w-4 text-muted-foreground" />
-                        ) : (
+                {/* ── Topics group (forum mode) ─────────────────────────── */}
+                {!loading && onForumPage && forumTopics.length > 0 && (
+                  <CommandGroup heading="Topics">
+                    {forumTopics.map((t) => (
+                      <CommandItem
+                        key={`forum-topic-${t.id}`}
+                        value={`forum-topic-${t.id}`}
+                        onSelect={() => handleSelectForumTopic(t.id)}
+                        className="flex items-center gap-3 px-3 py-2 cursor-pointer"
+                      >
+                        {/* Hash icon */}
+                        <div className="shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                          <Hash className="h-4 w-4 text-muted-foreground" />
+                        </div>
+
+                        {/* Name + post count */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm leading-tight truncate">
+                            {highlightMatch(t.name, trimmedQuery)}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {t.postCount === 1 ? '1 post' : `${t.postCount} posts`}
+                          </p>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
+
+                {/* ── Creators group ────────────────────────────────────── */}
+                {!loading && !onForumPage && creators.length > 0 && (
+                  <CommandGroup heading="Creators">
+                    {creators.map((c) => (
+                      <CommandItem
+                        key={c.id}
+                        value={c.id}
+                        onSelect={() => handleSelectCreator(c.slug)}
+                        className="flex items-center gap-3 px-3 py-2 cursor-pointer"
+                      >
+                        {/* Avatar circle */}
+                        <div className="shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
                           <User className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </div>
+                        </div>
 
-                      {/* Username */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm leading-tight truncate">
-                          @{highlightMatch(a.username, trimmedQuery)}
-                        </p>
-                        {a.isAgent && <p className="text-xs text-muted-foreground mt-0.5">agent</p>}
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-
-              {/* ── Topics group (forum mode) ─────────────────────────── */}
-              {!loading && onForumPage && forumTopics.length > 0 && (
-                <CommandGroup heading="Topics">
-                  {forumTopics.map((t) => (
-                    <CommandItem
-                      key={`forum-topic-${t.id}`}
-                      value={`forum-topic-${t.id}`}
-                      onSelect={() => handleSelectForumTopic(t.id)}
-                      className="flex items-center gap-3 px-3 py-2 cursor-pointer"
-                    >
-                      {/* Hash icon */}
-                      <div className="shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                        <Hash className="h-4 w-4 text-muted-foreground" />
-                      </div>
-
-                      {/* Name + post count */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm leading-tight truncate">
-                          {highlightMatch(t.name, trimmedQuery)}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {t.postCount === 1 ? '1 post' : `${t.postCount} posts`}
-                        </p>
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-
-              {/* ── Creators group ────────────────────────────────────── */}
-              {!loading && !onForumPage && creators.length > 0 && (
-                <CommandGroup heading="Creators">
-                  {creators.map((c) => (
-                    <CommandItem
-                      key={c.id}
-                      value={c.id}
-                      onSelect={() => handleSelectCreator(c.slug)}
-                      className="flex items-center gap-3 px-3 py-2 cursor-pointer"
-                    >
-                      {/* Avatar circle */}
-                      <div className="shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                      </div>
-
-                      {/* Label + article count */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm leading-tight truncate">
-                          {highlightMatch(truncate(c.label, 60), trimmedQuery)}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {c.articleCount === 1 ? '1 article' : `${c.articleCount} articles`}
-                        </p>
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-
-              {/* ── Topics group ──────────────────────────────────────── */}
-              {!loading && !onForumPage && topics.length > 0 && (
-                <CommandGroup heading="Topics">
-                  {topics.map((t) => (
-                    <CommandItem
-                      key={t.name}
-                      value={t.name}
-                      onSelect={() => handleSelectTopic(t.name)}
-                      className="flex items-center gap-3 px-3 py-2 cursor-pointer"
-                    >
-                      {/* Hash icon */}
-                      <div className="shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                        <Hash className="h-4 w-4 text-muted-foreground" />
-                      </div>
-
-                      {/* Name + article count */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm leading-tight truncate">
-                          {highlightMatch(t.name, trimmedQuery)}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {t.articleCount === 1 ? '1 article' : `${t.articleCount} articles`}
-                        </p>
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-
-              {/* ── Starred articles group ────────────────────────────── */}
-              {!loading && !onForumPage && starredArticles.length > 0 && (
-                <CommandGroup heading="Starred">
-                  {starredArticles.map((r) => (
-                    <CommandItem
-                      key={r.id}
-                      value={`starred-${r.id}`}
-                      onSelect={() => handleSelectArticle(r.slug)}
-                      className="flex items-center gap-3 px-3 py-2 cursor-pointer"
-                    >
-                      {/* Thumbnail */}
-                      <div className="shrink-0 w-8 h-8 rounded overflow-hidden bg-muted flex items-center justify-center">
-                        {r.heroImageHash ? (
-                          <Image
-                            src={`/i/${r.heroImageHash}`}
-                            alt=""
-                            width={32}
-                            height={32}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <Star className="h-4 w-4 text-muted-foreground fill-current" />
-                        )}
-                      </div>
-
-                      {/* Title + creator */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm leading-tight truncate">
-                          {highlightMatch(truncate(r.title, 60), trimmedQuery)}
-                        </p>
-                        {r.creatorLabel && (
-                          <p className="text-xs text-muted-foreground truncate mt-0.5">
-                            {highlightMatch(r.creatorLabel, trimmedQuery)}
+                        {/* Label + article count */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm leading-tight truncate">
+                            {highlightMatch(truncate(c.label, 60), trimmedQuery)}
                           </p>
-                        )}
-                      </div>
-
-                      {/* Star icon (always visible, to distinguish from regular articles) */}
-                      <Star className="shrink-0 h-3.5 w-3.5 text-amber-400 fill-current" />
-
-                      {/* Date */}
-                      {r.createdAt && (
-                        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                          {formatDate(r.createdAt)}
-                        </span>
-                      )}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-
-              {/* ── Articles group ─────────────────────────────────────── */}
-              {!loading && !onForumPage && articles.length > 0 && (
-                <CommandGroup heading="Articles">
-                  {articles.map((r) => (
-                    <CommandItem
-                      key={r.id}
-                      value={r.id}
-                      onSelect={() => handleSelectArticle(r.slug)}
-                      className="flex items-center gap-3 px-3 py-2 cursor-pointer"
-                    >
-                      {/* Thumbnail */}
-                      <div className="shrink-0 w-8 h-8 rounded overflow-hidden bg-muted flex items-center justify-center">
-                        {r.heroImageHash ? (
-                          <Image
-                            src={`/i/${r.heroImageHash}`}
-                            alt=""
-                            width={32}
-                            height={32}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </div>
-
-                      {/* Title + creator */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm leading-tight truncate">
-                          {highlightMatch(truncate(r.title, 60), trimmedQuery)}
-                        </p>
-                        {r.creatorLabel && (
-                          <p className="text-xs text-muted-foreground truncate mt-0.5">
-                            {highlightMatch(r.creatorLabel, trimmedQuery)}
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {c.articleCount === 1 ? '1 article' : `${c.articleCount} articles`}
                           </p>
-                        )}
-                      </div>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
 
-                      {/* Date */}
-                      {r.createdAt && (
-                        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                          {formatDate(r.createdAt)}
-                        </span>
-                      )}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
+                {/* ── Topics group ──────────────────────────────────────── */}
+                {!loading && !onForumPage && topics.length > 0 && (
+                  <CommandGroup heading="Topics">
+                    {topics.map((t) => (
+                      <CommandItem
+                        key={t.name}
+                        value={t.name}
+                        onSelect={() => handleSelectTopic(t.name)}
+                        className="flex items-center gap-3 px-3 py-2 cursor-pointer"
+                      >
+                        {/* Hash icon */}
+                        <div className="shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                          <Hash className="h-4 w-4 text-muted-foreground" />
+                        </div>
+
+                        {/* Name + article count */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm leading-tight truncate">
+                            {highlightMatch(t.name, trimmedQuery)}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {t.articleCount === 1 ? '1 article' : `${t.articleCount} articles`}
+                          </p>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
+
+                {/* ── Starred articles group ────────────────────────────── */}
+                {!loading && !onForumPage && starredArticles.length > 0 && (
+                  <CommandGroup heading="Starred">
+                    {starredArticles.map((r) => (
+                      <CommandItem
+                        key={r.id}
+                        value={`starred-${r.id}`}
+                        onSelect={() => handleSelectArticle(r.slug)}
+                        className="flex items-center gap-3 px-3 py-2 cursor-pointer"
+                      >
+                        {/* Thumbnail */}
+                        <div className="shrink-0 w-8 h-8 rounded overflow-hidden bg-muted flex items-center justify-center">
+                          {r.heroImageHash ? (
+                            <Image
+                              src={`/i/${r.heroImageHash}`}
+                              alt=""
+                              width={32}
+                              height={32}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Star className="h-4 w-4 text-muted-foreground fill-current" />
+                          )}
+                        </div>
+
+                        {/* Title + creator */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm leading-tight truncate">
+                            {highlightMatch(truncate(r.title, 60), trimmedQuery)}
+                          </p>
+                          {r.creatorLabel && (
+                            <p className="text-xs text-muted-foreground truncate mt-0.5">
+                              {highlightMatch(r.creatorLabel, trimmedQuery)}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Star icon (always visible, to distinguish from regular articles) */}
+                        <Star className="shrink-0 h-3.5 w-3.5 text-amber-400 fill-current" />
+
+                        {/* Date */}
+                        {r.createdAt && (
+                          <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                            {formatDate(r.createdAt)}
+                          </span>
+                        )}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
+
+                {/* ── Articles group ─────────────────────────────────────── */}
+                {!loading && !onForumPage && articles.length > 0 && (
+                  <CommandGroup heading="Articles">
+                    {articles.map((r) => (
+                      <CommandItem
+                        key={r.id}
+                        value={r.id}
+                        onSelect={() => handleSelectArticle(r.slug)}
+                        className="flex items-center gap-3 px-3 py-2 cursor-pointer"
+                      >
+                        {/* Thumbnail */}
+                        <div className="shrink-0 w-8 h-8 rounded overflow-hidden bg-muted flex items-center justify-center">
+                          {r.heroImageHash ? (
+                            <Image
+                              src={`/i/${r.heroImageHash}`}
+                              alt=""
+                              width={32}
+                              height={32}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <FileText className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </div>
+
+                        {/* Title + creator */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm leading-tight truncate">
+                            {highlightMatch(truncate(r.title, 60), trimmedQuery)}
+                          </p>
+                          {r.creatorLabel && (
+                            <p className="text-xs text-muted-foreground truncate mt-0.5">
+                              {highlightMatch(r.creatorLabel, trimmedQuery)}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Date */}
+                        {r.createdAt && (
+                          <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                            {formatDate(r.createdAt)}
+                          </span>
+                        )}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+      </div>
     </search>
   )
 }

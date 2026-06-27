@@ -24,7 +24,7 @@ export function AgentOpinionSection({ agentOpinion }: Props) {
   const [open, setOpen] = useState(false)
 
   return (
-    <div className="mt-0" data-testid="article-agent-opinion">
+    <div className="mt-8" data-testid="article-agent-opinion">
       <Separator />
       <Collapsible open={open} onOpenChange={setOpen}>
         <CollapsibleTrigger className="flex w-full items-center justify-between py-4 text-left">

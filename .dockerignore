@@ -12,11 +12,19 @@ node_modules
 .pnpm-store
 **/.pnpm-store
 
-# Environment files — never bake secrets into images
+# Environment files — never bake secrets into images.
+# Patterns are also `**/`-prefixed so nested copies are excluded too — notably
+# `apps/web/.env`, which is a symlink to the root `.env`. Without excluding it,
+# the image gets a DANGLING symlink (its target `.env` is ignored), and Next's
+# standalone build fails: `ENOENT: stat '/app/apps/web/.env'`.
 .env
 .env.local
 .env.*
+**/.env
+**/.env.local
+**/.env.*
 !.env.example
+!**/.env.example
 
 # Git metadata
 .git

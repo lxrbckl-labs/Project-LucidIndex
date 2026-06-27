@@ -33,6 +33,7 @@ import { AuthenticatedEmptyState } from '@/components/article/AuthenticatedEmpty
 import { FilteredArticleMasonry } from '@/components/article/FilteredArticleMasonry'
 import { LiveArticleStream } from '@/components/article/LiveArticleStream'
 import { MasonryKeyboardNav } from '@/components/article/MasonryKeyboardNav'
+import { ScrollTopOnArrive } from '@/components/article/ScrollTopOnArrive'
 import { StarredArticlesMasonry } from '@/components/article/StarredArticlesMasonry'
 import { TopicFocusCard } from '@/components/article/TopicFocusCard'
 import { SiteFooter } from '@/components/chrome/SiteFooter'
@@ -135,6 +136,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
       <TopNav />
 
       <main className="px-4 pt-4 pb-4 flex flex-col gap-4">
+        {/* Forces scroll-to-top when arriving via an article topic badge,
+            beating the browser's restored scroll position. Renders nothing. */}
+        <ScrollTopOnArrive />
+
         {/* Topic filter row OR focus card, depending on ?badge */}
         {badgeFilter ? (
           /* Focused view: topic card with star + metadata. Back lives in TopNav. */

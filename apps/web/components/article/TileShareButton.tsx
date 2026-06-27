@@ -22,8 +22,14 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 const COPIED_DURATION_MS = 2000
 
 type Props = {
-  /** Absolute URL of the article to share. */
-  url: string
+  /**
+   * Article slug. The shareable URL is built CLIENT-SIDE from the current
+   * origin (`window.location.origin`) at click time, so it matches the address
+   * bar the visitor is on — not the server's baked-in `WEBAUTHN_ORIGIN` (which
+   * is `localhost:47892` in the container image). Mirrors what the article-page
+   * share does via `window.location.href`.
+   */
+  slug: string
 }
 
 /** execCommand fallback for environments without `navigator.clipboard`. */
@@ -45,7 +51,7 @@ function copyViaTextarea(text: string): boolean {
   }
 }
 
-export function TileShareButton({ url }: Props) {
+export function TileShareButton({ slug }: Props) {
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -61,16 +67,19 @@ export function TileShareButton({ url }: Props) {
     e.preventDefault()
 
     if (typeof window === 'undefined') return
+    // Build from the live origin so the copied link matches where the visitor
+    // actually is (prod domain, LAN IP, localhost — whatever's in the bar).
+    const target = `${window.location.origin}/a/${slug}`
     let ok = false
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       try {
-        await navigator.clipboard.writeText(url)
+        await navigator.clipboard.writeText(target)
         ok = true
       } catch {
-        ok = copyViaTextarea(url)
+        ok = copyViaTextarea(target)
       }
     } else {
-      ok = copyViaTextarea(url)
+      ok = copyViaTextarea(target)
     }
     if (ok) {
       setCopied(true)

@@ -24,9 +24,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { StarButton } from './StarButton'
 import { TileShareButton } from './TileShareButton'
 
-const BASE_URL =
-  process.env.WEBAUTHN_ORIGIN ?? process.env.LUCIDINDEX_BASE_URL ?? 'http://localhost:47892'
-
 type Props = {
   article: MockArticle
 }
@@ -103,7 +100,7 @@ export function LargeArticleCard({ article }: Props) {
 
       <CardFooter className="pt-4 flex items-center justify-between">
         <div className="flex gap-1">
-          <TileShareButton url={`${BASE_URL}/a/${article.slug}`} />
+          <TileShareButton slug={article.slug} />
           <StarButton articleId={article.id} />
         </div>
         <Button variant="outline" size="sm" asChild className="border">

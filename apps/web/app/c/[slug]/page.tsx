@@ -12,7 +12,6 @@
  *
  *   Page chrome:
  *     - <TopNav>       ← same as dashboard / article page
- *     - Back button    ← <EscapeToBack> (shadcn ghost Button + ChevronLeft)
  *     - <Wordmark>     ← LUCIDINDEX wordmark
  *     - hairline rule
  *

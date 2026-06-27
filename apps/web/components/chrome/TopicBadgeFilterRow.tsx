@@ -198,13 +198,15 @@ export function TopicBadgeFilterRow({ badges }: Props) {
 
   return (
     <Card className="overflow-hidden" data-pending={isPending ? '' : undefined}>
-      <nav aria-label="Topic filter" className="flex items-stretch pl-4">
-        {/* Pinned cluster — always visible, never scrolls. */}
+      <nav aria-label="Topic filter" className="flex items-stretch pl-4 pr-4 sm:pr-0">
+        {/* Pinned cluster — always visible, never scrolls. On mobile (belt
+            hidden) it spans the row with All/Starred pushed to opposite ends;
+            on sm+ it's a tight left cluster with the belt filling the rest. */}
         <ToggleGroup
           type="single"
           value={pinnedValue}
           onValueChange={handleValueChange}
-          className="flex items-center gap-2 shrink-0 py-4"
+          className="flex w-full items-center justify-between gap-2 py-4 sm:w-auto sm:shrink-0 sm:justify-start"
         >
           <ToggleGroupItem
             value=""
@@ -226,11 +228,16 @@ export function TopicBadgeFilterRow({ badges }: Props) {
           </ToggleGroupItem>
         </ToggleGroup>
 
-        <div className="self-stretch w-px bg-border shrink-0 ml-3" aria-hidden="true" />
+        {/* Separator + the topic belt are desktop/tablet only — on mobile the
+            scrolling pill belt is too cramped, so we keep just All/Starred. */}
+        <div
+          className="hidden self-stretch w-px bg-border shrink-0 ml-3 sm:block"
+          aria-hidden="true"
+        />
 
         {/* Auto-scrolling belt — three copies for seamless looping.
             Hover-pause listeners are attached natively in the rAF effect. */}
-        <div className="lucidindex-belt-mask flex-1 min-w-0 py-4">
+        <div className="lucidindex-belt-mask hidden flex-1 min-w-0 py-4 sm:block">
           <div
             ref={trackRef}
             className="lucidindex-belt-track flex flex-nowrap items-center gap-2 w-max"

@@ -51,9 +51,9 @@ import { MarkSeenOnMount } from '@/components/article/MarkSeenOnMount'
 import { ShareLinkButton } from '@/components/article/ShareLinkButton'
 import { SourcesSection } from '@/components/article/SourcesSection'
 import { StarButton } from '@/components/article/StarButton'
+import { TopicBadgeLink } from '@/components/article/TopicBadgeLink'
 import { SiteFooter } from '@/components/chrome/SiteFooter'
 import { TopNav } from '@/components/chrome/TopNav'
-import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { markRead } from './actions'
 import { applyFairUseCap, loadArticleBySlug } from './loader'
@@ -164,11 +164,13 @@ export default async function ArticlePage({
   const bodyText = article.agentDeepDive ?? ''
   const { text: cappedBody, truncated } = applyFairUseCap(bodyText)
 
-  // Bearish/Bullish gauge is driven by the agent's `sentiment` (-5..+5) —
-  // the literal bearish→bullish signal. Hidden when the agent didn't supply
-  // one (the reasonableness rating is a separate "how credible" measure and
-  // is intentionally not surfaced here).
-  const showSentiment = article.sentiment !== null
+  // Bearish/Bullish gauge is driven by the agent's `sentiment` (-5..+5) — the
+  // literal bearish→bullish signal. Always shown on the meta row; when the
+  // agent hasn't supplied a rating the marker rests at neutral center. (The
+  // reasonableness rating is a separate "how credible" measure and is
+  // intentionally not surfaced here.)
+  const sentimentValue = article.sentiment ?? 0
+  const sentimentUnrated = article.sentiment === null
 
   // Filed date — when our system ingested this article. Shown as the
   // primary date pill in the header (replaces source-published date,
@@ -182,7 +184,7 @@ export default async function ArticlePage({
   })()
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-dvh flex-col bg-background">
       {/* Same chrome as the dashboard so the article reads as a
           magazine page within the same product. */}
       <TopNav />
@@ -206,15 +208,7 @@ export default async function ArticlePage({
                 The filed date moved into the metadata grid below. */}
             <header className="flex flex-wrap items-center gap-3">
               {article.topicBadges.map((badge) => (
-                <Link
-                  key={badge}
-                  href={`/?badge=${encodeURIComponent(badge)}`}
-                  className="rounded-md hover:opacity-80 transition-opacity"
-                >
-                  <Badge variant="outline" className="">
-                    {badge}
-                  </Badge>
-                </Link>
+                <TopicBadgeLink key={badge} badge={badge} />
               ))}
             </header>
 
@@ -225,48 +219,52 @@ export default async function ArticlePage({
               {article.title}
             </h1>
 
-            {/* Creator credit — faint, close-set under the title. */}
-            {article.creatorLabel ? (
-              <p className="mt-1 text-sm text-muted-foreground">
-                by{' '}
-                {article.creatorSlug ? (
-                  <Link
-                    href={`/c/${article.creatorSlug}`}
-                    className="underline-offset-4 hover:underline"
-                  >
-                    {article.creatorLabel}
-                  </Link>
-                ) : (
-                  article.creatorLabel
-                )}
-              </p>
-            ) : null}
+            {/* Byline — faint, close-set under the title. Author and filed date
+                share one row, divided by a middot. Either side may be absent. */}
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
+              {article.creatorLabel ? (
+                <span>
+                  by{' '}
+                  {article.creatorSlug ? (
+                    <Link
+                      href={`/c/${article.creatorSlug}`}
+                      className="underline-offset-4 hover:underline"
+                    >
+                      {article.creatorLabel}
+                    </Link>
+                  ) : (
+                    article.creatorLabel
+                  )}
+                </span>
+              ) : null}
+              {article.creatorLabel ? (
+                <span aria-hidden="true" className="text-muted-foreground/40">
+                  ·
+                </span>
+              ) : null}
+              <time dateTime={article.createdAt.toISOString()}>{filedLabel}</time>
+            </p>
 
             {/* Hero image — full-column-width, aspect-[2/1], rounded corners.
-                Falls back to a muted-surface placeholder when null. */}
-            <figure className="mt-8 aspect-[2/1] w-full overflow-hidden rounded-lg bg-muted">
-              {article.heroImageUrl ? (
-                // biome-ignore lint/performance/noImgElement: dev-only mock heroes / placeholder route
+                Omitted entirely when the article has no hero (no placeholder). */}
+            {article.heroImageUrl ? (
+              <figure className="mt-8 aspect-[2/1] w-full overflow-hidden rounded-lg bg-muted">
+                {/* biome-ignore lint/performance/noImgElement: dev-only mock heroes / placeholder route */}
                 <img
                   src={article.heroImageUrl}
                   alt=""
                   className="h-full w-full object-cover"
                   loading="eager"
                 />
-              ) : (
-                <div
-                  aria-hidden="true"
-                  className="flex h-full w-full items-center justify-center text-xs uppercase tracking-[0.12em] text-muted-foreground"
-                >
-                  No hero image
-                </div>
-              )}
-            </figure>
+              </figure>
+            ) : null}
 
-            {/* Metadata strip — modern inline row with lucide icons, vertical
-                Separators between segments, and the reasonableness scale taking
-                the central available width. Stacks on mobile. */}
-            <div className="mt-8 flex flex-col gap-y-3 border-b border-t border-border py-4 text-sm sm:flex-row sm:items-center sm:gap-x-5">
+            {/* Metadata strip — a single horizontal row: Star on the left,
+                Share pinned right. The Bearish/Bullish scale (when present)
+                sits inline in the middle on sm+, but wraps to its own
+                The filed date moved up into the byline. Everything stays on one
+                line at all widths — the gauge flexes to fill the middle. */}
+            <div className="mt-8 flex items-center gap-x-3 border-b border-t border-border py-4 text-sm sm:gap-x-5">
               {/* Star — left end of the diagnostics row. Compact icon, sized to
                   match the Share button pinned to the right end. */}
               <StarButton
@@ -275,41 +273,61 @@ export default async function ArticlePage({
                 className="h-8 w-8 shrink-0 border-input bg-background"
               />
 
-              <div className="flex shrink-0 items-center gap-2">
-                <span className="text-muted-foreground">Created</span>
-                <span className="font-medium text-foreground">{filedLabel}</span>
+              <Separator orientation="vertical" className="h-5 shrink-0" />
+              <div
+                className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3"
+                data-testid="article-rating"
+              >
+                <span className="shrink-0 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                  Bearish
+                </span>
+                <div className="relative h-4 flex-1">
+                  {/* Thin baseline + bearish/neutral/bullish tick marks — keeps
+                      the scale legible without a heavy filled bar. */}
+                  <div
+                    className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border"
+                    aria-hidden="true"
+                  />
+                  <div
+                    className="absolute left-0 top-1/2 h-2 w-px -translate-y-1/2 bg-border"
+                    aria-hidden="true"
+                  />
+                  <div
+                    className="absolute left-1/2 top-1/2 h-1.5 w-px -translate-x-1/2 -translate-y-1/2 bg-border"
+                    aria-hidden="true"
+                  />
+                  <div
+                    className="absolute right-0 top-1/2 h-2 w-px -translate-y-1/2 bg-border"
+                    aria-hidden="true"
+                  />
+                  {/* Filled marker — solid dot at the sentiment position. */}
+                  <div
+                    className={`absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground ${
+                      sentimentUnrated ? 'opacity-30' : ''
+                    }`}
+                    style={{
+                      left: `${sentimentToSliderPercent(sentimentValue)}%`,
+                    }}
+                    role="img"
+                    aria-label={
+                      sentimentUnrated
+                        ? 'Sentiment not yet rated (neutral)'
+                        : `Sentiment ${article.sentiment} on a -5 (bearish) to +5 (bullish) scale`
+                    }
+                  />
+                </div>
+                <span className="shrink-0 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                  Bullish
+                </span>
               </div>
 
-              {showSentiment ? (
-                <>
-                  <Separator orientation="vertical" className="hidden h-5 sm:block" />
-                  <div
-                    className="flex flex-1 items-center gap-3 min-w-0"
-                    data-testid="article-rating"
-                  >
-                    <span className="shrink-0 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                      Bearish
-                    </span>
-                    <div className="relative h-2 flex-1 rounded-full bg-foreground">
-                      <div
-                        className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-background shadow-sm"
-                        style={{
-                          left: `${sentimentToSliderPercent(article.sentiment ?? 0)}%`,
-                        }}
-                        role="img"
-                        aria-label={`Sentiment ${article.sentiment} on a -5 (bearish) to +5 (bullish) scale`}
-                      />
-                    </div>
-                    <span className="shrink-0 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                      Bullish
-                    </span>
-                  </div>
-                </>
-              ) : null}
+              {/* Matching divider between the gauge and Share, mirroring the
+                  Star/gauge separator. */}
+              <Separator orientation="vertical" className="h-5 shrink-0" />
 
-              {/* Share — right end of the diagnostics row. ml-auto keeps it
-                  pinned right even when the rating segment is absent. */}
-              <div className="shrink-0 sm:ml-auto">
+              {/* Share — right end of the diagnostics row. The flex-1 gauge fills
+                  the middle, so Share sits snug after the divider. */}
+              <div className="shrink-0">
                 <ShareLinkButton url={`${getBaseUrl()}/a/${slug}`} />
               </div>
             </div>
@@ -319,7 +337,7 @@ export default async function ArticlePage({
                 Whitespace-pre-wrap so paragraph breaks from the source survive
                 the cap-trim. */}
             {cappedBody ? (
-              <section className="mt-10">
+              <section className="mt-8">
                 <p className="whitespace-pre-wrap text-base leading-relaxed text-foreground text-justify">
                   {cappedBody}
                 </p>

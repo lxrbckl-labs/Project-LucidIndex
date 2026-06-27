@@ -7,7 +7,6 @@
  *   <header bg-background>
  *     [SidebarTrigger]    ← far left, on settings + authenticated forum
  *     [Forum/Dashboard]   ← left cluster on every page (Dashboard on /forum)
- *     [Back button]       ← left cluster, article/creator/topic-focus only
  *     [Wordmark]          ← center
  *     [SearchInput]       ← right cluster
  *     [ThemeToggle]       ← right cluster
@@ -33,12 +32,12 @@ import {
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useContext } from 'react'
-import { EscapeToBack } from '@/components/article/EscapeToBack'
 import { Button } from '@/components/ui/button'
 import { SidebarContext, SidebarTrigger } from '@/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { usePostsTOCVisibility } from '@/lib/posts-toc-visibility'
 import { useRepliesPaneVisibility } from '@/lib/replies-pane-visibility'
+import { useSettingsUnlocked } from '@/lib/settings-visibility'
 import { ThemeToggle } from './ThemeToggle'
 import { TypeaheadSearch } from './TypeaheadSearch'
 
@@ -51,16 +50,13 @@ export function TopNav({
 } = {}) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  // The Settings gear is hidden until unlocked via ?settings=true (sticky).
+  const settingsUnlocked = useSettingsUnlocked()
 
   const isArticlePage = pathname.startsWith('/a/')
-  const isCreatorPage = pathname.startsWith('/c/')
   const isSettingsPage = pathname.startsWith('/settings')
   const isForumPage = pathname.startsWith('/forum')
   const isForumPostPage = pathname.startsWith('/forum/posts/')
-  const isForumUserPage = pathname.startsWith('/forum/users/')
-  const isTopicFocus = pathname === '/' && Boolean(searchParams.get('badge'))
-  const showBack =
-    isArticlePage || isCreatorPage || isTopicFocus || isForumPostPage || isForumUserPage
   // TOC toggle is visible on forum feed pages that mount <PostsTOC>:
   // /forum, /forum/starred, /forum/replies, /forum/trending, /forum/top,
   // /forum/users/[username] — but NOT on post detail, create, or account pages.
@@ -85,9 +81,7 @@ export function TopNav({
               1. SidebarTrigger — settings / forum shell only.
               2. Forum button — on every page EXCEPT /forum (you can't
                  jump from Forum to itself; the Dashboard slot moved to
-                 the right cluster).
-              3. EscapeToBack — article / creator / topic-focus / forum
-                 post pages. */}
+                 the right cluster). */}
         <div className="flex items-center justify-start gap-2">
           {(isSettingsPage || isForumPage) && hasSidebarShell && !hideSidebarTrigger && (
             <SidebarTrigger className="h-9 w-9 shrink-0 border border-input bg-background" />
@@ -116,7 +110,6 @@ export function TopNav({
               <TooltipContent>Dashboard</TooltipContent>
             </Tooltip>
           )}
-          {showBack && <EscapeToBack />}
         </div>
 
         {/* Center: wordmark */}
@@ -148,7 +141,7 @@ export function TopNav({
         <div className="flex items-center justify-end gap-2 min-w-0">
           {!hideSearch && <TypeaheadSearch />}
 
-          {pathname !== '/' && !isSettingsPage && (
+          {pathname !== '/' && !isSettingsPage && !isArticlePage && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" asChild>
@@ -161,7 +154,7 @@ export function TopNav({
             </Tooltip>
           )}
 
-          {!isSettingsPage && (
+          {!isSettingsPage && settingsUnlocked && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" asChild>
