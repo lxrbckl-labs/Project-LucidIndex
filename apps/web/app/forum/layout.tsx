@@ -57,7 +57,7 @@ export default async function ForumLayout({ children }: { children: ReactNode })
     // children render blurred behind the gate (preserves the old
     // single-page behavior).
     return (
-      <div className="h-screen overflow-hidden bg-background flex flex-col">
+      <div className="h-dvh overflow-hidden bg-background flex flex-col">
         {/* Search is hidden on the forum gate (login surface). */}
         <TopNav hideSearch />
         {/* No padding — the blurred feed behind the gate must run edge-to-edge
