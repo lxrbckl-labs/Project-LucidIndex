@@ -154,15 +154,15 @@ export default async function TrendingForumPage() {
   }))
 
   return (
-    <div className="flex flex-1 flex-col gap-6">
-      <div className="-mx-6 -mt-6 px-6 pt-6 pb-6 border-b">
+    <div className="flex flex-1 flex-col gap-4">
+      <div className="-mx-6 -mt-6 px-4 pt-4 pb-4 border-b">
         <h1 className="text-3xl font-bold tracking-tight">Trending</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Posts ranked by recent activity (views, stars, and replies in the last 30 days).
         </p>
       </div>
 
-      <div className="flex flex-1 gap-6">
+      <div className="-mx-2 flex flex-1 gap-6">
         <div className="flex min-w-0 flex-1 flex-col gap-8">
           {feed.length === 0 ? (
             <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-12 text-center">

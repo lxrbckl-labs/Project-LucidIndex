@@ -34,7 +34,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -65,6 +65,7 @@ import {
   SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from '@/components/ui/sidebar'
 
 type NavItem = { href: string; label: string; icon: React.ElementType }
@@ -118,6 +119,41 @@ export function ForumSidebar({ username, hasAvatar = false, drafts = [] }: Props
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { setOpen, setOpenMobile, isMobile } = useSidebar()
+
+  // Close the sidebar after the user navigates via one of its links: the
+  // mobile overlay Sheet dismisses, the desktop panel collapses to its icon
+  // rail — so a tapped subtab (Latest, Trending, …) gets the nav out of the
+  // way once its page is in view.
+  //
+  // Navigation is driven imperatively with router.push rather than the
+  // <Link>'s default: inside the modal Radix Sheet on mobile, the focus-trap
+  // interaction swallows the Link click and the route never changes. An
+  // imperative push isn't tied to the clicked element, so it survives the
+  // Sheet dismissing. We flag the intent on click and run the actual close in
+  // an effect once `pathname` settles — matching "close once the page is
+  // loaded" and keeping the Sheet on screen through the transition.
+  const closeAfterNavRef = useRef(false)
+
+  function handleNavClick(e: React.MouseEvent, href: string) {
+    // Preserve native behavior for modified clicks (new tab, download, …).
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
+    e.preventDefault()
+    closeAfterNavRef.current = true
+    router.push(href)
+  }
+
+  useEffect(() => {
+    // `pathname` is the trigger — this runs after the new route lands.
+    void pathname
+    if (!closeAfterNavRef.current) return
+    closeAfterNavRef.current = false
+    if (isMobile) {
+      setOpenMobile(false)
+    } else {
+      setOpen(false)
+    }
+  }, [pathname, isMobile, setOpen, setOpenMobile])
 
   // Single-draft delete state lives at the sidebar level so the
   // AlertDialog has one mount point per click — opening on the row's
@@ -183,7 +219,11 @@ export function ForumSidebar({ username, hasAvatar = false, drafts = [] }: Props
                 tooltip="Create"
                 className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
               >
-                <Link href="/forum/create" prefetch>
+                <Link
+                  href="/forum/create"
+                  prefetch
+                  onClick={(e) => handleNavClick(e, '/forum/create')}
+                >
                   <Plus />
                   <span>Create</span>
                 </Link>
@@ -204,7 +244,11 @@ export function ForumSidebar({ username, hasAvatar = false, drafts = [] }: Props
                       return (
                         <SidebarMenuItem key={item.href}>
                           <SidebarMenuButton asChild isActive={isActive(item)} tooltip={item.label}>
-                            <Link href={item.href} prefetch>
+                            <Link
+                              href={item.href}
+                              prefetch
+                              onClick={(e) => handleNavClick(e, item.href)}
+                            >
                               <Icon />
                               <span>{item.label}</span>
                             </Link>
@@ -229,7 +273,13 @@ export function ForumSidebar({ username, hasAvatar = false, drafts = [] }: Props
                         return (
                           <SidebarMenuItem key={draft.id}>
                             <SidebarMenuButton asChild isActive={active} tooltip={label}>
-                              <Link href={`/forum/create?draft=${draft.id}`} prefetch>
+                              <Link
+                                href={`/forum/create?draft=${draft.id}`}
+                                prefetch
+                                onClick={(e) =>
+                                  handleNavClick(e, `/forum/create?draft=${draft.id}`)
+                                }
+                              >
                                 <FileEdit />
                                 <span className="truncate">{label}</span>
                               </Link>
