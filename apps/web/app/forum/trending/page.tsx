@@ -209,8 +209,10 @@ export default async function TrendingForumPage() {
                       </Link>
                     )}
 
-                    <div className="flex min-w-0 flex-1 items-start justify-between gap-4 p-4">
+                    <div className="flex min-w-0 flex-1 flex-col gap-4 p-4 md:flex-row md:items-start md:justify-between">
                       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                        <h2 className="text-lg font-semibold leading-tight">{row.title}</h2>
+
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <AuthorHoverCard username={row.authorUsername}>
                             <Link
@@ -240,8 +242,6 @@ export default async function TrendingForumPage() {
                           </span>
                         </div>
 
-                        <h2 className="text-lg font-semibold leading-tight">{row.title}</h2>
-
                         {row.body.length > 0 && (
                           <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
                             {makeExcerpt(row.body)}
@@ -262,7 +262,7 @@ export default async function TrendingForumPage() {
                       {/* Right column — Star at top, View at bottom.
                       self-stretch anchors View to the card bottom via
                       justify-between. */}
-                      <div className="flex shrink-0 flex-col items-end justify-between gap-1.5 self-stretch">
+                      <div className="flex shrink-0 w-full flex-row items-center justify-between gap-1.5 md:w-auto md:flex-col md:items-end md:justify-between md:self-stretch">
                         <StarButton postId={row.id} initialStarred={row.starredByMe} />
                         <Tooltip>
                           <TooltipTrigger asChild>

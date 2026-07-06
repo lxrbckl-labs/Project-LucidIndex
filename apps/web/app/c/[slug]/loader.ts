@@ -168,6 +168,77 @@ export async function loadCreatorSentiment(targetId: string): Promise<CreatorSen
 }
 
 /**
+ * A single week's sentiment bucket for the creator timeline chart.
+ * `weekStart` is the ISO-week start (Monday) as an ISO-8601 string.
+ */
+export type CreatorSentimentWeek = {
+  weekStart: string
+  avgSentiment: number
+  n: number
+}
+
+/**
+ * The author's most-frequent topic badges (most-frequent first, max 5).
+ *
+ * `topic_badges` is a `text[]` per article; unnest it across the creator's
+ * non-hidden articles, count per topic, and rank. Emitted as raw SQL via
+ * `db.execute` because `unnest` isn't on our drizzle re-export surface —
+ * mirrors the raw-SQL topic aggregation in the forum/search loaders.
+ *
+ * Returns just the ordered topic strings (counts are used only for
+ * ranking, never shown).
+ */
+export async function loadCreatorTopTopics(targetId: string): Promise<string[]> {
+  const rows = await db.execute<{ topic: string; count: number }>(sql`
+    SELECT topic, count(*)::int AS count
+    FROM (
+      SELECT unnest(topic_badges) AS topic
+      FROM articles
+      WHERE target_id = ${targetId}::uuid
+        AND hidden = false
+    ) t
+    GROUP BY topic
+    ORDER BY count DESC, topic ASC
+    LIMIT 5
+  `)
+  return [...rows].map((r) => r.topic)
+}
+
+/**
+ * Weekly average sentiment for a creator over the trailing 52 weeks.
+ *
+ * Filters non-hidden articles with a non-null sentiment inside the window,
+ * buckets by ISO week (`date_trunc('week', ...)` — Monday start), and
+ * returns `avg(sentiment)` + `count(*)` per populated week, oldest first.
+ * The 52-week window is a query filter, so old data drops off on its own.
+ *
+ * `week_start` is cast to text in SQL (deterministic across driver type
+ * parsers) and normalized to an ISO string on the way out.
+ */
+export async function loadCreatorSentimentTimeline(
+  targetId: string,
+): Promise<CreatorSentimentWeek[]> {
+  const rows = await db.execute<{ week_start: string; avg_sentiment: number; n: number }>(sql`
+    SELECT
+      date_trunc('week', created_at)::text AS week_start,
+      avg(sentiment)::float                AS avg_sentiment,
+      count(*)::int                        AS n
+    FROM articles
+    WHERE target_id = ${targetId}::uuid
+      AND hidden = false
+      AND sentiment IS NOT NULL
+      AND created_at >= now() - interval '52 weeks'
+    GROUP BY date_trunc('week', created_at)
+    ORDER BY date_trunc('week', created_at) ASC
+  `)
+  return [...rows].map((r) => ({
+    weekStart: new Date(r.week_start).toISOString(),
+    avgSentiment: r.avg_sentiment,
+    n: r.n,
+  }))
+}
+
+/**
  * Load articles for a creator (target), newest first.
  *
  * Filters `hidden = false`. Does NOT filter `dashboard_visible` — the

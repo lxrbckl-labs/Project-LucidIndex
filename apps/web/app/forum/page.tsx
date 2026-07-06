@@ -20,7 +20,7 @@
 
 import { getForumSession } from '@lucidindex/auth'
 import { db } from '@lucidindex/db/client'
-import { desc, eq, sql } from '@lucidindex/db/query'
+import { and, desc, eq, sql } from '@lucidindex/db/query'
 import {
   forumComments,
   forumPostStars,
@@ -37,6 +37,7 @@ import { AuthorHoverCard } from '@/components/forum/AuthorHoverCard'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { ForumFilterCard } from './_components/ForumFilterCard'
 import { PostsTOC } from './_components/PostsTOC'
 import { StarButton } from './_components/StarButton'
 
@@ -100,7 +101,7 @@ type FeedRow = {
 export default async function ForumPage({
   searchParams,
 }: {
-  searchParams: Promise<{ topic?: string }>
+  searchParams: Promise<{ topic?: string; starred?: string }>
 }) {
   // Pull the session so we can compute `isAuthor` + `starredByMe`
   // per row. The forum layout's auth gate already covers unauth'd
@@ -129,6 +130,11 @@ export default async function ForumPage({
     topicFilterName = found[0]?.name ?? null
   }
   const filterActive = topicFilterId !== null && topicFilterName !== null
+
+  // ?starred=1 filter — limits the feed to the viewer's starred posts.
+  // Requires a signed-in viewer (the layout gate guarantees one on the
+  // forum); anonymous traffic falls back to the full feed.
+  const starredOnly = sp.starred === '1' && viewerId !== null
 
   // One query: posts + author info + aggregated topic names + view count
   // + star count + viewer's star flag. The viewer-specific EXISTS uses
@@ -180,13 +186,22 @@ export default async function ForumPage({
     .from(forumPosts)
     .innerJoin(forumUsers, eq(forumUsers.id, forumPosts.authorId))
     .where(
-      filterActive
-        ? sql`EXISTS (
-            SELECT 1 FROM ${forumPostTopics}
-            WHERE ${forumPostTopics.postId} = ${forumPosts.id}
-              AND ${forumPostTopics.topicBadgeId} = ${topicFilterId}::uuid
-          )`
-        : undefined,
+      and(
+        filterActive
+          ? sql`EXISTS (
+              SELECT 1 FROM ${forumPostTopics}
+              WHERE ${forumPostTopics.postId} = ${forumPosts.id}
+                AND ${forumPostTopics.topicBadgeId} = ${topicFilterId}::uuid
+            )`
+          : undefined,
+        starredOnly
+          ? sql`EXISTS (
+              SELECT 1 FROM ${forumPostStars}
+              WHERE ${forumPostStars.postId} = ${forumPosts.id}
+                AND ${forumPostStars.userId} = ${viewerId}::uuid
+            )`
+          : undefined,
+      ),
     )
     .orderBy(desc(forumPosts.createdAt))
 
@@ -206,8 +221,8 @@ export default async function ForumPage({
   }))
 
   return (
-    <div className="flex flex-1 flex-col gap-6">
-      <div className="-mx-6 -mt-6 px-6 pt-6 pb-6 border-b">
+    <div className="flex flex-1 flex-col gap-4">
+      <div className="-mx-6 -mt-6 px-4 pt-4 pb-4 border-b">
         <h1 className="text-3xl font-bold tracking-tight">Forum</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Discussions, threads, and replies between forum users — newest first.
@@ -233,18 +248,32 @@ export default async function ForumPage({
         )}
       </div>
 
-      <div className="flex flex-1 gap-6">
+      {/* All / Starred filter — its own card, aligned with the feed below. */}
+      <div className="-mx-2">
+        <ForumFilterCard />
+      </div>
+
+      <div className="-mx-2 flex flex-1 gap-6">
         <div className="flex min-w-0 flex-1 flex-col gap-8">
           {feed.length === 0 ? (
             <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-12 text-center">
-              <p className="font-semibold">No posts yet</p>
-              <p className="text-sm text-muted-foreground">
-                Be the first — head to{' '}
-                <Link href="/forum/create" className="font-medium text-primary hover:underline">
-                  Create
-                </Link>
-                .
-              </p>
+              {starredOnly ? (
+                <>
+                  <p className="font-semibold">No starred posts yet</p>
+                  <p className="text-sm text-muted-foreground">Star a post to see it here.</p>
+                </>
+              ) : (
+                <>
+                  <p className="font-semibold">No posts yet</p>
+                  <p className="text-sm text-muted-foreground">
+                    Be the first — head to{' '}
+                    <Link href="/forum/create" className="font-medium text-primary hover:underline">
+                      Create
+                    </Link>
+                    .
+                  </p>
+                </>
+              )}
             </div>
           ) : (
             <ul className="flex flex-col gap-3">
@@ -283,8 +312,12 @@ export default async function ForumPage({
                       </Link>
                     )}
 
-                    <div className="flex min-w-0 flex-1 items-start justify-between gap-4 p-4">
+                    <div className="flex min-w-0 flex-1 flex-col gap-4 p-4 md:flex-row md:items-start md:justify-between">
                       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                        <h2 className="hyphens-auto break-words text-lg font-semibold leading-tight">
+                          {row.title}
+                        </h2>
+
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <AuthorHoverCard username={row.authorUsername}>
                             <Link
@@ -316,8 +349,6 @@ export default async function ForumPage({
                           </span>
                         </div>
 
-                        <h2 className="text-lg font-semibold leading-tight">{row.title}</h2>
-
                         {row.body.length > 0 && (
                           <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
                             {makeExcerpt(row.body)}
@@ -339,7 +370,7 @@ export default async function ForumPage({
                       self-stretch forces the column to match the content
                       column's full height so justify-between anchors View
                       to the card bottom, not just below Star. */}
-                      <div className="flex shrink-0 flex-col items-end justify-between gap-1.5 self-stretch">
+                      <div className="flex shrink-0 w-full flex-row items-center justify-between gap-1.5 md:w-auto md:flex-col md:items-end md:justify-between md:self-stretch">
                         <StarButton postId={row.id} initialStarred={row.starredByMe} />
                         <Tooltip>
                           <TooltipTrigger asChild>

@@ -18,8 +18,12 @@
  *   - 30-day sliding TTL
  */
 
+import { db } from '@lucidindex/db/client'
+import { forumUsers } from '@lucidindex/db/schema'
+import { eq } from 'drizzle-orm'
 import { getIronSession, type IronSession, type SessionOptions } from 'iron-session'
 import { cookies } from 'next/headers'
+import { devForumBypassUsername } from './dev-bypass.js'
 
 export const FORUM_SESSION_COOKIE_NAME = 'li-forum-session'
 const THIRTY_DAYS_SECONDS = 30 * 24 * 60 * 60
@@ -53,9 +57,45 @@ function forumSessionOptions(): SessionOptions {
   }
 }
 
-export async function getForumSession(): Promise<IronSession<ForumSessionData>> {
+/**
+ * Read (or create-empty) the REAL forum iron-session cookie for the current
+ * request. This is the un-bypassed path — login/logout mutations always go
+ * through here so they operate on the actual cookie regardless of any dev
+ * forum bypass.
+ */
+async function readRealForumSession(): Promise<IronSession<ForumSessionData>> {
   const jar = await cookies()
   return getIronSession<ForumSessionData>(jar, forumSessionOptions())
+}
+
+export async function getForumSession(): Promise<IronSession<ForumSessionData>> {
+  const bypassUsername = devForumBypassUsername()
+  if (bypassUsername) {
+    // Dev-only: resolve the configured username to a real forum user id and
+    // return a synthetic, read-only session so the whole forum surface treats
+    // the visitor as that user without a passkey login.
+    const rows = await db
+      .select({ id: forumUsers.id })
+      .from(forumUsers)
+      .where(eq(forumUsers.username, bypassUsername))
+      .limit(1)
+    const row = rows[0]
+    if (row) {
+      return {
+        forumUserId: row.id,
+        credentialId: 'dev-forum-bypass',
+        save: async () => {},
+        destroy: () => {},
+        updateConfig: () => {},
+      } as unknown as IronSession<ForumSessionData>
+    }
+    // Configured username doesn't exist — don't crash; fall through to the
+    // real (logged-out) cookie. The activation warn already fired.
+    console.warn(
+      `[auth] LUCIDINDEX_DEV_FORUM_USER="${bypassUsername}" did not match any forum user — staying logged out.`,
+    )
+  }
+  return readRealForumSession()
 }
 
 /**
@@ -76,7 +116,7 @@ export async function establishForumSession(input: {
   forumUserId: string
   credentialId: string
 }): Promise<void> {
-  const session = await getForumSession()
+  const session = await readRealForumSession()
   session.forumUserId = input.forumUserId
   session.credentialId = input.credentialId
   await session.save()
@@ -84,6 +124,6 @@ export async function establishForumSession(input: {
 
 /** Destroy the current forum session cookie. Safe to call when none exists. */
 export async function destroyForumSession(): Promise<void> {
-  const session = await getForumSession()
+  const session = await readRealForumSession()
   session.destroy()
 }

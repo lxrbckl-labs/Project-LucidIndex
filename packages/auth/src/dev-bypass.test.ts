@@ -173,6 +173,112 @@ describe('isDevAuthBypassActive', () => {
   })
 })
 
+describe('devForumBypassUsername', () => {
+  // Snapshot env vars we might mutate and restore them after each test.
+  const originalEnv: Record<string, string | undefined> = {}
+
+  beforeEach(() => {
+    originalEnv.LUCIDINDEX_DEV_FORUM_USER = process.env.LUCIDINDEX_DEV_FORUM_USER
+    originalEnv.NODE_ENV = process.env.NODE_ENV
+  })
+
+  afterEach(() => {
+    if (originalEnv.LUCIDINDEX_DEV_FORUM_USER === undefined) {
+      delete process.env.LUCIDINDEX_DEV_FORUM_USER
+    } else {
+      process.env.LUCIDINDEX_DEV_FORUM_USER = originalEnv.LUCIDINDEX_DEV_FORUM_USER
+    }
+    // NODE_ENV is read-only in some runtimes; best-effort restore.
+    try {
+      if (originalEnv.NODE_ENV === undefined) {
+        delete process.env.NODE_ENV
+      } else {
+        process.env.NODE_ENV = originalEnv.NODE_ENV
+      }
+    } catch {
+      // ignore
+    }
+  })
+
+  it('returns null when LUCIDINDEX_DEV_FORUM_USER is unset', async () => {
+    delete process.env.LUCIDINDEX_DEV_FORUM_USER
+    process.env.NODE_ENV = 'test'
+    const { devForumBypassUsername } = await importFresh()
+    expect(devForumBypassUsername()).toBeNull()
+  })
+
+  it('returns null when LUCIDINDEX_DEV_FORUM_USER is empty string', async () => {
+    process.env.LUCIDINDEX_DEV_FORUM_USER = ''
+    process.env.NODE_ENV = 'test'
+    const { devForumBypassUsername } = await importFresh()
+    expect(devForumBypassUsername()).toBeNull()
+  })
+
+  it('returns null when LUCIDINDEX_DEV_FORUM_USER is whitespace-only', async () => {
+    process.env.LUCIDINDEX_DEV_FORUM_USER = '   '
+    process.env.NODE_ENV = 'test'
+    const { devForumBypassUsername } = await importFresh()
+    expect(devForumBypassUsername()).toBeNull()
+  })
+
+  it('returns the trimmed username in non-production', async () => {
+    process.env.LUCIDINDEX_DEV_FORUM_USER = '  alice  '
+    process.env.NODE_ENV = 'test'
+    const { devForumBypassUsername } = await importFresh()
+    expect(devForumBypassUsername()).toBe('alice')
+  })
+
+  it('warns on first activation in non-production', async () => {
+    process.env.LUCIDINDEX_DEV_FORUM_USER = 'alice'
+    process.env.NODE_ENV = 'test'
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { devForumBypassUsername } = await importFresh()
+    devForumBypassUsername()
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[auth] LUCIDINDEX_DEV_FORUM_USER is active — forum auth bypassed as "alice". Do NOT use this flag in production.',
+    )
+    warnSpy.mockRestore()
+  })
+
+  it('emits the activation warning at most once per process', async () => {
+    process.env.LUCIDINDEX_DEV_FORUM_USER = 'alice'
+    process.env.NODE_ENV = 'test'
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { devForumBypassUsername } = await importFresh()
+    devForumBypassUsername()
+    devForumBypassUsername()
+    devForumBypassUsername()
+    expect(warnSpy).toHaveBeenCalledTimes(1)
+    warnSpy.mockRestore()
+  })
+
+  describe('production guard', () => {
+    it('returns null and emits console.error when NODE_ENV=production', async () => {
+      process.env.LUCIDINDEX_DEV_FORUM_USER = 'alice'
+      process.env.NODE_ENV = 'production'
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const { devForumBypassUsername } = await importFresh()
+      expect(devForumBypassUsername()).toBeNull()
+      expect(errorSpy).toHaveBeenCalledWith(
+        '[auth] LUCIDINDEX_DEV_FORUM_USER ignored: refusing to bypass forum auth in production',
+      )
+      errorSpy.mockRestore()
+    })
+
+    it('emits the production error at most once per process (module-scope guard)', async () => {
+      process.env.LUCIDINDEX_DEV_FORUM_USER = 'alice'
+      process.env.NODE_ENV = 'production'
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const { devForumBypassUsername } = await importFresh()
+      devForumBypassUsername()
+      devForumBypassUsername()
+      devForumBypassUsername()
+      expect(errorSpy).toHaveBeenCalledTimes(1)
+      errorSpy.mockRestore()
+    })
+  })
+})
+
 describe('DEV_BYPASS_ADMIN_ID', () => {
   it('exports a valid all-zeroes UUID sentinel', async () => {
     const { DEV_BYPASS_ADMIN_ID } = await importFresh()

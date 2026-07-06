@@ -43,12 +43,11 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ShareLinkButton } from '@/components/article/ShareLinkButton'
 import { AuthorHoverCard } from '@/components/forum/AuthorHoverCard'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
 import { StarButton } from '../../../_components/StarButton'
 import { CitationsSection } from './CitationsSection'
-import { EditHistoryIndicator } from './EditHistoryIndicator'
 import { GallerySection } from './GallerySection'
 import { InlineCitationLink } from './InlineCitationLink'
 
@@ -340,7 +339,6 @@ export function PostView({
   citations,
   userMentions,
   viewCount,
-  edits,
   canEdit,
   starredByMe,
   repliesOpen: _repliesOpen,
@@ -377,27 +375,73 @@ export function PostView({
     // only the article contents — the parent wraps it in the right
     // container based on the replies-open toggle.
     <>
-      {/* Header — topic badges row at the top. Topics sit on the left;
-          the Star + Share + Edit action cluster floats right. This row
-          always renders (even when there are no topics) so the action
-          cluster always has a home. Each topic links to a `?topic=<id>`
-          filter on /forum (not yet wired). */}
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
+      {/* Header — topic badges at the top, mirroring the article detail
+          page (`/a/[slug]`). Each topic links to a `?topic=<id>` filter
+          on /forum. Rendered only when the post carries topics. */}
+      {topics.length > 0 && (
+        <header className="flex flex-wrap items-center gap-3">
           {topics.map((t) => (
             <Link
               key={t.id}
               href={`/forum?topic=${encodeURIComponent(t.id)}`}
               className="rounded-md hover:opacity-80 transition-opacity"
             >
-              <Badge variant="outline" className="">
-                {t.name}
-              </Badge>
+              <Badge variant="outline">{t.name}</Badge>
             </Link>
           ))}
+        </header>
+      )}
+
+      {/* Title — h1, title-first below the topic badges. */}
+      <h1 className="mt-3 hyphens-auto break-words text-3xl font-bold tracking-tight text-foreground">
+        {post.title}
+      </h1>
+
+      {/* Byline — faint, close-set under the title: "by @handle · D Month
+          YYYY". Author handle + filed date share one row divided by a
+          middot, matching the article page's byline. */}
+      <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
+        <span>
+          by{' '}
+          <AuthorHoverCard username={author.username}>
+            <Link
+              href={`/forum/users/${author.username}`}
+              className="underline-offset-4 hover:underline"
+            >
+              @{author.username}
+            </Link>
+          </AuthorHoverCard>
+        </span>
+        <span aria-hidden="true" className="text-muted-foreground/40">
+          ·
+        </span>
+        <time dateTime={post.createdAt.toISOString()}>{filedLabel}</time>
+      </p>
+
+      {/* Metadata / action strip — a single bordered horizontal row
+          mirroring the article page: Star on the left, the view tally +
+          reply tally centered in the flex-1 middle, and Share (plus the
+          optional Edit button) pinned right. Vertical separators fence the
+          middle region on both sides. */}
+      <div className="mt-8 flex items-center gap-x-3 border-b border-t border-border py-4 text-sm sm:gap-x-5">
+        <StarButton postId={post.id} initialStarred={starredByMe} />
+        <Separator orientation="vertical" className="h-5 shrink-0" />
+        <div className="flex min-w-0 flex-1 items-center justify-center gap-4 text-muted-foreground">
+          <div className="flex items-center gap-1.5" data-testid="post-view-count">
+            <Eye className="size-4" aria-hidden="true" />
+            <span>
+              {viewCount} {viewCount === 1 ? 'view' : 'views'}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5" data-testid="replies-count">
+            <MessageSquare className="size-4" aria-hidden="true" />
+            <span>
+              {replyCount} {replyCount === 1 ? 'reply' : 'replies'}
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <StarButton postId={post.id} initialStarred={starredByMe} />
+        <Separator orientation="vertical" className="h-5 shrink-0" />
+        <div className="flex shrink-0 items-center gap-1.5">
           <ShareLinkButton />
           {canEdit && (
             <Button
@@ -414,69 +458,6 @@ export function PostView({
             </Button>
           )}
         </div>
-      </header>
-
-      {/* Title — h1. */}
-      <h1 className="mt-3 text-3xl font-bold tracking-tight text-foreground">{post.title}</h1>
-
-      {/* Author byline — avatar + handle + optional agent badge only.
-          The action cluster (Star + Share + Edit) has moved to the
-          topics row above. */}
-      <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
-        <Link
-          href={`/forum/users/${author.username}`}
-          aria-label={`View @${author.username}'s profile`}
-          className="shrink-0"
-        >
-          <Avatar className="size-8">
-            {author.hasAvatar ? (
-              <AvatarImage src={`/api/forum/users/${author.username}/avatar`} alt="" />
-            ) : null}
-            <AvatarFallback className="text-xs">
-              {author.username.slice(0, 2).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-        </Link>
-        <span>
-          by{' '}
-          <AuthorHoverCard username={author.username}>
-            <Link
-              href={`/forum/users/${author.username}`}
-              className="underline-offset-4 hover:underline"
-            >
-              @{author.username}
-            </Link>
-          </AuthorHoverCard>
-        </span>
-      </div>
-
-      {/* Metadata strip — "Posted D Month YYYY" segment, followed by
-          the view tally + edit-history indicator + the Replies toggle.
-          The Replies button lives here so its count sits inline with
-          the other meta indicators rather than floating elsewhere on
-          the page. */}
-      <div className="mt-8 flex flex-col gap-y-3 border-b border-t border-border py-4 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-x-5">
-        <div className="flex shrink-0 items-center gap-2">
-          <span className="text-muted-foreground">Posted</span>
-          <time dateTime={post.createdAt.toISOString()} className="font-medium text-foreground">
-            {filedLabel}
-          </time>
-        </div>
-        <div className="flex shrink-0 items-center gap-4 text-muted-foreground">
-          <div className="flex items-center gap-1.5" data-testid="post-view-count">
-            <Eye className="size-4" aria-hidden="true" />
-            <span>
-              {viewCount} {viewCount === 1 ? 'view' : 'views'}
-            </span>
-          </div>
-          <div data-testid="replies-count" className="flex items-center gap-1.5">
-            <MessageSquare className="size-4" aria-hidden="true" />
-            <span>
-              {replyCount} {replyCount === 1 ? 'reply' : 'replies'}
-            </span>
-          </div>
-          {edits.length > 0 && <EditHistoryIndicator edits={edits.map((d) => d.toISOString())} />}
-        </div>
       </div>
 
       {/* Body — tokenizer + ReactMarkdown. Paragraph segments render
@@ -485,7 +466,7 @@ export function PostView({
           rendered as inline React elements. */}
       <section
         data-testid="post-body"
-        className="mt-4 break-words text-base leading-relaxed text-foreground text-justify"
+        className="mt-8 break-words text-base leading-relaxed text-foreground text-justify"
       >
         {tokens.map((t, idx) => {
           if (t.kind === 'text') {
@@ -494,9 +475,14 @@ export function PostView({
             // spaces surrounding inline citation tokens). Strip the
             // whitespace off, render it as plain text siblings, and run the
             // trimmed core through ReactMarkdown for `**bold**` / `*em*` etc.
-            const lead = t.value.match(/^\s+/)?.[0] ?? ''
-            const tail = t.value.match(/\s+$/)?.[0] ?? ''
-            const core = t.value.slice(lead.length, t.value.length - tail.length)
+            const lead0 = t.value.match(/^\s+/)?.[0] ?? ''
+            const tail0 = t.value.match(/\s+$/)?.[0] ?? ''
+            const core = t.value.slice(lead0.length, t.value.length - tail0.length)
+            const prevIsImage = tokens[idx - 1]?.kind === 'image'
+            const nextIsImage = tokens[idx + 1]?.kind === 'image'
+            const lead = prevIsImage || idx === 0 ? lead0.replace(/[\r\n]+/g, '') : lead0
+            const tail =
+              nextIsImage || idx === tokens.length - 1 ? tail0.replace(/[\r\n]+/g, '') : tail0
             return (
               // biome-ignore lint/suspicious/noArrayIndexKey: parsed token sequence is stable across renders
               <span key={`t-${idx}`} className="prose-segment whitespace-pre-wrap">
@@ -527,7 +513,7 @@ export function PostView({
             }
             return (
               // biome-ignore lint/suspicious/noArrayIndexKey: parsed token sequence is stable across renders
-              <figure key={`i-${idx}`} className="my-3">
+              <figure key={`i-${idx}`} className="my-2">
                 {/* biome-ignore lint/performance/noImgElement: bytes served by /i/<hash> route handler */}
                 <img
                   src={`/i/${img.imageHash}`}

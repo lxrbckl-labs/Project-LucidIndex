@@ -363,6 +363,28 @@ export function RepliesPane({
     refreshMentionState(el.value, el.selectionStart ?? el.value.length)
   }
 
+  // Auto-grow the textarea to fit its content as the user types, capped at
+  // ~25% of the viewport height so a long draft stays readable without the
+  // composer swallowing the whole sheet. Past the cap the textarea scrolls
+  // internally. Runs on every draft change (typing, mention insert, and the
+  // clear-on-submit reset).
+  const autoResizeTextarea = useCallback(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    const maxPx = Math.round(window.innerHeight * 0.25)
+    el.style.height = `${Math.min(el.scrollHeight, maxPx)}px`
+    el.style.overflowY = el.scrollHeight > maxPx ? 'auto' : 'hidden'
+  }, [])
+
+  useEffect(() => {
+    // `draft` is the intended trigger — resize on every content change. The
+    // resize reads the DOM (scrollHeight), not `draft` directly, so touch it
+    // here to keep it a genuine dependency (same `void` idiom as below).
+    void draft
+    autoResizeTextarea()
+  }, [draft, autoResizeTextarea])
+
   /**
    * Insert the selected mention token over the active range, move caret
    * past the inserted token, close dropdown. Trailing space appended if
@@ -652,7 +674,7 @@ export function RepliesPane({
 
       {/* Composer */}
       <form
-        className="flex flex-col gap-2 border-t p-4"
+        className="flex flex-col border-t p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
         onSubmit={(e) => {
           e.preventDefault()
           void submit()
@@ -674,7 +696,7 @@ export function RepliesPane({
               onClick={onBodySelectOrClick}
               placeholder="Write a reply…"
               rows={3}
-              className="resize-y"
+              className="max-h-[25vh] resize-none overflow-y-hidden"
               disabled={inFlight}
               aria-label="Write a reply"
               aria-describedby={counterId}
@@ -726,7 +748,9 @@ export function RepliesPane({
             />
           </PopoverContent>
         </Popover>
-        <div className="flex items-center justify-between">
+        {/* Counter + Reply on one row, 16px below the textarea so the button
+            sits equidistant (16px) to the composer's side and bottom padding. */}
+        <div className="mt-4 flex items-center justify-between">
           <span
             id={counterId}
             className={`text-xs ${overCap ? 'text-destructive' : 'text-muted-foreground'}`}
@@ -741,7 +765,7 @@ export function RepliesPane({
             data-testid="reply-submit-button"
           >
             <Send className="size-4" aria-hidden="true" />
-            {inFlight ? 'Posting…' : 'Reply'}
+            {inFlight ? 'Posting…' : 'Post'}
           </Button>
         </div>
       </form>

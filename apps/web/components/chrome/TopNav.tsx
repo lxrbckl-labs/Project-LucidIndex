@@ -139,7 +139,7 @@ export function TopNav({
             suppressed on its own surface (you can't jump from
             /settings to /settings, or from / to /). */}
         <div className="flex items-center justify-end gap-2 min-w-0">
-          {!hideSearch && <TypeaheadSearch />}
+          {!hideSearch && !isArticlePage && !isForumPostPage && <TypeaheadSearch />}
 
           {pathname !== '/' && !isSettingsPage && !isArticlePage && (
             <Tooltip>
@@ -178,7 +178,7 @@ export function TopNav({
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-9 w-9 shrink-0"
+                  className="hidden md:inline-flex h-9 w-9 shrink-0"
                   aria-label={tocVisible ? 'Hide posts list' : 'Show posts list'}
                   onClick={toggleTOC}
                 >

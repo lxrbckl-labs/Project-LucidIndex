@@ -10,11 +10,12 @@
  */
 
 import { ExternalLink } from 'lucide-react'
+import { TopicBadgeLink } from '@/components/article/TopicBadgeLink'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { CreatorSentimentTimeline } from './CreatorSentimentTimeline'
 import { CreatorStarButton } from './CreatorStarButton'
-import type { CreatorSentiment } from './loader'
-import { SentimentGauge } from './SentimentGauge'
+import type { CreatorSentimentWeek } from './loader'
 
 type Props = {
   slug: string
@@ -23,7 +24,10 @@ type Props = {
   socialUrl: string | null
   photoUrl: string | null
   articleCount: number
-  sentiment: CreatorSentiment | null
+  /** Author's most-frequent topic badges, most-frequent first (max 5). */
+  topTopics: string[]
+  /** Weekly sentiment buckets over the trailing 52 weeks, oldest first. */
+  timeline: CreatorSentimentWeek[]
 }
 
 /**
@@ -46,9 +50,9 @@ export function CreatorProfileTile({
   socialUrl,
   photoUrl,
   articleCount,
-  sentiment,
+  topTopics,
+  timeline,
 }: Props) {
-  const showGauge = sentiment !== null && sentiment.count >= 3
   const initial = (label.replace(/[^a-zA-Z0-9]/g, '')[0] ?? '?').toUpperCase()
   const hue = hueFromString(label)
 
@@ -101,14 +105,28 @@ export function CreatorProfileTile({
         )}
       </CardContent>
 
-      {/* Sentiment band — divider above, sits directly under the description. */}
-      {showGauge && sentiment && (
-        <div className="px-6 py-4 border-t border-border/40">
-          <SentimentGauge averageSentiment={sentiment.averageSentiment} count={sentiment.count} />
+      {/* Top topics — chip row, most-frequent first. Hidden when empty. */}
+      {topTopics.length > 0 && (
+        <div className="px-6 py-4 border-t border-border/40 flex flex-col gap-2">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+            Top Five
+          </span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {topTopics.map((topic) => (
+              <TopicBadgeLink key={topic} badge={topic} />
+            ))}
+          </div>
         </div>
       )}
 
-      <CardFooter className="pt-4 flex items-center justify-end gap-2">
+      {/* Sentiment timeline band — hidden when there's no data. */}
+      {timeline.length > 0 && (
+        <div className="px-6 py-4 border-t border-b border-border/40">
+          <CreatorSentimentTimeline data={timeline} />
+        </div>
+      )}
+
+      <CardFooter className="mt-auto pt-4 flex items-center justify-end gap-2">
         <CreatorStarButton slug={slug} label={label} />
         {socialUrl && (
           <Button variant="ghost" size="icon" className="border" asChild>

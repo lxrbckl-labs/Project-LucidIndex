@@ -5,11 +5,11 @@
  *   <Card>
  *     hero image (aspect-video, object-cover) or Skeleton placeholder
  *     <CardHeader>
- *       badges row (shadcn <Badge variant="secondary"> per topic)
  *       <CardTitle> article title (line-clamp-2)
  *       byline (text-xs text-muted-foreground: creator + date)
  *     <CardContent>
  *       summary (line-clamp-3 text-sm text-muted-foreground)
+ *       badges row (shadcn <Badge variant="secondary"> per topic), directly below the summary
  *     <CardFooter>
  *       left: TileShareButton + StarButton
  *       right: View button (<Link href="/a/<slug>")
@@ -52,21 +52,6 @@ export function ArticleCard({ article }: Props) {
       )}
 
       <CardHeader className="pb-2">
-        {/* Badges row */}
-        <div className="flex flex-wrap items-center gap-1.5 mb-2">
-          {article.topicBadges.map((badge) => (
-            <Link
-              key={badge}
-              href={`/?badge=${encodeURIComponent(badge)}`}
-              className="rounded-md hover:opacity-80 transition-opacity"
-            >
-              <Badge variant="outline" className="">
-                {badge}
-              </Badge>
-            </Link>
-          ))}
-        </div>
-
         {/* Title */}
         <CardTitle className="text-base font-semibold leading-snug line-clamp-2">
           {article.title}
@@ -95,14 +80,23 @@ export function ArticleCard({ article }: Props) {
         </p>
       </CardHeader>
 
-      <CardContent
-        className="flex-1 pb-2 overflow-hidden relative"
-        style={{
-          maskImage: 'linear-gradient(to bottom, black calc(100% - 24px), transparent)',
-          WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 24px), transparent)',
-        }}
-      >
+      <CardContent className="flex-1 pb-2 overflow-hidden relative">
         <p className="text-sm text-muted-foreground text-justify">{article.summary}</p>
+
+        {/* Badges row */}
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {article.topicBadges.map((badge) => (
+            <Link
+              key={badge}
+              href={`/?badge=${encodeURIComponent(badge)}`}
+              className="rounded-md hover:opacity-80 transition-opacity"
+            >
+              <Badge variant="outline" className="">
+                {badge}
+              </Badge>
+            </Link>
+          ))}
+        </div>
       </CardContent>
 
       <CardFooter className="pt-4 flex items-center justify-between">

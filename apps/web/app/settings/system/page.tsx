@@ -65,8 +65,6 @@ export default async function SystemPanelPage() {
       {/* Drift warning — at the top so a calibration regression can't be missed. */}
       {significance.driftWarning && <DriftWarningPanel histogram={significance} />}
 
-      <Separator />
-
       {/* ── Section 1: Cron jobs ── */}
       <CronJobsSection rows={cronJobs} />
 

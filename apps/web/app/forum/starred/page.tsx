@@ -3,7 +3,7 @@
  *
  * Lists every forum post the current viewer has starred, most-recently-
  * starred first. Card shape mirrors `/forum` and `/forum/users/[username]`
- * for visual continuity — same byline / title / excerpt / topics /
+ * for visual continuity — same title / byline / excerpt / topics /
  * right-column View+Star layout.
  *
  * The starred set is private — only the viewer's own stars surface
@@ -179,8 +179,10 @@ export default async function StarredForumPage() {
                       </Link>
                     )}
 
-                    <div className="flex min-w-0 flex-1 items-start justify-between gap-4 p-4">
+                    <div className="flex min-w-0 flex-1 flex-col gap-4 p-4 md:flex-row md:items-start md:justify-between">
                       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                        <h2 className="text-lg font-semibold leading-tight">{row.title}</h2>
+
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <AuthorHoverCard username={row.authorUsername}>
                             <Link
@@ -201,8 +203,6 @@ export default async function StarredForumPage() {
                             {row.viewCount}
                           </span>
                         </div>
-
-                        <h2 className="text-lg font-semibold leading-tight">{row.title}</h2>
 
                         {row.body.length > 0 && (
                           <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
@@ -227,7 +227,7 @@ export default async function StarredForumPage() {
                       but unstarring immediately removes it from the list
                       on the next nav. self-stretch anchors View to the
                       card bottom via justify-between. */}
-                      <div className="flex shrink-0 flex-col items-end justify-between gap-1.5 self-stretch">
+                      <div className="flex shrink-0 w-full flex-row items-center justify-between gap-1.5 md:w-auto md:flex-col md:items-end md:justify-between md:self-stretch">
                         <StarButton postId={row.id} initialStarred={true} />
                         <Tooltip>
                           <TooltipTrigger asChild>

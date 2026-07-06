@@ -15,6 +15,7 @@
  * previously marked as not-interested.
  */
 
+import type { ReactNode } from 'react'
 import type { MockArticle } from '@/app/_mock/articles'
 import { useTopicPrefs } from '@/lib/topic-prefs'
 import { ArticleMasonry } from './ArticleMasonry'
@@ -23,9 +24,15 @@ type Props = {
   articles: MockArticle[]
   /** When true, skip the not-interested filter (topic-focus view). */
   skipNotInterestedFilter?: boolean
+  /** Optional tile rendered as the first grid cell (e.g. the topic card). */
+  prefix?: ReactNode
 }
 
-export function FilteredArticleMasonry({ articles, skipNotInterestedFilter = false }: Props) {
+export function FilteredArticleMasonry({
+  articles,
+  skipNotInterestedFilter = false,
+  prefix,
+}: Props) {
   const { notInterested } = useTopicPrefs()
 
   const filtered =
@@ -33,5 +40,5 @@ export function FilteredArticleMasonry({ articles, skipNotInterestedFilter = fal
       ? articles
       : articles.filter((article) => !article.topicBadges.some((badge) => notInterested.has(badge)))
 
-  return <ArticleMasonry articles={filtered} />
+  return <ArticleMasonry articles={filtered} prefix={prefix} />
 }

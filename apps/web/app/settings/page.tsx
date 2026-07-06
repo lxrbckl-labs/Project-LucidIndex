@@ -36,6 +36,7 @@ type Panel = {
   title: string
   blurb: string
   icon: React.ElementType
+  newTab?: boolean
 }
 
 type Group = {
@@ -72,6 +73,7 @@ const GROUPS: Group[] = [
         blurb:
           'Public reference for the dashboard MCP server — tools, parameters, connection details.',
         icon: Code,
+        newTab: true,
       },
       {
         href: '/settings/templates',
@@ -130,6 +132,7 @@ const GROUPS: Group[] = [
         title: 'MCP API Docs',
         blurb: 'Public reference for the forum MCP server — tools, parameters, connection details.',
         icon: Code,
+        newTab: true,
       },
       {
         href: '/settings/posting',
@@ -185,7 +188,12 @@ export default function SettingsHubPage() {
               {group.panels.map((panel) => {
                 const Icon = panel.icon
                 return (
-                  <Link key={panel.href} href={panel.href} className="group block">
+                  <Link
+                    key={panel.href}
+                    href={panel.href}
+                    className="group block"
+                    {...(panel.newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                  >
                     <Card className="h-full transition-colors hover:bg-accent/50 hover:shadow-sm">
                       <CardHeader>
                         <div className="mb-2 flex size-8 items-center justify-center rounded-md bg-muted text-muted-foreground">

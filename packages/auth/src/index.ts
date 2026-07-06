@@ -10,7 +10,11 @@ export {
   type CredentialSummary,
   getAdminCredentials,
 } from './account.js'
-export { DEV_BYPASS_ADMIN_ID, isDevAuthBypassActive } from './dev-bypass.js'
+export {
+  DEV_BYPASS_ADMIN_ID,
+  devForumBypassUsername,
+  isDevAuthBypassActive,
+} from './dev-bypass.js'
 export {
   type FinishForumLoginInput,
   type FinishForumLoginResult,

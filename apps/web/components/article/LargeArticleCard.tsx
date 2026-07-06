@@ -45,21 +45,6 @@ export function LargeArticleCard({ article }: Props) {
       )}
 
       <CardHeader className="pb-2">
-        {/* Badges row */}
-        <div className="flex flex-wrap items-center gap-1.5 mb-2">
-          {article.topicBadges.map((badge) => (
-            <Link
-              key={badge}
-              href={`/?badge=${encodeURIComponent(badge)}`}
-              className="rounded-md hover:opacity-80 transition-opacity"
-            >
-              <Badge variant="outline" className="">
-                {badge}
-              </Badge>
-            </Link>
-          ))}
-        </div>
-
         {/* Title — larger for the hero variant */}
         <CardTitle className="text-2xl font-semibold leading-snug line-clamp-2">
           {article.title}
@@ -88,14 +73,23 @@ export function LargeArticleCard({ article }: Props) {
         </p>
       </CardHeader>
 
-      <CardContent
-        className="flex-1 pb-2 overflow-hidden relative"
-        style={{
-          maskImage: 'linear-gradient(to bottom, black calc(100% - 24px), transparent)',
-          WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 24px), transparent)',
-        }}
-      >
+      <CardContent className="flex-1 pb-2 overflow-hidden relative">
         <p className="text-sm text-muted-foreground text-justify">{article.summary}</p>
+
+        {/* Badges row */}
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {article.topicBadges.map((badge) => (
+            <Link
+              key={badge}
+              href={`/?badge=${encodeURIComponent(badge)}`}
+              className="rounded-md hover:opacity-80 transition-opacity"
+            >
+              <Badge variant="outline" className="">
+                {badge}
+              </Badge>
+            </Link>
+          ))}
+        </div>
       </CardContent>
 
       <CardFooter className="pt-4 flex items-center justify-between">

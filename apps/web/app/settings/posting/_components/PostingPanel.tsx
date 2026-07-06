@@ -190,35 +190,33 @@ export function PostingPanel({ initial }: { initial: PostingPanelInitial }) {
   const busy = saving || resetting
 
   return (
-    <form
-      onSubmit={handleSave}
-      className="mt-6 flex max-w-xl flex-col gap-6"
-      data-testid="posting-panel"
-    >
+    <form onSubmit={handleSave} className="mt-6 flex flex-col gap-6" data-testid="posting-panel">
       {error && (
         <Alert variant="destructive" data-testid="posting-error">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
-      {FIELDS.map((f) => (
-        <div key={f.key} className="flex flex-col gap-1.5">
-          <Label htmlFor={`posting-${f.key}`}>{f.label}</Label>
-          <Input
-            id={`posting-${f.key}`}
-            type="number"
-            inputMode="numeric"
-            min={f.min}
-            max={f.max}
-            step={1}
-            value={values[f.key]}
-            onChange={(e) => setField(f.key, e.currentTarget.value)}
-            disabled={busy}
-            data-testid={`posting-input-${f.key}`}
-          />
-          <p className="text-xs text-muted-foreground">{f.hint}</p>
-        </div>
-      ))}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+        {FIELDS.map((f) => (
+          <div key={f.key} className="flex flex-col gap-1.5">
+            <Label htmlFor={`posting-${f.key}`}>{f.label}</Label>
+            <Input
+              id={`posting-${f.key}`}
+              type="number"
+              inputMode="numeric"
+              min={f.min}
+              max={f.max}
+              step={1}
+              value={values[f.key]}
+              onChange={(e) => setField(f.key, e.currentTarget.value)}
+              disabled={busy}
+              data-testid={`posting-input-${f.key}`}
+            />
+            <p className="text-xs text-muted-foreground">{f.hint}</p>
+          </div>
+        ))}
+      </div>
 
       <div className="flex items-center gap-3 pt-2">
         <Button type="submit" disabled={busy} data-testid="posting-save">

@@ -35,12 +35,17 @@ import { LiveArticleStream } from '@/components/article/LiveArticleStream'
 import { MasonryKeyboardNav } from '@/components/article/MasonryKeyboardNav'
 import { ScrollTopOnArrive } from '@/components/article/ScrollTopOnArrive'
 import { StarredArticlesMasonry } from '@/components/article/StarredArticlesMasonry'
-import { TopicFocusCard } from '@/components/article/TopicFocusCard'
+import { TopicProfileTile } from '@/components/article/TopicProfileTile'
 import { SiteFooter } from '@/components/chrome/SiteFooter'
 import { TopicBadgeFilterRow } from '@/components/chrome/TopicBadgeFilterRow'
 import { TopNav } from '@/components/chrome/TopNav'
 import { Button } from '@/components/ui/button'
-import { loadDashboardArticles, loadDashboardBadges } from './_lib/dashboard-loader'
+import {
+  loadDashboardArticles,
+  loadDashboardBadges,
+  loadTopicSentimentTimeline,
+  loadTopicTopAuthors,
+} from './_lib/dashboard-loader'
 
 // Reads the iron-session cookie via requireAdmin() and queries the DB for
 // articles / badges — never statically renderable.
@@ -130,6 +135,22 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
       .filter((v): v is string => Boolean(v)),
   ).size
 
+  // Topic-focus enrichment — only loaded when a badge is selected. Feeds the
+  // vertical TopicProfileTile pinned at the head of the article grid.
+  const [topAuthors, topicTimeline] = badgeFilter
+    ? await Promise.all([loadTopicTopAuthors(badgeFilter), loadTopicSentimentTimeline(badgeFilter)])
+    : [[], []]
+
+  const topicCard = badgeFilter ? (
+    <TopicProfileTile
+      topicName={badgeFilter}
+      articleCount={articles.length}
+      creatorCount={topicFocusCreatorCount}
+      topAuthors={topAuthors}
+      timeline={topicTimeline}
+    />
+  ) : null
+
   return (
     <div className="min-h-screen bg-background">
       {/* Thin top nav — Settings + Account links. */}
@@ -140,18 +161,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
             beating the browser's restored scroll position. Renders nothing. */}
         <ScrollTopOnArrive />
 
-        {/* Topic filter row OR focus card, depending on ?badge */}
-        {badgeFilter ? (
-          /* Focused view: topic card with star + metadata. Back lives in TopNav. */
-          <TopicFocusCard
-            topicName={badgeFilter}
-            articleCount={articles.length}
-            creatorCount={topicFocusCreatorCount}
-          />
-        ) : (
-          /* Default view: topic-badge filter pills */
-          <TopicBadgeFilterRow badges={badgeOptions} />
-        )}
+        {/* Topic filter pills — hidden in focused view (the topic card now
+            lives in the grid as its first cell, so no banner renders here). */}
+        {badgeFilter ? null : <TopicBadgeFilterRow badges={badgeOptions} />}
 
         {/* Live arrivals strip — SSE-driven horizontal scroll. */}
         <LiveArticleStream badgeFilter={badgeFilter} />
@@ -172,6 +184,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
             <FilteredArticleMasonry
               articles={articles}
               skipNotInterestedFilter={badgeFilter !== null}
+              prefix={topicCard}
             />
             {/* Keyboard nav handler — renders nothing visible; attaches
                 a window-level keydown listener that walks focus across

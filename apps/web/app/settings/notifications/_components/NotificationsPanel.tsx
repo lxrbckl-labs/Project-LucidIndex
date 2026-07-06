@@ -37,6 +37,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import type { NotificationListItem } from '../_lib/notifications-repo'
 
@@ -205,7 +206,7 @@ export function NotificationsPanel({ initialItems, initialCursor }: Props) {
   }
 
   return (
-    <div className="max-w-[840px] flex flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <div className="-mx-6 -mt-6 px-6 pt-6 pb-6 border-b">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -233,74 +234,78 @@ export function NotificationsPanel({ initialItems, initialCursor }: Props) {
           You&rsquo;re all caught up.
         </div>
       ) : (
-        <ul className="divide-y border-y" data-testid="notification-list">
-          {items.map((item) => {
-            const unread = item.read_at === null
-            return (
-              <li
-                key={item.id}
-                className={cn(
-                  'group relative flex items-start gap-3 py-3 px-3 transition-colors hover:bg-accent/50',
-                  unread && 'bg-primary/5',
-                )}
-                data-testid="notification-row"
-                data-unread={unread ? 'true' : 'false'}
-              >
-                {/* Avatar */}
-                <div className="size-8 shrink-0 overflow-hidden rounded-full border bg-background">
-                  {/* biome-ignore lint/performance/noImgElement: bytea route */}
-                  <img
-                    src={`/api/forum/users/${item.actor_username}/avatar`}
-                    alt=""
-                    className="h-full w-full object-cover"
-                    onError={(e) => {
-                      // Avatar may 404 for users who never set one — hide
-                      // the broken-image glyph; the initials-on-color
-                      // treatment from the forum doesn't exist on the
-                      // settings surface so a blank background is fine.
-                      e.currentTarget.style.visibility = 'hidden'
-                    }}
-                  />
-                </div>
+        <Card>
+          <CardContent className="p-0">
+            <ul className="divide-y" data-testid="notification-list">
+              {items.map((item) => {
+                const unread = item.read_at === null
+                return (
+                  <li
+                    key={item.id}
+                    className={cn(
+                      'group relative flex items-start gap-3 py-3 px-3 transition-colors hover:bg-accent/50',
+                      unread && 'bg-primary/5',
+                    )}
+                    data-testid="notification-row"
+                    data-unread={unread ? 'true' : 'false'}
+                  >
+                    {/* Avatar */}
+                    <div className="size-8 shrink-0 overflow-hidden rounded-full border bg-background">
+                      {/* biome-ignore lint/performance/noImgElement: bytea route */}
+                      <img
+                        src={`/api/forum/users/${item.actor_username}/avatar`}
+                        alt=""
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          // Avatar may 404 for users who never set one — hide
+                          // the broken-image glyph; the initials-on-color
+                          // treatment from the forum doesn't exist on the
+                          // settings surface so a blank background is fine.
+                          e.currentTarget.style.visibility = 'hidden'
+                        }}
+                      />
+                    </div>
 
-                {/* Row body — wrapped in a Link so the WHOLE area is the
+                    {/* Row body — wrapped in a Link so the WHOLE area is the
                     click target, and the link triggers mark-read +
                     navigates in one go. */}
-                <Link
-                  href={targetHref(item)}
-                  prefetch={false}
-                  onClick={() => void handleRowClick(item)}
-                  className="flex-1 min-w-0 text-sm leading-relaxed text-muted-foreground hover:text-foreground"
-                >
-                  <div className="flex items-center gap-2">
-                    {unread ? (
-                      <span
-                        className="size-2 shrink-0 rounded-full bg-primary"
-                        role="img"
-                        aria-label="Unread"
-                      />
-                    ) : null}
-                    <span className="truncate">{describeKind(item)}</span>
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {relativeTime(item.created_at)}
-                  </div>
-                </Link>
+                    <Link
+                      href={targetHref(item)}
+                      prefetch={false}
+                      onClick={() => void handleRowClick(item)}
+                      className="flex-1 min-w-0 text-sm leading-relaxed text-muted-foreground hover:text-foreground"
+                    >
+                      <div className="flex items-center gap-2">
+                        {unread ? (
+                          <span
+                            className="size-2 shrink-0 rounded-full bg-primary"
+                            role="img"
+                            aria-label="Unread"
+                          />
+                        ) : null}
+                        <span className="truncate">{describeKind(item)}</span>
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {relativeTime(item.created_at)}
+                      </div>
+                    </Link>
 
-                {/* Per-row delete */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Delete notification"
-                  className="size-8 shrink-0 opacity-60 hover:opacity-100"
-                  onClick={(e) => void handleDelete(item, e)}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              </li>
-            )
-          })}
-        </ul>
+                    {/* Per-row delete */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Delete notification"
+                      className="size-8 shrink-0 opacity-60 hover:opacity-100"
+                      onClick={(e) => void handleDelete(item, e)}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </li>
+                )
+              })}
+            </ul>
+          </CardContent>
+        </Card>
       )}
 
       {cursor ? (

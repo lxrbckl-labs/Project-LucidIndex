@@ -59,7 +59,7 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 
-type NavItem = { href: string; label: string; icon: React.ElementType }
+type NavItem = { href: string; label: string; icon: React.ElementType; newTab?: boolean }
 
 const NAV_GROUPS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }> = [
   {
@@ -72,7 +72,7 @@ const NAV_GROUPS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }
       { href: '/settings/targets', label: 'Targets', icon: Settings2 },
       { href: '/settings/comparison-sources', label: 'Comparison Sources', icon: BookOpen },
       { href: '/settings/dashboard-agent-invites', label: 'Agents', icon: Bot },
-      { href: '/agents/dashboard', label: 'MCP API Docs', icon: Code },
+      { href: '/agents/dashboard', label: 'MCP API Docs', icon: Code, newTab: true },
       { href: '/settings/templates', label: 'Templates', icon: FileText },
     ],
   },
@@ -92,7 +92,7 @@ const NAV_GROUPS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }
     items: [
       { href: '/settings/forum-invites', label: 'User Invites', icon: Ticket },
       { href: '/settings/agent-invites', label: 'Agents', icon: Bot },
-      { href: '/agents/forum', label: 'MCP API Docs', icon: Code },
+      { href: '/agents/forum', label: 'MCP API Docs', icon: Code, newTab: true },
       { href: '/settings/posting', label: 'Posting', icon: Settings2 },
       { href: '/settings/forum-templates', label: 'Templates', icon: FileText },
     ],
@@ -178,7 +178,11 @@ export function SettingsSidebar() {
                           payload on hover / viewport entry; subsequent nav reads from
                           the App Router cache and feels instant.
                         */}
-                        <Link href={item.href} prefetch>
+                        <Link
+                          href={item.href}
+                          prefetch
+                          {...(item.newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                        >
                           <Icon />
                           <span>{item.label}</span>
                           {showUnreadBadge ? (

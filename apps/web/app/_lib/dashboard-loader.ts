@@ -49,11 +49,13 @@ import { db } from '@lucidindex/db/client'
 import { and, asc, desc, eq, sql } from '@lucidindex/db/query'
 import { agentTokens, articles, targets, topicBadges } from '@lucidindex/db/schema'
 import { mapArticleRowToCard } from '@lucidindex/shared/article-view'
+import { generateSlug } from '@lucidindex/shared/slug'
 import {
   loadDashboardArticles as loadMockDashboardArticles,
   loadDashboardBadges as loadMockDashboardBadges,
   type MockArticle,
 } from '@/app/_mock/articles'
+import type { CreatorSentimentWeek } from '@/app/c/[slug]/loader'
 
 /**
  * Initial-page cap — keeps the dashboard render bounded. New arrivals
@@ -163,4 +165,70 @@ export async function loadDashboardBadges(): Promise<string[]> {
     .orderBy(asc(topicBadges.displayOrder), asc(topicBadges.createdAt))
 
   return rows.map((r) => r.name)
+}
+
+/**
+ * The top authors writing on a given topic badge (most-prolific first,
+ * max 5). The topic analog of `loadCreatorTopTopics`.
+ *
+ * Joins non-hidden articles carrying the badge (`topic_badges @> ARRAY[$1]`)
+ * to their `targets`, groups by target, counts, and ranks by count DESC then
+ * label ASC. `slug` falls back to `generateSlug(label, createdAt)` for rows
+ * whose `slug` column is still null (lazy backfill, mirroring
+ * `loadCreatorBySlug`), so every chip links to a resolvable `/c/<slug>`.
+ */
+export async function loadTopicTopAuthors(
+  badge: string,
+): Promise<{ label: string; slug: string }[]> {
+  const rows = await db
+    .select({
+      id: targets.id,
+      label: targets.label,
+      slug: targets.slug,
+      createdAt: targets.createdAt,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(articles)
+    .innerJoin(targets, eq(articles.targetId, targets.id))
+    .where(and(eq(articles.hidden, false), sql`${articles.topicBadges} @> ARRAY[${badge}]::text[]`))
+    .groupBy(targets.id, targets.label, targets.slug, targets.createdAt)
+    .orderBy(desc(sql`count(*)`), asc(targets.label))
+    .limit(5)
+
+  return rows.map((r) => ({
+    label: r.label,
+    slug: r.slug ?? generateSlug(r.label, r.createdAt),
+  }))
+}
+
+/**
+ * Weekly average sentiment across all articles carrying a topic badge over
+ * the trailing 52 weeks. Mirrors `loadCreatorSentimentTimeline` exactly but
+ * filters by badge membership (`badge = ANY(topic_badges)`) instead of
+ * `target_id`, so the topic card can reuse `CreatorSentimentTimeline`.
+ *
+ * Filters non-hidden articles with a non-null sentiment inside the window,
+ * buckets by ISO week (`date_trunc('week', ...)` — Monday start), and returns
+ * `avg(sentiment)` + `count(*)` per populated week, oldest first. `week_start`
+ * is cast to text in SQL and normalized to an ISO string on the way out.
+ */
+export async function loadTopicSentimentTimeline(badge: string): Promise<CreatorSentimentWeek[]> {
+  const rows = await db.execute<{ week_start: string; avg_sentiment: number; n: number }>(sql`
+    SELECT
+      date_trunc('week', created_at)::text AS week_start,
+      avg(sentiment)::float                AS avg_sentiment,
+      count(*)::int                        AS n
+    FROM articles
+    WHERE hidden = false
+      AND sentiment IS NOT NULL
+      AND created_at >= now() - interval '52 weeks'
+      AND ${badge} = ANY(topic_badges)
+    GROUP BY date_trunc('week', created_at)
+    ORDER BY date_trunc('week', created_at) ASC
+  `)
+  return [...rows].map((r) => ({
+    weekStart: new Date(r.week_start).toISOString(),
+    avgSentiment: r.avg_sentiment,
+    n: r.n,
+  }))
 }

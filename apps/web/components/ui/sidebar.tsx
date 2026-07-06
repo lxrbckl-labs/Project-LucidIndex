@@ -280,8 +280,11 @@ const SidebarTrigger = React.forwardRef<
   React.ElementRef<typeof Button>,
   React.ComponentProps<typeof Button>
 >(({ className, onClick, ...props }, ref) => {
-  const { state, toggleSidebar } = useSidebar()
-  const isOpen = state === "expanded"
+  const { state, isMobile, openMobile, toggleSidebar } = useSidebar()
+  // Reflect the *actual* open state: the mobile sheet uses `openMobile`,
+  // the desktop panel uses `state`. Keying off `state` alone left the icon
+  // showing the "collapse" arrow on a closed mobile sheet.
+  const isOpen = isMobile ? openMobile : state === "expanded"
 
   return (
     <Button

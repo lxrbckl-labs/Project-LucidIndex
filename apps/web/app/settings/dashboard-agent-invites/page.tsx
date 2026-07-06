@@ -14,11 +14,11 @@
  */
 
 import type { Metadata } from 'next'
-import {
-  DashboardAgentInvitesPanel,
-  type InviteRowClient,
-} from './_components/DashboardAgentInvitesPanel'
+import { ClearInvitesButton } from './_components/ClearInvitesButton'
+import { DashboardAgentInvitesPanel } from './_components/DashboardAgentInvitesPanel'
+import { NewInviteDialog } from './_components/NewInviteDialog'
 import { listInvites } from './_lib/dashboard-agent-invites-repo'
+import { deriveStatus, type InviteRowClient } from './_lib/invite-status'
 
 export const metadata: Metadata = {
   title: 'Agents — Dashboard — Settings — LucidIndex',
@@ -39,6 +39,9 @@ export default async function DashboardAgentInvitesPage() {
     revokedAt: r.revokedAt ? r.revokedAt.toISOString() : null,
   }))
 
+  const inactiveCount = initialInvites.filter((r) => deriveStatus(r) !== 'available').length
+  const redeemedCount = initialInvites.filter((r) => deriveStatus(r) === 'redeemed').length
+
   return (
     <>
       <div className="-mx-6 -mt-6 px-6 pt-6 pb-6 border-b flex items-center justify-between gap-4">
@@ -49,6 +52,10 @@ export default async function DashboardAgentInvitesPage() {
             bearer token authorized against the dashboard MCP server. Each code is shown in
             plaintext exactly once at creation and kept for audit after redemption or revocation.
           </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <ClearInvitesButton inactiveCount={inactiveCount} redeemedCount={redeemedCount} />
+          <NewInviteDialog />
         </div>
       </div>
       <DashboardAgentInvitesPanel initialInvites={initialInvites} />

@@ -1,6 +1,6 @@
 /**
  * System page skeleton — flat layout (no Cards) matching page.tsx:
- *   header → Separator → Cron jobs section → Separator → Queue section
+ *   header → Cron jobs section → Separator → Queue section
  *   → Separator → 30-day distribution section.
  */
 
@@ -17,8 +17,6 @@ export default function SystemLoading() {
         <Skeleton className="h-9 w-28" />
         <Skeleton className="h-4 w-80" />
       </div>
-
-      <Separator />
 
       {/* Cron jobs */}
       <section className="flex flex-col gap-3">

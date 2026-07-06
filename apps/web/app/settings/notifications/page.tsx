@@ -29,7 +29,7 @@ export default async function NotificationsPage() {
   const session = await requireForumUser()
   if (!session?.forumUserId) {
     return (
-      <div className="max-w-[840px] flex flex-col gap-8">
+      <div className="flex flex-col gap-8">
         <div className="-mx-6 -mt-6 px-6 pt-6 pb-6 border-b">
           <h1 className="text-3xl font-bold tracking-tight">Notifications</h1>
           <p className="mt-1 text-sm text-muted-foreground">

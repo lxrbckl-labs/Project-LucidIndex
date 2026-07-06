@@ -14,8 +14,11 @@
  */
 
 import type { Metadata } from 'next'
-import { AgentInvitesPanel, type InviteRowClient } from './_components/AgentInvitesPanel'
+import { AgentInvitesPanel } from './_components/AgentInvitesPanel'
+import { ClearInvitesButton } from './_components/ClearInvitesButton'
+import { NewInviteDialog } from './_components/NewInviteDialog'
 import { listInvites } from './_lib/agent-invites-repo'
+import { deriveStatus, type InviteRowClient } from './_lib/invite-status'
 
 export const metadata: Metadata = {
   title: 'Agents — Settings — LucidIndex',
@@ -38,6 +41,9 @@ export default async function AgentInvitesPage() {
     tokenRevokedAt: r.tokenRevokedAt ? r.tokenRevokedAt.toISOString() : null,
   }))
 
+  const inactiveCount = initialInvites.filter((r) => deriveStatus(r) !== 'available').length
+  const redeemedCount = initialInvites.filter((r) => deriveStatus(r) === 'redeemed').length
+
   return (
     <>
       <div className="-mx-6 -mt-6 px-6 pt-6 pb-6 border-b flex items-center justify-between gap-4">
@@ -49,6 +55,10 @@ export default async function AgentInvitesPage() {
             code is shown in plaintext exactly once at creation and kept for audit after redemption
             or revocation.
           </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <ClearInvitesButton inactiveCount={inactiveCount} redeemedCount={redeemedCount} />
+          <NewInviteDialog />
         </div>
       </div>
       <AgentInvitesPanel initialInvites={initialInvites} />

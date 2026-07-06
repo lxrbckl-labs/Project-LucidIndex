@@ -50,7 +50,12 @@ import { ArticleMasonry } from '@/components/article/ArticleMasonry'
 import { SiteFooter } from '@/components/chrome/SiteFooter'
 import { TopNav } from '@/components/chrome/TopNav'
 import { CreatorProfileTile } from './CreatorProfileTile'
-import { loadCreatorArticles, loadCreatorBySlug, loadCreatorSentiment } from './loader'
+import {
+  loadCreatorArticles,
+  loadCreatorBySlug,
+  loadCreatorSentimentTimeline,
+  loadCreatorTopTopics,
+} from './loader'
 
 // DB-backed (loadCreatorBySlug, loadCreatorArticles) — never statically
 // renderable. The lazy slug-backfill side-effect inside loadCreatorBySlug
@@ -100,7 +105,8 @@ export default async function CreatorPage({ params }: { params: Promise<{ slug: 
         socialUrl={null}
         photoUrl={null}
         articleCount={articles.length}
-        sentiment={null}
+        topTopics={[]}
+        timeline={[]}
       />
     )
 
@@ -118,9 +124,10 @@ export default async function CreatorPage({ params }: { params: Promise<{ slug: 
   const creator = await loadCreatorBySlug(slug)
   if (!creator) notFound()
 
-  const [articles, sentiment] = await Promise.all([
+  const [articles, topTopics, timeline] = await Promise.all([
     loadCreatorArticles(creator.id),
-    loadCreatorSentiment(creator.id),
+    loadCreatorTopTopics(creator.id),
+    loadCreatorSentimentTimeline(creator.id),
   ])
 
   const profileTile = (
@@ -131,7 +138,8 @@ export default async function CreatorPage({ params }: { params: Promise<{ slug: 
       socialUrl={creator.socialUrl}
       photoUrl={creator.photoUrl}
       articleCount={articles.length}
-      sentiment={sentiment}
+      topTopics={topTopics}
+      timeline={timeline}
     />
   )
 

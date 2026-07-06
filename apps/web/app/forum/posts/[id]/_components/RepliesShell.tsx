@@ -123,14 +123,15 @@ export function RepliesShell({
           the pane is closed, main stays in its old centered-640px layout
           inside the parent's `p-6`. */}
       <main
-        className="flex transition-[margin] duration-200 ease-linear"
+        className="flex overflow-x-clip transition-[margin] duration-200 ease-linear"
         style={{
-          marginLeft: inlineOpen ? '-1.5rem' : undefined,
-          marginRight: inlineOpen ? '-1.5rem' : undefined,
+          marginTop: '-1.5rem',
+          marginLeft: '-1.5rem',
+          marginRight: '-1.5rem',
         }}
       >
-        <div className="flex flex-1 justify-center px-4 pt-4 pb-4 sm:px-6 sm:pt-6 sm:pb-6">
-          <article className="w-full max-w-[640px]">
+        <div className="flex min-w-0 flex-1 justify-center px-4 pt-4 pb-4 sm:pt-6 sm:pb-6">
+          <article className="w-full min-w-0 lg:max-w-[640px]">
             <PostView
               {...postViewProps}
               repliesOpen={open}
@@ -192,7 +193,7 @@ export function RepliesShell({
           if (!next) close()
         }}
       >
-        <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
+        <SheetContent side="right" hideClose className="flex w-full flex-col gap-0 p-0 sm:max-w-md">
           <SheetTitle className="sr-only">Replies</SheetTitle>
           <SheetDescription className="sr-only">
             View and post replies to this forum post.
