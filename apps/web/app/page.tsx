@@ -16,8 +16,8 @@
  *           <ArticleMasonry>           ← responsive 1/2/3/4-col grid
  *           <MasonryKeyboardNav>       ← invisible keyboard handler
  *
- *     When the article list is empty, <AuthenticatedEmptyState> renders
- *     instead of the masonry.
+ *     When the article list is empty, the masonry simply doesn't render —
+ *     the topic pills / live stream and the footer are all that show.
  *
  * The giant editorial <Wordmark> is dropped from the dashboard body —
  * Wordmark lives in TopNav per Phase 3. A smaller wordmark is shown in
@@ -29,7 +29,6 @@
 import { requireAdmin } from '@lucidindex/auth'
 import { LayoutDashboard } from 'lucide-react'
 import Link from 'next/link'
-import { AuthenticatedEmptyState } from '@/components/article/AuthenticatedEmptyState'
 import { FilteredArticleMasonry } from '@/components/article/FilteredArticleMasonry'
 import { LiveArticleStream } from '@/components/article/LiveArticleStream'
 import { MasonryKeyboardNav } from '@/components/article/MasonryKeyboardNav'
@@ -152,11 +151,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
   ) : null
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-dvh flex-col bg-background">
       {/* Thin top nav — Settings + Account links. */}
       <TopNav />
 
-      <main className="px-4 pt-4 pb-4 flex flex-col gap-4">
+      <main className="flex-1 px-4 pt-4 pb-4 flex flex-col gap-4">
         {/* Forces scroll-to-top when arriving via an article topic badge,
             beating the browser's restored scroll position. Renders nothing. */}
         <ScrollTopOnArrive />
@@ -171,9 +170,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
         {starredFilter ? (
           /* Starred filter: client-rendered from the viewer's localStorage stars. */
           <StarredArticlesMasonry />
-        ) : articles.length === 0 ? (
-          <AuthenticatedEmptyState />
-        ) : (
+        ) : articles.length === 0 ? null : (
           <>
             {/*
               FilteredArticleMasonry reads notInterested from localStorage
