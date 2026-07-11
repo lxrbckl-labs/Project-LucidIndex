@@ -24,9 +24,11 @@
 
 'use client'
 
-import { Fragment } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { AuthorHoverCard } from '@/components/forum/AuthorHoverCard'
 import { InlineCitationLink } from './InlineCitationLink'
+import { markdownComponents } from './markdown-config'
 import type { PostViewCitation, PostViewUserMention } from './PostView'
 
 export type CommentCitation = PostViewCitation
@@ -124,9 +126,23 @@ export function CommentBody({ body, citations, userMentions, postImages }: Props
     <div className="whitespace-pre-wrap break-words pl-10 text-sm leading-relaxed text-foreground">
       {tokens.map((t, idx) => {
         if (t.kind === 'text') {
+          // Render the plain-text runs as markdown so replies get the same
+          // **bold** / *italic* / `code` / list / link formatting as the post
+          // body. `disallowedElements={['p']} unwrapDisallowed` keeps the text
+          // inline within the pre-wrap wrapper (no injected paragraph blocks),
+          // mirroring PostView's body renderer and preserving the composer's
+          // own line breaks. Shares the exact component map via markdown-config.
           return (
-            // biome-ignore lint/suspicious/noArrayIndexKey: parsed token sequence is stable across renders
-            <Fragment key={`t-${idx}`}>{t.value}</Fragment>
+            <ReactMarkdown
+              // biome-ignore lint/suspicious/noArrayIndexKey: parsed token sequence is stable across renders
+              key={`t-${idx}`}
+              remarkPlugins={[remarkGfm]}
+              components={markdownComponents}
+              disallowedElements={['p']}
+              unwrapDisallowed
+            >
+              {t.value}
+            </ReactMarkdown>
           )
         }
         if (t.kind === 'image') {
