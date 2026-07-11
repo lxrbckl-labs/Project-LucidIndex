@@ -115,9 +115,9 @@ export function RegenerateRecoveryCode() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-start gap-3">
             <code
-              className="flex-1 font-mono text-lg tracking-[0.15em] rounded-md bg-muted px-3 py-2 select-all"
+              className="min-w-0 flex-1 break-all font-mono text-sm sm:text-base tracking-[0.1em] rounded-md bg-muted px-3 py-2 select-all"
               data-testid="recovery-code-value"
             >
               {code}
@@ -127,6 +127,7 @@ export function RegenerateRecoveryCode() {
               variant="outline"
               size="sm"
               onClick={handleCopy}
+              className="shrink-0"
               data-testid="recovery-code-copy"
             >
               {copied ? 'Copied!' : 'Copy'}
