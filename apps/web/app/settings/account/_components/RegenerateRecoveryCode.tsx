@@ -9,7 +9,7 @@
  * the code is gone from the UI forever.
  */
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -17,7 +17,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -29,6 +28,14 @@ export function RegenerateRecoveryCode() {
   const [code, setCode] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Clear any pending auto-close timer on unmount.
+  useEffect(() => {
+    return () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current)
+    }
+  }, [])
 
   async function handleRegenerate() {
     if (stage === 'working') return
@@ -61,12 +68,20 @@ export function RegenerateRecoveryCode() {
     try {
       await navigator.clipboard.writeText(code)
       setCopied(true)
+      // Copy is now the only dismiss affordance — auto-close after 3s so the
+      // admin has a beat to see "Copied!" before the code disappears.
+      if (closeTimer.current) clearTimeout(closeTimer.current)
+      closeTimer.current = setTimeout(handleDismiss, 3000)
     } catch {
       // Clipboard API unavailable — silently no-op.
     }
   }
 
   function handleDismiss() {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current)
+      closeTimer.current = null
+    }
     setCode(null)
     setStage('idle')
     setCopied(false)
@@ -101,7 +116,12 @@ export function RegenerateRecoveryCode() {
       )}
 
       {/* Recovery code dialog — one-time display */}
-      <Dialog open={stage === 'showing' && !!code} onOpenChange={() => {}}>
+      <Dialog
+        open={stage === 'showing' && !!code}
+        onOpenChange={(open) => {
+          if (!open) handleDismiss()
+        }}
+      >
         <DialogContent
           data-testid="recovery-code-display"
           onPointerDownOutside={(e) => e.preventDefault()}
@@ -115,35 +135,19 @@ export function RegenerateRecoveryCode() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex items-start gap-3">
+          <div className="flex flex-col gap-3">
             <code
-              className="min-w-0 flex-1 break-all font-mono text-sm sm:text-base tracking-[0.1em] rounded-md bg-muted px-3 py-2 select-all"
+              className="w-full break-all font-mono text-sm sm:text-base tracking-[0.1em] rounded-md bg-muted px-3 py-2 select-all"
               data-testid="recovery-code-value"
             >
               {code}
             </code>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleCopy}
-              className="shrink-0"
-              data-testid="recovery-code-copy"
-            >
-              {copied ? 'Copied!' : 'Copy'}
-            </Button>
+            <div className="flex justify-end">
+              <Button type="button" size="sm" onClick={handleCopy} data-testid="recovery-code-copy">
+                {copied ? 'Copied!' : 'Copy'}
+              </Button>
+            </div>
           </div>
-
-          <DialogFooter>
-            <Button
-              size="sm"
-              type="button"
-              onClick={handleDismiss}
-              data-testid="recovery-code-dismiss"
-            >
-              I've saved it — dismiss
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
