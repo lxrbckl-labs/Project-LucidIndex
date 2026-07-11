@@ -138,7 +138,7 @@ export function ForumInvitesPanel({ initialInvites }: Props) {
 
 function EmptyState({ onIssue }: { onIssue: () => void }) {
   return (
-    <div className="flex flex-col items-center gap-4 py-16 text-center">
+    <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed py-12 text-center">
       <h2 className="text-lg font-semibold tracking-tight">No invites yet</h2>
       <p className="max-w-[420px] text-sm text-muted-foreground">
         Generate one to admit the next forum user. Codes are shown in plaintext exactly once.

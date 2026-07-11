@@ -9,7 +9,8 @@
  * the code is gone from the UI forever.
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
+import { toast } from 'sonner'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -26,22 +27,12 @@ type Stage = 'idle' | 'working' | 'showing'
 export function RegenerateRecoveryCode() {
   const [stage, setStage] = useState<Stage>('idle')
   const [code, setCode] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // Clear any pending auto-close timer on unmount.
-  useEffect(() => {
-    return () => {
-      if (closeTimer.current) clearTimeout(closeTimer.current)
-    }
-  }, [])
 
   async function handleRegenerate() {
     if (stage === 'working') return
     setError(null)
     setCode(null)
-    setCopied(false)
     setStage('working')
 
     try {
@@ -67,24 +58,20 @@ export function RegenerateRecoveryCode() {
     if (!code) return
     try {
       await navigator.clipboard.writeText(code)
-      setCopied(true)
-      // Copy is now the only dismiss affordance — auto-close after 3s so the
-      // admin has a beat to see "Copied!" before the code disappears.
-      if (closeTimer.current) clearTimeout(closeTimer.current)
-      closeTimer.current = setTimeout(handleDismiss, 3000)
+      // Copy is the only dismiss affordance — copy, close immediately, and
+      // confirm via toast (the code is gone from the UI the moment we close).
+      handleDismiss()
+      toast.success('Recovery code copied to clipboard.')
     } catch {
-      // Clipboard API unavailable — silently no-op.
+      // Clipboard unavailable — keep the dialog open so the code can still be
+      // selected/copied by hand.
+      toast.error("Couldn't copy — select the code and copy it manually.")
     }
   }
 
   function handleDismiss() {
-    if (closeTimer.current) {
-      clearTimeout(closeTimer.current)
-      closeTimer.current = null
-    }
     setCode(null)
     setStage('idle')
-    setCopied(false)
   }
 
   return (
@@ -144,9 +131,13 @@ export function RegenerateRecoveryCode() {
             </code>
             <div className="flex justify-end">
               <Button type="button" size="sm" onClick={handleCopy} data-testid="recovery-code-copy">
-                {copied ? 'Copied!' : 'Copy'}
+                Copy
               </Button>
             </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Copying closes this dialog and the code won't be shown again — make sure it lands
+              somewhere safe before you copy.
+            </p>
           </div>
         </DialogContent>
       </Dialog>

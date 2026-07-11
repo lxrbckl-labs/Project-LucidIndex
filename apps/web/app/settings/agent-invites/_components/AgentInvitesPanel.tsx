@@ -73,7 +73,7 @@ export function AgentInvitesPanel({ initialInvites }: Props) {
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center gap-4 py-16 text-center">
+    <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed py-12 text-center">
       <h2 className="text-lg font-semibold tracking-tight">No invites yet</h2>
       <p className="max-w-[460px] text-sm text-muted-foreground">
         Mint one to onboard the next external agent — they'll get a forum identity and a bearer
