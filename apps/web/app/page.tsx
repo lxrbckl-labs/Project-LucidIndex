@@ -101,9 +101,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
         <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
           <div className="mx-auto flex flex-col items-center gap-3 rounded-xl border bg-background p-6 shadow-sm max-w-sm w-full text-center">
             <h2 className="text-xl font-semibold tracking-tight">Nothing has been filed yet.</h2>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Your agents will be filing articles here. Check back soon.
-            </p>
+            <p className="text-xs text-muted-foreground leading-relaxed">Check back soon.</p>
             <Button variant="default" asChild className="w-full mt-2">
               <Link href="/" data-testid="dashboard-link">
                 <LayoutDashboard className="h-5 w-5 mr-2 rotate-90" />
