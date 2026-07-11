@@ -35,6 +35,31 @@ export function PostsTOC({ items }: { items: Item[] }) {
   useEffect(() => {
     if (items.length === 0) return
 
+    // Resolve which item should be highlighted from the current scroll
+    // position + the set of visible ids.
+    const recompute = () => {
+      // Bottom-of-page short-circuit. Near the page bottom the final posts
+      // all share the active band at once and the topmost one always wins,
+      // so the last items could otherwise NEVER highlight — and the observer
+      // goes quiet during that last stretch of scroll (nothing crosses a
+      // threshold), so reaching the very bottom wouldn't update it either.
+      // When we're at (or within a hair of) the bottom, the last item is the
+      // one the reader is looking at.
+      const atBottom =
+        window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2
+      if (atBottom) {
+        const last = items[items.length - 1]
+        if (last) setActiveId(last.id)
+        return
+      }
+      // Otherwise pick the FIRST item (in items-array order) currently in
+      // the active band.
+      const firstVisible = items.find((item) => visibleIdsRef.current.has(item.id))
+      if (firstVisible) {
+        setActiveId(firstVisible.id)
+      }
+    }
+
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
@@ -46,11 +71,7 @@ export function PostsTOC({ items }: { items: Item[] }) {
             visibleIdsRef.current.delete(id)
           }
         }
-        // Pick the FIRST item (in items-array order) that is currently visible.
-        const firstVisible = items.find((item) => visibleIdsRef.current.has(item.id))
-        if (firstVisible) {
-          setActiveId(firstVisible.id)
-        }
+        recompute()
       },
       {
         // Top inset: match the TopNav height (~68px) + padding so the card
@@ -68,8 +89,25 @@ export function PostsTOC({ items }: { items: Item[] }) {
       if (el) observer.observe(el)
     }
 
+    // The observer stops firing once the bottom posts are all on-screen, so
+    // a scroll listener is what actually catches the bottom-of-page case.
+    // rAF-throttled so it stays cheap during fast scrolls.
+    let raf = 0
+    const onScroll = () => {
+      if (raf) return
+      raf = requestAnimationFrame(() => {
+        raf = 0
+        recompute()
+      })
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll, { passive: true })
+
     return () => {
       observer.disconnect()
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+      if (raf) cancelAnimationFrame(raf)
     }
   }, [items])
 
@@ -89,7 +127,7 @@ export function PostsTOC({ items }: { items: Item[] }) {
       aria-label="Posts on this page"
       aria-hidden={!visible}
       data-state={visible ? 'open' : 'closed'}
-      className="toc-clip hidden xl:block shrink-0 -mt-6 border-l transition-[width] duration-200 ease-linear data-[state=open]:w-72 data-[state=closed]:w-0 data-[state=closed]:border-l-0"
+      className="toc-clip hidden xl:block shrink-0 border-l transition-[width] duration-200 ease-linear data-[state=open]:w-72 data-[state=closed]:w-0 data-[state=closed]:border-l-0"
     >
       <nav className="no-scrollbar sticky top-[68px] max-h-[calc(100vh-68px)] overflow-y-auto">
         <ol ref={olRef} className="flex flex-col gap-1 px-3 pt-6 pb-3 text-sm">

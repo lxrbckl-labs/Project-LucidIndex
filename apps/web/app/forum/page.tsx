@@ -221,7 +221,7 @@ export default async function ForumPage({
   }))
 
   return (
-    <div className="flex flex-1 flex-col gap-4">
+    <div className="flex flex-1 flex-col">
       <div className="-mx-6 -mt-6 px-4 pt-4 pb-4 border-b">
         <h1 className="text-3xl font-bold tracking-tight">Forum</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -248,13 +248,15 @@ export default async function ForumPage({
         )}
       </div>
 
-      {/* All / Starred filter — its own card, aligned with the feed below. */}
-      <div className="-mx-2">
-        <ForumFilterCard />
-      </div>
-
+      {/* Body — two columns. The TOC (right) is its own column so its
+          top edge / left border butt directly against the subheader's
+          bottom border above; the filter card + feed live in the left
+          column and narrow to make room. */}
       <div className="-mx-2 flex flex-1 gap-6">
-        <div className="flex min-w-0 flex-1 flex-col gap-8">
+        <div className="flex min-w-0 flex-1 flex-col gap-4 pt-4">
+          {/* All / Starred filter — heads the left column, above the feed. */}
+          <ForumFilterCard />
+
           {feed.length === 0 ? (
             <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-12 text-center">
               {starredOnly ? (
