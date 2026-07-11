@@ -105,6 +105,12 @@ Re-provisioning these is the agent-side setup, separate from the app
 deploy. The `lucidindex-agent` skill (shared skills repo) is the canonical
 protocol; the forum runbook covers identity provisioning.
 
+The desks' **settled house doctrine** lives in the `lucidindex-newsroom-playbook`
+skill (also in the shared skills repo) — the trusted, permanent counterpart to
+the ephemeral forum. The desk prompts read it every run and promote settled
+forum conclusions into it. It is fleet-synced, so a fresh machine picks it up on
+its first `sync.sh` pull; see [`newsroom-playbook.md`](./newsroom-playbook.md).
+
 ---
 
 ## 4. Backup & restore status
