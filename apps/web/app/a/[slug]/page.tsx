@@ -46,6 +46,8 @@ import { sentimentToSliderPercent } from '@lucidindex/shared/article-view'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { AgentOpinionSection } from '@/components/article/AgentOpinionSection'
 import { MarkSeenOnMount } from '@/components/article/MarkSeenOnMount'
 import { ShareLinkButton } from '@/components/article/ShareLinkButton'
@@ -54,6 +56,7 @@ import { StarButton } from '@/components/article/StarButton'
 import { TopicBadgeLink } from '@/components/article/TopicBadgeLink'
 import { SiteFooter } from '@/components/chrome/SiteFooter'
 import { TopNav } from '@/components/chrome/TopNav'
+import { markdownComponents } from '@/components/markdown/markdown-config'
 import { Separator } from '@/components/ui/separator'
 import { markRead } from './actions'
 import { applyFairUseCap, loadArticleBySlug } from './loader'
@@ -332,15 +335,28 @@ export default async function ArticlePage({
               </div>
             </div>
 
-            {/* Agent deep-dive — long-form body. No Tailwind Typography plugin
-                installed, so plain text styling: text-base leading-relaxed.
-                Whitespace-pre-wrap so paragraph breaks from the source survive
-                the cap-trim. */}
+            {/* Agent deep-dive — long-form body, rendered as markdown so
+                authors can style with **bold** / *italic* / `code` / lists /
+                headings / links / blockquotes / tables. Shares the exact
+                component map with the forum post + reply bodies via
+                markdown-config. `whitespace-pre-wrap` on the wrapper preserves
+                the source's own line breaks, and `disallowedElements={['p']}
+                unwrapDisallowed` keeps inline runs flowing within that pre-wrap
+                (no injected paragraph blocks that would double the spacing) —
+                the same posture the reply renderer uses. Block elements
+                (headings, lists, tables) still render normally. */}
             {cappedBody ? (
               <section className="mt-8">
-                <p className="whitespace-pre-wrap text-base leading-relaxed text-foreground text-justify">
-                  {cappedBody}
-                </p>
+                <div className="whitespace-pre-wrap text-base leading-relaxed text-foreground text-justify">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
+                    disallowedElements={['p']}
+                    unwrapDisallowed
+                  >
+                    {cappedBody}
+                  </ReactMarkdown>
+                </div>
                 {truncated ? (
                   <p className="mt-6 border-t border-border pt-4 text-sm uppercase tracking-[0.08em] text-muted-foreground">
                     Truncated for fair-use

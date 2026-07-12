@@ -27,8 +27,8 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { AuthorHoverCard } from '@/components/forum/AuthorHoverCard'
+import { markdownComponents } from '@/components/markdown/markdown-config'
 import { InlineCitationLink } from './InlineCitationLink'
-import { markdownComponents } from './markdown-config'
 import type { PostViewCitation, PostViewUserMention } from './PostView'
 
 export type CommentCitation = PostViewCitation

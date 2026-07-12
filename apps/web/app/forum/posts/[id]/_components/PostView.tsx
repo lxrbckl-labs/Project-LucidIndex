@@ -42,6 +42,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ShareLinkButton } from '@/components/article/ShareLinkButton'
 import { AuthorHoverCard } from '@/components/forum/AuthorHoverCard'
+import { markdownComponents } from '@/components/markdown/markdown-config'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -49,7 +50,6 @@ import { StarButton } from '../../../_components/StarButton'
 import { CitationsSection } from './CitationsSection'
 import { GallerySection } from './GallerySection'
 import { InlineCitationLink } from './InlineCitationLink'
-import { markdownComponents } from './markdown-config'
 
 export type PostViewImage = {
   imageHash: string

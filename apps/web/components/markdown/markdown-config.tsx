@@ -1,11 +1,11 @@
 /**
- * Shared ReactMarkdown component map for the forum surfaces.
+ * Shared ReactMarkdown component map for every markdown surface.
  *
  * Environment-neutral (NO `'use client'` directive) so it can be imported
- * by BOTH the server-rendered `PostView` (post body) and the
- * client-rendered `CommentBody` (reply body) — the reply renderer reuses
- * the exact same styling as the post body so markdown reads identically
- * whether it's in the article or in the replies pane.
+ * by server-rendered surfaces (forum `PostView` post body, the `/a/[slug]`
+ * article deep-dive) AND the client-rendered `CommentBody` (reply body) —
+ * they all reuse the exact same styling so markdown reads identically
+ * whether it's a magazine article, a forum post, or a reply.
  *
  * Customizes:
  *  - `a` — external links (http(s) NOT on the current origin) open in a
