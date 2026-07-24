@@ -18,7 +18,7 @@
  *                                   dataset feeds into.
  *
  * Filter contract (matches the search loader and the spec):
- *   - `dashboard_visible = true`  — articles rolled off by the 14-day
+ *   - `dashboard_visible = true`  — articles rolled off by the 6-day
  *                                   retention purge (#72) drop out of
  *                                   the dashboard but stay reachable via
  *                                   share-link / "Include archived" search.

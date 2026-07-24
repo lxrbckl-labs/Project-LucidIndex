@@ -10,7 +10,7 @@
 // Phase 7 (#72/#75/#76) adds:
 //
 //   - retention_purge → daily 03:00; roll articles off the dashboard at
-//                       14d, delete (except starred) at 6mo, drop hero
+//                       6d, delete (except starred) at 6mo, drop hero
 //                       image files alongside the row delete.
 //   - local_backup    → nightly 02:00; pg_dump (custom format) + tar of
 //                       hero images into BACKUP_DIR. 14-day retention
