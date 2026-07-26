@@ -253,9 +253,12 @@ export default async function UserProfilePage({ params }: PageProps) {
   const hasAnyActivity = postCount > 0 || commentCount > 0
 
   return (
-    <div className="flex flex-1 flex-col gap-6">
+    <div className="flex flex-1 flex-col">
       {/* Header band — full-width sweep that matches the `/forum` feed's
-        framing exactly (mirrored padding pulls back to the inset edge). */}
+        framing exactly (mirrored padding pulls back to the inset edge).
+        No gap below it: the body row butts directly against this band's
+        bottom border so the TOC's top edge connects flush — same posture
+        as the `/forum` feed. */}
       <div className="-mx-6 -mt-6 px-6 pt-6 pb-6 border-b">
         <div className="flex items-center gap-4">
           <Avatar className="size-16 shrink-0">
@@ -286,8 +289,13 @@ export default async function UserProfilePage({ params }: PageProps) {
         </div>
       </div>
 
-      <div className="flex flex-1 gap-6">
-        <div className="flex min-w-0 flex-1 flex-col gap-8">
+      {/* Body — two columns, mirroring the `/forum` feed. The TOC (right)
+          is its own column so its top edge / left border butt directly
+          against the header band's bottom border above; the profile
+          sections live in the left column and narrow to make room. The
+          `-mx-2` and left-column `pt-4` match the feed exactly. */}
+      <div className="-mx-2 flex flex-1 gap-6">
+        <div className="flex min-w-0 flex-1 flex-col gap-8 pt-4">
           {/* Top topics — only when the user has at least one post or comment.
             Otherwise the aggregation is empty and a labelled empty box reads
             worse than just dropping the section. */}
