@@ -7,7 +7,7 @@ Opinionated short-form guide. Read this once before touching code.
 ## Quick start
 
 ```sh
-git clone https://github.com/lxrbckl-dev/Project-LucidIndex.git
+git clone https://github.com/lxrbckl-labs/Project-LucidIndex.git
 cd Project-LucidIndex
 pnpm install          # installs + auto-builds packages (templates, db, shared)
 pnpm test:e2e         # smoke-test the full stack — all 29 specs should pass

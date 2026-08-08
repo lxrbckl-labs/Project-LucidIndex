@@ -2,7 +2,7 @@
 
 WebAuthn passkey + iron-session auth for the single-admin LucidIndex shell.
 
-Ported from [Project-Showalter](https://github.com/lxrbckl-dev/Project-Showalter)'s
+Ported from [Project-Showalter](https://github.com/lxrbckl-labs/Project-Showalter)'s
 `src/features/auth/` modules — Showalter is a sibling repo Alex already runs
 with the same passkey-only / single-admin / one-recovery-code design, so this
 package is largely a translation rather than a fresh write.

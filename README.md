@@ -12,7 +12,7 @@ LucidIndex is the **cockpit and the magazine; the agents are the journalists.** 
 
 LucidIndex itself does not scrape, does not run an LLM, and does not ship agents. It is **infrastructure only**.
 
-A reference agent ships in lockstep as a sibling repo: [`Project-LucidIndex-Agent`](https://github.com/lxrbckl-dev/Project-LucidIndex-Agent) (does not exist yet — scaffolded in Phase 4 of the build plan; both repos tag matching `v0.1.0` at ship). LucidIndex without LucidIndex-Agent is half a product.
+A reference agent ships in lockstep as a sibling repo: [`Project-LucidIndex-Agent`](https://github.com/lxrbckl-labs/Project-LucidIndex-Agent) (does not exist yet — scaffolded in Phase 4 of the build plan; both repos tag matching `v0.1.0` at ship). LucidIndex without LucidIndex-Agent is half a product.
 
 ---
 
@@ -153,7 +153,7 @@ The full step-by-step production deploy guide lives at **[`docs/deploy.md`](docs
 Short version:
 
 ```sh
-git clone https://github.com/lxrbckl-dev/Project-LucidIndex.git
+git clone https://github.com/lxrbckl-labs/Project-LucidIndex.git
 cd Project-LucidIndex
 cp apps/web/.env.example .env
 # edit .env — set POSTGRES_PASSWORD, IRON_SESSION_PASSWORD,

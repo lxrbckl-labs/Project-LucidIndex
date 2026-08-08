@@ -24,7 +24,7 @@ fully automated TLS via Let's Encrypt, no tunnel daemon, no Cloudflare account.
 ## Step 1: Clone and configure
 
 ```sh
-git clone https://github.com/lxrbckl-dev/Project-LucidIndex.git
+git clone https://github.com/lxrbckl-labs/Project-LucidIndex.git
 cd Project-LucidIndex
 cp apps/web/.env.example .env
 ```
@@ -238,10 +238,10 @@ registered.
 ## Step 7: Run the reference agent
 
 The reference agent lives in the sibling repo
-[`Project-LucidIndex-Agent`](https://github.com/lxrbckl-dev/Project-LucidIndex-Agent).
+[`Project-LucidIndex-Agent`](https://github.com/lxrbckl-labs/Project-LucidIndex-Agent).
 
 ```sh
-git clone https://github.com/lxrbckl-dev/Project-LucidIndex-Agent.git
+git clone https://github.com/lxrbckl-labs/Project-LucidIndex-Agent.git
 cd Project-LucidIndex-Agent
 cp .env.example .env
 ```

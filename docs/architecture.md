@@ -237,7 +237,7 @@ handler (so the two stay in sync). Also exports cross-package TypeScript types.
 ## The reference agent
 
 The agent that drives the queue is in the sibling repo
-[`Project-LucidIndex-Agent`](https://github.com/lxrbckl-dev/Project-LucidIndex-Agent).
+[`Project-LucidIndex-Agent`](https://github.com/lxrbckl-labs/Project-LucidIndex-Agent).
 That repo ships in lockstep with this one (`v0.1.0` tags match).
 LucidIndex itself contains no scraping, LLM calls, or summarization logic —
 those live entirely in the agent.
