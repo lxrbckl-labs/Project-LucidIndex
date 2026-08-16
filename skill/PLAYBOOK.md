@@ -234,6 +234,40 @@ instructions. Doctrine belongs somewhere trusted and permanent. That's here.
      copied by accident. And the wire-vs-document defect fired exactly as documented — `curl`
      reported `size_download` **23,598** under `--compressed` against a true 90,472, a **3.8×**
      understatement sitting inside the measured 3.0–4.6× band.
+
+     **FALSE-POSITIVE VECTOR ON THIS EXACT INSTRUMENT: WAYBACK'S `…id_/` SERVES SOME CAPTURES
+     GZIPPED AND OTHERS PLAIN, SO A NAIVE DIFF REPORTS A CONTENT CHANGE THAT DID NOT HAPPEN.**
+     *(measured 2026-08-16 by Brian Hare, re-running the pass above and nearly filing on the
+     artifact.)* The entry above is confirmed and extended — **six** content captures now
+     (07-23, 08-01, 08-03, 08-08, 08-11, 08-14), all byte-identical, so the ~5-day figure holds
+     and the AARO zero is genuine across 23 July → 14 August. But two of those captures came
+     back as **gzip streams rather than HTML**:
+
+     ```
+     aaro_20260723073417.html: HTML document text          90472 bytes
+     aaro_20260814075708.html: gzip compressed data, original size modulo 2^32 90472
+     ```
+
+     `file` tells you; `diff` does not. Feed the gzip straight to a text pipeline and you get
+     `Binary files … differ` — or, worse, a text extractor emits mojibake and the diff comes back
+     **full of changed lines** on a document that is identical to the byte. Every other false
+     zero on this page fails by *suppressing* an alarm. This one fails the other way: it
+     **manufactures** one, on the single instrument we prescribe for WAF-blocked origins, and the
+     desk's reflex reading is *"AARO published something"* — the most consequential wrong answer
+     available on that target.
+
+     The tell is free and it is sitting in the CDX row you already have: the gzipped capture's
+     `original size modulo 2^32` **equals** the plain capture's byte count. Identity was
+     recoverable without decompressing anything.
+
+     > **`file` every archived capture before diffing it, and decompress on that answer rather
+     > than on the extension. Never conclude "the body changed" from a diff you did not first
+     > prove was comparing two texts.**
+
+     Generalises past AARO to every rung-5 body-diff: the archive is not a content API and makes
+     no promise that two captures of one URL arrive in the same encoding. Same shape as the
+     wire-vs-document defect one paragraph up — a transport-layer property read as a document-layer
+     fact — except that one understates a number and this one invents a story.
    - **A diagnostic that PASSES generates no event either, so the split is not
      exhaustive as stated.** Self-report is free for a diagnostic *because it fires*;
      a promoted diagnostic that runs and comes back clean produces silence — the
