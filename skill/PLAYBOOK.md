@@ -2574,6 +2574,50 @@ Wayback does not rescue it either — the crawler gets challenged too.
   and bare `odni.gov` serve the identical 403 "Access Denied" as `dni.gov`.
   Cheap to check, worth not re-checking.)*
 
+  **DOMAIN MIGRATION, between 2026-07-30 and 07-31: `www.dni.gov` now 301s to
+  `www.odni.gov`, which is the canonical host. `odni.gov` is no longer an "alias" —
+  it is the site.** *(2026-08-16, Kendall Bingham.)* The note directly above is now
+  half-stale in the direction that matters: `odni.gov` still 403s us (that part
+  stands, re-probed today across `/`, `/newsroom/`, `/feed/`, `/wp-json/wp/v2/posts`,
+  `/sitemap.xml`, `/wp-sitemap.xml` — all 403), but it is no longer a *sibling* of
+  `dni.gov` returning the same denial; it is the destination `dni.gov` redirects to.
+  Detected exactly the way Brian's replatform note says a WAF'd origin's changes reach
+  you — through the archive, not the origin. In CDX, `https://www.dni.gov/` returns
+  `200` on captures through 20260730, then **`301` on every capture from 20260731
+  onward** (digest `3I42H3S6NNFQ2MSVX7XZKYAYSCX5QBYJ`, the empty-body redirect digest),
+  and `curl -sI "http://web.archive.org/web/<ts>id_/https://www.dni.gov/"` reads the
+  `location:` header straight out: `https://www.odni.gov/`. Live, we cannot see this at
+  all — Akamai 403s us *before* the redirect, so from our side `dni.gov` and `odni.gov`
+  are two hosts both returning 365 bytes of denial, which is precisely the shape that
+  makes a migration invisible to a desk probing the origin.
+
+  Concrete consequences, all of them cheap:
+  - **Point every CDX sweep at `odni.gov`, not `dni.gov`.** `url=dni.gov&matchType=domain`
+    from 20260725 now returns mostly `archive.dni.gov` static junk (the old Joomla site
+    was relocated there) and **missed PR-12-26 entirely**. `url=odni.gov&matchType=domain`
+    has it. Same query, same date range, one host string, and the difference is a filed
+    story versus a false zero.
+  - **The listing facets survived the move verbatim** —
+    `https://www.odni.gov/newsroom/?query-19-category=press-releases` (and `…=reports`)
+    render exactly as Brian documented on `dni.gov`, with dates. The post-ID URL space
+    also carried over unchanged (`/13685/pr-11-26/` → `/14064/pr-12-26/`), so this is a
+    **hostname change, not a second replatform**; every path recipe in this entry still
+    works, just swap the host.
+  - **`check_article_exists` canonicalizes `www.` but NOT `dni.gov` vs `odni.gov`** — they
+    normalize to `https://dni.gov/…` and `https://odni.gov/…`, two different keys for one
+    document. This is Landon's Nikkei aliasing shape again, now with a redirect proving
+    the two are one. **File the `odni.gov` form** (it is where the redirect terminates),
+    and when deduping an ODNI item, check both.
+
+  The transferable half: **a domain migration is a replatform's quieter cousin — it
+  invalidates the one string every note about a target has in common (the host), and on
+  a WAF'd origin it presents to you as "no change," because both hosts return the same
+  403 they always did.** Brian's rule was to diff archived bodies periodically to catch
+  a replatform; the addendum is to **read archived *status codes*, not just bodies** — a
+  `200 → 301` transition in a CDX column is the entire signal here, and a body diff would
+  have shown nothing to compare. Cost of missing it: your enumeration keeps returning
+  clean, plausible zeros on a host the publisher has stopped using.
+
   **REPLATFORMED between 2026-07-27 and 07-28: Joomla → WordPress 6.8.2, and it
   voids the `4NNN-pr-NN-26` recipe above outright. Still fully WAF-blocked, so the
   archive is the ONLY way anyone finds out.** *(2026-07-29, Brian Hare.)* Measured by
