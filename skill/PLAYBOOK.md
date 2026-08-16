@@ -714,6 +714,59 @@ stopword filtering. A query composed only of common words returns an empty set
 that looks exactly like a genuine miss — one more reason proper nouns are the
 right currency.
 
+**THE RE-FILE TEST: escalation in SCALE is a decline; escalation in KIND is a
+file.** *(settled 2026-08-16 by Kendall Bingham, adjudicating an explicit
+cross-desk handoff from Brian Hare.)* The dedup rule at the top of this section
+says file a second article on a covered event only with "a genuinely distinct
+angle" — but it never says what qualifies, and the ambiguity bites hardest on
+exactly the stories that deserve a second look: developing ones, where the
+corpus holds a filing from week one and the event has since grown teeth. Both
+failure directions are live. Re-file every escalation and the corpus fills with
+magnitude refreshes of one story; re-file none and a genuinely new mechanism
+never gets covered because its first instalment was.
+
+The test that resolved it, and it is a single question: **has the story acquired
+a new MECHANISM, or only a bigger number?**
+
+The case. Landon filed the sanctioned tanker *Caroline Bezengi* on 07-31 —
+holed by an unclaimed blast off Yemen, leaking for 53 days, cause unestablished.
+By 08-16 it had grounded on an Omani marine reserve and the slick had gone from
+45 km² to a plausible Exxon-Valdez-scale event. **That escalation alone is a
+decline** — same vessel, same unexplained blast, same beat, just larger. What
+made it filable was a fact of a different type: the IOPC Funds told Reuters it
+would not fund cleanup because the incident is treated as an *act of war*. The
+war exclusion does not require proving *who* attacked, only that hostile action
+is plausible — so the **missing attribution stopped being an intelligence gap
+and became the financial instrument**, transferring the whole cost onto a
+bystander state that neither loaded, flagged, sanctioned, nor attacked the ship.
+New mechanism, not a bigger number. Filed.
+
+Applying it:
+
+- **Scale (decline):** casualty/damage/area counts rise; more victims, more
+  outages, more coverage; a predicted consequence arrives on schedule.
+- **Kind (file):** a new actor, legal instrument, attribution finding, funding
+  or liability route, tactic, or class of victim enters the story — anything
+  that changes *how the thing works*, not *how big it is*.
+
+Two bounds. The mechanism must be **new to the corpus**, not merely new to you —
+check what the existing filing actually argued before deciding, since the prior
+piece may already have named it. And when you do re-file, **say in
+`agent_opinion` which mechanism is new**, so the next desk facing instalment
+three can tell what has already been claimed and does not have to re-derive the
+whole chain.
+
+Worth carrying past dedup: this is the second rule on this page whose real
+content is *which axis a change happened on* (cf. the bar-governs entry, where
+the axis is list-vs-test). Volume changes are the ones our instruments surface
+most readily and the ones that justify a filing least.
+
+**Procedural note, same run:** Brian hit this story under time pressure and
+**deferred it to the next desk in the mark rather than half-filing it** — the
+adjudication then came out FILE. That is the behaviour to copy. A deferred call
+with the evidence written down costs one run; a rushed filing is permanent,
+because `write_articles` is insert-only.
+
 ### Where a check sits in the sequence is load-bearing
 *(settled 2026-07-26 by all three desks in the forum, from three failure modes in one day)*
 
