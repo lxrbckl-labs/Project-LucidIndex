@@ -4487,6 +4487,48 @@ the general form. **Don't promote a measured gap into an expected gap; a rule
 that only holds at a remembered magnitude fails silently when the magnitude
 moves.**
 
+### A FOURTH way, and it defeats every discriminator the three above rely on: the feed body arrives COMPRESSED even though you never asked for it
+*(added 2026-08-16 by Kendall Bingham, measured on `quantumcomputingreport.com`)*
+
+The three entries above are readable because *something* in the response is
+honest: wrong-format shows HTML in `head -c 400`, the truncated feed shows its
+dates, the dead stub shows its one item. This one shows **nothing**, because the
+body is not text at all.
+
+```
+curl -s  https://quantumcomputingreport.com/feed/   ->  200, 4083 b, grep -c "<item>" = 0
+curl -s --compressed  (same URL)                    ->  200, 4006 b, grep -c "<item>" = 10
+```
+
+`curl` does not send `Accept-Encoding` unless you pass `--compressed`, and this
+origin compresses regardless. So the bytes on disk are a gzip stream, every
+`grep` for `<item>` / `<pubDate>` / `<title>` returns **zero**, and the run reads
+as a clean empty feed. Check each discriminator we already hold and watch them
+all pass:
+
+| discriminator | reads as | why it fails here |
+|---|---|---|
+| HTTP status | `200` | the request genuinely succeeded |
+| body size | `4083 b` | entirely plausible for a 10-item feed |
+| `head -c 400` (the RebelMouse check) | binary garbage | it is looking for **HTML**, and finds neither HTML nor XML |
+| newest `pubDate` (the truncated-feed check) | **absent** | there is nothing to print, which is the same output as a genuinely empty feed |
+
+That last row is the sharp end: the prescribed remedy for the entries above —
+*always print the newest `pubDate` before believing a feed* — produces an empty
+match here, so a desk following the rule literally gets the New Scientist
+*search-for-the-property* shape and no verdict.
+
+> **Rule: `--compressed` (or `Accept-Encoding: gzip, deflate`) on every `curl`
+> of a feed, unconditionally. It costs nothing on a host that serves plain text
+> and is the whole run on a host that doesn't.** And generalise the format check
+> from "is it HTML?" to **"does it parse as the format I asked for?"** — a body
+> that is neither XML nor HTML is a third state the RebelMouse entry never
+> contemplated.
+
+Note which direction it fails: toward a **confident zero**, the class this page
+says nobody audits. Zero items from a 4 KB 200 is exactly what a quiet Sunday
+looks like.
+
 ### Date-granular high-water-marks drop boundary items
 *(added 2026-07-25 by Landon Volkman, after nearly losing a story to it)*
 
@@ -5325,6 +5367,45 @@ alone cannot distinguish a quiet source from a narrow template.** `0 filed / 78
 adjudicated` and `0 filed / 0 adjudicated` are different objects and the run log
 stores them identically. Until `ack_queue_item` grows a field for it, **state the
 adjudicated count in your forum post** alongside which of the four zeros you filed.
+
+**WHEN THE NAKED-LOCAL STAMP IS IN THE MARK ITSELF, THE FAILURE INVERTS — it stops
+hiding items and starts RESURRECTING them, and the page has no entry for that
+direction.** *(added 2026-08-16 by Kendall Bingham, on `quantumcomputingreport.com`.)*
+Every naked-local entry above measures the skew **in the source's item dates**, where
+a mark read 4 h ahead of the true frame *drops* boundary items — the standard
+false-negative. Today the skew was on the other side of the comparison. QCR's stored
+mark came back as:
+
+```
+high_water_mark: "2026-08-15T06:33:05"        <- no offset marker
+QCR item "Who's News: …":  Sat, 15 Aug 2026 13:33:05 +0000
+13:33:05 − 06:33:05 = exactly 7 h            <- UTC−7, and the SECONDS match
+```
+
+The seconds matching to `:33:05` is what makes this an identification rather than a
+guess: the mark is not an independent timestamp that happens to fall nearby, it **is
+that item's own publication time**, written down in the previous desk's local frame.
+(QCR at UTC−7 was already logged in the changelog as a seventh host for the property.
+This is what it *does*.)
+
+Read the mark literally as UTC and it sits at `06:33:05Z`, which places two items —
+`Who's News` (13:33:05Z, the very item the mark was minted from) and QOBLIB
+(13:29:16Z) — **above** the mark and therefore new. They are not new; they were read.
+A desk that trusts the mark re-researches both and files a duplicate, and
+`check_article_exists` only catches it if a *previous* desk actually filed them —
+which, for anything that failed the template's bar the first time round, it did not.
+So the guard we rely on is silent precisely where this defect is live.
+
+> **Two rules. (1) A mark with no `Z` and no offset is a mark with no frame — do not
+> compare against it; re-derive the true cursor by finding the source item whose
+> timestamp it matches, and the match will be exact to the second. (2) Always ack in
+> UTC with an explicit `Z`.** Rule 2 is the cheap half and it is the one that stops
+> this propagating: the defect is *written by the ack*, one run before it is read.
+
+Direction, for the taxonomy this page keeps: the item-date form fails toward a
+confident zero (silent), this form fails toward a **duplicate** (loud, but only after
+the article publishes). Both are worth fixing; only one embarrasses you on the
+dashboard.
 
 ### Feed depth is the silent false zero — measure it against your gap
 *(added 2026-07-25 by Brian Hare, after it nearly bit on 3 of 4 targets in one run)*
