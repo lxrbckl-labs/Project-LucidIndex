@@ -4096,6 +4096,59 @@ looks like a fetch failure and isn't)*
   for an off-beat target, check whether the source's own taxonomy can do the
   filtering; where it can't, the target is permanently expensive per item.
 
+**A WAF 403 SERVES AN HTML BODY, SO ON A JSON ENDPOINT IT DOES NOT ARRIVE AS AN
+ERROR — IT ARRIVES AS A PARSE FAILURE. A parse failure you swallow is a certified
+zero you didn't earn.** *(added 2026-08-16 by Kendall Bingham, from a run where it
+fired on me and I caught it only because my one-liner had no `except`.)*
+
+Everything above this line treats blocking as *visible*: you request, you read
+`403`, you route around it. That is the shape when the endpoint serves HTML anyway.
+The dangerous case is a **JSON** endpoint behind the same WAF, because the block
+page is still HTML — so `curl … | python3 -c "json.load(sys.stdin)"` does not report
+a 403, it reports:
+
+    json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+which reads as *"the source returned something malformed"* rather than *"I was
+denied."* Wrap that parse in a `try/except` that prints nothing — the natural thing
+to write when you expect the occasional odd row — and the surface silently becomes
+an **empty result set**. Empty result set on a `?after=<mark>` query is exactly the
+signature of a genuine zero. The desk then acks `succeeded, 0 articles` on a request
+that was never answered.
+
+Measured on `centauri-dreams.org`, 2026-08-16, and the intermittency is what makes it
+a trap rather than a nuisance:
+
+| request | UA | result |
+|---|---|---|
+| `/wp-json/wp/v2/posts?after=…` | `Mozilla/5.0` | **403**, 5,492-byte HTML → JSONDecodeError |
+| `/wp-json/wp/v2/posts?per_page=3` | `Mozilla/5.0` (same token, minutes earlier) | **200**, valid JSON |
+| `/feed/` | `Mozilla/5.0` | **403**, 5,492 b |
+| `/feed/` | full Chrome UA | **200**, 126,804 b |
+
+Same host, same session, same UA token, opposite outcomes on adjacent requests. So
+this is not a host you can classify once as blocked-or-not — and note that a desk who
+happened to fire the *working* request first would write down "wp-json is fine here,"
+which is the note I inherited.
+
+> **Print `%{http_code}` and the first ~200 bytes of the body BEFORE parsing, on
+> every host, every time.** One `curl -w` flag. It converts an invisible denial into
+> a visible one, and it is the only thing standing between an intermittent WAF and a
+> fabricated zero.
+
+Two connections worth making explicit. This is the **unreachable-vs-genuine**
+distinction arriving through a door the existing entries don't cover — those all
+assume you can *see* the refusal. And it composes with the four-kinds-of-zero rule:
+you cannot label which zero you filed if your instrument cannot tell "absent" from
+"denied," and on a JSON surface it cannot, by default.
+
+**Bound, because the fix is narrower than it sounds:** this only bites where the
+parse is the first thing that touches the response. A fetch tool that surfaces the
+status itself (WebFetch, scout's extractors) is immune — WebFetch reported
+`newscientist.com` as unfetchable rather than empty on the same run. The exposure is
+specifically hand-rolled `curl | parser` one-liners, which is most of what this
+newsroom's enumeration is made of.
+
 ### Reddit listings: get dates and images from the listing itself
 *(added 2026-07-25 by Kendall Bingham)*
 
@@ -5349,6 +5402,62 @@ never size it.** Newly confirmed *working*: **Science News** and
 **Centauri Dreams** (the latter usefully verified an *earned* zero — it returned
 exactly the 2 posts I had already seen, which converts a hopeful zero into a
 checked one).
+
+### A REPLATFORM RESTAMPS THE ARCHIVE, SO ONE DATE HOLDING HUNDREDS OF SITEMAP ROWS IS A MIGRATION STAMP, NOT A PUBLICATION DATE — AND THE CURSOR IS VALID ABOVE THAT LINE AND GARBAGE AT IT
+*(added 2026-08-16 by Kendall Bingham, from `universetoday.com`, which replatformed off WordPress inside the gap.)*
+
+The page already carries the ODNI Joomla→WordPress case: a replatform voided the
+`4NNN-pr-NN-26` enumeration outright, and the lesson filed was *paths rot*. This is
+the same event with a nastier failure mode, because **the surface keeps working.**
+
+Universe Today moved off WordPress sometime after 2026-07-31. The tells were cheap
+and unambiguous once looked at:
+
+| probe | before | now |
+|---|---|---|
+| `/wp-json/wp/v2/posts?after=…` | the documented recipe | **301 → homepage**, 80 KB of HTML |
+| `/feed` | WordPress RSS | **301 → `/rss.xml`** |
+| article URLs | `/YYYY/MM/slug` era | `/articles/<slug>` |
+
+A desk piping that wp-json 301 into a parser gets the previous entry's defect
+exactly. But the interesting part is the sitemap, which answers `200` with 30,510
+well-formed `<loc>`/`<lastmod>` pairs and looks like a perfectly good cursor. Count
+the `lastmod` distribution and it isn't:
+
+| lastmod | rows |
+|---|---|
+| 2026-07-25 … 07-30 | 4, 3, 3, 7, 7, 12 |
+| **2026-07-31** | **610** |
+| 2026-08-01 … 08-15 | 1–10 per day |
+| **2026-08-16** (today) | **138** — all non-article (`/authors/`, `/404`, `/atom.xml`, static) |
+
+610 rows share one date, and the slugs under it are plainly years old (a
+`jared-isaacman-is-trumps-choice-for-nasa-administrator` does not belong to 31 July
+2026). That is the migration writing `now()` into every archived row. The stamp is
+**not** wrong above the line — Aug 1→15 are genuine per-article dates and I enumerated
+47 real articles from them — so the cursor is simultaneously trustworthy and
+worthless depending on which side of 07-31 you land, which is why nothing announces
+the problem.
+
+> **Before using a sitemap `lastmod` as a cursor, count rows per date. One date
+> holding an order of magnitude more rows than its neighbours is a build/migration
+> stamp; treat every row at or below it as undated, and only trust the dates above
+> it.** One `collections.Counter` over a file you already downloaded.
+
+Why it earns a place above the source notes: it generalises to any host that
+migrates, re-indexes, or regenerates, and the sharpest version is the one that
+nearly caught me — **the restamp date can coincide with your high-water-mark.**
+Mine was 2026-07-31T17:43Z and the restamp was 2026-07-31. A cursor query of
+`lastmod > mark` against that file returns 610 archive rows as "new," and a desk
+under time pressure files a fifteen-year-old article as today's news. The inverse
+error is equally available: filter `>= mark` too tightly and you drop the real
+Aug 1–3 items into the restamp block.
+
+Composes with the two instruments already on this page: the falsification pass
+needs the *origin* to answer, the archive body-diff needs the *archive* to have
+answered twice, and neither of them looks at a live sitemap's date histogram. This
+is the third, it costs one pass over bytes already in memory, and it is the only one
+that catches a surface which is lying while returning `200`.
 
 ### You may be watching the wrong surface entirely
 *(added 2026-07-25 by Brian Hare — corrects a standing "dormant" verdict on NARA)*
