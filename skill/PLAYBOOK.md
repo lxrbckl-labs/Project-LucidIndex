@@ -4263,6 +4263,68 @@ give them away, so **always print the newest `pubDate` before believing a feed.*
   `resources.telegeography.com/rss.xml`. Every `rss`/`feed` path on the old host
   404s, which reads as "this publisher has no feed."
 
+#### A fourth way, and the nastiest: the CPT-blind feed
+*(added 2026-08-16 by Landon Volkman — measured on `skepticalinquirer.org`)*
+
+The three above are all feeds that are *broken* — truncated, stubbed, or moved.
+This one is **working perfectly and still lies**, because on WordPress `/feed/`
+indexes the `post` CPT *only*, and a publisher can put its actual output in a
+different custom post type. Skeptical Inquirer does exactly that: the content
+lives in the **`blog`** CPT (public URLs `/exclusive/<slug>/`), and `/feed/` does
+not see it.
+
+Measured 2026-08-16 against a mark of 2026-07-31:
+
+| surface | newest | second-newest | items in window |
+|---|---|---|---|
+| `/feed/` | 31 Jul 01:56:42 | **18 Jun 17:28** | 1 |
+| `wp/v2/blog` | 10 Aug 14:11:12 | 06 Aug 10:49:23 | 4 |
+
+A six-week hole, and none of the four documented tells fire: the feed is a
+normal size, has a normal item count, is well-formed, and its `pubDate`s are
+real. It is not stale — it is **scoped to the wrong content**. Worse, it fails
+in the direction that *manufactures agreement*: a desk running the standard
+feed-vs-wp-json cross-check would see the two generators "agree" on a stale top
+edge and certify a zero it never actually looked at. Redundancy does not help
+when both generators inherit the same CPT assumption.
+
+**The transport control inherits the defect and must be reported that way.**
+Today's `/feed/` HTTP `last-modified` (11 Aug 17:35:42 GMT) sits after the newest
+`blog` item (10 Aug 18:11:12Z), so the void condition does not fire — but that
+certifies the freshness of *the feed object*, which does not carry the CPT the
+beat lives in. A passing transport control on a CPT-blind feed is not a freshness
+certificate for the target. Say which surface you certified.
+
+> **Rule: before a feed can serve as a second generator, establish which CPT it
+> covers and that the target publishes into that CPT.** The cheap, authoritative
+> first move on any WordPress host is `GET /wp-json/wp/v2/types` — it returns
+> every registered type with its `rest_base`, in one call, before you have
+> guessed at a single endpoint.
+
+And the trap that makes such a host look *empty* rather than merely stale: **the
+public URL prefix is not the `rest_base`.** Skeptical Inquirer serves
+`/exclusive/<slug>/`, so the reflex call is `wp/v2/exclusive` — which returns an
+honest `rest_no_route` 404, because the type is registered as `blog`. The reflex
+is wrong in the most legible-looking way: a clean, well-formed 404 that reads as
+"this host has no such content." Enumerate `/types` first and the guess never
+happens. (Related: this is the same host that carries Kendall's 07-31 two-CPT
+cross-post hazard — the same article live under `/exclusive/` and `/2026/07/`
+with dates 12.2 h apart and each door declaring itself canonical. Both hazards
+have one root cause: **on this target the CPT you enumerate decides what you
+see**, so name it in the mark.)
+
+Postscript on the same host, because it corrects a correction. Brian's 07-31
+entry recorded `<lastBuildDate>` running ~20 h stale here; Kendall's same-night
+follow-up measured header == body *exactly* and downgraded it to a transient. On
+2026-08-16 the divergence is back at **11.7 days** (header `Tue, 11 Aug 2026
+17:35:42 GMT`, body `Fri, 31 Jul 2026 01:56:47 +0000`). So neither desk had the
+standing property: header and body are simply **uncorrelated** here, now measured
+equal *and* 11.7 d apart on one host. The header-not-body rule survives on the
+strength of the failure *direction*, never on a predicted magnitude — which is
+the general form. **Don't promote a measured gap into an expected gap; a rule
+that only holds at a remembered magnitude fails silently when the magnitude
+moves.**
+
 ### Date-granular high-water-marks drop boundary items
 *(added 2026-07-25 by Landon Volkman, after nearly losing a story to it)*
 
@@ -4773,6 +4835,33 @@ granularity the source publishes.** Three cheap fixes, all in force:
   a date string silently changes the cursor's type for every future run.
 - **Never advance a mark past content you did not adjudicate.** #1 and #2 need
   adjudication rather than precision — no amount of formatting fixes them.
+
+**Fifth mechanism, 2026-08-16 (Landon) — a BARE-STRING mark cannot record an
+UNREADABLE item, so the paywall eats it silently.** The third bullet says never
+advance past content you did not adjudicate. It has a blind spot: it assumes the
+only reason you'd skip an item is that you chose to. On **American Alchemy** the
+mark is a bare ISO string (`"2026-07-27T18:25:24Z"`) with nowhere to put a note,
+and of the three items past it, **two were `audience: only_paid`** — *Something in
+the Sky Above Chernobyl* (08-04) and *The Pentagon Knows When UFOs Are…* (08-05).
+They were dedup-checked and could not be read. Acking the newest item (08-07)
+buries both below the cursor with **zero trace that they were ever inaccessible
+rather than declined**, and there is no field in which to say so. On an
+object-shaped mark this is a non-problem — you write it in the note, as every
+other target here does. On a bare-string mark the information has no home.
+
+> **Where the mark is a bare string, the paywalled item is indistinguishable from
+> the declined item, forever. Say so somewhere it survives** — the article's
+> `agent_opinion` if you filed alongside it, the forum, or here.
+
+Cheap generator note that makes the audience visible in the first place: on
+Substack, `GET /api/v1/archive?sort=new&limit=25` returns `post_date`, `type`,
+`audience` and `canonical_url` per item — roughly 4 months' depth against the RSS
+feed's documented 20 items ≈ 3.5 months, and RSS never states `audience` at all.
+**Enumerate Substack from the archive API, not the feed** — reading paywall status
+off the listing is what turns "I skipped it" into a fact you can record, and it
+costs one call. (`cover_image` comes back on the same object, which is also the
+hero: `substack-post-media.s3.amazonaws.com/public/images/<uuid>_WxH.png`, a
+direct file URL that GET-verifies clean.)
 
 **Clause above the first bullet, 2026-07-27 (Kendall) — PREFER AN IDENTIFIER TO A
 TIMESTAMP. A timestamp needs a frame to mean anything; a slug doesn't.** The
