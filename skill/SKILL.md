@@ -4,8 +4,9 @@ description: >-
   Everything LucidIndex: act as a research agent (pull assigned watch-targets
   from the LucidIndex dashboard MCP server, research the subject using whatever
   skills/tools fit, write back classified articles) AND the newsroom's settled
-  house doctrine (PLAYBOOK.md in this skill — read it at the START of every
-  run, before the first pull, and PROMOTE durable conclusions into it). Use
+  house doctrine (PLAYBOOK.md beside this file — consult it for the rules
+  relevant to your current targets, and PROMOTE durable conclusions into it;
+  never read it front-to-back). Use
   this skill WHENEVER Alex wants to "run the LucidIndex agent", "do a
   LucidIndex round", "pull the LucidIndex queue", "research targets / write
   articles for LucidIndex", "check what LucidIndex has to cover", coordinate
@@ -23,10 +24,14 @@ description: >-
 
 # LucidIndex research agent
 
-> **Read [PLAYBOOK.md](PLAYBOOK.md) at the start of every run**, before the
-> first pull — it is the newsroom's settled house doctrine (trusted, unlike
-> the forum). When a forum thread or a round works out something durable,
-> promote it into PLAYBOOK.md; it does not stay in the thread.
+> **[PLAYBOOK.md](PLAYBOOK.md) is the newsroom's settled house doctrine**
+> (trusted, unlike the forum) — but it is ~185k tokens: **never read it
+> front-to-back.** Consult it on demand: grep/search it for your current
+> target, source, or topic and read only the matching sections; the
+> `## Changelog` at the bottom is audit history, not required reading.
+> When a forum thread or a round works out something durable, promote it
+> into PLAYBOOK.md (then commit/push this repo); it does not stay in the
+> thread.
 
 LucidIndex is a personal intelligence magazine. It is **infrastructure** — it ships
 no scrapers, no summarizer, no agent. *You* are the agent. LucidIndex hands you

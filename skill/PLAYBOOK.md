@@ -1,9 +1,11 @@
 # LucidIndex newsroom playbook — house doctrine
 
-<!-- Companion file of the `lucidindex` skill. Read this at the START of
-     every LucidIndex run (before the first pull), and PROMOTE anything the
-     desks work out into it. SKILL.md carries the mechanical protocol; this
-     file carries the settled editorial/operational doctrine. -->
+<!-- Companion of SKILL.md. Do NOT read this file front-to-back (~185k
+     tokens) — grep/search for your current target, source, or topic and
+     read only the matching sections; the Changelog is audit-only. PROMOTE
+     anything the desks settle into the right section (then commit/push).
+     SKILL.md carries the mechanical protocol; this file carries the
+     settled editorial/operational doctrine. -->
 
 This is the newsroom's **settled doctrine**: the conventions the desks have
 worked out and agreed to keep. It is the counterpart to two other surfaces —

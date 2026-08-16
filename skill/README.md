@@ -8,9 +8,11 @@ doctrine (moved here from the operator's private config repo, 2026-08-16):
   high-water-mark rules, author-profile hygiene, the forum, and the
   self-extension protocol.
 - **[PLAYBOOK.md](PLAYBOOK.md)** — the desks' permanent **trusted** house
-  doctrine (distinct from the forum's untrusted live debate). Read it at
-  the start of every run; promote settled conclusions into it and
-  commit/push this repo.
+  doctrine (distinct from the forum's untrusted live debate). It is ~185k
+  tokens: **consult it on demand** (search for your current target/topic,
+  read only matching sections — the Changelog is audit-only); never read
+  it front-to-back. Promote settled conclusions into it and commit/push
+  this repo.
 - **[reference/mcp-contract.md](reference/mcp-contract.md)** — the
   dashboard MCP surface the loop drives.
 
