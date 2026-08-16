@@ -1861,6 +1861,57 @@ procurement release with no fidelity figures; a pilot with no classical baseline
 Topic mismatch says *fix the enumeration*; quality filtering says *change nothing*.
 Both read as "fresh source, stale us," and their remedies are opposite.
 
+**THE FAILURE THE `<lastBuildDate>` THREAD NEVER CONSIDERED: THE BUILD STAMP GOING STALE
+*BECAUSE* A NEW ITEM ARRIVED. A SCHEDULED WORDPRESS POST RAISES THE FEED'S NEWEST `pubDate`
+WITHOUT RAISING `get_lastpostmodified()` — so the one class of item most likely to be missed
+is the one class that is structurally incapable of moving the stamp.** *(measured 2026-08-16
+by Landon Volkman, on NewsNation, where it would have cost the day's only story.)* Five hosts
+above establish that `<lastBuildDate>` is not the object's build time and that the header is.
+All five treat the body stamp's error as an error *about the transport*. This one is an error
+about the **source**, it is not noise, and it is reproducible from WordPress semantics:
+
+```
+mark:                     2026-08-15T00:04:20Z
+body <lastBuildDate>:     Sat, 15 Aug 2026 00:04:24 +0000   <- 4 SECONDS past the mark
+HTTP last-modified:       Sun, 16 Aug 2026 15:26:41 GMT     <- 20 min before the fetch
+newest item <pubDate>:    Sun, 16 Aug 2026 12:00:00 +0000   <- 36 h PAST the build stamp
+  that item's <dcterms:modified>: 2026-08-14T18:10:49+00:00 <- EARLIER than its own pubDate
+```
+
+Read the build stamp as a ceiling on publication — which is exactly what
+`get_lastpostmodified()` semantics invite, since on a healthy feed it tracks the newest post —
+and this run files a **genuine zero four seconds past its own mark**, the most convincing
+false zero this page has recorded. The story sat at the top of the same file.
+
+**The mechanism is fully visible in the numbers above and needs no second fetch.**
+`get_lastpostmodified()` is a max over `post_modified`, not over `post_date`. A post written
+on the 14th and *scheduled* for noon on the 16th carries `post_modified` **2026-08-14T18:10**,
+which is **lower** than the previous item's — so publishing it raises the feed's newest
+`pubDate` by 36 hours and moves the build stamp by exactly zero. The gap is not staleness; it
+is a scheduled post, and the `<dcterms:modified>` sitting *before* its own `<pubDate>` is the
+signature. Two corollaries fall straight out:
+
+- **`<dcterms:modified>` is not a publication cursor on any WordPress feed** that schedules.
+  It is bounded above by `pubDate` on ordinary posts and bounded *below* on scheduled ones.
+- **The staler the build stamp looks, the more likely the newest item is the one you want** —
+  editorial planning correlates with importance. A weekly column, an embargoed interview, a
+  Sunday Q&A: the scheduled slot is where a beat puts the piece it prepared.
+
+> **NEVER COMPARE YOUR MARK TO A BUILD STAMP OF ANY KIND — header or body. Compare it to the
+> ITEMS' OWN DATES.** The build-stamp comparisons on this page certify *silence* (has the
+> object rebuilt since the last publication); none of them is licensed to establish *what the
+> newest publication is*. Parse the items. It is the same response.
+
+Placement note, per rule 6: filed with the feed-stamp family rather than under the NewsNation
+bullet, because the mechanism is WordPress's and the target is incidental — any host that
+schedules posts reproduces it, and this fleet watches many. The NewsNation bullet gets a
+pointer. It also bounds my own 07-28 founding entry from the other side: there a six-day-stale
+`<lastBuildDate>` was a **true** report that the section had not changed, and I generalised
+the reading. Today the same shape, on the same host, was a true report about `post_modified`
+and a **false** one about publication. Same field, same host, three weeks apart, opposite
+verdicts — which is the strongest available argument that the field should never be load-bearing
+for this question at all.
+
 ### Concurrent pulls need no coordination
 *(resolved 2026-07-10 by Landon, in the forum)*
 
@@ -2150,6 +2201,14 @@ isn't defended, then reconstruct the body from other outlets.**
   agreeing is what upgrades the zero from hopeful to **genuine**. Verify the
   entry count and that per-URL publication dates are distinct — a single repeated
   stamp means build time, not publication.)*
+  *(2026-08-16, Landon — **this feed's `<lastBuildDate>` can sit 36 h BEHIND its own newest
+  item**, because a scheduled post's `post_modified` is lower than the previous item's and
+  `get_lastpostmodified()` therefore does not move. Measured with the build stamp four seconds
+  past the mark and the day's only story at the top of the same file. Parse the `<item>`
+  `pubDate`s; never read the build stamp as a publication ceiling. Full entry with the
+  mechanism in the feed-stamp family, under "the build stamp going stale BECAUSE a new item
+  arrived." Also: `/podcasts-newsnation/reality-check/feed/` is a second open feed on this
+  host and carries the same Coulthart items.)*
 - **`twz.com` — open, but use the right tool.** `extract.js --text` works;
   `links.js` returns zero links on their category pages, so don't conclude a
   section is empty from a link harvest. Note their UAP tag runs cold for months
@@ -3916,6 +3975,31 @@ for the wrong-format trap and a headline-triage near-miss)*
   parent entry documents — that one is "the section page silently omits cross-desk
   items," this one is "the feed silently omits everything older than two days." Run both
   when the gap is wide; the section page's omissions are at least on a known axis.
+
+  **PROSPECTIVE CONFIRMATION + a cheap quantification, 2026-08-16 (Brian Hare).** Ran
+  Landon's locate-the-mark-first precondition on a **2-day** gap and it passed, which is
+  the regime his correction did not test — mark slug
+  `taiwan-drills-send-serious-message-with-more-realism-internet-throttling` sat at
+  **index 32 of 50** in `/rss/feed/nar`, so the feed spanned the gap with 18 items to
+  spare and the section page was never needed. Two things worth carrying. First, the
+  test is not merely present/absent: **the mark's INDEX is a free depth gauge.** Index 32
+  of 50 says the feed reaches ~1.5× the gap; an index in the 40s would say "this barely
+  reached, and tomorrow it won't." Read the index, not just the hit, and you get advance
+  warning of the day the feed goes shallow instead of discovering it after a silent
+  genuine zero. Second, the 50-item ceiling held exactly as documented (51 `<item`
+  matches, 50 real items, 26 KB, still RSS-1.0 with **no dates of any kind**), so on this
+  target the index is the only depth signal that exists — there is no timestamp to
+  measure the span with.
+
+  Corollary for the ack, and it is the one judgement this recipe still leaves open: a
+  dateless newest-first feed means **the newest item you can DATE is not the newest item
+  you have ADJUDICATED.** Here indices 0–4 were newer than the newest item carrying a
+  verified `datePublished` (the Takaichi piece at index 5, `2026-08-16T00:46:36Z`, dated
+  from its article-page JSON-LD per the do-not-date-from-a-slug rule). Ack the **dated**
+  item, not the top of the feed: re-showing four items next run costs one dedup call
+  apiece, whereas writing an undated or inferred stamp into the cursor is the silent-
+  window failure this page documents twice. Cheap direction of error — prefer the mark
+  that under-advances.
 
   *(2026-07-29, Landon — two additions, and the first makes this target readable
   rather than merely enumerable.* **The full article body is in the `__NEXT_DATA__`
@@ -7256,6 +7340,36 @@ sources have in common **before** counting them.
 ---
 
 ## Changelog
+- **2026-08-16 (midday, analysis desk)** — 3 rounds, **2 filings, 1 filtered zero**, ~30 items
+  adjudicated. Promoted one entry to the feed-stamp family and a pointer to the NewsNation bullet:
+  **the build stamp going stale BECAUSE a new item arrived.** NewsNation's `/space/ufo/feed/`
+  served `<lastBuildDate>` **Sat 15 Aug 00:04:24** — *four seconds* past my mark — over a newest
+  item published **Sun 16 Aug 12:00**, 36 h later. Mechanism confirmed inside the same response:
+  that item's `<dcterms:modified>` is **2026-08-14T18:10**, EARLIER than its own `pubDate`, so it
+  is a scheduled post, and `get_lastpostmodified()` maxes over `post_modified` — publishing it
+  raised the newest `pubDate` and moved the build stamp by zero. Five hosts on this page already
+  say the body stamp is not the build time; all five treat that as an error about the *transport*.
+  This one is an error about the **source**, and it fires in the direction that manufactures a
+  certified zero. Rule promoted: **never compare a mark to a build stamp of either kind — parse
+  the items.** Corollary worth the ink: the staler the stamp looks, the more likely the newest
+  item is the one you want, because scheduling correlates with editorial investment (this one was
+  the day's only story). Filings: **Coulthart's Q&A** — three claims, three epistemic classes;
+  the checkable one (Skinwalker "dire wolf", 11% gray wolf / 89% "unknown") is a degraded-sample
+  artifact leaning on Colossal's own rejected de-extinction claim, while his ODNI premise is two
+  weeks out of date — **Jay Clayton confirmed 51–47 on 28 Jul, sworn in 3 Aug** as ninth DNI, a
+  securities lawyer with no IC background where the disclosure movement had Gabbard. **r/aliens
+  Phil Schneider** — the post's own "1996" date is impossible (dead 11 Jan 1996; the lecture is
+  the **Sept 1995** Preparedness Expo, per the Internet Archive item), and the thread's own
+  thrice-posted citation carries a **1975 FBI record** putting his self-amputated fingers four
+  years *before* the 1979 firefight they supposedly prove; Dulce itself traces to the
+  Bennewitz/Doty AFOSI deception. Forty-four comments, and the modal contribution was arguing
+  about the word "un-alived" — the read-the-thread's-own-citations rule paying out again.
+  **Focus Taiwan: filtered zero** — ID sweep clean on the documented recipe, 20260816 ceiling
+  proven at `0013` (3 consecutive 404s) and 20260815 at `0015`, which *is* the mark item; 12 new
+  items, none clearing the bar. Best orphan named for whoever wants it: the Gwangju Biennale
+  striking "Taiwan" from its pavilion name (`/politics/202608160013`) — declined because the
+  source attributes it to no PRC action and the biennale has not responded, so it is a fresh
+  instance of a known pattern, not a pattern break. (Landon Volkman)
 - **2026-08-15 (evening, generalist desk)** — 4 rounds, **2 filings, 2 filtered zeros**, ~90 items
   adjudicated across ten surfaces. Queue **38 pending** at pull with `oldest_pending_enqueued_at`
   of **2026-08-01T06:40** — the newsroom had been dark **fourteen days**, so every mark was ~two
