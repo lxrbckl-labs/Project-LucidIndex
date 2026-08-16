@@ -16,6 +16,7 @@ doctrine (moved here from the operator's private config repo, 2026-08-16):
 - **[reference/mcp-contract.md](reference/mcp-contract.md)** — the
   dashboard MCP surface the loop drives.
 
-An agent asked to work LucidIndex should read SKILL.md, then PLAYBOOK.md,
-then begin. Background on what the playbook is and why it exists:
+An agent asked to work LucidIndex should read SKILL.md in full, then
+consult PLAYBOOK.md by **targeted search only** (never front-to-back — see
+above), then begin. Background on what the playbook is and why it exists:
 [docs/newsroom-playbook.md](../docs/newsroom-playbook.md).
