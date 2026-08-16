@@ -5373,6 +5373,63 @@ whether the organization publishes anywhere else** — a `blogs.` subdomain, a
 program office, a statutory sub-body, a newsroom on a different host. Institutions
 reorganize their publishing; our target URL does not follow them.
 
+**AND THE SURFACE YOU CORRECTLY FOUND WILL ITSELF ROT — A FEED THAT STOPS BEING A
+FEED STILL RETURNS 200, AND A FLAT `grep '<pubDate>'` ON IT RENDERS AS A CLEAN
+NO-NEWS RUN.** *(2026-08-16, Brian Hare — the same NARA surface this section fixed,
+broken again 22 days later, in the failure direction this page keeps warning about.)*
+The entry above resolved NARA by pointing the desk at the PIDB blog. Two aliases
+served that blog, and the alias the desks actually wrote into the high-water-mark —
+`blogs.archives.gov/pidb/feed/` — **died between 2026-07-31 and 2026-08-16.** It now
+302s to `https://www.archives.gov/social-media/blogs` and serves `text/html`. The
+whole path-based multisite went with it (`blogs.archives.gov/`, `/pidb/`, `/pidb/feed`
+all land on that one HTML index; `pidb.blogs.archives.gov` does not resolve at all).
+The canonical host **`https://transforming-classification.blogs.archives.gov/feed/`**
+was never affected — 200, `application/rss+xml`, 10 items, and it had a brand-new
+2026-08-13 post waiting.
+
+Why this is worth a rule rather than a footnote — **every check the prior desk had
+in place passed:**
+
+```
+status code   200        <- passes
+size          45,790 b   <- plausible; prior certified figure was 62,071 b
+grep pubDate  0 matches  <- reads as "nothing new since the mark"
+```
+
+There is no threshold that separates 45,790 bytes of HTML from a legitimately
+shorter feed, and the zero-match grep is *indistinguishable from the healthy
+outcome*. This is a **type-4 unreachable zero wearing a type-1 genuine zero's
+costume** (see *The four kinds of zero*), and unlike a WAF block it is completely
+silent — nothing 403s, nothing errors, nothing looks slow. A desk that trusted its
+own no-news finding would have acked a clean success and missed the story.
+
+> **Before you conclude "no new items," assert that the thing you fetched is still
+> the KIND of thing you asked for: `content_type` must contain `xml` AND the parsed
+> item count must be > 0. Only then does an empty since-the-mark set mean zero.**
+> Byte-size certification does NOT substitute — it catches a feed that emptied, not
+> a feed that was replaced by a webpage.
+
+Two corollaries, both cheap:
+- **Certify the URL, not just the content.** A high-water-mark note that records a
+  feed's byte size is recording the wrong invariant. Record the URL *and* its
+  content-type, so the next desk can tell "the feed is quiet" from "the feed is gone."
+- **Prefer the canonical host over any alias.** Both URLs worked for months; only
+  the alias broke. Where a publisher exposes a vanity/path alias and a real
+  subdomain, watch the subdomain — aliases are exactly what gets retired in a
+  reorg, and they fail silently by redirecting rather than 404ing.
+
+**The sibling control that made this diagnosable in one pass, so nobody re-derives
+it:** ten other `*.blogs.archives.gov` subdomains all answered 200 with real bodies
+(`text-message`, `unwritten-record`, `narations`, `foia`, `isoo`, `declassification`,
+`transforming-classification`, `records-express`, `prologue`, `jfk`). One dead host
+among ten live siblings is a *retired alias*; ten dead hosts would have been an
+outage. **Probe a sibling before you diagnose a source — it separates "they moved
+it" from "they're down," and the two have opposite responses.** This also **REVERSES
+the 2026-07-26 changelog verdict that "the NARA surface question is CLOSED — PIDB is
+the only live blogs.archives.gov surface."** That was measured on the *path* form and
+is now exactly backwards: the pidb path is the only dead one. A "closed" surface
+verdict has a shelf life; re-open it when the surface it certified stops answering.
+
 **THE INSTRUMENT FOR THAT QUESTION IS `robots.txt`, AND IT IS THE ONLY ONE THIS
 SECTION HAS EVER HAD. It is the publisher's own declaration of its enumeration
 surfaces, it costs one fetch, and it serves on WAF-blocked hosts.**
