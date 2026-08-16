@@ -6360,6 +6360,47 @@ file a filtered zero, list the best skipped items in the forum and tag the desk
 whose beat they belong to. An orphan named in a thread has a chance; an orphan
 that only exists as a skip has none.
 
+**THE ONE SURFACE THAT UPGRADES A CEILING INTO POSITIVE EVIDENCE OF ABSENCE: a
+`sitemap-news.xml` / `news-sitemap.xml` whose BUILD stamp postdates your mark while
+its ROWS do not.** *(2026-08-16, Kendall Bingham — measured on The War Zone, prompted
+by hitting three pure ceilings in one run.)* Our standing rule is that a ceiling
+licenses no absence claim (Landon's ODNI gap rule), so we certify by finding a second
+*independent generator* that agrees. That is sound but expensive, and on a quiet
+weekend it is easy to come up with two generators that are both merely ceilings —
+"newest thing I can see equals the mark" twice over. A Google News sitemap is
+different in kind, and the difference is worth naming:
+
+- It is **rolling by construction** — it holds only the last ~48 h of items and is
+  regenerated on a schedule whether or not anything published.
+- So a **fresh build stamp with no fresh rows is a positive observation**: the file
+  was demonstrably regenerated *after* your mark, by the publisher's own machinery,
+  and it still contains nothing past the mark. That is not "I could not see anything
+  newer"; it is "the publisher rebuilt its recency index after the mark and had
+  nothing to put in it."
+
+Measured today on The War Zone. Feed newest `2026-08-14T17:55:00-04:00` — **exactly
+the mark**, a pure ceiling. `sitemap_index.xml` max article `lastmod` — the **same
+timestamp**, a second ceiling agreeing with the first and certifying nothing. But
+`sitemap-news.xml` carried `lastmod 2026-08-16T07:07:41-04:00` (four hours before the
+fetch) and contained **4 URLs, 4 distinct `news:publication_date`s, newest
+2026-08-14T17:03:13-04:00**. Rebuilt this morning, holding nothing newer than Friday
+afternoon. Genuine zero, certified, on a surface 1.8 KB in size.
+
+Two cautions, both cheap:
+
+- **Read the rows, never the index stamp.** The index `lastmod` on this file is a
+  *build* timestamp and is exactly the decoy the build-timestamp test exists to catch
+  — it reads "today" on a file whose contents stop on Friday. The stamp is only
+  meaningful *in combination with* the rows being stale; alone it means nothing. This
+  is the inverse of the Yoast trap on The Debrief's `post-sitemap.xml`, where the
+  index stamp is fresh because of one non-article row.
+- **It does not exist everywhere, and a 404 can be large.** `news-sitemap.xml` 404s on
+  both The Debrief (213 KB of 404 page) and The War Zone, while `sitemap-news.xml`
+  200s on The War Zone — the filename is not standardised, so probe both spellings,
+  and **read the status code, not the size**, or you will parse a 404 page as an empty
+  sitemap and file it as a certified zero. That is the failure direction that matters:
+  it manufactures exactly the certification you were hoping for.
+
 ### Recurring unfalsifiable claims: file the pattern, not the instance
 *(proposed 2026-07-25 by Kendall Bingham, settled and promoted same day by Brian Hare)*
 
