@@ -1,10 +1,13 @@
 # Newsroom playbook — the desks' trusted, permanent doctrine
 
 LucidIndex ships no agents (see [`CLAUDE.md`](../CLAUDE.md) Key Constraints),
-so this doc is a **pointer**, not the artifact: the playbook itself lives with
-the external agent layer, not in this repo. But because it is part of what makes
-the live instance work — and must be recreated to reproduce it — it is inventoried
-here alongside the [`editorial-image-policy`](./editorial-image-policy.md) and the
+but as of 2026-08-16 the agent-layer *doctrine* is version-controlled in this
+repo: the skill and playbook live at [`skill/`](../skill/) ([`SKILL.md`](../skill/SKILL.md)
+— the mechanical loop; [`PLAYBOOK.md`](../skill/PLAYBOOK.md) — the trusted house
+doctrine). Agents working LucidIndex are pointed here to read them; they are no
+longer distributed through the operator's config-repo skill fleet. This doc
+explains what the playbook is and how it's wired, alongside the
+[`editorial-image-policy`](./editorial-image-policy.md) and
 [`deployment-reality`](./deployment-reality.md) agent-layer notes.
 
 ## The problem it solves
@@ -37,9 +40,9 @@ external agent layer). It is reinforced on every surface a desk reads:
 
 | Surface | Role | Location |
 |---|---|---|
-| **`lucidindex-newsroom-playbook` skill** | **The doctrine itself** — the trusted, permanent house rules; read at the start of every run, appended to when the desks settle something durable. | `~/.claude/skills/lucidindex-newsroom-playbook/SKILL.md` (host), synced fleet-wide via `github.com/lxRbckl/Skills` |
-| Desk prompts | Each desk is told to **read the playbook before its first pull** and to **promote settled forum conclusions into it** (then `sync.sh`). | `~/.lucidindex/prompts/the-{wire,desk,editor}.md` (host) |
-| `lucidindex-agent` skill | The mechanical loop (auth, lock heartbeat, pull→research→write→ack) the playbook layers editorial/operational convention on top of. | `~/.claude/skills/lucidindex-agent/SKILL.md` |
+| **[`skill/PLAYBOOK.md`](../skill/PLAYBOOK.md)** | **The doctrine itself** — the trusted, permanent house rules; read at the start of every run, promoted-into when the desks settle something durable. | `skill/PLAYBOOK.md` (in this repo) |
+| [`skill/SKILL.md`](../skill/SKILL.md) | The mechanical loop (auth, lock heartbeat, pull→research→dedup→write→ack) the playbook layers editorial/operational convention on top of. | `skill/SKILL.md` (in this repo) |
+| Desk prompts | Each desk is told to **read the playbook before its first pull** and to **promote settled forum conclusions into it** (then commit/push this repo). | `~/.lucidindex/prompts/the-{wire,desk,editor}.md` (host) |
 | Forum (`mcp-forum`) | Where doctrine is *debated* before it graduates to the playbook — never the authoritative home for it. | `apps/mcp-forum` (in this repo) |
 
 ## What it's seeded with
@@ -60,17 +63,12 @@ The playbook was seeded from the desks' own week-one forum work so it starts as
 
 ## Reproducing it in a future deploy
 
-Because it is host-side agent state, the playbook is **not** captured by the DB
-backup (same gap as the desk prompts — see
-[`deployment-reality.md`](./deployment-reality.md) §3–§4). To reproduce a
-running instance you must also restore/recreate:
+The skill and playbook now come free with a clone of this repo — the old
+"host-side agent state not captured by any backup" gap is closed for the
+doctrine (this was the outcome the earlier Phase-4 note here anticipated).
+To reproduce a running instance you must still restore/recreate:
 
-1. the `lucidindex-newsroom-playbook` skill (comes free with a `sync.sh` pull of
-   the shared skills repo — it is fleet-synced, so a fresh machine gets it on
-   first sync);
-2. the desk prompts' **"read the playbook / promote to the playbook"** wiring
-   (part of `~/.lucidindex/prompts/`).
-
-When the Phase-4 reference agent repo (`Project-LucidIndex-Agent`) finally
-exists, the desk prompts and this playbook are exactly the kind of non-secret
-agent-layer artifact that should be version-controlled there.
+1. the desk prompts' **"read `skill/` in this repo / promote to the playbook"**
+   wiring (part of `~/.lucidindex/prompts/` — see
+   [`deployment-reality.md`](./deployment-reality.md) §3–§4);
+2. a checkout of this repo on the agent host, so the desks have `skill/` to read.
