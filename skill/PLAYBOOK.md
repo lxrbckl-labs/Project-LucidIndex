@@ -2107,6 +2107,26 @@ it knowingly.
   `...&action=query&titles=File:<name>&prop=imageinfo&iiprop=url&iiurlwidth=960&format=json`
   and read `imageinfo[0].thumburl`. A missing file returns no `imageinfo` key
   rather than a broken URL, so the failure is loud. Still GET-verify the result.
+  - **A 400 from `upload.wikimedia.org` does NOT prove your URL is wrong — send a
+    FULL browser UA before you believe it.** *(added 2026-08-16 by Landon Volkman,
+    correcting the attribution in the bullet above.)* The rule above says hand-built
+    thumb URLs "mostly 400, because the path hash and the exact filename have to
+    match." Both halves of that are true and the causal claim is only half the story:
+    `upload.wikimedia.org` also 400s a **valid** URL when the request carries a short
+    or simple User-Agent (`-A "Mozilla/5.0 Chrome/128.0"` was enough to fail).
+    Measured today: four URLs returned `HTTP/2 400 text/html` on a short UA — including
+    a NARA target's **own stored `target_photo_url`**, which the dashboard has been
+    serving for months, i.e. a URL that cannot be wrong. The same four with a full
+    `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like
+    Gecko) Chrome/128.0.0.0 Safari/537.36` returned `200 image/png` / `200 image/jpeg`.
+    Why this matters more than a curl flag: **wrong-path and wrong-UA are the same
+    400**, so a desk that reads the existing rule literally discards a good hero and
+    goes looking for a worse one — and it fails in the direction of *fewer verified
+    images*, which on this beat means coverless tiles. The Commons-API recipe above
+    still dominates (it hands you the exact path), but run it with the full UA too,
+    and note the API's `thumburl` arrives with `utm_*` params appended that are safe
+    to strip. Discriminator, one line: if a Wikimedia URL 400s, **re-fetch with a full
+    browser UA before concluding the path is bad.**
 - **`external-preview.redd.it` is not uniformly dead.** *(added 2026-07-25 by
   Brian, softening the note under "Reddit listings")* Two of them verified clean
   this run (200, `image/jpeg`, 122 KB and 614 KB). The signature-scoped 403 is
@@ -5870,6 +5890,50 @@ the 2026-07-26 changelog verdict that "the NARA surface question is CLOSED — P
 the only live blogs.archives.gov surface."** That was measured on the *path* form and
 is now exactly backwards: the pidb path is the only dead one. A "closed" surface
 verdict has a shelf life; re-open it when the surface it certified stops answering.
+
+**AND THE SIBLING CONTROL WAS ITSELF A LEAD NOBODY FOLLOWED — `isoo` IS A SECOND
+LIVE NARA FEED, WITH DIFFERENT CONTENT, AND IT CARRIED THE FILING.** *(added
+2026-08-16 by Landon Volkman, on the run after the alias-death diagnosis above.)*
+The control list names ten live siblings. It was written to prove *one host* had
+died, so the other nine were counted and dropped — and `isoo` sat in that list, 200,
+unread, for three weeks. **`https://isoo-overview.blogs.archives.gov/feed/`** →
+200, `application/rss+xml`, 29,393 b, 10 items, newest 2026-08-03. It is the
+Information Security Oversight Office's own blog and it is a *different beat* from
+`transforming-classification`: ISOO Notices, ISCAP appeal decisions, NISPPAC and
+SLTPS-PAC meetings and minutes. PIDB posts advocacy about declassification reform;
+ISOO posts the instruments that govern it. Missing it cost nothing on 2026-07-26 and
+would have cost the run today, when `/isoo/notices` moved and the move was **ISOO
+Notice 2026-04** — the annual list of which agencies may exempt records from
+automatic declassification at 25/50/75 years, i.e. the negative image of everything
+the 25-year rule produces.
+
+Three things generalize, and only the first is about NARA:
+
+- **A sibling control is a list of surfaces you have already proven are alive. Read
+  them.** The probe that diagnoses a dead host simultaneously enumerates the live
+  ones, and the diagnostic framing throws that away — you write down "nine other
+  hosts answered 200" as *evidence about the tenth* and never treat the nine as
+  findings. Cheapest possible follow-up: after any sibling probe, fetch `/feed/` on
+  each 200 and record the newest item date.
+- **One org, two statutory bodies, two feeds, and only one of them is on the target
+  list.** ISOO and the PIDB both sit at NARA and both publish declassification
+  content, so the standing rule "when a target looks dead, ask whether the
+  organization publishes anywhere else" needs its sharper form: **ask whether it
+  publishes somewhere else *as well*, and whether the two surfaces cover different
+  material.** A live surface is not proof you found *the* surface.
+- **On the ISOO notices page specifically:** the table has a `Date of Change` column
+  distinct from the notice `Date`, and it is the one that matters — Notice 2026-04 is
+  dated 08/03 but changed 08/10. The change was a **silent correction**: the PDF's
+  own footer reads "corrected on August 10, 2026, to accurately reflect the
+  exemptions approved for the Joint Staff and the date of its approved
+  declassification guide," while the ISOO blog that announced the original on 08-03
+  posted nothing about it. So the blog gives you notices and the page gives you
+  *revisions to notices*, and you need both. Ceiling as of this run: **ISOO Notice
+  2026-04; resume at 2026-05.** Superseded notices are unlinked from the page
+  entirely (2024-02 is gone), so a diff needs an archive — and Wayback was returning
+  502/503 the evening this was written. Read the replacement's own "rescinds and
+  replaces" paragraph first: 2026-04 states its entire delta in para 12, which is
+  better than a diff and cost one `pdftotext -layout`.
 
 **THE INSTRUMENT FOR THAT QUESTION IS `robots.txt`, AND IT IS THE ONLY ONE THIS
 SECTION HAS EVER HAD. It is the publisher's own declaration of its enumeration
