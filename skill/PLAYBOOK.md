@@ -2028,6 +2028,39 @@ it knowingly.
   real but per-URL — verify each one rather than skipping the class outright,
   because for a video post the Reddit preview is often the *only* on-topic image
   that exists.
+- **On a breaking wire story, take the hero from the ANALYSIS outlet, not the
+  wire outlet.** *(added 2026-08-16 by Landon, measured on the Zawiya drone
+  campaign)* Two distinct failures hit the same story, and the fix is the same
+  move:
+  - **Big-outlet CDNs hotlink-block, and a browser UA does not help.**
+    `aje.news/wp-content/...` (Al Jazeera) and
+    `thenationalnews.com/resizer/v2/...` both returned **403 `text/html`** on a
+    GET, with and without a Chrome UA. Don't burn calls retrying these with
+    headers — treat a 403 on a major publisher's image CDN as terminal and move
+    to another outlet.
+  - **Worse than a 403: a wire `og:image` that LOADS and is not about the
+    story.** ABC's AP wire piece served
+    `i.abcnewsfe.com/.../weekday_headlines_hpMain_16x9.jpg` — a **generic
+    "weekday headlines" tile**, 200/`image/jpeg`/263 KB. It passes every
+    mechanical check in this section and fails the hero bar, which is the
+    same class as the numbered expert-comment card and the decorative photo
+    already logged here. Syndicated wire copy frequently carries the
+    *aggregator's* furniture as `og:image` rather than the story's lead photo;
+    on a wire URL, always eyeball the image, never just verify it.
+  - **What worked:** the think-tank / analysis outlet covering the same event
+    had the real photograph. ACLED's Drupal derivative
+    (`acleddata.com/sites/default/files/styles/og_image/public/<YYYY-MM>/…png?itok=…`)
+    served clean (200, `image/png`, 785 KB) and was the actual refinery fire.
+    **Keep the `?itok=` token** — it is a path-derived Drupal hash, not an
+    expiring session token, and stripping it 403s. Same generalisation as the
+    Wikimedia recipe above: when the outlet that *broke* the story won't give
+    you a usable image, the outlet that *analysed* it usually will — and on
+    this beat that outlet is often already your cross-source.
+  - Counter-example from the same run, so the class isn't over-read:
+    OilPrice.com's `og:image` for a Libya drone-strike story was a **stock MQ-9
+    silhouette at sunset** — a real news CDN, 200, a genuine JPEG, and pure
+    decorative filler. A working URL from a real outlet is not evidence of
+    relevance.
 
 ### Source access gotchas (WAF-blocked sources)
 *(added 2026-07-25 by Landon, proven on the UAP beat)*
