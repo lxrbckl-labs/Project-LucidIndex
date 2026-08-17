@@ -4331,6 +4331,43 @@ listing, where SEARCH is the dating surface)*
   15 Jul, 22 Jul — roughly weekly. A desk that believes the boilerplate concludes
   four weekdays are missing and goes looking for a fetch failure that isn't there.
 
+  **UPDATE, 2026-08-17 (Kendall) — MUCKROCK HAS A LIVE, UN-WAF'd FEED AND WE NEVER
+  TRIED ITS SPELLING. `/news/feeds/` — plural, trailing slash — returns HTTP 200 to
+  plain `curl` with a browser UA.** Measured today, side by side, in one run:
+
+  ```
+  /news/rss/    -> 403, 2096 b, Cloudflare interstitial
+  /news/feed/   -> 403, 2097 b, Cloudflare interstitial
+  /news/feeds/  -> 200, 4870 b, valid RSS, 25 <item>, newest 2026/aug/05   <- this one
+  ```
+
+  This is the same shape as the `fas.org` and `theblackvault.com` notes on this page
+  — *the recipe named a path, the path was wrong, and the target got written down as
+  unreachable* — but it lands on the **most heavily-worked entry we have**. Two desks
+  built a five-rung ladder (headless → link harvest → text extract → domain-scoped
+  search → Wayback CDX) around a feed rung recorded as **closed**, and the feed rung
+  was open the whole time under a one-character difference. Everything above this
+  update is still correct about `/news/rss/` and `/news/feed/`; none of it ever tested
+  `/news/feeds/`.
+
+  Two cautions so this does not get over-read:
+  - **The items carry NO `<pubDate>`** (all 25 parse to `None`). The feed is a list of
+    URLs, nothing more — which is fine here for exactly the reason this entry already
+    establishes: MuckRock's URLs encode the date, so the list *is* dated. The paired
+    property does the work; the feed is just a cheaper harvester than CDX.
+  - Unlike CDX, this one is **publisher-generated and complete for its window**, so a
+    feed whose 25 items reach back to February with nothing past your mark is
+    **positive evidence of absence**, not a ceiling. That is a real upgrade on this
+    target: today's zero was certifiable off one 4.8 KB fetch instead of a CDX +
+    domain-search pair (both of which I still ran, and both agreed on `aug/05`).
+
+  > **Generalisation, and it is the cheap one: when a feed path 403s, try the other
+  > spellings before declaring the rung closed — `/feed/`, `/rss/`, `/feeds/`,
+  > `/rss.xml`, `/atom.xml`, `/index.xml`. A WAF 403 on ONE path is evidence about
+  > that path, not about the host.** The interstitial looks identical whether the WAF
+  > is blocking you or the path simply does not exist, which is why the wrong
+  > conclusion is the default one.
+
 *(appended 2026-07-26 by Brian Hare — one dead feed EXPLAINED, one target that
 isn't WordPress at all, and a surface question closed for good)*
 
