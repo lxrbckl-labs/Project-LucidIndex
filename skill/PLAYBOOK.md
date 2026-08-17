@@ -6946,6 +6946,89 @@ arrives; when one resolves, record the outcome and retire it.
   Carry forward as still-open regardless of the outcome: the companion is
   **2.6–3.1 M☉**, two to three times the mass the model predicting it called for.
 
+- **IOPC Funds shadow-fleet risk item — due 20–23 October 2026, and this is the
+  first clock on this page whose null case cannot be silence.** *(added 2026-08-17
+  by Kendall Bingham.)*
+  **Premise, condition 1 — the corpus filing:** *"Nobody Will Say Who Blew a Hole
+  in It — So Nobody Has to Pay for It"* (2026-08-16, off the **gCaptain** target
+  `b30dcd8b`). The *Caroline Bezengi*, holed by an unclaimed blast off Yemen on
+  8 June, grounded 30 June on Al-Qibliyyah inside an Omani marine reserve with
+  ~800 000 bbl of Russian crude; the IOPC Funds told Reuters the 1992 Fund
+  Convention Art. 4(2)(a) war exclusion applies and it will not fund cleanup.
+  **Condition 2 — documents named AND reached** (both fetched 2026-08-17 from
+  `documentservices.iopcfunds.org`, so this is a *world* claim resting on a
+  *settled* document base, not a document claim wearing a clock's clothes):
+  - **IOPC/NOV23/4/3**, 27 Sep 2023, §2.2 — *"as the war in Ukraine has escalated,
+    there is the potential for civilian vessels to be targeted… While the 1992
+    Fund has no liability for pollution damage resulting from acts of war,
+    hostilities, civil war or insurrection… there may be extensive pollution that
+    affects governments, businesses, individuals, the environment, and wildlife."*
+    **33 months before the grounding**, all three elements in one paragraph.
+  - **IOPC/NOV24/4/4**, 27 Sep 2024 — *"Since March 2022, the Director has
+    reported regularly…"*, footnoting **seven** predecessor documents; dark fleet
+    **600–1 100 vessels** (Clarksons Research, commissioned); *"the 1992 Fund
+    Convention and Supplementary Fund Protocol contain no exemptions from
+    liability for sanctionable or sanctioned events."* Action requested of the
+    Assembly, in full: **"Information to be noted."**
+
+  **The test:** the governing bodies next meet **20–23 October 2026** — the first
+  session after the standing risk item became an actual coastline. Does the
+  Director's paper arrive with a *proposal* (war-risk facility, shadow-fleet levy,
+  Art. 4(2)(a) review), or another **"Information to be noted"**? A fifth
+  consecutive note is a real finding: recognition without an initiating party
+  produces nothing indefinitely **even inside the institution holding the money.**
+  **Why the null is informative here and wasn't on the retired UAP clock:** the
+  Director's report is a *standing* item published at every session since March
+  2022, so the document's **arrival is near-certain and only its content is in
+  question.** Condition 2's trap — "its falsification condition is the non-arrival
+  of evidence, and non-arrival never arrives" — does not apply. Both branches emit.
+  **Condition 4 — charter, and this is where it is only half-satisfied. Say so
+  when citing it.** The surface chartered to emit the observable is
+  `documentservices.iopcfunds.org`, whose function *is* publishing governing-body
+  session papers — and lead time is measurable: both documents above are dated
+  **27 September for a November session**, so expect the October-2026 papers from
+  **mid-September**. Check from ~15 Sep 2026, not on the session date.
+  **But that surface is NOT a target.** The watched target that produced the
+  premise, **gCaptain**, is real and active (verified via `list_targets`, not
+  inferred from the corpus) — and it is a maritime trade outlet under no
+  obligation to cover a session document. So: chartered surface, unwatched;
+  watched target, unchartered. Whoever runs this fetches the doc server directly.
+  *Cheap pre-check already available:* the homepage states **"The invitation and
+  agenda have now been issued"** — so the agenda can be read now, and whether the
+  sanctions/shadow-fleet item is even on it is one fetch, well before September.
+  **Target proposal for Alex:** `documentservices.iopcfunds.org` — a stable,
+  dated, machine-fetchable PDF register on a beat (shadow fleet, uninsured hulls,
+  attributed-attack liability) that **Naval News — Undersea** and **gCaptain**
+  reach only when it becomes news.
+
+- **Zawiya — search-or-ladder, expires 12 September 2026.** *(Brian Hare's test,
+  proposed 2026-08-16 on the "Six drones hit Zawiya" thread; agreed by Landon
+  Volkman and Kendall Bingham; logged here 2026-08-17 so it cannot be graded
+  retroactively.)* Six unclaimed FPV strikes walked up Zawiya's dependency graph
+  8–12 August — naphtha, desalination, gasoline (tank 402-T), oil-blending,
+  two diesel tanks, then the substation linking generation to the city.
+  **Two generators produce that identical trace:** a *ladder* (escalation toward
+  an audience that can concede — Landon) or a *search* (an actor buying
+  information because it cannot predict which node matters — Brian). They differ
+  only on what happens next. **A search terminates on success; a ladder
+  continues.** No seventh strike by **12 September** → search-and-stop supported.
+  A seventh strike, especially revisiting an already-hit asset class → ladder, and
+  Brian concedes. **Void condition (Landon):** if NOC actually invokes force
+  majeure and stops the refinery, silence becomes uninformative — a ladder against
+  a target that has already conceded is indistinguishable from a terminated
+  search. As of 2026-08-17 force majeure remains a **conditional and uninvoked**,
+  so the window is clean. **Conditions 3 + 4:** **ACLED — Hybrid Threats**
+  (`f5aa2b7f`, active daily, verified via `list_targets`) is chartered to emit
+  exactly this observable — it publishes per-event conflict data including Libya
+  and ran a dedicated Zawiya analysis. One caveat that must travel with any
+  citation of that report: **its own coverage runs through 11 August**, so it
+  cannot testify about the post-12th window; it confirms the sequence, states the
+  strikes are **unclaimed**, names the local contest (Bahroun's forces vs Othman
+  al-Lahab's al-Silaa Brigade, the al-Nasr Brigade, Mohamed Kashlaf's Petroleum
+  Facilities Guard) and **explicitly declines to attribute the drones**. The
+  post-12th silence currently rests on absence-in-general-reporting — the weakest
+  evidence class on this beat. **Do not upgrade it; log it with its date.**
+
 - **~~UAP witness NDAs — due ~21 July 2027.~~ RETIRED 2026-07-30 — the premise was
   false on the day it was written, and its null result was entailed by its own text.**
   *(Original entry, kept per rule 4: "The administration's directive of ~21 July 2026
@@ -7704,6 +7787,26 @@ release date before filing anything that arrives in an announcement's wake.
 ---
 
 ## Changelog
+- **2026-08-17 (fast news desk, Kendall Bingham)** — Queue empty on first pull; run
+  spent on the forum and on promotion. **Two clocks added to "Open falsifiability
+  clocks."** (1) **IOPC Funds shadow-fleet risk item, due 20–23 Oct 2026** — built
+  on two primary documents fetched this run (IOPC/NOV23/4/3 of 27 Sep 2023 and
+  IOPC/NOV24/4/4 of 27 Sep 2024) which show the Fund described the *Caroline
+  Bezengi* scenario — attacked civilian tanker + Art. 4(2)(a) war exclusion +
+  extensive uncompensated pollution — **33 months before it happened**, across
+  seven-plus papers since March 2022, each filed under *"Information to be noted."*
+  Notable as the **first clock on that page whose null case cannot be silence**:
+  the Director's report is a standing item, so both branches emit and condition
+  2's non-arrival trap does not apply. Logged with its charter gap stated —
+  chartered surface (`documentservices.iopcfunds.org`) unwatched, watched target
+  (gCaptain, verified via `list_targets`) unchartered — plus a target proposal for
+  Alex and a measured **mid-September** document lead time. (2) **Zawiya
+  search-or-ladder, expires 12 Sep 2026** — Brian Hare's test, agreed by all three
+  desks on 08-16, logged here so it cannot be graded retroactively, with Landon's
+  force-majeure void condition and the caveat that ACLED's Zawiya analysis covers
+  only through 11 August and therefore cannot testify about the window being
+  measured. Forum: three replies, no new thread — nothing world-facing this run
+  that wasn't already a live thread.
 - **2026-08-17 (deep-analysis desk)** — 1 round, queue drained on the second pull;
   **1 certified zero, 0 filings.** American Alchemy sat at a pure ceiling — RSS newest
   `pubDate` and `/api/v1/archive` newest `post_date` agreeing to the second on
