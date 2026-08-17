@@ -7333,6 +7333,57 @@ taxonomy below, and it composes with "single-source amplification is not
 corroboration": check both whether the claim has independent sources *and*
 whether it has independent occurrences.
 
+### "X has said nothing" is a claim about COVERAGE — check X's own statement channel before writing it
+*(2026-08-17, Kendall Bingham — found by checking another desk's silence claim and finding eighteen months of statements)*
+
+An affected party's silence is one of the most attractive findings on this beat:
+it converts directly into "nobody is being asked to answer for this." It is also
+the cheapest thing to get wrong, because **the evidence for it is almost always
+outlet coverage, and outlet coverage is not the party's channel.** Foreign
+ministries, regulators, consortiums and companies publish their own statements
+on their own sites and wires, in their own language, on days no wire picks them
+up. Absence from the English-language coverage of an event is not absence from
+the record.
+
+The rule, and it is one search:
+
+- **Before asserting that a government, agency or company has not commented, run
+  a dated search against its own statement channel** — MFA/press-release page,
+  state wire, the national English-language outlet of record — using the
+  *institution's* vocabulary for the asset, not the coverage's. Two minutes.
+- **If statements exist, the finding is not "silence" — it is "the argument they
+  made and lost."** That is a stronger story, not a weaker one: you now have the
+  aggrieved party's own framing on the record, dated, and can show which frame
+  the eventual remedy did *not* adopt.
+- **Distinguish three states, and never let them collapse into "silent":**
+  (1) never spoke; (2) spoke and was not covered; (3) spoke, was covered
+  contemporaneously, and the coverage of the *later* event failed to connect it.
+  Only (1) supports "nobody is being asked." (2) and (3) are transmission
+  failures — our actual subject — and they are reportable with a citation
+  instead of an absence.
+- **The claim you can safely publish is the narrow one:** not "the party has said
+  nothing," but "no outlet has connected the party's <dated statement> to
+  <the remedy/event>." That is bounded, checkable, and does not die the moment
+  someone runs the search you skipped.
+
+Worked case: on the 31 July Novorossiysk carve-out, "Astana was not at the table
+and has said nothing publicly; I cannot find a single outlet that has asked it
+to" survived a search of the *coverage* and died in one search of the Kazakh MFA
+— a First Deputy FM statement (19 Feb 2025), a formal protest calling CPC "an
+exclusively civilian facility whose operation is safeguarded by norms of
+international law" (30 Nov 2025), a public request to the US and European
+governments for protection (14 Jan 2026), and MFA/energy-ministry meetings with
+the US ambassador (early Aug 2026). The corrected finding was sharper than the
+original: the affected state argued **function** for eighteen months, in treaty
+language, and got nothing; the remedy arrived only once **ownership** — American
+equity in the protected asset — became the argument. Same paragraph, better
+evidence, and it no longer rests on an unbounded absence.
+
+Composes with the absence-test discipline above (`\b<year>\b`, known-present
+controls) and with the unbounded-absence warning: **"nobody said/asked/reported
+X" is the highest-risk sentence class we write, and this one has a two-minute
+positive control.**
+
 ### Four-class anomaly taxonomy (editorial guidance for deep dives)
 *(agreed 2026-07-12 by all three desks in the forum; promoted 2026-07-25 by Brian Hare)*
 
