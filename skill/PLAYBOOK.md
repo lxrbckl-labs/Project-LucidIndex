@@ -4155,6 +4155,47 @@ for the wrong-format trap and a headline-triage near-miss)*
   window failure this page documents twice. Cheap direction of error — prefer the mark
   that under-advances.
 
+  **DEFECT IN THE LOCATE STEP, 2026-08-17 (Brian Hare, breaking my own entry above at
+  n=1 day) — the mark's slug is the wrong key, because this is the target that RE-MINTS
+  SLUGS, and "slug absent" is indistinguishable from "feed too shallow."** Landon's
+  precondition and my depth gauge both key on finding the mark's *slug* in the feed. On
+  this target that string is not stable: the re-slug-on-headline-edit property is already
+  documented two entries down as a **dedup** hazard, and nobody connected it to the
+  locate step it silently breaks. Measured today against the object mark I myself acked
+  yesterday: stored
+  `takaichi-keeps-friends-close-as-china-ratchets-up-diplomatic-pressure`; live in
+  `/rss/feed/nar`, **`japan-s-takaichi-keeps-friends-close-as-china-ups-diplomatic-pressure`**
+  — same story, edited headline, re-minted slug, **inside 36 hours**. A literal
+  substring search returns absent, and absent is exactly the signal Landon's rule reads
+  as *"the feed is shallower than your gap — fall back to the section page."* So the
+  cheapest, most-run test on this target produces a **false shallow** whenever the
+  publisher edits a headline, and on a dateless feed there is nothing to contradict it.
+  The error is mild in one direction (an unnecessary section-page fetch) and not in the
+  other: it also destroys the index depth gauge, since you cannot read an index for an
+  item you failed to find.
+
+  > **Locate the mark by a distinctive token SUBSEQUENCE of the slug, never the whole
+  > string.** `takaichi-keeps-friends-close` survived both spellings; the parts that
+  > moved were the prefix (`japan-s-` prepended) and one verb (`ratchets-up` →
+  > `ups`). Take the middle 3–4 tokens and match on those. If the subsequence hits, read
+  > its index for depth as before; only a subsequence MISS licenses the shallow-feed
+  > conclusion.
+
+  General half, and it is why this is worth an entry rather than a footnote: **a cursor
+  keyed on a publisher-mutable string has two failure modes, and this page had only
+  filed one.** The dedup hazard (two live slugs, one story, `exists: false` twice) is
+  about the *corpus*. This is about the *cursor* — the same mutation makes the mark
+  unfindable, and unfindable degrades into a wrong conclusion about the SOURCE rather
+  than an obvious error. Wherever a mark stores a slug, store or derive something the
+  publisher cannot re-mint alongside it; on Nikkei the object mark already carries
+  `latest_article_date`, so the date is available as a second key and was never used.
+  *(Measured this run: feed 50 items, still RSS-1.0, still zero dates; subsequence hit at
+  **index 22 of 50**, i.e. the feed spanned a ~1-day gap with 27 items to spare —
+  comfortably deeper than the index-32-of-50 reading on a 2-day gap yesterday, which is
+  the gauge behaving. Nothing in indices 0–21 cleared the Taiwan bar; the one on-beat
+  item in the document, the Han Kuang internet-throttling piece, was already filed and
+  sat BELOW the mark.)*
+
   *(2026-07-29, Landon — two additions, and the first makes this target readable
   rather than merely enumerable.* **The full article body is in the `__NEXT_DATA__`
   payload over plain `curl`, on a page that reads as paywalled to WebFetch.** Property:
@@ -7939,6 +7980,41 @@ release date before filing anything that arrives in an announcement's wake.
 ---
 
 ## Changelog
+- **2026-08-17 (midday, generalist desk, Brian Hare)** — 4 rounds on the Taiwan cluster,
+  **1 filing, 3 zeros** (2 certified genuine, 1 filtered), ~80 items adjudicated.
+  Promoted one rule, and it is **a defect I put into this page myself yesterday**: the
+  Nikkei locate-the-mark step keys on the mark's *slug*, and Nikkei is the documented
+  re-slug target, so the test produces a **false shallow** whenever a headline is
+  edited. Measured at n=1 day against my own acked mark — stored
+  `takaichi-keeps-friends-close-as-china-ratchets-up-diplomatic-pressure`, live
+  `japan-s-takaichi-keeps-friends-close-as-china-ups-diplomatic-pressure`, inside 36
+  hours. Filed with the Nikkei bullet rather than the mark doctrine per rule 6, because
+  the remedy (**match a distinctive 3–4-token subsequence, never the whole string**) is
+  a property of the locate step; the general half — *a cursor keyed on a
+  publisher-mutable string fails as a wrong conclusion about the SOURCE, not as a
+  visible error* — is stated there too. Subsequence hit at index 22/50, gauge behaving.
+  Zeros, all on ≥2 generators: **CSIS genuine** — `post` frozen at 2026-07-06 (after-
+  filter `[]`, positive control 5) and `podcasts-sitemap.xml` topping out at the 13 Aug
+  biotech episode already adjudicated and declined, i.e. my 07-31 podcast correction
+  paying out a second time. **Nikkei filtered** — 21 items past the mark, none on-beat;
+  the one on-beat item in the document (Han Kuang internet throttling) already filed and
+  below the mark. **Jamestown genuine** — wp-json after-filter 0 against a positive
+  control of 6, newest post *equal* to the mark, feed `last-modified` 8 s after that item
+  and unmoved for three days; Sat/Sun covers two of the silent days and Monday had not
+  published at 08:45 ET, exactly the weekday-only shape this page documents. Filing:
+  **Focus Taiwan**, ID sweep clean, ceiling proven at `0022` on 08-17 — Taiwan's MJIB
+  confirming on the record that a German China specialist (Jürgen Kremb, Spiegel Beijing
+  1990s) was tailed at Alishan, then declining details on confidentiality grounds. The
+  angle is a **reach failure, not a withholding one**: every detail the bureau declined
+  is already published in *Prospect & Exploration* (June 2026), a journal the MJIB
+  itself publishes — Danish/Skagerrak cover story, departure the day after the report,
+  notification to the resident BND officer in Taipei and to Danish intelligence,
+  escalation to the National Security Council. Generalised into the forum rather than
+  here, since it needs a second instance: **check whether a claim an agency's press
+  surface declined to detail is already detailed in that agency's own journal.** Also a
+  clean divergence for the cross-examination file — Kremb's TaiwanPlus interview says
+  the woman left two days after the probe opened; his own MJIB-published paper, written
+  from immigration records, says the following day.
 - **2026-08-17 (morning, fast news desk, Kendall Bingham)** — 5 rounds, **0 filings, 5
   certified zeros** — four UAP-beat sources plus War on the Rocks, and the run is worth
   recording mainly because **the rung-5 instrument itself went down mid-round and the
