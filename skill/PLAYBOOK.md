@@ -1733,6 +1733,60 @@ question: this is doctrine falsified **9 hours** after promotion, by a desk that
 for an unrelated reason — the pass caught it, and no self-report could have, because the entry was
 never *used* and so never fired.)*
 
+**Second correction to the same clause, 2026-08-17 (Landon) — excluding the root row is not
+enough, because `<lastmod>` is an EDIT timestamp and an ARTICLE row lies too. Measured drift:
+199 days.** *(from a ceiling run on American Alchemy where the sitemap reported four items past
+the mark and the publisher had filed zero.)* The clause above fixes the case where a sitemap row
+is not an article. The residual case is worse because it survives the fix: the row *is* an
+article, the `<lastmod>` *is* honest about that URL, and it still is not a publication date.
+`<lastmod>` means *last modified*, and every backfill, typo fix, image swap or re-promotion
+rewrites it while `post_date` never moves.
+
+Measured. American Alchemy's mark was `2026-08-07T18:04:21Z`; its sitemap carried four `/p/` rows
+dated after it — `08-13`, `08-10`, `08-09`, `08-08` — none of them new:
+
+| sitemap `lastmod` | actual `post_date` | drift | slug |
+|---|---|---|---|
+| 2026-08-13 | **2026-01-26** | **199 d** | `communing-with-the-network-ketamine` |
+| 2026-08-10 | 2026-05-10 | 92 d | `the-ning-li-cover-up-they-got-completely` |
+| 2026-08-09 | 2026-01-09 | 212 d | `dr-eric-wang-and-the-department-of` |
+| 2026-08-08 | 2026-02-20 | 169 d | `the-disappearance-of-a-first-world` |
+
+Read off the sitemap, that publisher had a busy week. It had been silent for ten days. Both live
+generators agree on the real ceiling — RSS newest `pubDate` = Fri, 07 Aug 2026 18:04:21 GMT, and
+`/api/v1/archive?sort=new` newest `post_date` = `2026-08-07T18:04:21.382Z`, to the second.
+
+It is a **generator property, not a target quirk** — three Substack hosts, top 12 article rows
+each, comparing `lastmod` against the archive API's `post_date` for the same slug: American
+Alchemy **2 mismatches** (plus 2 more rows too old to appear in a 50-item archive window, i.e.
+4 of 12 wrong), `importai.substack.com` **1**, `www.astralcodexten.com` **3** (max drift 3 d).
+So the defect fires everywhere and its *size* is what varies: a weekly essayist's edits land days
+after publication and look like rounding, while a target that reworks its back catalogue throws
+rows off by half a year. **The magnitude is a property of the publisher's editing habits, which
+means you cannot calibrate a tolerance — a 5-day slack window would have passed all three of
+American Alchemy's worst rows.**
+
+> **Never derive a publication date from `<lastmod>`, on any generator. A sitemap orders URLs by
+> when they were TOUCHED; a feed and an archive API order them by when they were PUBLISHED. If a
+> sitemap row sits past your mark, resolve the slug against a dated surface (`/api/v1/posts/<slug>`
+> on Substack, the item's own `datePublished`) BEFORE you treat it as new.**
+
+Cheap and exact on Substack: `GET /api/v1/posts/<slug>` returns `post_date`, `audience`, `type`
+and `is_published` for one slug, so a suspect sitemap row costs one call to adjudicate — the same
+endpoint family as the archive-API rule under the high-water-mark entry.
+
+Failure direction is this page's worst and the same as its parent: it manufactures **freshness**.
+The specific harm is that it manufactures it *against a true zero* — the ceiling was genuine on
+both live generators, and the sitemap was the one surface offering a story. Note also what it does
+to the surface-independence rule: the sitemap **is** a real third generator, emitted by different
+code, and it disagreed for a reason that has nothing to do with whether the publisher published.
+Independence buys you a second opinion; it does not buy you a second opinion *about the same
+question*. Ask what a surface's timestamp field is actually a claim about before you count its
+disagreement as evidence.
+
+*(Filed as a dated correction beneath the parent per rule 4 — the parent's measurement and fix are
+both sound; this is the next failure of the same field, not a replacement for it.)*
+
 **A ROLLING-WINDOW surface is uninterpretable when empty, and the control that reads it has to
 be fired at a DIFFERENT HOST — because on your own target, "silent" and "never populated" are
 byte-identical.** *(added 2026-07-29 by Brian Hare, closing a ceiling claim on American Alchemy.)*
@@ -7650,6 +7704,25 @@ release date before filing anything that arrives in an announcement's wake.
 ---
 
 ## Changelog
+- **2026-08-17 (deep-analysis desk)** — 1 round, queue drained on the second pull;
+  **1 certified zero, 0 filings.** American Alchemy sat at a pure ceiling — RSS newest
+  `pubDate` and `/api/v1/archive` newest `post_date` agreeing to the second on
+  `2026-08-07T18:04:21Z`, i.e. the mark itself — so per the ceiling bound, deliberately not a
+  story, and the mark was left unadvanced. The run's whole yield is one promoted entry, a
+  **second dated correction to "compute content-max over ARTICLE rows only"**: excluding the
+  site root is not enough, because `<lastmod>` is an *edit* timestamp and an article row lies
+  too. The target's sitemap carried four `/p/` rows past the mark (`08-13`, `08-10`, `08-09`,
+  `08-08`) whose real `post_date`s were January, May, January and February — **max drift 212
+  days** — so read off the sitemap the publisher had a busy week while it had in fact been
+  silent for ten days. Established as a generator property, not a target quirk, on three
+  Substack hosts (American Alchemy 4 of 12 top rows wrong, `astralcodexten` 3, `importai` 1),
+  with the sting that **magnitude tracks the publisher's editing habits and so cannot be
+  tolerance-calibrated** — a 5-day slack window passes all four of American Alchemy's bad rows.
+  Rule: never derive a publication date from `<lastmod>` on any generator; resolve the slug
+  against a dated surface (`/api/v1/posts/<slug>`, one call) first. Also worth the note for the
+  surface-independence rule: the sitemap *is* a genuine third generator and it disagreed for
+  reasons unrelated to whether the publisher published — independence buys a second opinion, not
+  a second opinion about the same question. (Landon Volkman)
 - **2026-08-17 (early morning, generalist desk)** — 4 rounds, **2 filings, 2 certified zeros**.
   Promoted two entries, both generated by New Scientist and both about *reading a response
   correctly* rather than reaching one. **"An EMPTY Google-News sitemap is a POSITIVE CONTROL"** —
