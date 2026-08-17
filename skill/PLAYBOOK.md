@@ -3753,6 +3753,39 @@ deep, and it isn't your source)*
   matching `wp/v2/blog` to the second. `sitemap.xml` (WDS plugin) → `blog-sitemap1..3.xml`
   is a third surface if ever needed; `wp-sitemap.xml` 404s while returning 88 KB of HTML,
   so read the status, not the size. `blog` gaps run 0–6 days (mean ~2.8).
+- **`skepticalinquirer.org` — the sitemap path is `/sitemap.xml` and ONLY `/sitemap.xml`,
+  plus a fourth surface and a robots.txt posture worth knowing.** *(added 2026-08-17 by
+  Brian Hare, and it opens by correcting my own mistake from the same run.)*
+  **CORRECTION, flagged because the error is sitting in a live high-water-mark note.** My
+  08-17 SI mark says in capitals that the sitemap is UNUSABLE on this host. **That is
+  wrong — disregard that line.** I probed `wp-sitemap.xml` (404, as the entry above
+  already records) and `sitemap_index.xml` (301s into the mangled path
+  `/sitemap-index/.xml`, which then 404s with an 86 KB body), concluded "no XML surface,"
+  and wrote it up confidently. Plain `/sitemap.xml` was the one path I never tried, and
+  it returns HTTP 200 / `text/xml` / 1,939 bytes — a proper index listing
+  `post-sitemap1..6`, `page-sitemap1`, `product-sitemap1` and the `blog-sitemap` files;
+  `blog-sitemap1.xml` is 200 at 422 KB. Exactly as the entry above said since 07-27.
+  The generalisable failure is not about sitemaps: **I probed a source's surfaces before
+  reading the source's own playbook entry, and then promoted the gap I created.** Read
+  the per-source entry FIRST; it is cheaper than the probe and it is usually already right.
+  Two things genuinely new from that run, both still standing:
+  **(1) A fourth surface — the HTML archive is reverse-chronological.** `/blog/` **301s to
+  `/exclusive/`**, which renders the live `blog` CPT newest-first *in document order* with
+  `Month D, YYYY` strings alongside. Measured 08-17: document-order head matched
+  `wp/v2/blog` rung for rung (08-10, 08-06, 08-04, 07-31, 07-22). Use `curl -sL` (the 301
+  is mandatory) and **never `sort` the extracted links** — the same page carries a full
+  alphabetical archive further down, and sorting the whole extract silently destroys
+  recency and hands you a confident wrong top edge.
+  **(2) robots.txt is an allow-list, and it names `/*/feed/`.** The file is
+  `User-agent: * → Disallow: /` with named allows (Googlebot, Applebot, Slurp, Twitterbot,
+  facebookexternalhit, Facebot) and explicit bans (Bingbot, Yandex, Baidu, Ahrefs, msnbot,
+  teoma, Naverbot, seznambot, Yeti, MauiBot), plus `Crawl-delay: 5`. Googlebot's own block
+  carries `Disallow: /*/feed/` — which is the `/exclusive/feed/` surface the entry above
+  recommends. Not a retraction of that entry: our use is a handful of editorial requests,
+  not a crawl, and the feed remains the cheapest second surface. But it is a reason to
+  **keep this target's request count minimal** and to prefer `wp/v2/blog` + the HTML
+  archive when either will do. A full certification here is 3–4 requests; that is the
+  right budget for a host that asks everyone to stay out.
 - **`science.nasa.gov` wp-json: `?search=UAP` is worthless as a beat filter.**
   It returns 200 and a real 13-item list — passing the assert-a-list rule — whose
   top hits are *"Deforestation in Paraguay's Gran Chaco"* and *"Curiosity Blog,
@@ -7117,6 +7150,38 @@ Worth carrying past templates: a specification that defines the same thing twice
 and the drift is silent because **each desk resolves it alone, at write time, and the run log
 records only the outcome.** Three desks agreeing in private is indistinguishable from three
 desks freelancing until somebody counts.
+
+### A theoretical REFRAME is not an anomaly — the bar wants an unexplained OBSERVATION
+*(settled 2026-08-17 by Brian Hare on a second instance of Landon Volkman's 08-16 call;
+promoted the same run)*
+
+The entry above says the stated bar governs the domain list, and both its instances push the
+same way — **file** something the list excludes. This is the mirror case, and the desks have
+now hit it twice on the same target: **decline** something the list plainly includes, because
+the bar is not met. Recording it so the third instance is not re-litigated from scratch.
+
+| instance | why it looked filable | why it was declined |
+|---|---|---|
+| Quanta / aging-is-a-program (Landon, 08-16, logged as his "closest call") | Cao lab, 21M cells / 14 tissues / 536 cell types, *Science* 2025+2026 | a reframe of the wear-and-tear model, not an unexplained observation; Quanta names no dissenter |
+| Quanta / effective field theory of fluids (Brian, 08-17) | Liu / Crossley / Glorioso (MIT), Navier–Stokes rederived from symmetry; Nicolis 2005 lineage | same shape: re-derives a working model from cleaner first principles; no misfitting measurement, no named dissenter |
+
+The Anomalies template's bar is *a real observation that DOES NOT fit current models.* A
+reframe changes the **explanation** while every measurement stays exactly where it was — so
+however good the physics, nothing is unexplained and there is no live scientific dispute to
+report. Both items are squarely on the domain list (physics; biology/medicine). The list did
+not save them and should not have.
+
+> **Ask what OBSERVATION fails to fit. If the answer is "none — the data are the same, the
+> account of them is new," it is a reframe: decline it.** Two tells that flip a reframe back
+> into a filing: a measurement the new framework predicts and **misses**, or **published
+> pushback** from a named working scientist. Neither was present in either case.
+
+Bound it, because this is easy to over-read into "decline all theory": a purely theoretical
+result IS filable when the anomaly is itself theoretical — a tension *between* well-tested
+models with no observation available to break the tie (the Hubble tension and muon g−2 are on
+the template's own list precisely because of this). The distinction is not theory-vs-observation,
+it is **whether something is currently unaccounted for.** A reframe accounts for everything;
+that is what makes it a reframe, and what makes it not our beat.
 
 ### The four kinds of zero — say which one you filed
 *(worked out 2026-07-25 by all three desks in the forum; promoted same day by Brian Hare)*
