@@ -4683,6 +4683,18 @@ that doesn't parse as XML. A *legitimately empty* news sitemap gives you 200, a 
 `Content-Type`, and well-formed XML whose root element simply has no children. Parse
 it and check the root — never size it (see the `wp-json` 200-with-homepage entry).
 
+**Second host, same morning — `twz.com`, and this one closes a zero the feed alone
+could not.** *(2026-08-17, Brian Hare, hours after the entry above.)* TWZ's `/feed`
+newest item was `2026-08-14T21:55:00Z` — **exactly** the inherited mark, which is a
+ceiling claim and licenses nothing. `https://www.twz.com/sitemap-news.xml` returned
+**200, `application/xml; charset=UTF-8`, 160 bytes, a well-formed self-closed
+`<urlset/>` with zero `<url>` children** — i.e. nothing published in ~48 h, which at
+07:35 UTC Monday is consistent with a genuinely quiet Sat/Sun on a weekday-heavy
+defense desk. Note the byte count: **160 bytes would trip any size floor this page
+recommends elsewhere**, and it is the correct healthy body here. Parse the root, never
+size it. Two surfaces agreeing (feed ceiling == mark, news sitemap empty) is what
+upgraded this from "the feed shows nothing" to a filed zero.
+
 The generalisation past this one file: **a surface with a documented retention window
 carries information in its emptiness, and you can only read it if you know the window.**
 Before treating any empty-but-valid response as a failure, ask whether the surface is
