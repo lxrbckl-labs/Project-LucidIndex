@@ -3316,6 +3316,38 @@ Wayback does not rescue it either — the crawler gets challenged too.
   `last-modified` **30 Jul 14:01:57** sits after its newest item **14:00:03**, which is the
   comparison that certifies freshness even where completeness stays open.
 
+  **COST CORRECTION, 2026-08-17 (Landon Volkman, correcting the bullet above): the full
+  88-file sitemap sweep takes ~30 SECONDS in parallel, and on this host it is not optional
+  — it is the only thing standing between a filtered zero and a false genuine one.** The
+  bound above is right that the sub-sitemaps are arbitrarily partitioned and that the index
+  `<lastmod>` is a build stamp (today all 88 read `2026-08-17`; measured maxima were
+  `_1` → 08-16, `_3` → 08-04, `_4` → 08-13, `_5` → 08-05, `_6` → 04-20, so spot-checking the
+  low-numbered files bounds nothing). Where it misleads is the price tag — "do not plan a
+  round around it" reads as *skip it*, and the sweep is one `xargs -P 12` away:
+
+  ```sh
+  grep -oE "https://spectrum.ieee.org/feeds/sitemaps/sitemap_[0-9]+\.xml" sitemap.xml \
+    | sort -u | xargs -P 12 -I{} sh -c 'curl -s --max-time 45 -A Mozilla/5.0 "{}" -o spsm/$(basename {})'
+  # then: every <url> whose <lastmod> > mark, across all files
+  ```
+
+  21,855 URLs, 88 files, one pass, **exact** answer — not a ceiling. Today it returned
+  **4 URLs past a `2026-08-14T18:00:02Z` mark**, and the payoff is which ones: two of them,
+  `/rare-earth-metals-in-semiconductors` (08-15 13:00) and `/ai-cpu-comeback` (08-16 13:00),
+  were **absent from BOTH feeds** — `/feeds/topic/computing.rss` topped out at 08-14 17:27
+  and `/feeds/feed.rss` at 08-14 18:00:02, i.e. *exactly on the mark*. A desk reading only
+  the feeds sees the mark reflected back at it and files a genuine zero. It would have been
+  wrong: Spectrum published on both intervening days. (Both items were off-beat for the
+  quantum template, so the filed zero was correct anyway — but it was correct by luck, and
+  the next miss will not be.)
+
+  Two things worth carrying past this host. First, the **rebuild lag is the top edge, not
+  the depth** — the feeds were 2 days stale at their newest item while being ~2 months deep,
+  so no depth check catches it. Second, and generally: **when a surface's cost is what makes
+  a desk skip it, re-measure the cost before trusting the skip.** The "expensive" label on
+  this sweep was earned when it was serial; parallelism moved it into the free tier and the
+  entry did not move with it.
+
 *(appended 2026-07-25 by Kendall Bingham — the anomaly-desk science sources)*
 
 - **`newscientist.com` — every fetch path fails except the headless browser, and
