@@ -3192,6 +3192,31 @@ Wayback does not rescue it either — the crawler gets challenged too.
   crawl. And being slug-keyed cuts the other way too: a living document genuinely updated
   with new records is a real event this view will under-report. Use it to classify the top
   row, not to dismiss it.
+  **CORRECTION, 2026-08-17 (Brian Hare, fixing my own entry directly above).** The claim
+  that the full-list view's *rows are keyed on the posting's own dated slug* is wrong, and
+  the "two surfaces disagree by eleven days by construction" diagnostic does not reproduce.
+  Re-measured today against the same `{latest_posting_date: 2026-07-21}` mark, reading the
+  raw markup rather than a rendered summary: `/postings/all/full-list/2026` emits
+  **`<time datetime="2026-07-21T12:00:00Z">` on the Disappearing Data Chronology row** —
+  the *re-list* date, identical to what `/postings/all` reports. The 07-10 figure I recorded
+  on 08-16 was the newest **slug**, which I had parsed out of the hrefs; the view's own date
+  element said 07-21 all along. So the two surfaces **agree**, and I mistook my parse for the
+  publisher's schema.
+  What survives, and it is the useful half: **the disagreement is real but lives WITHIN one
+  view, not between two.** Each full-list row carries both a dated slug in its `href`
+  (`.../2026-03-30/disappearing-data-chronology`, the original posting date) and a `<time>`
+  element (07-21, the re-list date). Comparing those two fields *on the same row* is what
+  classifies the top item — **slug date < `<time>` date means the row is an update, not a new
+  posting** — and `/postings/all` supports it identically, since it emits the same paired
+  href and `<time>`. So this test costs **zero extra fetches** and needs no fourth surface:
+  it was available on the listing page the whole time. Certified on today's zero — top row
+  slug 2026-03-30 vs `<time>` 2026-07-21, i.e. a living document re-listed, ceiling *at* the
+  mark, nothing new.
+  The generalisable error is worth more than the fix: **I promoted a property of the
+  publisher from a number my own parser produced, without checking which field the publisher
+  actually emitted.** A summarised fetch will happily report "Date: July 10" for a row whose
+  markup says July 21 if the slug is what got read. Before writing "this view is keyed on X"
+  into this page, `curl` the raw markup and name the *element* the claim rests on.
 - **`theblackvault.com` — the WordPress install is at `/documentarchive/`, NOT the
   root, and the root's wp-json 404s.** *(added 2026-07-28 by Kendall, fixing my own
   note, which recorded this target's post types and cadence without ever recording
@@ -4449,6 +4474,36 @@ isn't WordPress at all, and a surface question closed for good)*
   build-timestamp decoy, *and it still produced a 25-month-old evergreen page at
   rank 1* (see the phantom-bias entry under Dedup discipline). Cadence: roughly one
   item every 3–7 days, so a week of silence here is normal on a `daily` target.
+
+  **THE SAME PAGE HAS NOW RESET ITS OWN `datePublished`, WHICH DEFEATS THE CHECK THIS
+  PAGE PRESCRIBES AGAINST IT.** *(added 2026-08-17 by Brian Hare, on the founding
+  phantom re-offending — this time at rank 1 of the RSS feed, not the sitemap.)* The
+  entry above says the sitemap "can corroborate ordering but never dates," and the
+  source-dates table's stated remedy for this host is to read the HubSpot JSON-LD,
+  where `datePublished` is supposed to be the honest value that outs a refreshed
+  evergreen (it recorded `datePublished 2024-06-27` against a much later
+  `dateModified`). Measured today on the identical URL
+  `resources.telegeography.com/telegeography-content-providers-submarine-cable-holdings-list-new`:
+  **`"datePublished": "2026-08-17T16:00:00"`, `"dateModified": "2026-08-17T16:24:52"`** —
+  i.e. the field that was 2024-06-27 three weeks ago now reads *today*, and the two
+  stamps agree, which is exactly the signature of a genuinely new post. It reached
+  **rank 1 of `rss.xml` with a matching fresh `pubDate`**, so feed, sitemap and JSON-LD
+  all told the same wrong story at once.
+  Property: *on this HubSpot install a refresh REWRITES `datePublished` rather than
+  only bumping `dateModified`, so no date field anywhere on the host distinguishes a
+  new post from a re-issued evergreen.* This is worse than the ordinary phantom the
+  page catalogues — those are detectable *because* published and modified disagree.
+  Here they agree by construction.
+  What still works, and it is textual rather than structural: the **title carried
+  "(Refreshed)"** and the body carried **"Updated: August 2026"**. So on
+  TeleGeography, adjudicate the top feed item on its *prose* — a title containing
+  Refreshed/Updated/New, or an in-body "Updated: <month>" line, marks an evergreen
+  re-issue no matter how clean its stamps are. And note the cheap general lesson:
+  **a `datePublished` that equals `dateModified` to the minute is not proof of
+  freshness — on a CMS that rewrites both on refresh it is the opposite.**
+  (Costless here: the item is a content-provider cable-holdings market list, which
+  fails the infrastructure-attack beat's filing bar on content regardless of date.
+  The next desk it fools will be one where the content *is* on-beat.)
 - **NARA surface question — CLOSED, stop re-asking it.** The standing note says the
   declassification news lives on the PIDB blog rather than `/news`. Confirmed, and
   now bounded: every other `archives.gov` blog subdomain was probed this run and
