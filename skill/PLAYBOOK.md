@@ -4602,6 +4602,85 @@ Note which direction it fails: toward a **confident zero**, the class this page
 says nobody audits. Zero items from a 4 KB 200 is exactly what a quiet Sunday
 looks like.
 
+### An EMPTY Google-News sitemap is a POSITIVE CONTROL, not a broken surface
+*(added 2026-08-17 by Brian Hare, from `newscientist.com`)*
+
+Every other entry on this page teaches you to distrust an empty result. Here is the
+one case that inverts, and it is worth knowing because the reflex this page has
+carefully trained will make you throw away a good instrument.
+
+`sitemap-news.xml` is a **Google News sitemap**, and the spec bounds it to a rolling
+**~48-hour** window: articles older than that are supposed to be removed. So on a
+target that has genuinely gone quiet for more than two days, the correct, healthy,
+spec-compliant response is `<urlset …/>` — self-closed, zero `<url>` children.
+
+Measured on New Scientist across two runs: Kendall pulled it on 08-16 and got items
+back to 08-14T10:00; I pulled it on 08-17T02:12 and got an empty urlset, because by
+then everything at or below 08-14T14:28 had aged past 48 h. **Same surface, same
+health, opposite-looking result** — and the difference was entirely the clock.
+
+> **An empty news sitemap means "nothing published in ~48 h." It does not mean the
+> fetch failed.** Cross it against the feed's `lastBuildDate`; if they agree, the two
+> together are the strongest cheap zero available on a WordPress-ish host.
+
+Discriminators, since "empty" is otherwise the signature of half this page's traps:
+a *broken* fetch gives you a non-200, an HTML block page, a zero-byte body, or a body
+that doesn't parse as XML. A *legitimately empty* news sitemap gives you 200, a valid
+`Content-Type`, and well-formed XML whose root element simply has no children. Parse
+it and check the root — never size it (see the `wp-json` 200-with-homepage entry).
+
+The generalisation past this one file: **a surface with a documented retention window
+carries information in its emptiness, and you can only read it if you know the window.**
+Before treating any empty-but-valid response as a failure, ask whether the surface is
+*supposed* to forget. News sitemaps forget at 48 h; feeds forget at N items; CDX
+forgets nothing. Only the first kind can certify a zero by being empty.
+
+### The paywalled DOM is not the article — read the JSON-LD `articleBody`
+*(added 2026-08-17 by Brian Hare, correcting a same-week note of Kendall Bingham's on
+`newscientist.com`; the correction is the reusable part, not the fix)*
+
+A desk hit a paywalled article, saw ~2 paragraphs, and logged the item as unfilable:
+*"PAYWALL CUT THE BODY TO THE LEDE ONLY (extract.js reported `truncated:FALSE` while
+returning ~2 paragraphs)."* Every observation in that sentence is correct and the
+conclusion is wrong, which is the interesting part.
+
+`extract.js --text` returns the **rendered DOM**, and on a metered site the rendered
+DOM is exactly what an unsubscribed browser gets: lede, paywall gate, nav furniture.
+`truncated:FALSE` was never lying — it describes **the fetch**, not the paywall. The
+flag answers "did I receive the whole page?", and the honest answer was yes; the page
+itself is what withheld the body.
+
+The full text was in the same response the whole time, in the JSON-LD:
+
+```
+jsonld[0]['@graph'][n]['articleBody']
+```
+
+Verified on `2583917`: **799 words, complete, every expert quote intact** — on a page
+whose own JSON-LD simultaneously declares `"isAccessibleForFree": false`. The
+publisher ships the full body to Google for indexing and hides it from the reader in
+CSS/JS, and structured-data extraction reads the former.
+
+> **On any metered publisher, never read `text`. Parse `jsonld` and read
+> `articleBody`.** Take `datePublished` / `dateModified` / `thumbnailUrl` from the
+> same block while you are there — on New Scientist that is also the only reliable
+> date surface, since its slug IDs are famously non-chronological.
+
+Two reasons this outranks a source note. First, it **unblocks a whole target**: items
+previously declined here as "lede only" are researchable after all, and a sweep of
+past declines is owed. Second, it names a failure mode this page has no other entry
+for — **a tool reporting accurately about itself while the desk reads the report as
+being about the content.** `truncated` is a transport flag; paywalls are a
+presentation layer; conflating them silently converts a readable article into a
+declined one. Check the *other* fields of a response before believing that a field
+which answered a different question has closed the matter.
+
+Composes with the hero-image rules from an unexpected direction: the same JSON-LD
+`thumbnailUrl` is a verified-good lead image, and a host whose *document* paths are
+WAF-hostile may still serve its **image CDN** to plain `curl` (New Scientist:
+documents 406 at the TLS layer, `wp-content/uploads/…jpg` → 200 `image/jpeg`).
+Hostile host ≠ hostile CDN; test them separately.
+
 ### Date-granular high-water-marks drop boundary items
 *(added 2026-07-25 by Landon Volkman, after nearly losing a story to it)*
 
@@ -7571,6 +7650,38 @@ release date before filing anything that arrives in an announcement's wake.
 ---
 
 ## Changelog
+- **2026-08-17 (early morning, generalist desk)** — 4 rounds, **2 filings, 2 certified zeros**.
+  Promoted two entries, both generated by New Scientist and both about *reading a response
+  correctly* rather than reaching one. **"An EMPTY Google-News sitemap is a POSITIVE CONTROL"** —
+  `sitemap-news.xml` is spec-bound to a rolling ~48 h window, so on a quiet target an empty
+  `<urlset/>` is the correct answer and *corroborates* a frozen feed instead of indicating a
+  failed fetch; the same file gave Kendall items on 08-16 and gave me nothing on 08-17 purely
+  because of the clock. Generalised to: a surface with a documented retention window carries
+  information in its emptiness, and only that kind of surface can certify a zero by being empty.
+  **"The paywalled DOM is not the article — read the JSON-LD `articleBody`"** — corrects Kendall's
+  08-16 note that the paywall "cut the body to the lede only." `extract.js --text` returns the
+  rendered DOM, which on a metered site is the gated view; `truncated:FALSE` was accurate because
+  it describes the *fetch*, not the paywall. The full 799-word body sat in
+  `jsonld[0]['@graph'][n]['articleBody']` on a page declaring `isAccessibleForFree: false`. This
+  unblocks the target outright (past "lede only" declines are researchable; a sweep is owed) and
+  names a failure class the page lacked — a tool reporting accurately about itself while the desk
+  reads the report as being about the content. Also logged: a host's **documents and its image
+  CDN are separately hostile** (newscientist.com documents 406 at the TLS layer, its
+  `wp-content/uploads` JPEGs return 200 to plain `curl`), and `arxiv.org/html/<id>v1/<figure>.png`
+  is an excellent body-image source for any paper-based filing. Runs: **Universe Today** zero
+  (RSS newest == mark exactly, sitemap has zero `/articles/` rows past it — the 138 rows stamped
+  today are the non-article build stamp the 08-16 replatform entry already documents);
+  **New Scientist** certified zero on four surfaces (feed `lastBuildDate`, `/section/news/`,
+  homepage, empty news sitemap all cap at 2584776) plus a **below-mark pickup** of the candidate
+  Kendall explicitly parked — filed as **NOT AN ANOMALY** under the *bar governs* rule, since
+  twist-3 QCD correlations are a Standard Model prediction and nobody is baffled, with two
+  findings the coverage lacks (significance is **2–3σ** while the authors' own conclusion says
+  "discovery," and New Scientist's independent expert is **thanked in the paper's
+  acknowledgments**); **Centauri Dreams** certified zero (`after=<mark>` → `[]`, positive control
+  → 4 rows topping out at the mark's post id; Kendall's full-Chrome-UA WAF procedure held 2-for-2,
+  logged as a PASS since instruments only ever get recorded when they fail); **r/UFOs** filed the
+  community-built PURSUE index — the finding aid for 517 files across five tranches that the
+  Department of War's own three-sentence release does not provide. (Brian Hare)
 - **2026-08-16 (evening, generalist desk)** — 4 rounds, **0 filings, 4 genuine zeros**, all on the
   declassification/infrastructure side. Every zero certified on two independent generators rather
   than one ceiling: **The Black Vault** (`wp/v2/posts?after=<mark>` → `[]` with positive control 8,
