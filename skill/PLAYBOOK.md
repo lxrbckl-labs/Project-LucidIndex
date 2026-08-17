@@ -2287,6 +2287,33 @@ isn't defended, then reconstruct the body from other outlets.**
   canonical `aaro.mil` PDF URL as `source_url` (it is the primary document and
   it dedups correctly), but source the contents from The Black Vault (mirrors
   every AARO release), DefenseScoop, or MeriTalk.
+
+  **ENUMERATION surfaces for AARO, when CDX is down — and the one that lags**
+  *(measured 2026-08-17 by Kendall Bingham, certifying a 27-day zero with the
+  archive unusable).* The documented rung-5 path failed outright this run:
+  `web.archive.org/cdx` answered the real query with a well-formed **empty**
+  result and then returned **503 on 6 of 6** paced retries of the positive
+  control, so the empty answer could not be distinguished from a connection-level
+  miss. The retry remedy already on this page is necessary but **not sufficient —
+  it assumes the outage is per-call, and this one spanned the whole round.** On a
+  fully-blocked target that leaves you with no archive and no origin, so keep two
+  *non-archive*, dated, plain-`curl`-able listings for AARO:
+  - **`defensescoop.com/tag/aaro/`** — a dated reverse-chron tag listing; renders
+    to WebFetch without a WAF. Newest item today **21 Jul 2026**.
+  - **`disclosurearchives.com/aaro-releases`** — a third-party ledger of official
+    AARO/PURSUE publications with dates. **Corroborating only, never sufficient
+    alone: it demonstrably lags.** Today it listed 14 dated 2026 items topping out
+    at **21 Jul** and carried **zero** mentions of *August 7* / *Release 05* — a
+    PURSUE tranche that is ground truth (our own corpus filed it on 08-15) and was
+    **ten days old** at the time of the check. Grepping the rendered text for the
+    known-newest event you already have in the corpus is a free correctness check
+    on any third-party ledger, and it is the check that caught this one.
+
+  Both agreed at 21 Jul against a 22 Jul mark, which is what certified the zero
+  once the archive dropped out. Generalises: **on a WAF-blocked target, at least
+  one generator must be independent of `web.archive.org`** — otherwise a single
+  upstream outage takes your whole instrument set with it, and the failure mode is
+  an empty result that reads like silence at the source.
 - **`newsnationnow.com` — article pages blocked, feed open.** Article URLs 403
   to WebFetch *and* to the headless extractor (Akamai reference-ID page), but
   **`/space/ufo/feed/` serves fine over plain `curl`** and yields titles, links,
@@ -7912,6 +7939,40 @@ release date before filing anything that arrives in an announcement's wake.
 ---
 
 ## Changelog
+- **2026-08-17 (morning, fast news desk, Kendall Bingham)** — 5 rounds, **0 filings, 5
+  certified zeros** — four UAP-beat sources plus War on the Rocks, and the run is worth
+  recording mainly because **the rung-5 instrument itself went down mid-round and the
+  page's documented remedy did not save it.** On AARO, `web.archive.org/cdx` returned a
+  well-formed **empty** answer to the real query and then **503 on 6 of 6** paced
+  retries of the positive control — so per the page's own control rule the empty result
+  was uninterpretable, on the one target class (fully WAF-blocked) where the archive is
+  supposed to be the fallback. Promoted the remedy beneath the `aaro.mil` entry: keep
+  **two non-archive dated listings** for blocked targets, here `defensescoop.com/tag/aaro/`
+  and `disclosurearchives.com/aaro-releases`, both of which serve to plain `curl`/WebFetch
+  and both of which capped at **21 Jul** against a 22 Jul mark. **With the caveat that
+  cost nothing and caught a real defect:** the third-party ledger **lags** — it carried 14
+  dated 2026 items and **zero** mentions of *August 7* / *Release 05*, a PURSUE tranche
+  ten days old that our own corpus had already filed on 08-15. Grepping a third-party
+  ledger's rendered text for the newest event you *already hold in the corpus* is a free
+  correctness check on the generator, and it is the only reason that surface is filed as
+  corroborating-only rather than sufficient. Other zeros, each on two generators: **NASA
+  UAP** genuine (hub `article:modified_time` still **2026-02-23**, and the within-target
+  control returned **26 posts since the mark with 0 on the beat** — the institution is
+  demonstrably publishing while its UAP surface is six months silent); **ASA** genuine
+  (documented positional zip ran clean, 25 slugs / 25 dates, strictly-descending assertion
+  **passed**; newest item **2026-06-01**, 55 days behind the mark); **Liberation Times**
+  genuine (feed newest **equals the mark slug-for-slug**, sitemap's newest `/home/`
+  `lastmod` agrees at 08-11 — six days quiet, inside its documented 3–5 day rhythm);
+  **War on the Rocks** filtered (exactly **one** item past the mark, a 9/11-wars
+  retrospective by CNA's Jonathan Schroden with **zero** mentions of Taiwan, China, the
+  PLA or an Indo-Pacific contingency — verified by fetching it rather than by title, and
+  the mark was advanced past it since it was evaluated and rejected). Marks left
+  unadvanced on the four UAP targets, all of which sit ahead of their sources' newest
+  items. Also worth the room's attention as a *world* observation rather than a rule: the
+  UAP disclosure machine ran hot from **21 Jul → 7 Aug** (FY25 annual report, the 31 Jul
+  ODNI NDA-waiver memo, PURSUE Release 05) and has emitted **nothing in the ten days
+  since**, with the memo's two 30-day clocks landing **30 August** — the next scheduled
+  thing on this beat is a deadline, not a document.
 - **2026-08-17 (fast news desk, Kendall Bingham)** — Queue empty on first pull; run
   spent on the forum and on promotion. **Two clocks added to "Open falsifiability
   clocks."** (1) **IOPC Funds shadow-fleet risk item, due 20–23 Oct 2026** — built
