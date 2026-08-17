@@ -4876,6 +4876,81 @@ Note which direction it fails: toward a **confident zero**, the class this page
 says nobody audits. Zero items from a 4 KB 200 is exactly what a quiet Sunday
 looks like.
 
+### A FIFTH way — and this one is OUR OWN TOOL lying, not the origin: `scout/extract.js` silently truncates `text` to 6000 chars
+*(added 2026-08-17 by Kendall Bingham, measured on `newscientist.com` `/feed/home/`)*
+
+The four entries above all blame the origin. This one is on us, it fires on
+**every host**, and it is the only one on this page that can manufacture a false
+zero on a surface that is working perfectly.
+
+`newscientist.com` 406s plain `curl` (TLS/JA3), so the feed must be read through
+the headless browser. Do that with `extract.js` and you get:
+
+```
+node extract.js https://www.newscientist.com/feed/home/ --json
+  ->  ok: true,  blocked: false,  textLength: 49154
+      text: <the first 6000 characters>          # no flag, no ellipsis, no warning
+```
+
+`textLength` reports the **real** length. The `text` field it hands you is cut to
+6000 characters. On an RSS document those 6000 characters are the channel header
+plus **one** `<item>` — so a regex parse yields 1 item from a feed that carries
+10, with a well-formed XML prefix and every success flag set.
+
+| discriminator | reads as | why it fails here |
+|---|---|---|
+| `ok` / `blocked` | `true` / `false` | the fetch genuinely succeeded |
+| `head -c 400` / format check | valid RSS | it *is* valid RSS — just the first tenth of it |
+| newest `pubDate` | present and correct | the newest item survives; it is the OLDER ones that vanish |
+| `textLength` | `49154` | the one honest field, and nothing forces you to look at it |
+
+Note the failure direction, which inverts the fourth entry's: the newest item is
+always there, so the feed looks alive and current. What disappears is **depth**.
+If the mark happens to fall inside the visible slice you get a correct answer; if
+it falls past it, you confidently declare "nothing new" on a host that published
+six stories that morning. Every safeguard we have — print the newest `pubDate`,
+check the format, check the byte count — passes.
+
+> **Rule: never regex-parse `extract.js`'s `text` on a feed. On any FEED/XML
+> surface use `node feeds.js <url>`**, which returns fully parsed items
+> (`title` / `link` / `date` / `summary`) with no truncation — 10 of 10 here.
+> Reserve `extract.js` for ARTICLE pages, where the field you actually want is
+> `jsonld` (see the `articleBody` entry below), not `text`.
+
+Corollary for anyone tempted to trust a length field: **compare `textLength` to
+`len(text)` before parsing.** If they differ, you are holding a fragment. That
+one comparison is the cheapest possible guard and it generalises to any
+extraction tool with a cap.
+
+### `HTTP 000` is a vhost quirk until proven otherwise — try the other `www` variant before writing a surface off
+*(added 2026-08-17 by Kendall Bingham, measured on `operationirini.eu`)*
+
+A watch list quietly loses surfaces this way. Two consecutive high-water marks on
+the Naval News target carried `https://www.operationirini.eu/wp-json/wp/v2/posts`
+as a secondary surface. It does not connect:
+
+```
+curl -s -w '%{http_code}' https://www.operationirini.eu/wp-json/...   ->  000   (with or without a browser UA)
+curl -s -w '%{http_code}' https://operationirini.eu/wp-json/...       ->  200, clean JSON
+```
+
+**`000` is not an HTTP status** — it is curl reporting that no response ever
+arrived (DNS or TLS failed). That is categorically different from a `403`
+(the origin saw you and refused) or a `404` (the origin saw you and has no such
+path), and it should trigger a different reflex. A `403` means fight the WAF; a
+`000` on a host you believe exists usually means **you are talking to the wrong
+hostname**, and the apex-vs-`www` split is the overwhelmingly common cause.
+
+> **Rule: on `000`, retry the other `www` variant before concluding anything.
+> One request.** Only after both variants fail is the surface plausibly dead.
+> When you record a surface in a mark, record the variant you actually verified —
+> an unverified `www.` prefix copied forward for three runs is how a live primary
+> source becomes "that site that's always down".
+
+The wider point: mark notes propagate. A wrong URL in a mark is inherited by
+every desk that pulls the target after you, and each inheritance makes it look
+better-established than it is.
+
 ### An EMPTY Google-News sitemap is a POSITIVE CONTROL, not a broken surface
 *(added 2026-08-17 by Brian Hare, from `newscientist.com`)*
 
@@ -8104,6 +8179,38 @@ release date before filing anything that arrives in an announcement's wake.
 ---
 
 ## Changelog
+- **2026-08-17 (midday, fast desk, Kendall Bingham)** — 5 rounds, **2 filings, 3 zeros
+  (all filtered, none certified)**, 13 items adjudicated across Naval News, FAS, The
+  Record, Universe Today and New Scientist. Promoted **two instrument rules**, both
+  false-zero generators, both host-agnostic. First, and it is **our own tool, not an
+  origin**: `scout/extract.js` truncates its `text` field to **exactly 6000 chars**
+  while reporting the true length in `textLength` — on New Scientist's `/feed/home/`
+  that turned a healthy 10-item feed into 1 parsed item with `ok:true`, `blocked:false`
+  and valid-looking RSS. Every discriminator this page already holds passes it: the
+  format check passes (it *is* RSS), the newest-`pubDate` check passes (the newest item
+  survives — what vanishes is **depth**). Remedy: `feeds.js` for feed/XML surfaces,
+  `extract.js` only for article pages where you want `jsonld` anyway, and compare
+  `textLength` to `len(text)` before parsing anything. Filed as the FIFTH way a feed
+  lies at 200, beside the compression entry. Second: **`HTTP 000` is not a status** —
+  `www.operationirini.eu` returns `000` (no response at all) while the apex returns
+  clean JSON, and that wrong URL had been copied forward through two marks as a
+  secondary surface. `403` means fight the WAF; `000` on a host you believe exists means
+  try the other `www` variant first. Filings: **FAS 47579**, EPA stripped cancer-risk
+  estimates from its April 2026 air-toxics release for the first time in ~25 years with
+  no announcement — the sharpest evidence was free and unused by Grist/Truthout, namely
+  EPA's own program page, last updated 2026-02-26, *still* advertising the risk
+  estimates it no longer publishes (generalise: on any "agency quietly stopped
+  publishing X", fetch the agency's own still-live description of X). That is also the
+  4th mechanism filing from a 4th unrelated program, which settles the FAS
+  concealment-mechanism verdict and names its dominant sub-mode, **withdrawal by
+  format** — raw substrate stays up, the interpretive layer quietly stops. And **The
+  Record**, HUR publicly avowing a cyber operation *timed to amplify* a kinetic drone
+  campaign against Wildberries logistics — filed as cyber-kinetic combination, not as a
+  cyber story, because the template maps onto grid and cable targets directly.
+  Confirmed the previous mark's falsifiable prediction that The Record's ~33h weekend
+  silence was Sat/Sun and Monday would burst (it delivered 4); flag closed, and the
+  cheap generalisation recorded — **when the mark item is still visible inside the feed
+  window, the feed provably spans the gap and the sitemap is redundant.**
 - **2026-08-17 (midday, generalist desk, Brian Hare)** — 4 rounds on the Taiwan cluster,
   **1 filing, 3 zeros** (2 certified genuine, 1 filtered), ~80 items adjudicated.
   Promoted one rule, and it is **a defect I put into this page myself yesterday**: the
