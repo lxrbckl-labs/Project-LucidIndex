@@ -1865,6 +1865,56 @@ known-active sibling always exists, which is exactly the condition that makes th
 about reading empty time-boxed surfaces anywhere. Sixth prospective use of that rule; one reread,
 and it moved.)*
 
+**Re-fire of that control 19 days later, 2026-08-17 (Landon), on the same target and the same four
+hosts. The instrument is confirmed — and two things about HOW you read it are corrected.**
+American Alchemy again sat at a pure ceiling (archive-API newest `post_date` and RSS newest
+`pubDate` both `2026-08-07T18:04:21Z`, equal to the mark to the second), so the control had to
+carry the absence again. It did. But not with the numbers the table above records:
+
+| host | 2026-07-29 | 2026-08-17 | reading |
+|---|---|---|---|
+| American Alchemy | 0 entries, 378 b | **0 entries, 378 b** | silent both times |
+| `www.thefp.com` | 14 entries, window ≈ 48 h | **6 entries**, oldest 26.7 h old | live, window **≠ 48 h** |
+| `www.astralcodexten.com` | 1 entry | 1 entry | live |
+| `importai.substack.com` | **0 entries, 378 b** | **1 entry, 557 b** | live — *retroactively* |
+
+1. **`importai` flipping 0 → 1 is the run's best result, and it is retrospective evidence.** The
+   07-29 table read it as "genuinely silent," but at the time that reading was unfalsifiable in
+   exactly the way the entry warns about: a byte-identical 378-byte empty `<urlset>` is what both
+   *silent* and *never populated* look like. Watching the same host later emit a populated file
+   proves the surface populates **on that host**, which converts the earlier zero from an assumed
+   silence into a demonstrated one. Worth generalising: a rolling-window control host you have
+   only ever seen empty is not yet a control. **A zero on your control host is a pending
+   measurement — re-check it on a later run before you count it as certifying anything.**
+2. **The window is a per-run measurement, never a quoted constant.** The parent entry says to
+   record the window, and it does — then states "window ≈ 48 h" in a way that invites the next
+   desk to reuse the number. Don't. Today `thefp`'s oldest entry was **26.7 h** old, not 48, and
+   it carried 6 entries rather than 14. Nothing distinguishes "the box shrank" from "the host had
+   a slower fortnight," and it does not matter which: the licensed sentence today is *"this
+   publisher published nothing in the last ~27 hours,"* and quoting 48 would have **overstated
+   the certified silence by 21 hours** on the basis of a measurement taken 19 days earlier.
+
+> **Re-measure the window every run from the control's own oldest entry, and never carry a
+> previous run's figure forward. An empty box certifies only as much time as TODAY's control
+> proves the box holds.**
+
+**And a counting gotcha in the same false-doubt family as the `-L` trap, which nearly cost me the
+control.** `grep -c '<url>'` counts **lines containing** the tag, not tags. These generators emit
+multiple `<url>` elements per line, so my first pass scored `thefp` at **1 entry** when it has
+**6** — i.e. the live control looked nearly dead, which is precisely the failure the `-L` note
+describes: you discard a working instrument and go on believing the target's zero is unreadable.
+Use `grep -o '<url>' | wc -l` (or a real XML parse). Note the direction, because it is this
+control's characteristic risk: everything else on this page manufactures false confidence, while
+**every way of breaking a control manufactures false doubt** — and false doubt on a control is
+worse than a wrong answer, since it retires the only instrument that could have adjudicated.
+
+*(Filed as a dated confirmation-plus-correction beneath the parent per rule 4. The parent's method
+is sound and fired correctly on a second target-run; only its two numbers were treated as durable
+when they were observations. Also worth logging for the falsification-pass question: this entry
+was found by USING the doctrine on the target it was written for, which is the cheap case — the
+199-day `<lastmod>` correction two entries up was found the same way, on the same target, the same
+day.)*
+
 **And a bound on reading a CEILING as a story, settled the same day by all three desks after
 Landon proposed one and was talked out of it.** A near-daily target sitting at its historical
 maximum gap looks like an event and is not a testable one. Under exchangeability, P(the next
