@@ -4475,6 +4475,34 @@ Also confirmed unchanged: `external-preview.redd.it` URLs **403** (three of thre
 `i.redd.it` served clean (200, `image/png`, 639 KB). Verify each; fall back to the linked outlet's
 OG image or a Commons lookup for the hero.
 
+**THE PER-POST `.rss` IS A FOURTH RUNG AND IT RETURNS THE THREAD BODY *AND* THE
+COMMENTS — which is what makes the "read the thread's own citations" rule below
+actually cheap.** *(added 2026-08-17 by Landon Volkman, measured on r/HighStrangeness.)*
+Appending `/.rss` to a **post permalink** (not just a listing) returns Atom containing
+the OP's selftext, every comment as an `<entry>` with `<author><name>/u/…`, and the
+escaped HTML of the submission card — from which `re.findall(r'href="([^"]+)"')` on
+entry 0 yields **the post's outbound link target and its `external-preview.redd.it`
+thumbnail** without touching JSON. Measured today: 33 entries on one thread, 16 on
+another, in ~40 KB each. What it still does **not** give you is `score` /
+`num_comments`, same as the listing `.rss`.
+
+Two operational notes from the same run:
+
+- **The rate limiter is per-request and it bites within seconds, but today it returned
+  an explicit `429` with a 0-byte body, not the silent empty 200 the entry above
+  documents.** Both shapes are live, so the assertion has to cover both: **check the
+  status code AND the byte count AND the entry count** — `429` + 0 bytes and `200` +
+  0 bytes are the same failure with different costumes, and only one of them trips a
+  status check. **~4 s of backoff was not enough; ~6 s was.** Budget one fetch per
+  ~6 s and sequence them, or the second of any two calls is the one you lose.
+- **Listing `new/.rss` returns 25 entries and that is the whole window it gives you.**
+  On a high-volume community target with a daily cadence that is roughly 20 hours of
+  posts — adequate for a daily pull, **and silently short if the target has been
+  missed for a day.** Compare `entries[-1]`'s `<updated>` against the mark before
+  trusting a filtered zero; if the oldest entry is newer than the mark, the feed did
+  not cover your gap and `top/.rss?t=week|month` has to be merged in per the rule
+  below (which is exactly the pull most likely to be rate-limited out).
+
 `reddit.js`'s listing parser used to drop `created_utc`, which made it useless
 for a high-water-mark beat — you cannot tell a post from today apart from one
 from last month. It now emits `created_iso`, `created_utc`, `thumbnail`, and
@@ -7247,6 +7275,91 @@ arrives; when one resolves, record the outcome and retire it.
   days of enactment and specifies the post **counts as one of the nine**, so the
   fastest appointment consumes a board seat rather than standing up staff
   independently of confirmations.
+
+- **Exodus Propulsion / Charles Buhler — the promised peer-reviewed paper and the
+  in-orbit demo. Check any time; the clock is already overdue and the useful
+  measurement is how far.** *(added 2026-08-17 by Landon Volkman, off the
+  r/HighStrangeness round.)* Buhler (NASA KSC electrostatics) and Andrew Aurigema
+  claim a propellantless "New Force" / "Exodus Effect" thruster. **The dated
+  promises, each from a different year, none kept:** April 2024 first public
+  presentation at APEC; July 2024 patent issues (reported release from a two-year
+  national-security hold), ~10 mN, 1,500+ test articles / 3,000+ data sets; March 2026
+  ~2,000 test variations, second patent under exam, **peer-reviewed paper with
+  formulas promised "later in the year"**; June 2026 still *seeking funding* for an
+  orbital demo; August 2026 a viral podcast clip and nothing else. **The test:** does a
+  peer-reviewed paper or a third-party replication appear before the next viral cycle?
+  Relevant targets: The Debrief, r/HighStrangeness, r/UFOs, IEEE Spectrum.
+
+  Two things to carry regardless of outcome, because they generalise past this claim:
+
+  - **The unit shrinks under handling, in a specific and repeatable way.** "Overcomes
+    Earth's gravity" traces to *one gravity relative to the ~760 mg propellant
+    surface*, not to the 30–40 g apparatus. Actual force is 5–10 mN. Every retelling
+    drops the denominator. When a viral propulsion claim quotes a *ratio*, find what
+    it is a ratio **of** before writing anything.
+  - **Cheapness is an argument AGAINST the claimant, and it is the sharpest one
+    available.** Buhler's own hook is that the device costs **$1.50**. A $1.50
+    experiment is replicable by any undergraduate lab on earth, which makes 28 months
+    without an outside replication *more* damning, not less — and it forecloses the
+    only honest defence of a long silence ("this is expensive and hard"). **Whenever a
+    claimant markets accessibility, that number becomes the denominator of the
+    elapsed-time-to-independent-test instrument.**
+
+  And the precedent that defines what "settled" looks like here, worth quoting in any
+  piece on this family: the EmDrive was not killed by a skeptic. **Martin Tajmar's
+  group at TU Dresden (April 2021) — a team that wanted it to work — rebuilt the NASA
+  Eagleworks rig, reproduced the apparent thrust, then made it vanish by changing the
+  suspension points.** It had been thermal expansion warping the scale mountings;
+  Tajmar's verdict was that the measurements refute the claims "by at least three
+  orders of magnitude." **Sympathetic replication is the resolving step for this whole
+  class**, hostile replication never gets invited and internal replication never gets
+  believed — so *"has a sympathetic outside lab tried?"* is a better question than any
+  argument about the physics, and a desk that cannot evaluate a QED derivation can
+  still answer it. Approved-tier citation for the precedent:
+  `https://phys.org/news/2021-04-comprehensive-emdrive.html` (Phys.org, 7 Apr 2021 —
+  Phys.org **is** in `get_comparison_sources`; The Debrief, Futurism, NextBigFuture and
+  The Brighter Side are **not**, so they go in `cross_source` and the citation is dropped
+  per the closed-vocabulary rule).
+
+### Never name a private individual identified by a community from metadata
+*(added 2026-08-17 by Landon Volkman — declined a filing on it the same morning)*
+
+On 2026-08-16 r/HighStrangeness ran a thread ("The Cahill Thread") that satisfies the
+community template's filing bar on its face: a **specific, checkable claim** tied to a
+**real document** and a **datable event** — EXIF `Artist`/`Creator` fields in a
+NUFORC-submitted drawing posted by an X account widely attributed to a retired Air
+Force major general, resolving to a named PhD chemist with a classified-research
+history. The OP even published a source list. It reads like exactly the material this
+desk exists to verify.
+
+**Decline it anyway, and the reason is not a credibility judgement.** The corroboration
+work the template asks for *is itself the harm*: confirming or denying the
+identification requires publishing a private citizen's name, employer, and career
+history against an anomalous-phenomena allegation, on the strength of an image metadata
+field that any editor, upload pipeline, or template can populate with a name that has
+nothing to do with the person who made the file. There is no version of the article
+that both does the checking and leaves the subject alone.
+
+> **Standing rule: a private individual identified by a community from file metadata,
+> username correlation, or public-records stitching is not a subject, no matter how
+> checkable the artifact is.** Named public officials acting in their official capacity
+> are unaffected — the line is *private individual* + *community-derived
+> identification*.
+
+Two tells that this pattern is running, both present in the Cahill thread and both worth
+recognising early because they read as diligence: (1) the thread treats the **absence**
+of a public photograph as evidentiary ("that is a genuinely unusual absence"), which is
+unfalsifiable and points only at the person; (2) the sourcing is impeccable on
+everything *except* the identification — real ACS/SPIE/NTRS citations establishing that
+a chemist by that name exists, doing no work at all to establish that he is the person
+who touched the file.
+
+The transferable half, which is why this belongs next to the dedup rules rather than in
+an ethics preamble: **our filing bar tests whether a claim is checkable, and says nothing
+about who pays if we check it.** Those come apart most sharply on exactly the highest-
+quality community threads, because a well-sourced identification is the one most likely
+to clear every other gate. If a piece's verification step would publish a private name,
+the bar has not been met — it has been bypassed.
 
 ### Corroboration counts inversely to what the sources share
 *(proposed 2026-07-25 by Brian Hare, seconded by Landon Volkman)*
