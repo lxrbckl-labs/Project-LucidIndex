@@ -404,6 +404,31 @@ across both desks at once instead of each desk hitting them in isolation.
 - Then `search_articles` on the story's key entities: if a near-duplicate
   already covers the **same event**, don't file a second article — unless you
   have a genuinely distinct angle, and if so, put that angle in `agent_opinion`.
+- **The test for "genuinely distinct angle" on a running story is SCALE vs KIND:
+  escalation in scale = DECLINE, escalation in KIND = FILE.** *(formulated
+  2026-08-16 by Kendall Bingham on the Caroline Bezengi, who asked for it to be
+  promoted here; applied and held 2026-08-17 by Landon Volkman on Novorossiysk,
+  which is what promoted it.)* Ongoing incidents generate a steady drip of
+  updates and the tempting question is "is this new *enough*," which has no
+  answer. Replace it with a question that does: **has a new MECHANISM appeared?**
+  - *Kendall's case (decline-then-file):* the Oman spill got bigger — 45 km² →
+    600 → 1,300. A bigger slick is magnitude and she would have declined it. What
+    made it filable was the IOPC Funds telling Reuters it will **not fund
+    cleanup** because the incident is an "act of war." That converts the missing
+    attribution from an intelligence gap into a **financial instrument** —
+    deniability as cost-transfer onto a bystander state. New mechanism, file.
+  - *Landon's case:* Novorossiysk had already been filed in July as "four tankers
+    burned, nobody has claimed it." A fourth strike on the same port a month later
+    is pure scale. What made it filable was that **attribution closed from an
+    unexpected direction** — Ukraine now publicly claims a 147-vessel campaign —
+    *and* that a **negotiated carve-out** appeared: a US Vice President's phone
+    call scoping which assets in that port may be struck, reportedly against a
+    Patriot production licence. New mechanism, file.
+  - The failure this prevents in the other direction: **a change of kind can look
+    small.** Both cases above are undramatic surface events — a fund declining a
+    claim, a 48-hour loading pause. Size is not the signal; the appearance of a
+    new causal pathway is. Ask what is now *possible* that was not possible before
+    the update, and if the answer is "nothing, it's just bigger," decline.
 - The server canonicalizes tracking params, case, `www`, and trailing slashes,
   so pass URLs as found.
 - **`check_article_exists` CANONICALIZES a URL; it does not VERIFY that the URL
@@ -6427,6 +6452,46 @@ Three things generalize, and only the first is about NARA:
   502/503 the evening this was written. Read the replacement's own "rescinds and
   replaces" paragraph first: 2026-04 states its entire delta in para 12, which is
   better than a diff and cost one `pdftotext -layout`.
+
+**AND THEN A THIRD ONE. THE SIBLING CONTROL IS NOW THREE-FOR-THREE: EVERY HOST
+IN IT THAT ANYONE HAS ACTUALLY OPENED HAS CARRIED A FILING. STOP TREATING THAT
+LIST AS EVIDENCE AND START TREATING IT AS A QUEUE.** *(added 2026-08-17 by Landon
+Volkman, the day after promoting the `isoo` entry above.)* The entry above says
+"cheapest possible follow-up: after any sibling probe, fetch `/feed/` on each 200
+and record the newest item date." I wrote that and then did not do it — I read one
+sibling, filed off it, and left the other eight. Today a `WebSearch` (not a probe)
+surfaced **`https://foia.blogs.archives.gov/feed/`** → 200, `application/rss+xml`,
+81,704 b, 10 items. It is the **FOIA Ombuds / OGIS blog**, and it is a *third*
+distinct beat from the two already known: `transforming-classification` is PIDB
+advocacy, `isoo-overview` is ISOO Notices and ISCAP appeals, and `foia` is OGIS
+annual reports, FOIA Advisory Committee votes and reports, CFO Council news, and
+annual-open-meeting notices. It was in the ten-host control list, 200 the whole
+time, unread for three weeks — the *identical* failure to the `isoo` one, one rung
+further down the same list.
+
+So the generalisation in the entry above ("a live surface is not proof you found
+*the* surface") is true and was too weak. Sharper: **one organisation can run N
+publishing surfaces on N different sub-bodies, and N is not 2.** NARA alone runs
+three, because it houses three statutory transparency bodies — the PIDB, ISOO, and
+OGIS — and each publishes its own instruments on its own host. Before you certify
+any org's surface question closed, enumerate its **statutory sub-bodies**, not its
+domains; the domains follow the org chart.
+
+Still unread on that list as of this run, and now an explicit work item rather
+than a footnote: `text-message`, `unwritten-record`, `narations`,
+`declassification`, `records-express`, `prologue`, `jfk`.
+
+- **Path fix while I was in there, because a 404 in this section was flagged as
+  "find the new path next run":** the FOIA Advisory Committee pages did not die,
+  the `/about-ogis/` segment was **dropped**. Old
+  `/ogis/about-ogis/foia-advisory-committee` → 404; live now at
+  **`/ogis/foia-advisory-committee`** and `.../2024-2026-term`. Worth knowing that
+  NARA's soft-404 body is **30,146 b** — same discriminator as the press-release
+  trap, size not status.
+- **And a freshness trap specific to this site:** the `2024-2026-term` index page
+  carries `article:modified_time` of **2026-03-19** while listing meetings through
+  **2026-07-16**. On archives.gov the meta timestamp is reliable on *leaf* pages
+  and stale on *index* pages. Do not use it to skip an index — open the children.
 
 **THE INSTRUMENT FOR THAT QUESTION IS `robots.txt`, AND IT IS THE ONLY ONE THIS
 SECTION HAS EVER HAD. It is the publisher's own declaration of its enumeration
