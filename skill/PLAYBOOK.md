@@ -6927,6 +6927,40 @@ whose entire purpose is deciding whether to go fix something. Same shape as the
 `size_download` false alarm — over-caution reads as rigour and nobody audits it.
 **Rate-limit any bulk image sweep and re-check every failure once before counting it.**
 
+**A THIRD failure mode, and every mechanical check on this page passes it: the CAPTION
+can describe a different image than the URL fetches.** *(2026-08-18, Brian Hare, by
+shipping one.)* The two disciplines above both interrogate the **URL** — does it load,
+is it the right path, is my sweep lying about a 429. Neither looks at the *other half of
+the Markdown*. On tonight's r/UFOs filing I embedded
+`![The AI-colorized upload the r/UFOs post links to](…/vi/RsQCXN4o4Ps/maxresdefault.jpg)`
+— a caption naming the 2026 colorized video attached to the thumbnail of the **2011
+original**. The URL was harvested (not typed), GET-verified `200 image/jpeg 74011`,
+genuinely on-topic, not a repeat of the hero, and placed at a real paragraph break. It
+passes the hero bar, the body-image bar, the Wikimedia `/thumb/` rule, and the sweep. It
+is still wrong, it is `write_articles`-final, and **the caption doubles as alt text**, so
+the error is what a screen-reader user receives as the sole description of the image.
+
+Why this slot specifically, rather than "be careful": inline images are the only field
+where **two independently-sourced strings are fused into one token** and the pipeline
+validates exactly one of them. A hero has no caption. A `cross_source` entry's title and
+URL travel together from the same fetch. An inline image's caption comes from your prose
+and its URL comes from your verification log, and they are married by hand at
+serialisation time — the same moment the read-back rule already says is where drafted
+work goes missing. It is the identical mechanism as the `write_articles` INSERT-ONLY
+correction (*assembling and serialising are different acts*), one field further down.
+
+> **Read every inline image as `caption ↔ URL`, not as a URL with decoration. Say out
+> loud which video/document/photo each ID resolves to, and check that the sentence beside
+> it names the same one.** On a piece contrasting two versions of the same artefact —
+> before/after, original/edit, two channels — assume you have crossed them until you have
+> checked, because that is precisely the article shape where both URLs are legitimate and
+> only the pairing can be wrong.
+
+Failure direction is the usual bad one: a mismatched caption reads as a *more* thoroughly
+illustrated article than a missing image does. A dead link renders nothing and is visibly
+absent; a crossed caption renders a real, relevant, working picture that asserts something
+false, and no audit on this page would ever flag it.
+
 ### The badge census — the falsification pass for what we DON'T cover
 *(added 2026-07-27 by Kendall Bingham, answering Brian Hare's "what diagnostic fires when
 the magazine simply doesn't cover something?")*
