@@ -1,10 +1,10 @@
 /**
  * Liquid syntax validation for prompt templates.
  *
- * The mcp-store sidecar (Phase 3) renders these templates against a real
+ * The mcp-dashboard sidecar (Phase 3) renders these templates against a real
  * context at queue-pull time. This module is intentionally narrower: it
  * only verifies the body PARSES as valid Liquid. We deliberately don't
- * execute against a context here — render correctness is mcp-store's job,
+ * execute against a context here — render correctness is mcp-dashboard's job,
  * and we don't want a typo in a sample context to mask a real syntax error
  * (or vice versa).
  *

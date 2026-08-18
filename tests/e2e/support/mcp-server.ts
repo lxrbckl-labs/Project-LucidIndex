@@ -1,5 +1,5 @@
 /**
- * Stack lifecycle helper for the Phase 3 mcp-store acceptance suite.
+ * Stack lifecycle helper for the Phase 3 mcp-dashboard acceptance suite.
  *
  * Mirrors the shape of `dev-server.ts` (which boots Postgres + Next.js for
  * the founding-admin / settings specs) but starts a different pair of
@@ -11,7 +11,7 @@
  *   2. `pnpm db:migrate` against the throw-away DB.
  *   3. `pnpm db:seed` so the 7 starter prompt templates exist (the
  *      acceptance test references the `website` template by slug).
- *   4. `pnpm --filter @lucidindex/mcp-store dev` (tsx watch on
+ *   4. `pnpm --filter @lucidindex/mcp-dashboard dev` (tsx watch on
  *      src/server.ts) on `127.0.0.1:4401` (one port up from `4400`-ish
  *      manual smokes the README documents).
  *   5. Polls `GET /healthz` until it returns 200.
@@ -19,8 +19,8 @@
  * Returns:
  *   - `baseURL`: the http base URL of the sidecar (`http://127.0.0.1:4401`).
  *   - `databaseUrl`: connection string for the throw-away Postgres.
- *   - `mcpEnv`: env block (DATABASE_URL + MCP_PORT + MCP_TRANSPORT=stdio)
- *     suitable for spawning a fresh stdio-mode mcp-store process inside
+ *   - `mcpEnv`: env block (DATABASE_URL + MCP_DASHBOARD_PORT + MCP_DASHBOARD_TRANSPORT=stdio)
+ *     suitable for spawning a fresh stdio-mode mcp-dashboard process inside
  *     the test (test 4 needs this — same DB, different transport).
  *   - `teardown()`: kills the dev server and removes the container. Always
  *     called from `afterAll` regardless of test outcome.
@@ -58,8 +58,8 @@ export type McpStackHandle = {
   databaseUrl: string
   pgContainerName: string
   /**
-   * Env block for spawning a stdio-mode mcp-store child process (test 4).
-   * Caller still has to set MCP_TRANSPORT=stdio explicitly.
+   * Env block for spawning a stdio-mode mcp-dashboard child process (test 4).
+   * Caller still has to set MCP_DASHBOARD_TRANSPORT=stdio explicitly.
    */
   mcpEnv: NodeJS.ProcessEnv
   teardown: () => Promise<void>
@@ -106,12 +106,12 @@ export async function startMcpStack(): Promise<McpStackHandle> {
     env: { ...process.env, DATABASE_URL },
   })
 
-  log(`spawning mcp-store on ${MCP_BIND_HOST}:${MCP_PORT}`)
+  log(`spawning mcp-dashboard on ${MCP_BIND_HOST}:${MCP_PORT}`)
   const mcpEnv: NodeJS.ProcessEnv = {
     ...process.env,
     DATABASE_URL,
-    MCP_PORT: String(MCP_PORT),
-    MCP_TRANSPORT: 'http',
+    MCP_DASHBOARD_PORT: String(MCP_PORT),
+    MCP_DASHBOARD_TRANSPORT: 'http',
     NODE_ENV: 'test',
   }
 
@@ -120,7 +120,7 @@ export async function startMcpStack(): Promise<McpStackHandle> {
   // assertions which silently resets the in-memory pre-admin-guard cache.
   const dev: ChildProcess = spawn(
     'pnpm',
-    ['--filter', '@lucidindex/mcp-store', 'exec', 'tsx', 'src/server.ts'],
+    ['--filter', '@lucidindex/mcp-dashboard', 'exec', 'tsx', 'src/server.ts'],
     {
       cwd: REPO_ROOT,
       env: mcpEnv,
@@ -140,7 +140,7 @@ export async function startMcpStack(): Promise<McpStackHandle> {
   try {
     await waitForHealthz(baseURL, { timeoutMs: 60_000 })
   } catch (err) {
-    log(`mcp-store failed to come up at ${baseURL}: ${(err as Error).message}`)
+    log(`mcp-dashboard failed to come up at ${baseURL}: ${(err as Error).message}`)
     await teardown()
     throw err
   }

@@ -215,7 +215,7 @@ export async function createTarget(input: TargetInput): Promise<{ id: string }> 
 /**
  * Update human-supplied fields on a target. Cron-managed fields
  * (`next_due_at`, `last_run_*`, `high_water_mark`) are NEVER touched here —
- * those belong to the Phase 4 cron sidecar / Phase 3 mcp-store.
+ * those belong to the Phase 4 cron sidecar / Phase 3 mcp-dashboard.
  *
  * If the edit transitions `active = false → true` (i.e. resume via the form
  * rather than the dedicated active-toggle endpoint), set

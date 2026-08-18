@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Client wrapper for `<RegisterPasskeyForm>` from `@lucidindex/auth/react`.
+ * Client wrapper for `<RegisterPasskeyForm>` from `@/components/auth/`.
  *
  * Wires the register-another-passkey API routes:
  *   POST /api/auth/passkey/register/start
@@ -11,11 +11,11 @@
  * and shows the updated credential list.
  */
 
+import { useRouter } from 'next/navigation'
 import {
   RegisterPasskeyForm as BaseForm,
   type RegisterPasskeyFormProps,
-} from '@lucidindex/auth/react'
-import { useRouter } from 'next/navigation'
+} from '@/components/auth/RegisterPasskeyForm'
 
 type StartOk = Extract<
   Awaited<ReturnType<RegisterPasskeyFormProps['startRegistrationFn']>>,
@@ -62,7 +62,6 @@ export function RegisterPasskeyForm() {
       startRegistrationFn={startRegistrationFn}
       finishRegistrationFn={finishRegistrationFn}
       onSuccess={() => router.refresh()}
-      className="flex flex-col gap-3"
     />
   )
 }

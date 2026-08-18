@@ -1,26 +1,21 @@
 'use client'
 
 /**
- * Shared create / edit form for a Prompt template.
+ * Shared create/edit form for a Prompt template — rebuilt on shadcn (Phase 2).
  *
- * Mirrors the structure of `<TargetForm>` so the two settings panels share
- * the same form ergonomics. Submit semantics differ only by mode: POST to
- * the collection on create, PATCH the single resource on edit.
- *
- * Liquid syntax validation runs in TWO places:
- *   1. Client-side here, on submit, via `validateLiquidSyntax` from
- *      `@lucidindex/templates`. Fast feedback, no round-trip.
- *   2. Server-side as defense-in-depth in the API route. The same package
- *      is the single source of truth for the rule.
- *
- * The textarea is monospaced and roomy because Liquid bodies are often
- * 10-30 lines and admins will be scanning whitespace-significant block
- * tags (`{% if %}`, etc.).
+ * Liquid syntax validation runs client-side on submit (fast feedback) and
+ * server-side as defense-in-depth. The textarea is monospaced and roomy
+ * because Liquid bodies are often 10-30 lines.
  */
 
 import { validateLiquidSyntax } from '@lucidindex/templates'
 import { useRouter } from 'next/navigation'
 import { type FormEvent, useState } from 'react'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 
 export type TemplateFormInitial = {
   slug: string
@@ -30,17 +25,17 @@ export type TemplateFormInitial = {
 
 export type TemplateFormProps = {
   mode: 'create' | 'edit'
-  /** Existing template id — required when mode === 'edit'. */
   templateId?: string
   initial: TemplateFormInitial
-  /** Lock the slug field on edit so existing references stay stable. */
   lockSlug?: boolean
+  onSuccess?: () => void
+  onCancel?: () => void
 }
 
 type FieldErrors = Partial<Record<keyof TemplateFormInitial | '_form', string>>
 
 export function TemplateForm(props: TemplateFormProps) {
-  const { mode, templateId, initial, lockSlug = false } = props
+  const { mode, templateId, initial, lockSlug = false, onSuccess, onCancel } = props
   const router = useRouter()
 
   const [slug, setSlug] = useState(initial.slug)
@@ -54,8 +49,7 @@ export function TemplateForm(props: TemplateFormProps) {
     setSubmitting(true)
     setErrors({})
 
-    // Client-side Liquid check first — fast, no server round-trip on a
-    // typo. The server re-validates as defense-in-depth.
+    // Client-side Liquid check first — fast, no server round-trip on a typo.
     const liquidError = validateLiquidSyntax(body)
     if (liquidError) {
       setErrors({ body: `Liquid syntax error: ${liquidError}` })
@@ -87,8 +81,13 @@ export function TemplateForm(props: TemplateFormProps) {
         return
       }
 
-      router.push('/settings/templates')
-      router.refresh()
+      toast.success(mode === 'create' ? 'Template created.' : 'Template updated.')
+      if (onSuccess) {
+        onSuccess()
+      } else {
+        router.push('/settings/templates')
+        router.refresh()
+      }
     } catch {
       setErrors({ _form: 'Network error.' })
     } finally {
@@ -97,9 +96,11 @@ export function TemplateForm(props: TemplateFormProps) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-6 max-w-[720px]">
-      <Field label="Slug" error={errors.slug} htmlFor="slug">
-        <input
+    <form onSubmit={onSubmit} className="flex flex-col gap-6">
+      {/* Slug */}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="slug">Slug</Label>
+        <Input
           id="slug"
           name="slug"
           type="text"
@@ -108,20 +109,23 @@ export function TemplateForm(props: TemplateFormProps) {
           value={slug}
           onChange={(e) => setSlug(e.target.value)}
           disabled={lockSlug || submitting}
-          className="w-full border border-neutral-300 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-black disabled:bg-neutral-100"
+          className="font-mono disabled:bg-muted"
           placeholder="youtube"
           pattern="[a-z0-9][a-z0-9_-]*"
           title="Lowercase letters, digits, underscore, or hyphen. Must not start with a separator."
         />
-        {lockSlug ? (
-          <p className="text-xs text-neutral-500">
+        {lockSlug && (
+          <p className="text-xs text-muted-foreground">
             Slug is locked on edit so existing target references stay stable.
           </p>
-        ) : null}
-      </Field>
+        )}
+        {errors.slug && <span className="text-xs text-destructive">{errors.slug}</span>}
+      </div>
 
-      <Field label="Body (Liquid)" error={errors.body} htmlFor="body">
-        <textarea
+      {/* Body (Liquid) */}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="body">Body (Liquid)</Label>
+        <Textarea
           id="body"
           name="body"
           required
@@ -129,21 +133,28 @@ export function TemplateForm(props: TemplateFormProps) {
           value={body}
           onChange={(e) => setBody(e.target.value)}
           disabled={submitting}
-          className="w-full border border-neutral-300 px-3 py-2 text-xs font-mono leading-relaxed focus:outline-none focus:ring-2 focus:ring-black"
+          className="font-mono text-xs leading-relaxed"
           placeholder="You are watching {{ creator_name }} at {{ target_url }}..."
           spellCheck={false}
         />
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-muted-foreground">
           Available variables: <code className="font-mono">creator_name</code>,{' '}
           <code className="font-mono">target_url</code>,{' '}
           <code className="font-mono">high_water_mark</code>,{' '}
           <code className="font-mono">cadence</code>,{' '}
-          <code className="font-mono">cross_source_n</code>.
+          <code className="font-mono">cross_references</code>.
         </p>
-      </Field>
+        {errors.body && (
+          <span className="text-xs text-destructive whitespace-pre-wrap" role="alert">
+            {errors.body}
+          </span>
+        )}
+      </div>
 
-      <Field label="Cross-source N" error={errors.crossSourceN} htmlFor="crossSourceN">
-        <input
+      {/* Cross-references — how many independent coverage entries the agent should aim for. */}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="crossSourceN">Cross-references</Label>
+        <Input
           id="crossSourceN"
           name="crossSourceN"
           type="number"
@@ -154,65 +165,36 @@ export function TemplateForm(props: TemplateFormProps) {
           value={crossSourceN}
           onChange={(e) => setCrossSourceN(Number.parseInt(e.target.value, 10))}
           disabled={submitting}
-          className="w-32 border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+          className="w-32"
         />
-        <p className="text-xs text-neutral-500">
-          How many "other coverage" entries the agent should aim for. Default 3.
+        <p className="text-xs text-muted-foreground">
+          How many &ldquo;other coverage&rdquo; entries the agent should aim for. Default 3.
         </p>
-      </Field>
+        {errors.crossSourceN && (
+          <span className="text-xs text-destructive">{errors.crossSourceN}</span>
+        )}
+      </div>
 
-      {errors._form ? (
-        <div className="text-sm text-red-600" role="alert">
+      {errors._form && (
+        <p className="text-sm text-destructive" role="alert">
           {errors._form}
-        </div>
-      ) : null}
+        </p>
+      )}
 
-      <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={submitting}
-          className="bg-black text-white text-sm font-semibold px-5 py-2 hover:opacity-80 disabled:opacity-40"
-        >
-          {submitting ? 'Saving...' : mode === 'create' ? 'Create template' : 'Save changes'}
-        </button>
-        <button
+      <div className="flex items-center justify-between gap-3">
+        <Button size="sm" type="submit" disabled={submitting}>
+          {submitting ? 'Saving…' : 'Save'}
+        </Button>
+        <Button
+          size="sm"
           type="button"
-          onClick={() => router.push('/settings/templates')}
+          variant="outline"
+          onClick={() => (onCancel ? onCancel() : router.push('/settings/templates'))}
           disabled={submitting}
-          className="text-sm font-semibold underline hover:opacity-70 disabled:opacity-40"
         >
           Cancel
-        </button>
+        </Button>
       </div>
     </form>
-  )
-}
-
-function Field({
-  label,
-  error,
-  htmlFor,
-  children,
-}: {
-  label: string
-  error?: string
-  htmlFor: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <label
-        htmlFor={htmlFor}
-        className="text-xs uppercase tracking-wide text-neutral-500 font-semibold"
-      >
-        {label}
-      </label>
-      {children}
-      {error ? (
-        <span className="text-xs text-red-600 whitespace-pre-wrap" role="alert">
-          {error}
-        </span>
-      ) : null}
-    </div>
   )
 }

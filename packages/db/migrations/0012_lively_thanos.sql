@@ -1,0 +1,1 @@
+ALTER TABLE "topic_badges" DROP COLUMN "color";

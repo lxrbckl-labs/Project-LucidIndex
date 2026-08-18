@@ -1,7 +1,7 @@
 /**
  * Tests for the slug lib (#65).
  *
- * These cover the contract that mcp-store and the article-page route
+ * These cover the contract that mcp-dashboard and the article-page route
  * both depend on: deterministic output, URL-safety, length cap, and a
  * stable disambiguator under collision.
  */

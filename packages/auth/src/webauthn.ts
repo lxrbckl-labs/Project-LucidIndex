@@ -11,7 +11,7 @@
  * `rpID` is the domain the credential is scoped to (no scheme, no port).
  * `origin` is the scheme + host + optional port the browser reports.
  *
- * Dev defaults: `localhost` + `http://localhost:3000`. Production values
+ * Dev defaults: `localhost` + `http://localhost:47892`. Production values
  * are wired in by ticket #86.
  */
 
@@ -23,7 +23,7 @@ export type RelyingParty = {
 
 const RP_NAME = 'LucidIndex'
 const DEFAULT_RP_ID = 'localhost'
-const DEFAULT_ORIGIN = 'http://localhost:3000'
+const DEFAULT_ORIGIN = 'http://localhost:47892'
 
 export function getRelyingParty(): RelyingParty {
   const rpID = process.env.WEBAUTHN_RP_ID?.trim() || DEFAULT_RP_ID

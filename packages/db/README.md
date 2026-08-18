@@ -69,4 +69,4 @@ Phase 1 covers exactly four tables:
 - `cron_runs`
 
 The full content / queue / settings schema lands in Phase 2 (see issue
-[#31](https://github.com/lxrbckl-dev/Project-LucidIndex/issues/31)).
+[#31](https://github.com/lxrbckl-labs/Project-LucidIndex/issues/31)).

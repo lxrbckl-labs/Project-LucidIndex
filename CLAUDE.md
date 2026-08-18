@@ -25,7 +25,7 @@ See [README.md](README.md) for the full pitch. See `[[Architecture]]` in the Obs
 | Project overview and north star | [README.md](README.md) (in repo) |
 | Architecture (all layers) | `[[Architecture]]` (vault) |
 | Narrative debrief | `[[Debrief]]` (vault) |
-| MCP layer and `mcp-store` (queue + write-back + topic badges) | `[[MCP]]` (vault) |
+| MCP layer and `mcp-dashboard` (queue + write-back + topic badges) | `[[MCP]]` (vault) |
 | Backend API, passkey auth, SSE, DB schema, admin CLI | `[[Backend]]` (vault) |
 | Dashboard UX behavior (filters, sort, empty state) | `[[Dashboard]]` (vault) — visual rules defer to `[[Visual Identity]]` |
 | **Visual design — binding for all visual decisions** | `[[Visual Identity]]` (vault) — Fyrre-derived card anatomy, palette, typography, masonry |
@@ -45,16 +45,16 @@ See [README.md](README.md) for the full pitch. See `[[Architecture]]` in the Obs
 | Web app | Next.js 15 (App Router, Node runtime) + React 19 |
 | Backend API | TypeScript + Next.js 15 (App Router, Node runtime) — no separate Fastify server |
 | Database | Postgres 16 via Drizzle ORM (`postgres-js` driver, Drizzle Kit migrations) |
-| MCP server | TypeScript + `@modelcontextprotocol/sdk` (`mcp-store` sidecar) |
+| MCP server | TypeScript + `@modelcontextprotocol/sdk` (`mcp-dashboard` sidecar) |
 | Cron | TypeScript + `node-cron` sidecar |
 | Realtime | SSE via Next.js Route Handlers |
 | Styling | Tailwind CSS v4 + shadcn/ui |
-| Auth | Passkeys only (WebAuthn) via SimpleWebAuthn + `iron-session`, ported from Project-Showalter, with `LUCIDINDEX_FOUNDING_TOKEN` guard for first-admin claim |
+| Auth | Passkeys (WebAuthn via SimpleWebAuthn) + reusable `lipc_` passcode, on `iron-session`. First-admin claim is the on-page "Generate token" flow (no env-var gate) |
 | Agent interface | External MCP clients via bearer-token auth |
 
 ### Deploy
 
-Docker Compose stack — four services: `web`, `cron`, `mcp-store`, `postgres`. No Caddy container in the stack — the host already runs Caddy. The host's Caddy terminates TLS via automatic Let's Encrypt (ACME — no signup, no third-party account). A Caddyfile snippet ships in the deploy docs for the host to absorb. Same shape as Project-DS deploys. No tunnel daemon, no Cloudflare account, no Tailscale account.
+Docker Compose stack — four services: `web`, `cron`, `mcp-dashboard`, `postgres`. No Caddy container in the stack — the host already runs Caddy. The host's Caddy terminates TLS via automatic Let's Encrypt (ACME — no signup, no third-party account). A Caddyfile snippet ships in the deploy docs for the host to absorb. Same shape as Project-DS deploys. No tunnel daemon, no Cloudflare account, no Tailscale account.
 
 ---
 
@@ -64,18 +64,19 @@ Docker Compose stack — four services: `web`, `cron`, `mcp-store`, `postgres`. 
 - **No agent intelligence or scraping tools here.** Agents already have Playwright, fetch, search, etc. LucidIndex does not bundle any of it.
 - **No social media API integrations.** No Twitter API keys, no YouTube Data API, no Instagram Graph. Agents access the web however they already do.
 - **No LLM / summarization pipeline.** Summarization is whatever the agent does before write-back. LucidIndex stores what it receives.
-- **Dashboard is read/write by the admin, write-only by agents.** Agents never touch the UI — they go through `mcp-store`.
+- **Dashboard is read/write by the admin, write-only by agents.** Agents never touch the UI — they go through `mcp-dashboard`.
 - **Single-admin.** v0.1 is one admin only. There is no shared cross-admin data — there's only one admin. Multi-admin is parking lot (not v0.1).
-- **Passkey auth only.** No email/password, no magic link, no OAuth. Recovery is `admin:reset` CLI. No email/SMS fallback by design.
-- **Founding-admin claim only.** No invite-based signup. The first admin claims their account via `/settings?token=<LUCIDINDEX_FOUNDING_TOKEN>`. No open registration.
+- **Passkey auth only.** No email/password, no magic link, no OAuth. No email/SMS fallback by design.
+- **Recovery is the recovery code, redeemed on the web.** "Lost your passkey?" on `/settings/login` → `/settings/recover`: the admin enters their one-time recovery code, which authorizes enrolling a NEW passkey (old code burned, fresh one issued). Routes: `/api/auth/recovery/{start,finish,finalize}`; logic in `@lucidindex/auth` (`recovery-login.ts` + the seam-tested `recovery-login-core.ts`); brute-force throttle in `apps/web/lib/recovery-throttle.ts`. This supersedes the originally-planned `admin:reset` CLI, which was never built.
+- **Founding-admin claim only.** No invite-based signup. On a fresh install (zero admins), `/settings` shows "Claim Admin" → **Generate token** mints a reusable `lipc_` passcode (saved as the backup sign-in) and signs you in, then you enroll a passkey (primary). **First claim wins**; the gate closes once an admin exists. The `LUCIDINDEX_FOUNDING_TOKEN` env var is no longer used — founding is the on-page Generate flow (`claimFoundingAdmin` / `POST /api/auth/founding/claim`). No open registration.
 - **Visual Identity is a first-class constraint.** If the dashboard doesn't read like Fyrre Magazine, it's not done — regardless of whether it works functionally. All visual decisions must consult `[[Visual Identity]]` first.
 
 ---
 
 ## Current Status
 
-Phase 0 (docs rewrite) is currently in progress. The full spec is locked in the vault — `[[Tech Stack]]`, `[[Visual Identity]]`, `[[Features (Ideas)]]` (Rounds 1–7), and `[[Plan of Attack]]` are all ratified. No code has been written yet; implementation begins in Phase 1 after the docs rewrite wraps.
+The web app is built and runs: the Fyrre-styled dashboard + article pages, the forum, passkey + reusable-passcode auth, the founding-admin claim, `mcp-dashboard` + `mcp-forum`, and the cron sidecar. Day-to-day work is iterative feature/UX refinement in **dev mode** (see the `next-dev` skill) — the Docker/production stack is parked, not the current focus. The full spec still lives in the vault (`[[Tech Stack]]`, `[[Visual Identity]]`, `[[Features (Ideas)]]`, `[[Plan of Attack]]`).
 
-The reference agent repo (`Project-LucidIndex-Agent`) does not exist yet — it is a Phase 4 deliverable.
+Founding-admin is the on-page **"Generate token"** flow (no env-var token) — see Key Constraints. The reference agent repo (`Project-LucidIndex-Agent`) does not exist yet — it is a Phase 4 deliverable.
 
 > Update this section as phases complete — what's built, what's in progress, what's next.

@@ -9,7 +9,7 @@
 // and these are the last messages the operator sees before `process.exit(1)`.
 
 const env = {
-  // Shared with apps/web and apps/mcp-store — points at the same Postgres
+  // Shared with apps/web and apps/mcp-dashboard — points at the same Postgres
   // instance so the sidecar can read targets / queue / settings and write
   // cron_runs via @lucidindex/db.
   DATABASE_URL: process.env.DATABASE_URL,
@@ -20,7 +20,7 @@ const env = {
   // nightly backup at "midnight local").
   CRON_TIMEZONE: process.env.CRON_TIMEZONE ?? 'UTC',
 
-  // Hero image directory — same env var apps/mcp-store uses (image-pipeline
+  // Hero image directory — same env var apps/mcp-dashboard uses (image-pipeline
   // writes <hash>.webp + <hash>.jpg here). The retention-purge cron job
   // reads from it to delete hero image files alongside the DB row delete,
   // and the local-backup job snapshots it.

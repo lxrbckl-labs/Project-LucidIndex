@@ -9,6 +9,7 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core'
+import { admins } from './admins.js'
 
 /**
  * Postgres `bytea` mapped to `Uint8Array` in TS. (Re-declared here so each
@@ -35,6 +36,62 @@ export const agentTokens = pgTable('agent_tokens', {
   tokenHash: text('token_hash').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
   revokedAt: timestamp('revoked_at', { withTimezone: true }),
+})
+
+/**
+ * Invite codes admin generates to gate Dashboard-MCP agent-token minting.
+ * Each row represents one bearer-token capacity — single-use semantics.
+ * Plaintext is shown ONCE at generation in Settings → Dashboard → Agent
+ * Invites; only the argon2id hash lives in the table (same posture as
+ * `forum_invites` and `agent_tokens`).
+ *
+ * On redemption, the API server atomically inserts a fresh row in
+ * `agent_tokens` (whose cleartext bearer is returned exactly once),
+ * stamps `redeemed_at = now()`, and links `redeemed_token_id` to the new
+ * `agent_tokens.id`. The newly-minted token row is functionally
+ * indistinguishable from one minted directly via Settings → Agent Tokens
+ * — the invite is just metadata about HOW the token was minted.
+ *
+ * `expires_at` is nullable — null means "no expiry"; redemption refuses
+ * past the timestamp otherwise.
+ *
+ * `revoked_at` is set when admin manually invalidates an unredeemed
+ * invite. A row is "available" when ALL of:
+ *   redeemed_at IS NULL
+ *   AND revoked_at IS NULL
+ *   AND (expires_at IS NULL OR expires_at > now())
+ *
+ * `created_by_admin_id` is nullable so the dev-bypass path
+ * (LUCIDINDEX_DEV_SKIP_AUTH=1, no real admin row in DB) can still record
+ * audit data without failing the FK — matches `forum_invites`.
+ *
+ * `redeemed_token_id` FKs `agent_tokens.id` with ON DELETE SET NULL so
+ * an admin-side hard-delete of a token doesn't cascade-destroy the
+ * audit-history invite row.
+ */
+export const dashboardAgentInvites = pgTable('dashboard_agent_invites', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  /** argon2id hash of the cleartext invite code */
+  codeHash: text('code_hash').notNull().unique(),
+  /** Admin-supplied descriptor ("for partner-agent", "for-vendor", ...). */
+  label: text('label').notNull(),
+  /**
+   * Admin who issued the invite. Nullable so the dev-bypass path
+   * (LUCIDINDEX_DEV_SKIP_AUTH=1, no real admin row in DB) can still
+   * record audit data without failing the FK.
+   */
+  createdByAdminId: uuid('created_by_admin_id').references(() => admins.id, {
+    onDelete: 'set null',
+  }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  redeemedAt: timestamp('redeemed_at', { withTimezone: true }),
+  /** The agent_tokens row created at redemption. SET NULL on token
+   * delete so the invite-audit row survives a token purge. */
+  redeemedTokenId: uuid('redeemed_token_id').references(() => agentTokens.id, {
+    onDelete: 'set null',
+  }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
 })
 
 /**

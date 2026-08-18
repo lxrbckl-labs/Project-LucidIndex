@@ -26,6 +26,7 @@ COPY tsconfig.base.json tsconfig.json ./
 
 COPY apps/cron/package.json ./apps/cron/package.json
 COPY packages/db/package.json ./packages/db/package.json
+COPY packages/shared/package.json ./packages/shared/package.json
 COPY packages/templates/package.json ./packages/templates/package.json
 
 # --ignore-scripts skips the `prepare` hook (lefthook install) which requires
@@ -40,6 +41,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/cron/node_modules ./apps/cron/node_modules
 COPY --from=deps /app/packages/db/node_modules ./packages/db/node_modules
+COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
 COPY --from=deps /app/packages/templates/node_modules ./packages/templates/node_modules
 
 # Copy full source.
@@ -49,7 +51,9 @@ COPY . .
 # Without this, the compiled cron bundle resolves @lucidindex/db imports
 # via Node's package exports which point at dist/ — but dist/ won't exist,
 # causing ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING at runtime.
-RUN pnpm --filter @lucidindex/db build
+RUN pnpm --filter @lucidindex/templates build \
+ && pnpm --filter @lucidindex/shared build \
+ && pnpm --filter @lucidindex/db build
 
 # Compile the TypeScript sources to apps/cron/dist/.
 RUN pnpm --filter @lucidindex/cron build

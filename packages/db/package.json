@@ -16,9 +16,25 @@
       "source": "./query.ts",
       "default": "./dist/query.js"
     },
+    "./notifications": {
+      "source": "./notifications.ts",
+      "default": "./dist/notifications.js"
+    },
     "./seed": {
       "source": "./seed.ts",
       "default": "./dist/seed.js"
+    },
+    "./seed-demo": {
+      "source": "./seed-demo.ts",
+      "default": "./dist/seed-demo.js"
+    },
+    "./parse-bool-env": {
+      "source": "./parse-bool-env.ts",
+      "default": "./dist/parse-bool-env.js"
+    },
+    "./test-helpers": {
+      "source": "./test-helpers.ts",
+      "default": "./dist/test-helpers.js"
     }
   },
   "typesVersions": {
@@ -32,8 +48,20 @@
       "query": [
         "./dist/query.d.ts"
       ],
+      "notifications": [
+        "./dist/notifications.d.ts"
+      ],
       "seed": [
         "./dist/seed.d.ts"
+      ],
+      "seed-demo": [
+        "./dist/seed-demo.d.ts"
+      ],
+      "parse-bool-env": [
+        "./dist/parse-bool-env.d.ts"
+      ],
+      "test-helpers": [
+        "./dist/test-helpers.d.ts"
       ]
     }
   },
@@ -42,17 +70,26 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx seed.ts",
+    "db:seed-citations": "tsx seed-citations.ts",
+    "db:seed-demo": "tsx seed-demo.ts",
+    "db:seed-forum": "tsx seed-forum.ts",
+    "db:seed-agent-opinions": "tsx seed-agent-opinions.ts",
+    "db:seed-target-slugs": "tsx seed-target-slugs.ts",
     "db:studio": "drizzle-kit studio",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@faker-js/faker": "9.9.0",
+    "@lucidindex/shared": "workspace:*",
     "@lucidindex/templates": "workspace:*",
     "drizzle-kit": "0.31.10",
     "drizzle-orm": "0.45.2",
     "postgres": "3.4.9"
   },
   "devDependencies": {
+    "@types/node": "25.6.0",
     "tsx": "4.20.6",
-    "@types/node": "25.6.0"
+    "vitest": "3.2.4"
   }
 }

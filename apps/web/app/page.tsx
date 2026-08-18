@@ -1,57 +1,50 @@
 /**
- * Root dashboard route.
+ * Root dashboard route — Phase 4 shadcn rebuild.
  *
  * Branches on session state:
  *
- *   - Unauthenticated visitor → the original Phase 1 empty state
- *     ("Nothing has been filed yet.") — preserved verbatim because the
- *     founding-admin e2e (`tests/e2e/founding-admin.spec.ts`) asserts
- *     this exact copy on the public landing.
+ *   - Unauthenticated visitor → the Phase 1 empty state copy is
+ *     preserved verbatim ("Nothing has been filed yet.") because the
+ *     founding-admin e2e asserts this exact copy. The surrounding markup
+ *     is rebuilt using shadcn Card.
  *
- *   - Authenticated admin → the Phase 5 Fyrre-style dashboard, which
- *     after #55 / #61 / #60 looks like:
+ *   - Authenticated admin → clean shadcn content grid:
+ *         <TopNav>                    ← thin top bar (Phase 3, unchanged)
+ *         <main>
+ *           brand row: <Wordmark> + <TopicBadgeFilterRow>
+ *           <LiveArticleStream>        ← SSE new-arrivals, horizontal scroll
+ *           <ArticleMasonry>           ← responsive 1/2/3/4-col grid
+ *           <MasonryKeyboardNav>       ← invisible keyboard handler
  *
- *         <TopNav>            ← thin top bar, Settings + Account
- *         <Wordmark>          ← page-spanning LUCIDINDEX
- *         <TopicBadgeFilterRow>  ← single-select pill row, "All" first
- *         <hairline rule>
- *         <LiveArticleStream> ← SSE-driven new-arrival strip (client)
- *         <ArticleMasonry>    ← static masonry, filtered by ?badge=…
+ *     When the article list is empty, the masonry simply doesn't render —
+ *     the topic pills / live stream and the footer are all that show.
  *
- *     When the article list is empty, the admin-flavored empty state
- *     (#62) renders instead of the masonry — different copy from the
- *     public landing because the admin needs the "go configure a
- *     creator" pitch.
+ * The giant editorial <Wordmark> is dropped from the dashboard body —
+ * Wordmark lives in TopNav per Phase 3. A smaller wordmark is shown in
+ * the brand row alongside the filter pills.
  *
- * Mock-article rendering for development and the Phase 5 visual gate
- * (#63): set `LUCIDINDEX_MOCK=1` in the environment when running
- * `next dev`. The mock loader returns 12 fake articles spanning the
- * full significance distribution so the masonry's varied subdivisions
- * read clearly. With the flag unset, real DB articles drive the
- * layout (placeholder loader returns empty until Phase 5 backend
- * wiring lands).
- *
- * `LUCIDINDEX_MOCK=1` ALSO bypasses the session check — the visual gate
- * runs the dev server with no DB and no founding admin, so there is no
- * cookie to validate against. The bypass is gated to mock mode only;
- * production code paths still require a real authenticated session.
- *
- * Filter routing (#61): the active topic-badge filter is encoded in the
- * URL as `?badge=<name>`. This page reads it from `searchParams` and
- * filters the masonry server-side before rendering. The pill row (a
- * client component) is the only thing that writes to the URL.
+ * Data-loading and mock-mode behavior is unchanged from Phase 3.
  */
 
 import { requireAdmin } from '@lucidindex/auth'
-import { ArticleMasonry } from '@/components/article/ArticleMasonry'
-import { AuthenticatedEmptyState } from '@/components/article/AuthenticatedEmptyState'
+import { LayoutDashboard } from 'lucide-react'
+import Link from 'next/link'
+import { FilteredArticleMasonry } from '@/components/article/FilteredArticleMasonry'
 import { LiveArticleStream } from '@/components/article/LiveArticleStream'
 import { MasonryKeyboardNav } from '@/components/article/MasonryKeyboardNav'
+import { ScrollTopOnArrive } from '@/components/article/ScrollTopOnArrive'
+import { StarredArticlesMasonry } from '@/components/article/StarredArticlesMasonry'
+import { TopicProfileTile } from '@/components/article/TopicProfileTile'
+import { SiteFooter } from '@/components/chrome/SiteFooter'
 import { TopicBadgeFilterRow } from '@/components/chrome/TopicBadgeFilterRow'
 import { TopNav } from '@/components/chrome/TopNav'
-import { Wordmark } from '@/components/chrome/Wordmark'
-import { getNewBadgeHours, isNew } from '@/lib/new-badge'
-import { getMockCreatedAt, loadDashboardArticles, loadDashboardBadges } from './_mock/articles'
+import { Button } from '@/components/ui/button'
+import {
+  loadDashboardArticles,
+  loadDashboardBadges,
+  loadTopicSentimentTimeline,
+  loadTopicTopAuthors,
+} from './_lib/dashboard-loader'
 
 // Reads the iron-session cookie via requireAdmin() and queries the DB for
 // articles / badges — never statically renderable.
@@ -70,112 +63,132 @@ function readBadgeParam(params: SearchParams): string | null {
   return trimmed.length === 0 ? null : trimmed
 }
 
-export default async function Page({
-  searchParams,
-}: {
-  // Next 15 ships searchParams as a Promise — must be awaited before
-  // touching its keys.
-  searchParams: Promise<SearchParams>
-}) {
+function readStarredParam(params: SearchParams): boolean {
+  const raw = params.starred
+  if (!raw) return false
+  const value = Array.isArray(raw) ? raw[0] : raw
+  return value === '1'
+}
+
+export default async function Page({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams
   const badgeFilter = readBadgeParam(params)
+  const starredFilter = readStarredParam(params)
 
-  // In mock mode, skip the session gate entirely — the visual gate runs
-  // against a flag-driven dev server that has no admins table populated.
-  // Outside mock mode, real session validation still applies.
+  // In mock mode, skip the session gate entirely.
   const session = MOCK_MODE ? { adminId: 'mock' } : await requireAdmin()
 
-  if (!session) {
+  // Public-readable dashboard: the magazine feed renders for everyone, not just
+  // the admin. Load articles/badges up front so the empty-state branch can run.
+  // Admin-only actions (star, settings, etc.) stay gated inside their own routes.
+  const [articles, badgeNames] = await Promise.all([
+    // Stars are a client-only localStorage preference now, so the Starred
+    // filter renders client-side (below) — the server feed ignores `starred`.
+    loadDashboardArticles({ badge: badgeFilter }),
+    loadDashboardBadges(),
+  ])
+
+  if (!session && articles.length === 0) {
     // -------------------------------------------------------------------
-    // Public visitor — preserve the Phase 1 empty state exactly.
-    // The e2e suite asserts this copy verbatim. Do not change without
-    // updating `tests/e2e/founding-admin.spec.ts` first.
+    // Public visitor, nothing filed yet — preserve the Phase 1 empty state
+    // exactly. The e2e suite asserts this copy verbatim.
+    // Do not change without updating `tests/e2e/founding-admin.spec.ts`.
     // -------------------------------------------------------------------
     return (
-      <main className="min-h-screen bg-paper flex flex-col px-6 pt-16 pb-24 md:px-18">
-        {/* Editorial wordmark — page-spanning, visual anchor */}
-        <h1
-          className="font-display text-[clamp(3rem,12vw,9rem)] font-black tracking-tight leading-none text-ink uppercase w-full"
-          style={{ letterSpacing: '-0.02em' }}
-        >
-          LUCIDINDEX
-        </h1>
-
-        {/* Hairline rule — editorial separator */}
-        <div className="mt-8 mb-12 h-px w-full bg-[var(--color-card-border)]" />
-
-        {/* Empty-state copy — muted, intentional, not transactional */}
-        <div className="max-w-[640px]">
-          <p className="text-xl font-semibold text-ink leading-snug">Nothing has been filed yet.</p>
-          <p className="mt-3 text-base text-[var(--color-muted-700)] leading-relaxed">
-            Your agents will be filing articles here. Check back soon.
-          </p>
-        </div>
-      </main>
+      <div className="flex min-h-screen flex-col bg-background">
+        {/* TopNav supplies the LUCIDINDEX wordmark heading the e2e asserts on. */}
+        <TopNav />
+        <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
+          <div className="mx-auto flex flex-col items-center gap-3 rounded-xl border bg-background p-6 shadow-sm max-w-sm w-full text-center">
+            <h2 className="text-xl font-semibold tracking-tight">Nothing has been filed yet.</h2>
+            <p className="text-xs text-muted-foreground leading-relaxed">Check back soon.</p>
+            <Button variant="default" asChild className="w-full mt-2">
+              <Link href="/" data-testid="dashboard-link">
+                <LayoutDashboard className="h-5 w-5 mr-2 rotate-90" />
+                Dashboard
+              </Link>
+            </Button>
+          </div>
+        </main>
+      </div>
     )
   }
 
   // ---------------------------------------------------------------------
-  // Authenticated admin — full Fyrre-style dashboard.
+  // Content grid — rendered for admin AND public visitors. Articles/badges
+  // were loaded above so the empty-state branch could run.
   // ---------------------------------------------------------------------
-  const [allArticles, badgeNames, newBadgeHours] = await Promise.all([
-    loadDashboardArticles(),
-    loadDashboardBadges(),
-    getNewBadgeHours(),
-  ])
-
-  // Server-side filter — when `?badge=…` is set, drop articles that
-  // don't carry that badge. The pill row's "All" state passes no param.
-  const articles = badgeFilter
-    ? allArticles.filter((a) => a.topicBadges.includes(badgeFilter))
-    : allArticles
-
   const badgeOptions = badgeNames.map((name) => ({ name }))
 
-  // Compute the "NEW" pill set once per render (#79). Mock-mode synthesizes
-  // `created_at` from the per-seed `insertedAtOffsetHours` field; a real-DB
-  // path will read `articles.created_at` directly when the loader lands.
-  const newArticleIds = new Set(
-    articles.filter((a) => isNew(getMockCreatedAt(a), newBadgeHours)).map((a) => a.id),
-  )
+  // Compute topic-focus card metadata (cheap, in-memory from the already-loaded articles list).
+  // Use creatorLabel as the author key when present, falling back to creatorSlug —
+  // counting on creatorSlug alone produced 0 when targets had a label but no slug.
+  const topicFocusCreatorCount = new Set(
+    articles
+      .map((a) => {
+        const x = a as { creatorLabel?: string; creatorSlug?: string }
+        return x.creatorLabel ?? x.creatorSlug ?? null
+      })
+      .filter((v): v is string => Boolean(v)),
+  ).size
+
+  // Topic-focus enrichment — only loaded when a badge is selected. Feeds the
+  // vertical TopicProfileTile pinned at the head of the article grid.
+  const [topAuthors, topicTimeline] = badgeFilter
+    ? await Promise.all([loadTopicTopAuthors(badgeFilter), loadTopicSentimentTimeline(badgeFilter)])
+    : [[], []]
+
+  const topicCard = badgeFilter ? (
+    <TopicProfileTile
+      topicName={badgeFilter}
+      articleCount={articles.length}
+      creatorCount={topicFocusCreatorCount}
+      topAuthors={topAuthors}
+      timeline={topicTimeline}
+    />
+  ) : null
 
   return (
-    <div className="min-h-screen bg-paper">
-      {/* Thin top nav — Settings + Account links, hairline bottom border. */}
+    <div className="flex min-h-dvh flex-col bg-background">
+      {/* Thin top nav — Settings + Account links. */}
       <TopNav />
 
-      <main className="px-6 pt-12 pb-24 md:px-18">
-        {/* Page-spanning wordmark — visual anchor + breathing room. */}
-        <div className="py-6 md:py-10">
-          <Wordmark />
-        </div>
+      <main className="flex-1 px-4 pt-4 pb-4 flex flex-col gap-4">
+        {/* Forces scroll-to-top when arriving via an article topic badge,
+            beating the browser's restored scroll position. Renders nothing. */}
+        <ScrollTopOnArrive />
 
-        {/* Topic-badge filter pills — single-select, "All" first. */}
-        <div className="mt-6">
-          <TopicBadgeFilterRow badges={badgeOptions} />
-        </div>
+        {/* Topic filter pills — hidden in focused view (the topic card now
+            lives in the grid as its first cell, so no banner renders here). */}
+        {badgeFilter ? null : <TopicBadgeFilterRow badges={badgeOptions} />}
 
-        {/* Hairline rule — editorial separator below the filter row. */}
-        <div className="mt-6 mb-12 h-px w-full bg-[var(--color-card-border)]" />
+        {/* Live arrivals strip — SSE-driven horizontal scroll. */}
+        <LiveArticleStream badgeFilter={badgeFilter} />
 
-        {/* Live arrivals strip — SSE-driven, fades in new tiles without
-            disturbing the static masonry below. */}
-        <div className="mb-6">
-          <LiveArticleStream badgeFilter={badgeFilter} />
-        </div>
-
-        {articles.length === 0 ? (
-          <AuthenticatedEmptyState />
-        ) : (
+        {starredFilter ? (
+          /* Starred filter: client-rendered from the viewer's localStorage stars. */
+          <StarredArticlesMasonry />
+        ) : articles.length === 0 ? null : (
           <>
-            <ArticleMasonry articles={articles} newArticleIds={newArticleIds} />
-            {/* Phase 8 #84 — keyboard nav handler. Renders nothing
-                visible; attaches a window-level keydown listener that
-                walks focus across [data-masonry-tile] elements. */}
+            {/*
+              FilteredArticleMasonry reads notInterested from localStorage
+              (client-side) and culls matching articles.
+              In focused view (badgeFilter set) skip the not-interested
+              filter — the user explicitly chose this topic.
+            */}
+            <FilteredArticleMasonry
+              articles={articles}
+              skipNotInterestedFilter={badgeFilter !== null}
+              prefix={topicCard}
+            />
+            {/* Keyboard nav handler — renders nothing visible; attaches
+                a window-level keydown listener that walks focus across
+                [data-masonry-tile] elements. */}
             <MasonryKeyboardNav />
           </>
         )}
       </main>
+      <SiteFooter />
     </div>
   )
 }

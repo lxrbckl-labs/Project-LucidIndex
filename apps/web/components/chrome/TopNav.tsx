@@ -1,56 +1,220 @@
+'use client'
+
 /**
- * TopNav — thin top bar above the LUCIDINDEX wordmark (#55).
+ * TopNav — shadcn-aesthetic app header (Phase 3 rebuild).
  *
- * Reference: <vault>/Projects/Project-LucidIndex/Visual Identity.md
- * (the "Page chrome" section is binding) and `Design/main.jpg`.
+ * Layout:
+ *   <header bg-background>
+ *     [SidebarTrigger]    ← far left, on settings + authenticated forum
+ *     [Forum/Dashboard]   ← left cluster on every page (Dashboard on /forum)
+ *     [Wordmark]          ← center
+ *     [SearchInput]       ← right cluster
+ *     [ThemeToggle]       ← right cluster
+ *     [Settings/Dashboard]← right cluster (Dashboard icon on /settings)
  *
- * Anatomy:
+ * Logout calls /api/auth/logout via fetch (POST) then reloads to /
+ * so the server session is cleared before any redirect.
  *
- *   ┌──────────────────────────────────────────────────────────────┐
- *   │                                          Settings   Account  │   ← thin row,
- *   │                                                              │      hairline bottom border,
- *   │                                                              │      links right-aligned
- *   └──────────────────────────────────────────────────────────────┘
- *
- * Hard rules from the spec:
- *   - Magazine vibe — text links, no buttons, no rounded corners.
- *   - Hairline bottom border (`--color-card-border`).
- *   - Right-aligned link group; nothing on the left for v0.1.
- *   - Authenticated-admin-only — the public empty state on `/` stays
- *     deliberately clean (no nav). The `app/page.tsx` server component
- *     gates this component on the session result.
- *
- * Server component — pure render, no client interactivity needed. The
- * `Link` underline-on-hover affordance is owned by the global stylesheet
- * via Tailwind's `hover:underline` utility.
+ * Made a client component (minimal, `use client`) so the logout
+ * handler and DropdownMenu work correctly. Pure server rendering
+ * isn't required — this is in every authenticated layout.
  */
 
+import {
+  LayoutDashboard,
+  MessagesSquare,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
+  Settings,
+} from 'lucide-react'
 import Link from 'next/link'
-import { SearchInput } from './SearchInput'
+import { usePathname, useSearchParams } from 'next/navigation'
+import { useContext } from 'react'
+import { Button } from '@/components/ui/button'
+import { SidebarContext, SidebarTrigger } from '@/components/ui/sidebar'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { usePostsTOCVisibility } from '@/lib/posts-toc-visibility'
+import { useRepliesPaneVisibility } from '@/lib/replies-pane-visibility'
+import { useSettingsUnlocked } from '@/lib/settings-visibility'
+import { ThemeToggle } from './ThemeToggle'
+import { TypeaheadSearch } from './TypeaheadSearch'
 
-export function TopNav() {
+export function TopNav({
+  hideSearch = false,
+  hideSidebarTrigger = false,
+}: {
+  hideSearch?: boolean
+  hideSidebarTrigger?: boolean
+} = {}) {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  // The Settings gear is hidden until unlocked via ?settings=true (sticky).
+  const settingsUnlocked = useSettingsUnlocked()
+
+  const isArticlePage = pathname.startsWith('/a/')
+  const isSettingsPage = pathname.startsWith('/settings')
+  const isForumPage = pathname.startsWith('/forum')
+  const isForumPostPage = pathname.startsWith('/forum/posts/')
+  // TOC toggle is visible on forum feed pages that mount <PostsTOC>:
+  // /forum, /forum/starred, /forum/replies, /forum/trending, /forum/top,
+  // /forum/users/[username] — but NOT on post detail, create, or account pages.
+  const showTOCToggle =
+    isForumPage &&
+    !pathname.startsWith('/forum/posts/') &&
+    !pathname.startsWith('/forum/create') &&
+    !pathname.startsWith('/forum/account')
+  const { visible: tocVisible, toggle: toggleTOC } = usePostsTOCVisibility()
+  const { visible: repliesVisible, toggle: toggleReplies } = useRepliesPaneVisibility()
+  // SidebarTrigger requires a SidebarProvider in the tree (its
+  // `useSidebar` hook throws otherwise). The forum layout only mounts
+  // the provider for authenticated users; on the gate there's no
+  // sidebar at all. Reading the context directly lets us render the
+  // trigger iff we're actually inside a shell.
+  const hasSidebarShell = useContext(SidebarContext) !== null
+
   return (
-    <nav
-      aria-label="Primary"
-      className="flex items-center justify-end gap-8 border-b border-[var(--color-card-border)] px-6 py-3 md:px-18"
-    >
-      {/* Search lives on the left of the right-aligned cluster (#73). */}
-      <SearchInput />
-      {/* Phase 8 #85 — focus state inherits the global :focus-visible
-          rule (1px ink outline + 2px offset) from globals.css. No
-          rounded-blue browser default; magazine vibe holds. */}
-      <Link
-        href="/settings"
-        className="text-[var(--text-meta)] uppercase tracking-[0.12em] text-[var(--color-muted-700)] transition-colors hover:text-ink hover:underline underline-offset-4"
-      >
-        Settings
-      </Link>
-      <Link
-        href="/settings/account"
-        className="text-[var(--text-meta)] uppercase tracking-[0.12em] text-[var(--color-muted-700)] transition-colors hover:text-ink hover:underline underline-offset-4"
-      >
-        Account
-      </Link>
-    </nav>
+    <header className="sticky top-0 z-50 border-b bg-background/70 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/50">
+      <div className="grid grid-cols-3 items-center p-4">
+        {/* Left cluster. Order from left to right:
+              1. SidebarTrigger — settings / forum shell only.
+              2. Forum button — on every page EXCEPT /forum (you can't
+                 jump from Forum to itself; the Dashboard slot moved to
+                 the right cluster). */}
+        <div className="flex items-center justify-start gap-2">
+          {(isSettingsPage || isForumPage) && hasSidebarShell && !hideSidebarTrigger && (
+            <SidebarTrigger className="h-9 w-9 shrink-0 border border-input bg-background" />
+          )}
+          {!isForumPage && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" asChild>
+                  <Link href="/forum" aria-label="Forum">
+                    <MessagesSquare className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Forum</TooltipContent>
+            </Tooltip>
+          )}
+          {isSettingsPage && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" asChild>
+                  <Link href="/" aria-label="Dashboard">
+                    <LayoutDashboard className="h-4 w-4 rotate-90" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Dashboard</TooltipContent>
+            </Tooltip>
+          )}
+        </div>
+
+        {/* Center: wordmark */}
+        <div className="flex items-center justify-center">
+          <Link
+            href="/"
+            onClick={(e) => {
+              if (pathname === '/' && !searchParams.get('badge')) {
+                e.preventDefault()
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }
+            }}
+            className="flex items-center gap-2 text-xl font-semibold uppercase tracking-wider text-foreground hover:opacity-80 transition-opacity"
+          >
+            {/* biome-ignore lint/performance/noImgElement: small static asset, no Next/Image needed */}
+            <img src="/logo-light.png" alt="" className="h-10 w-10 rounded-sm dark:hidden" />
+            {/* biome-ignore lint/performance/noImgElement: small static asset, no Next/Image needed */}
+            <img src="/logo-dark.png" alt="" className="hidden h-10 w-10 rounded-sm dark:block" />
+            {/* Wordmark text is icon-only on mobile — hide the LUCIDINDEX
+                text below the sm breakpoint, show it on tablet/desktop. */}
+            <span className="hidden sm:inline">LUCIDINDEX</span>
+          </Link>
+        </div>
+
+        {/* Right cluster: search + theme toggle + Dashboard + Settings.
+            Dashboard sits to the left of Settings. Each nav button is
+            suppressed on its own surface (you can't jump from
+            /settings to /settings, or from / to /). */}
+        <div className="flex items-center justify-end gap-2 min-w-0">
+          {!hideSearch && !isArticlePage && !isForumPostPage && <TypeaheadSearch />}
+
+          {pathname !== '/' && !isSettingsPage && !isArticlePage && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" asChild>
+                  <Link href="/" aria-label="Dashboard">
+                    <LayoutDashboard className="h-4 w-4 rotate-90" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Dashboard</TooltipContent>
+            </Tooltip>
+          )}
+
+          {!isSettingsPage && settingsUnlocked && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" asChild>
+                  <Link href="/settings" aria-label="Settings">
+                    <Settings className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Settings</TooltipContent>
+            </Tooltip>
+          )}
+
+          <ThemeToggle />
+
+          {/* TOC toggle only when actually inside the authenticated forum shell
+              (the sidebar provider is mounted). On the logged-out forum gate
+              there's no posts list to toggle, so the button must not appear. */}
+          {showTOCToggle && hasSidebarShell && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="hidden md:inline-flex h-9 w-9 shrink-0"
+                  aria-label={tocVisible ? 'Hide posts list' : 'Show posts list'}
+                  onClick={toggleTOC}
+                >
+                  {tocVisible ? (
+                    <PanelRightClose className="h-4 w-4" />
+                  ) : (
+                    <PanelRightOpen className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{tocVisible ? 'Hide posts list' : 'Show posts list'}</TooltipContent>
+            </Tooltip>
+          )}
+
+          {isForumPostPage && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9 shrink-0"
+                  aria-label={repliesVisible ? 'Hide replies' : 'Show replies'}
+                  onClick={toggleReplies}
+                >
+                  {repliesVisible ? (
+                    <PanelLeftClose className="h-4 w-4 rotate-180" />
+                  ) : (
+                    <PanelLeftOpen className="h-4 w-4 rotate-180" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{repliesVisible ? 'Hide replies' : 'Show replies'}</TooltipContent>
+            </Tooltip>
+          )}
+        </div>
+      </div>
+    </header>
   )
 }

@@ -2,7 +2,7 @@
 
 WebAuthn passkey + iron-session auth for the single-admin LucidIndex shell.
 
-Ported from [Project-Showalter](https://github.com/lxrbckl-dev/Project-Showalter)'s
+Ported from [Project-Showalter](https://github.com/lxrbckl-labs/Project-Showalter)'s
 `src/features/auth/` modules — Showalter is a sibling repo Alex already runs
 with the same passkey-only / single-admin / one-recovery-code design, so this
 package is largely a translation rather than a fresh write.
@@ -14,7 +14,7 @@ package is largely a translation rather than a fresh write.
 - `getSession()`, `requireAdmin()`, `establishSession()`, `destroySession()`
   — iron-session helpers. `IRON_SESSION_PASSWORD` (32+ chars) must be set.
 - `getRelyingParty()` — reads `WEBAUTHN_RP_ID` + `WEBAUTHN_ORIGIN` (defaults
-  to `localhost` + `http://localhost:3000` for dev).
+  to `localhost` + `http://localhost:47892` for dev).
 - `startFoundingEnrollment()`, `finishFoundingEnrollment()`,
   `finalizeFoundingSession()` — three-step founding-admin ceremony.
 - `startLogin()`, `finishLogin()` — two-step passkey login.
@@ -62,7 +62,7 @@ env-var check itself — it just exposes the seam.
 ```
 IRON_SESSION_PASSWORD=<32+ char hex>     # generate with: openssl rand -hex 32
 WEBAUTHN_RP_ID=localhost                 # production: your domain
-WEBAUTHN_ORIGIN=http://localhost:3000    # production: https://yourdomain
+WEBAUTHN_ORIGIN=http://localhost:47892    # production: https://yourdomain
 ```
 
 `LUCIDINDEX_FOUNDING_TOKEN` is added by #27 and consumed via the `preCheck`

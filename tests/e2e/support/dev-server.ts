@@ -57,13 +57,14 @@ export type StackHandle = {
 
 export type StartStackInput = {
   /**
-   * Value the web server should see for `LUCIDINDEX_FOUNDING_TOKEN`. The
-   * test passes this as the `?token=...` query param.
+   * Legacy `LUCIDINDEX_FOUNDING_TOKEN` value. No longer used — founding is the
+   * on-page "Generate token" flow with no env gate — but kept optional for
+   * back-compat with callers that still pass it. Ignored when omitted.
    */
-  foundingToken: string
+  foundingToken?: string
 }
 
-export async function startStack(input: StartStackInput): Promise<StackHandle> {
+export async function startStack(input: StartStackInput = {}): Promise<StackHandle> {
   await removeContainerIfExists(PG_CONTAINER_NAME)
 
   log(`starting postgres container ${PG_CONTAINER_NAME} on ${PG_HOST}:${PG_PORT}`)
@@ -107,7 +108,7 @@ export async function startStack(input: StartStackInput): Promise<StackHandle> {
     IRON_SESSION_PASSWORD: ironSecret,
     WEBAUTHN_RP_ID: WEB_BROWSER_HOST,
     WEBAUTHN_ORIGIN: `http://${WEB_BROWSER_HOST}:${WEB_PORT}`,
-    LUCIDINDEX_FOUNDING_TOKEN: input.foundingToken,
+    ...(input.foundingToken ? { LUCIDINDEX_FOUNDING_TOKEN: input.foundingToken } : {}),
     HOST: WEB_BIND_HOST,
     PORT: String(WEB_PORT),
     // Quiet Next's telemetry / analytics chatter in CI logs.
@@ -150,24 +151,33 @@ export async function startStack(input: StartStackInput): Promise<StackHandle> {
     throw err
   }
 
-  // Warm-compile the founding routes BEFORE the test runs. Next.js dev
-  // compiles each route on first request — and the route bundles import
-  // `lib/challenge-store.ts`'s module-level Map separately. Compiling the
-  // `finish` route lazily AFTER `start` has stashed a challenge resets the
-  // Map (the module is re-evaluated as part of finish's bundle build),
-  // which makes the in-memory token unredeemable. Warming both routes up
-  // front avoids the race entirely. (See the survival caveat in
-  // `apps/web/lib/challenge-store.ts`.)
-  log('warming founding API routes')
-  await prewarm(`${baseURL}/api/auth/founding/start`)
-  await prewarm(`${baseURL}/api/auth/founding/finish`)
-  await prewarm(`${baseURL}/api/auth/founding/finalize`)
+  // Warm-compile the challenge-store routes BEFORE the test runs. Next.js dev
+  // compiles each route on first request — and start/finish pairs share
+  // `lib/challenge-store.ts`'s module-level Map. Compiling the `finish` route
+  // lazily AFTER `start` has stashed a challenge resets the Map (the module is
+  // re-evaluated as part of finish's bundle build), which makes the in-memory
+  // token unredeemable. Warming both halves up front avoids the race. (See the
+  // survival caveat in `apps/web/lib/challenge-store.ts`.)
+  //
+  // Founding itself (`/api/auth/founding/claim`) is a single POST with no
+  // challenge, so it needs no pairing — and `prewarm` POSTs, which would
+  // CREATE an admin, so it is intentionally NOT warmed. The passkey enrollment
+  // that follows a claim DOES use the challenge store, so warm register/*.
+  log('warming challenge-store API routes')
+  await prewarm(`${baseURL}/api/auth/passkey/register/start`)
+  await prewarm(`${baseURL}/api/auth/passkey/register/finish`)
   await prewarm(`${baseURL}/api/auth/passkey/authenticate/start`)
   await prewarm(`${baseURL}/api/auth/passkey/authenticate/finish`)
+  // Recovery shares the same challenge-store race: warm start/finish/finalize
+  // together so a challenge stashed by `start` survives `finish`'s first build.
+  await prewarm(`${baseURL}/api/auth/recovery/start`)
+  await prewarm(`${baseURL}/api/auth/recovery/finish`)
+  await prewarm(`${baseURL}/api/auth/recovery/finalize`)
   // Also pre-render the gated pages so the layout's redirect logic is
   // compiled before the test asserts on it.
   await prewarm(`${baseURL}/settings`)
   await prewarm(`${baseURL}/settings/login`)
+  await prewarm(`${baseURL}/settings/recover`)
 
   log(`stack ready at ${baseURL}`)
 

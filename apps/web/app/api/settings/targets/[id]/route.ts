@@ -4,7 +4,7 @@
  *   GET   → fetch one target.
  *   PATCH → update human-supplied fields (label, urlOrHandle, cadence,
  *           promptTemplateId, active). Cron-managed fields are read-only
- *           here — the cron sidecar (Phase 4) and mcp-store (Phase 3)
+ *           here — the cron sidecar (Phase 4) and mcp-dashboard (Phase 3)
  *           own those.
  *
  * Pause/resume (toggle `active`) lives at `./[id]/active/route.ts`.

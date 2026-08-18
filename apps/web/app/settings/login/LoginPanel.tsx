@@ -1,18 +1,13 @@
 'use client'
 
 /**
- * Client wrapper for `<LoginForm>` that wires the Phase 1 auth API routes
+ * Client wrapper for `<LoginForm>` that wires the auth API routes
  * (`/api/auth/passkey/authenticate/start` + `/finish`) to the form's
  * `startLogin` / `finishLogin` props.
- *
- * The form lives in `@lucidindex/auth/react` so it can be reused later
- * (e.g. from a dialog inside the Account panel). This wrapper is the
- * apps/web-specific glue: it knows about Next.js routing and the route
- * URLs, the shared component does not.
  */
 
-import { LoginForm, type LoginFormProps } from '@lucidindex/auth/react'
 import { useRouter } from 'next/navigation'
+import { LoginForm, type LoginFormProps } from '@/components/auth/LoginForm'
 
 type StartOk = Extract<Awaited<ReturnType<LoginFormProps['startLogin']>>, { ok: true }>
 type StartOptions = StartOk['options']
@@ -55,7 +50,6 @@ export function LoginPanel() {
         router.replace('/settings')
         router.refresh()
       }}
-      className="flex flex-col gap-4"
     />
   )
 }

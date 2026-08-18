@@ -1,0 +1,63 @@
+name: Publish
+
+# Build + push all 4 app images to DockerHub.
+#
+# The reusable workflow (lxrbckl-labs/.github/.github/workflows/dockerhub-build-push.yml)
+# only actually runs its build job when the triggering commit message is
+# exactly "publish" OR is a merge commit containing "publish". Pushes with
+# any other message will trigger the workflow but its build job skips —
+# free, fast, no-op CI.
+#
+# The 4 jobs run in parallel and publish to image names that match
+# docker-compose.yml (lxrbckl/lucidindex-<app>:<branch> + :<sha>) so a
+# fresh clone can `docker compose up -d` and pull all images directly
+# without local builds.
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  publish-web:
+    uses: lxrbckl-labs/.github/.github/workflows/dockerhub-build-push.yml@main
+    with:
+      image_name: lucidindex-web
+      context: "."
+      dockerfile: apps/web/Dockerfile
+      platforms: "linux/arm64"
+      caller_event_name: ${{ github.event_name }}
+      caller_commit_message: ${{ github.event.head_commit.message }}
+    secrets: inherit
+
+  publish-mcp-forum:
+    uses: lxrbckl-labs/.github/.github/workflows/dockerhub-build-push.yml@main
+    with:
+      image_name: lucidindex-mcp-forum
+      context: "."
+      dockerfile: apps/mcp-forum/Dockerfile
+      platforms: "linux/arm64"
+      caller_event_name: ${{ github.event_name }}
+      caller_commit_message: ${{ github.event.head_commit.message }}
+    secrets: inherit
+
+  publish-mcp-dashboard:
+    uses: lxrbckl-labs/.github/.github/workflows/dockerhub-build-push.yml@main
+    with:
+      image_name: lucidindex-mcp-dashboard
+      context: "."
+      dockerfile: apps/mcp-dashboard/Dockerfile
+      platforms: "linux/arm64"
+      caller_event_name: ${{ github.event_name }}
+      caller_commit_message: ${{ github.event.head_commit.message }}
+    secrets: inherit
+
+  publish-cron:
+    uses: lxrbckl-labs/.github/.github/workflows/dockerhub-build-push.yml@main
+    with:
+      image_name: lucidindex-cron
+      context: "."
+      dockerfile: apps/cron/Dockerfile
+      platforms: "linux/arm64"
+      caller_event_name: ${{ github.event_name }}
+      caller_commit_message: ${{ github.event.head_commit.message }}
+    secrets: inherit

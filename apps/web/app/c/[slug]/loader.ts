@@ -33,7 +33,7 @@
  */
 
 import { db } from '@lucidindex/db/client'
-import { and, desc, eq } from '@lucidindex/db/query'
+import { and, desc, eq, isNull, sql } from '@lucidindex/db/query'
 import { agentTokens, articles, targets } from '@lucidindex/db/schema'
 import { generateSlug } from '@lucidindex/shared/slug'
 import type { MockArticle } from '@/app/_mock/articles'
@@ -46,6 +46,19 @@ export type CreatorViewModel = {
   label: string
   slug: string
   urlOrHandle: string
+  description: string | null
+  socialUrl: string | null
+  photoUrl: string | null
+}
+
+/**
+ * Aggregate sentiment summary for a creator. Hidden behind the
+ * `count >= MIN_COUNT` gate in the UI so a one-off rating doesn't
+ * render a misleading gauge.
+ */
+export type CreatorSentiment = {
+  averageSentiment: number
+  count: number
 }
 
 /**
@@ -62,6 +75,9 @@ export async function loadCreatorBySlug(slug: string): Promise<CreatorViewModel 
       label: targets.label,
       slug: targets.slug,
       urlOrHandle: targets.urlOrHandle,
+      description: targets.description,
+      socialUrl: targets.socialUrl,
+      photoUrl: targets.photoUrl,
       createdAt: targets.createdAt,
     })
     .from(targets)
@@ -70,7 +86,15 @@ export async function loadCreatorBySlug(slug: string): Promise<CreatorViewModel 
 
   const row = rows[0]
   if (row?.slug) {
-    return { id: row.id, label: row.label, slug: row.slug, urlOrHandle: row.urlOrHandle }
+    return {
+      id: row.id,
+      label: row.label,
+      slug: row.slug,
+      urlOrHandle: row.urlOrHandle,
+      description: row.description,
+      socialUrl: row.socialUrl,
+      photoUrl: row.photoUrl,
+    }
   }
 
   // Not found by slug — this slug may belong to a target whose `slug`
@@ -83,10 +107,13 @@ export async function loadCreatorBySlug(slug: string): Promise<CreatorViewModel 
       id: targets.id,
       label: targets.label,
       urlOrHandle: targets.urlOrHandle,
+      description: targets.description,
+      socialUrl: targets.socialUrl,
+      photoUrl: targets.photoUrl,
       createdAt: targets.createdAt,
     })
     .from(targets)
-    .where(eq(targets.slug, null as unknown as string))
+    .where(isNull(targets.slug))
 
   for (const t of nullSlugRows) {
     const candidate = generateSlug(t.label, t.createdAt)
@@ -95,12 +122,120 @@ export async function loadCreatorBySlug(slug: string): Promise<CreatorViewModel 
       await db
         .update(targets)
         .set({ slug: candidate })
-        .where(and(eq(targets.id, t.id), eq(targets.slug, null as unknown as string)))
-      return { id: t.id, label: t.label, slug: candidate, urlOrHandle: t.urlOrHandle }
+        .where(and(eq(targets.id, t.id), isNull(targets.slug)))
+      return {
+        id: t.id,
+        label: t.label,
+        slug: candidate,
+        urlOrHandle: t.urlOrHandle,
+        description: t.description,
+        socialUrl: t.socialUrl,
+        photoUrl: t.photoUrl,
+      }
     }
   }
 
   return null
+}
+
+/**
+ * Average sentiment across a creator's non-hidden articles, with a count
+ * so the UI can decide whether to render the gauge (`count >= 3`).
+ *
+ * Skips rows with NULL sentiment so the average reflects only articles
+ * the agent actually scored.
+ */
+export async function loadCreatorSentiment(targetId: string): Promise<CreatorSentiment> {
+  const rows = await db
+    .select({
+      avg: sql<string | null>`avg(${articles.sentiment})::text`,
+      count: sql<number>`count(${articles.sentiment})::int`,
+    })
+    .from(articles)
+    .where(
+      and(
+        eq(articles.targetId, targetId),
+        eq(articles.hidden, false),
+        // Drizzle 0.45 doesn't expose isNotNull from our re-export surface;
+        // emit raw SQL to keep the slice tight.
+        sql`${articles.sentiment} is not null`,
+      ),
+    )
+  const row = rows[0]
+  const avg = row?.avg ? Number(row.avg) : 0
+  const count = row?.count ?? 0
+  return { averageSentiment: avg, count }
+}
+
+/**
+ * A single week's sentiment bucket for the creator timeline chart.
+ * `weekStart` is the ISO-week start (Monday) as an ISO-8601 string.
+ */
+export type CreatorSentimentWeek = {
+  weekStart: string
+  avgSentiment: number
+  n: number
+}
+
+/**
+ * The author's most-frequent topic badges (most-frequent first, max 5).
+ *
+ * `topic_badges` is a `text[]` per article; unnest it across the creator's
+ * non-hidden articles, count per topic, and rank. Emitted as raw SQL via
+ * `db.execute` because `unnest` isn't on our drizzle re-export surface —
+ * mirrors the raw-SQL topic aggregation in the forum/search loaders.
+ *
+ * Returns just the ordered topic strings (counts are used only for
+ * ranking, never shown).
+ */
+export async function loadCreatorTopTopics(targetId: string): Promise<string[]> {
+  const rows = await db.execute<{ topic: string; count: number }>(sql`
+    SELECT topic, count(*)::int AS count
+    FROM (
+      SELECT unnest(topic_badges) AS topic
+      FROM articles
+      WHERE target_id = ${targetId}::uuid
+        AND hidden = false
+    ) t
+    GROUP BY topic
+    ORDER BY count DESC, topic ASC
+    LIMIT 5
+  `)
+  return [...rows].map((r) => r.topic)
+}
+
+/**
+ * Weekly average sentiment for a creator over the trailing 52 weeks.
+ *
+ * Filters non-hidden articles with a non-null sentiment inside the window,
+ * buckets by ISO week (`date_trunc('week', ...)` — Monday start), and
+ * returns `avg(sentiment)` + `count(*)` per populated week, oldest first.
+ * The 52-week window is a query filter, so old data drops off on its own.
+ *
+ * `week_start` is cast to text in SQL (deterministic across driver type
+ * parsers) and normalized to an ISO string on the way out.
+ */
+export async function loadCreatorSentimentTimeline(
+  targetId: string,
+): Promise<CreatorSentimentWeek[]> {
+  const rows = await db.execute<{ week_start: string; avg_sentiment: number; n: number }>(sql`
+    SELECT
+      date_trunc('week', created_at)::text AS week_start,
+      avg(sentiment)::float                AS avg_sentiment,
+      count(*)::int                        AS n
+    FROM articles
+    WHERE target_id = ${targetId}::uuid
+      AND hidden = false
+      AND sentiment IS NOT NULL
+      AND created_at >= now() - interval '52 weeks'
+    GROUP BY date_trunc('week', created_at)
+    ORDER BY date_trunc('week', created_at) ASC
+  `)
+  return [...rows].map((r) => ({
+    weekStart: new Date(r.week_start).toISOString(),
+    avgSentiment: r.avg_sentiment,
+    n: r.n,
+  }))
 }
 
 /**
@@ -121,8 +256,6 @@ export async function loadCreatorArticles(targetId: string): Promise<MockArticle
       summary: articles.summary,
       topicBadges: articles.topicBadges,
       significance: articles.significance,
-      sourcePublishedAt: articles.sourcePublishedAt,
-      sourcePublishedAtEstimated: articles.sourcePublishedAtEstimated,
       heroImageHash: articles.heroImageHash,
       agentLabel: agentTokens.label,
       creatorLabel: targets.label,
@@ -141,7 +274,7 @@ export async function loadCreatorArticles(targetId: string): Promise<MockArticle
     .orderBy(desc(articles.createdAt))
 
   return rows.map((row) => {
-    const publishedAt = row.sourcePublishedAt?.toISOString() ?? row.createdAt.toISOString()
+    const publishedAt = row.createdAt.toISOString()
     const publishedLabel = formatPublishLabel(publishedAt)
     const words = `${row.summary ?? ''} `.split(/\s+/).length
     const readMinutes = Math.max(1, Math.round(words / 250))
@@ -173,7 +306,7 @@ export async function loadCreatorArticles(targetId: string): Promise<MockArticle
       topicBadges: row.topicBadges,
       significance: (row.significance as 'small' | 'medium' | 'large') ?? 'small',
       publishedLabel,
-      publishedEstimated: row.sourcePublishedAtEstimated,
+      publishedEstimated: false,
       publishedAt,
       heroImageUrl,
       agentLabel: row.agentLabel ?? 'unknown',
@@ -183,6 +316,7 @@ export async function loadCreatorArticles(targetId: string): Promise<MockArticle
       reasonablenessRating: row.reasonablenessRating ?? null,
       crossSource,
       sourceUrl: row.sourceUrl,
+      starred: row.starred,
     }
   })
 }

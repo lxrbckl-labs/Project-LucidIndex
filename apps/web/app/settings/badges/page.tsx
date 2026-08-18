@@ -51,8 +51,8 @@ export default async function BadgesPanelPage() {
   const initialBadges: BadgeRow[] = badgeRows.map((b) => ({
     id: b.id,
     name: b.name,
-    color: b.color,
     displayOrder: b.displayOrder,
+    hidden: b.hidden,
     createdAt: b.createdAt.toISOString(),
   }))
 

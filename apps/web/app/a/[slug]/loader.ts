@@ -8,9 +8,8 @@
  *     Same flag the dashboard uses, so the visual gate's flag-only run
  *     also covers the per-article page.
  *
- *   - Default → `articles` table via Drizzle. Filters out `hidden = true`
- *     rows (they 404 — Phase 6 #69 will add the admin "hide" action;
- *     this loader respects the column today).
+ *   - Default → `articles` table via Drizzle. Returns the article by slug;
+ *     missing slugs return null (→ 404).
  *
  * The shape returned (`ArticleViewModel`) is deliberately neutral — it
  * is what the page component renders against, regardless of backing
@@ -23,8 +22,9 @@
  */
 
 import { db } from '@lucidindex/db/client'
-import { and, eq } from '@lucidindex/db/query'
+import { eq } from '@lucidindex/db/query'
 import { agentTokens, articles, targets } from '@lucidindex/db/schema'
+import { generateSlug } from '@lucidindex/shared/slug'
 import { findMockArticleBySlug, getMockCreatedAt, mockArticles } from '@/app/_mock/articles'
 
 const MOCK_MODE = process.env.LUCIDINDEX_MOCK === '1'
@@ -33,6 +33,14 @@ export type ArticleCrossSource = {
   title: string
   source_url: string
   publisher?: string
+}
+
+export type ArticleCitation = {
+  url: string
+  title: string
+  source_name: string
+  accessed_at?: string
+  image_url?: string | null
 }
 
 /**
@@ -61,10 +69,16 @@ export type ArticleViewModel = {
    * (lazy backfill — will be populated on first creator-page visit). */
   creatorSlug: string | null
   reasonablenessRating: number | null
+  /** Agent-assigned bearish→bullish sentiment (-5..+5). Drives the article
+   * page's Bearish/Bullish gauge. Null when the agent didn't supply one. */
+  sentiment: number | null
   crossSource: ArticleCrossSource[]
+  citations: ArticleCitation[]
   starred: boolean
   read: boolean
   sourceUrl: string
+  /** Agent's subjective take on the analysed source. Null until the agent produces one. */
+  agentOpinion: string | null
   /**
    * Agent-insertion timestamp — drives the "NEW" badge (#79). Always
    * populated: real-DB rows surface `articles.created_at`; mock rows
@@ -92,8 +106,8 @@ function formatPublishLabel(iso: string): string {
 }
 
 /**
- * Resolve a slug to a view model, or `null` when the article is missing
- * or hidden. The page maps `null` to a Next.js 404.
+ * Resolve a slug to a view model, or `null` when the article is missing.
+ * The page maps `null` to a Next.js 404.
  */
 export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel | null> {
   if (MOCK_MODE) {
@@ -114,9 +128,12 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
       creatorLabel: mock.creatorLabel ?? null,
       creatorSlug: mock.creatorSlug ?? null,
       reasonablenessRating: mock.reasonablenessRating,
+      sentiment: mock.sentiment ?? null,
       crossSource: mock.crossSource,
+      citations: [],
       starred: mock.starred ?? false,
       read: mock.read ?? false,
+      agentOpinion: null,
       sourceUrl: mock.sourceUrl,
       createdAt: getMockCreatedAt(mock),
     }
@@ -132,30 +149,32 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
       summary: articles.summary,
       agentDeepDive: articles.agentDeepDive,
       topicBadges: articles.topicBadges,
-      sourcePublishedAt: articles.sourcePublishedAt,
-      sourcePublishedAtEstimated: articles.sourcePublishedAtEstimated,
       heroImageHash: articles.heroImageHash,
       agentLabel: agentTokens.label,
       creatorLabel: targets.label,
       creatorSlug: targets.slug,
+      targetCreatedAt: targets.createdAt,
       reasonablenessRating: articles.reasonablenessRating,
+      sentiment: articles.sentiment,
       crossSource: articles.crossSource,
+      citations: articles.citations,
       starred: articles.starred,
       read: articles.read,
-      hidden: articles.hidden,
+      agentOpinion: articles.agentOpinion,
       sourceUrl: articles.sourceUrl,
       createdAt: articles.createdAt,
     })
     .from(articles)
     .leftJoin(agentTokens, eq(articles.agentTokenId, agentTokens.id))
     .leftJoin(targets, eq(articles.targetId, targets.id))
-    .where(and(eq(articles.slug, slug), eq(articles.hidden, false)))
+    .where(eq(articles.slug, slug))
     .limit(1)
 
   const row = rows[0]
   if (!row) return null
 
-  const publishedIso = row.sourcePublishedAt ? row.sourcePublishedAt.toISOString() : null
+  // The source-published date was removed; publishedAt now reflects createdAt.
+  const publishedIso = row.createdAt.toISOString()
   // Image-serve route at `/i/<hash>` (Phase 7 #74). Returns null when the
   // article has no hero image; the article page falls back to a placeholder.
   const heroImageUrl = row.heroImageHash ? `/i/${row.heroImageHash}` : null
@@ -175,6 +194,28 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
     }
   }
 
+  const citationsRaw = Array.isArray(row.citations) ? row.citations : []
+  const citations: ArticleCitation[] = []
+  for (const entry of citationsRaw) {
+    if (!entry || typeof entry !== 'object') continue
+    const e = entry as Record<string, unknown>
+    if (
+      typeof e.url === 'string' &&
+      typeof e.title === 'string' &&
+      typeof e.source_name === 'string'
+    ) {
+      citations.push({
+        url: e.url,
+        title: e.title,
+        source_name: e.source_name,
+        ...(typeof e.accessed_at === 'string' ? { accessed_at: e.accessed_at } : {}),
+        ...(typeof e.image_url === 'string' || e.image_url === null
+          ? { image_url: e.image_url as string | null }
+          : {}),
+      })
+    }
+  }
+
   return {
     id: row.id,
     slug: row.slug,
@@ -183,16 +224,23 @@ export async function loadArticleBySlug(slug: string): Promise<ArticleViewModel 
     agentDeepDive: row.agentDeepDive,
     topicBadges: row.topicBadges,
     publishedAtIso: publishedIso,
-    publishedLabel: publishedIso ? formatPublishLabel(publishedIso) : '',
-    publishedEstimated: row.sourcePublishedAtEstimated,
+    publishedLabel: formatPublishLabel(publishedIso),
+    publishedEstimated: false,
     heroImageUrl,
     agentLabel: row.agentLabel ?? 'unknown',
     creatorLabel: row.creatorLabel ?? null,
-    creatorSlug: row.creatorSlug ?? null,
+    creatorSlug:
+      row.creatorSlug ??
+      (row.creatorLabel && row.targetCreatedAt
+        ? generateSlug(row.creatorLabel, row.targetCreatedAt)
+        : null),
     reasonablenessRating: row.reasonablenessRating ?? null,
+    sentiment: row.sentiment ?? null,
     crossSource,
+    citations,
     starred: row.starred,
     read: row.read,
+    agentOpinion: row.agentOpinion ?? null,
     sourceUrl: row.sourceUrl,
     createdAt: row.createdAt,
   }

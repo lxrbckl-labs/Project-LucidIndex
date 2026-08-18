@@ -14,7 +14,9 @@
       "!.next/",
       "!pnpm-lock.yaml",
       "!data/",
-      "!drizzle/migrations/"
+      "!drizzle/migrations/",
+      "!apps/web/components/ui",
+      "!apps/web/hooks"
     ]
   },
   "formatter": {

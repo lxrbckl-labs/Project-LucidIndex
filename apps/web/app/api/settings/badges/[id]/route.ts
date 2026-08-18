@@ -1,7 +1,7 @@
 /**
  * Single-badge endpoint.
  *
- *   PATCH /api/settings/badges/:id → update name / color / displayOrder
+ *   PATCH /api/settings/badges/:id → update name / displayOrder / hidden
  *
  * Per the v0.1 design (`topic_badges` has no `active` flag), there is no
  * delete endpoint — admins curate the list and live with what's there.
@@ -19,16 +19,16 @@ export const dynamic = 'force-dynamic'
 
 type PatchBody = {
   name?: unknown
-  color?: unknown
   displayOrder?: unknown
+  hidden?: unknown
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 type PatchUpdate = {
   name?: string
-  color?: string | null
-  displayOrder?: number | null
+  displayOrder?: number
+  hidden?: boolean
 }
 
 function parsePatch(
@@ -44,33 +44,20 @@ function parsePatch(
     update.name = name
   }
 
-  if (body.color !== undefined) {
-    if (body.color === null || body.color === '') {
-      update.color = null
-    } else {
-      if (typeof body.color !== 'string') return { ok: false, error: 'Color must be a string.' }
-      const c = body.color.trim()
-      if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(c)) {
-        return { ok: false, error: 'Color must be a hex value like #112233 or #abc.' }
-      }
-      update.color = c
+  if (body.displayOrder !== undefined) {
+    const n = typeof body.displayOrder === 'string' ? Number(body.displayOrder) : body.displayOrder
+    if (typeof n !== 'number' || !Number.isFinite(n) || !Number.isInteger(n)) {
+      return { ok: false, error: 'Display order must be an integer.' }
     }
+    if (n < -2147483648 || n > 2147483647) {
+      return { ok: false, error: 'Display order is out of range.' }
+    }
+    update.displayOrder = n
   }
 
-  if (body.displayOrder !== undefined) {
-    if (body.displayOrder === null || body.displayOrder === '') {
-      update.displayOrder = null
-    } else {
-      const n =
-        typeof body.displayOrder === 'string' ? Number(body.displayOrder) : body.displayOrder
-      if (typeof n !== 'number' || !Number.isFinite(n) || !Number.isInteger(n)) {
-        return { ok: false, error: 'Display order must be an integer.' }
-      }
-      if (n < -2147483648 || n > 2147483647) {
-        return { ok: false, error: 'Display order is out of range.' }
-      }
-      update.displayOrder = n
-    }
+  if (body.hidden !== undefined) {
+    if (typeof body.hidden !== 'boolean') return { ok: false, error: 'Hidden must be a boolean.' }
+    update.hidden = body.hidden
   }
 
   if (Object.keys(update).length === 0) {

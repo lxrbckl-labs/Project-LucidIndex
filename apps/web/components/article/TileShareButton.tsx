@@ -1,31 +1,35 @@
 'use client'
 
 /**
- * TileShareButton — compact "share" affordance for dashboard article tiles (#68).
+ * TileShareButton — share button on dashboard tiles (#68).
  *
- * Design rules:
- *   - Small, unobtrusive — does NOT dominate the tile.
- *   - Hairline border, opacity transition on hover. Editorial vibe.
- *   - On click: copies the article URL to clipboard + shows "Copied!" for ~1.5s.
- *   - MUST NOT trigger the tile's <Link> navigation — uses
- *     event.stopPropagation() + event.preventDefault().
+ * Phase 4 rebuild: shadcn `<Button variant="ghost" size="icon">` with
+ * lucide `<Share2>` icon. Preserves existing onClick (clipboard copy) +
+ * stopPropagation guard + sonner toast on success.
  *
- * Two variants:
- *   - "light" (default) — hairline border on paper/light background.
- *   - "dark"            — paper-toned border/text for overlay-on-image tiles.
+ * Copied state: after a successful copy, the icon swaps from <Share2> to
+ * <Check> and the button is disabled for ~2 seconds, then reverts.
+ *
+ * MUST NOT trigger the tile's <Link> navigation.
  */
 
+import { Check, Share2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+
+const COPIED_DURATION_MS = 2000
 
 type Props = {
-  /** Absolute URL of the article to share (e.g. `${baseUrl}/a/${slug}`). */
-  url: string
   /**
-   * Visual variant:
-   *   - "light" — renders on light (paper) backgrounds (ArticleCard default).
-   *   - "dark"  — renders on dark/image overlay backgrounds (LargeArticleCard).
+   * Article slug. The shareable URL is built CLIENT-SIDE from the current
+   * origin (`window.location.origin`) at click time, so it matches the address
+   * bar the visitor is on — not the server's baked-in `WEBAUTHN_ORIGIN` (which
+   * is `localhost:47892` in the container image). Mirrors what the article-page
+   * share does via `window.location.href`.
    */
-  variant?: 'light' | 'dark'
+  slug: string
 }
 
 /** execCommand fallback for environments without `navigator.clipboard`. */
@@ -47,12 +51,12 @@ function copyViaTextarea(text: string): boolean {
   }
 }
 
-export function TileShareButton({ url, variant = 'light' }: Props) {
+export function TileShareButton({ slug }: Props) {
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     if (!copied) return
-    const timer = setTimeout(() => setCopied(false), 1500)
+    const timer = setTimeout(() => setCopied(false), COPIED_DURATION_MS)
     return () => clearTimeout(timer)
   }, [copied])
 
@@ -63,35 +67,43 @@ export function TileShareButton({ url, variant = 'light' }: Props) {
     e.preventDefault()
 
     if (typeof window === 'undefined') return
+    // Build from the live origin so the copied link matches where the visitor
+    // actually is (prod domain, LAN IP, localhost — whatever's in the bar).
+    const target = `${window.location.origin}/a/${slug}`
     let ok = false
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       try {
-        await navigator.clipboard.writeText(url)
+        await navigator.clipboard.writeText(target)
         ok = true
       } catch {
-        ok = copyViaTextarea(url)
+        ok = copyViaTextarea(target)
       }
     } else {
-      ok = copyViaTextarea(url)
+      ok = copyViaTextarea(target)
     }
-    if (ok) setCopied(true)
+    if (ok) {
+      setCopied(true)
+      toast.success('Link copied')
+    }
   }
 
-  const variantClass =
-    variant === 'dark'
-      ? 'border-paper/50 text-paper/70 hover:border-paper hover:text-paper'
-      : 'border-[var(--color-card-border)] text-[var(--color-muted-700)] hover:border-ink hover:text-ink'
-
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      aria-label={copied ? 'Link copied' : 'Copy share link'}
-      data-testid="tile-share"
-      className={`inline-flex items-center px-2 py-0.5 text-[0.6rem] uppercase tracking-[0.08em] border opacity-60 transition-all duration-150 hover:opacity-100 ${variantClass}`}
-      style={{ borderRadius: 'var(--radius-pill)' }}
-    >
-      {copied ? 'Copied!' : 'Share'}
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="border"
+          onClick={handleClick}
+          disabled={copied}
+          aria-label="Copy share link"
+          data-testid="tile-share"
+        >
+          {copied ? <Check /> : <Share2 />}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{copied ? 'COPIED' : 'SHARE'}</TooltipContent>
+    </Tooltip>
   )
 }

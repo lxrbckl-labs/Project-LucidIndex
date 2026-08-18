@@ -10,6 +10,7 @@ const workspaceRoot = fileURLToPath(new URL('../..', import.meta.url))
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  devIndicators: false,
   // Produce a self-contained `.next/standalone/` tree for Docker deployments.
   // The standalone output includes a minimal server.js + trimmed node_modules
   // so the runtime image doesn't need the full workspace installed.

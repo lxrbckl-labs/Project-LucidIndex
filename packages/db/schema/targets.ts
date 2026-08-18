@@ -8,6 +8,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uuid,
 } from 'drizzle-orm/pg-core'
 import { agentTokens, promptTemplates } from './agent.js'
@@ -49,6 +50,28 @@ export const targets = pgTable(
      * Unique so `/c/<slug>` lookups resolve to exactly one creator.
      */
     slug: text('slug').unique(),
+    /**
+     * Short bio for the creator/source — populated by the agent on first
+     * encounter via `write_target_description` (write-once-when-null
+     * semantics so admin curation can't be overwritten). Rendered on
+     * `/c/[slug]` under the handle.
+     */
+    description: text('description'),
+    /**
+     * Supplemental link the agent finds on the source page — typically
+     * the author's personal site / primary social where users can learn
+     * more about them. Distinct from `url_or_handle` (which is what we
+     * crawl). Same write-once-when-null contract as `description`.
+     * Rendered as an external-link icon on the creator card.
+     */
+    socialUrl: text('social_url'),
+    /**
+     * Photograph / avatar URL the agent finds when researching the
+     * creator — rendered in the hero band of `/c/[slug]`'s profile tile.
+     * Same write-once-when-null contract as `description`. Stored as a
+     * raw URL (no local image pipeline yet — v2 could hash + serve).
+     */
+    photoUrl: text('photo_url'),
     cadence: text('cadence').notNull(),
     promptTemplateId: uuid('prompt_template_id')
       .notNull()
@@ -87,7 +110,7 @@ export const targets = pgTable(
 
 /**
  * The scheduler's working queue. Each row is a unit of work — the
- * scheduler enqueues, an agent claims via `mcp-store` (sets `claimed_by` +
+ * scheduler enqueues, an agent claims via `mcp-dashboard` (sets `claimed_by` +
  * `locked_until`), and acks on completion (sets `acked_at`).
  *
  * Per NO DELETIONS: acked rows are kept (soft archive only). The dead-lock
@@ -108,6 +131,14 @@ export const queue = pgTable(
     lockedUntil: timestamp('locked_until', { withTimezone: true }),
     priority: integer('priority').notNull().default(0),
     ackedAt: timestamp('acked_at', { withTimezone: true }),
+    /**
+     * Post-migration 0031. Bumped by `pull_queue_item` inside the atomic
+     * claim UPDATE so agents can see how many prior attempts have been made
+     * (the reaper releases the claim on each timeout but does not reset
+     * attempt_count). Returned to the caller in the pull response so the
+     * agent can back off / escalate on a high attempt count.
+     */
+    attemptCount: integer('attempt_count').notNull().default(0),
   },
   (t) => [
     index('queue_locked_until_unacked_idx').on(t.lockedUntil).where(sql`${t.ackedAt} is null`),
@@ -116,7 +147,23 @@ export const queue = pgTable(
 
 /**
  * Append-only log of every queue-item ack from an agent. One row per
- * completed (or failed) run. `articles_count` is 0 on failed runs.
+ * agent run.
+ *
+ * Lifecycle (audit round 8, migration 0034):
+ *   - `pull_queue_item` INSERTs with status='in_progress', started_at=now(),
+ *     completed_at=NULL. This is what makes `started_at` an honest "pull
+ *     time" — previously the first writer was `write_articles`, which fires
+ *     N seconds (or minutes) after the claim once the agent has finished
+ *     researching.
+ *   - `write_articles` UPDATEs articles_count as it goes.
+ *   - `ack_queue_item` UPDATEs status → 'succeeded' | 'failed' and stamps
+ *     completed_at = now(). For failed acks, also sets failure_reason.
+ *
+ * Orphan recovery: if an agent crashes between pull and ack, the queue-row
+ * reaper releases the claim AND deletes the orphan in_progress run_log
+ * row (the row has no `articles` rows hanging off it — we verified the
+ * agent never made it to write_articles before deleting). See
+ * apps/cron/src/jobs/reaper.ts.
  */
 export const runLog = pgTable(
   'run_log',
@@ -135,7 +182,21 @@ export const runLog = pgTable(
     failureReason: text('failure_reason'),
     articlesCount: integer('articles_count').notNull().default(0),
     startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
-    completedAt: timestamp('completed_at', { withTimezone: true }).notNull(),
+    // Nullable as of migration 0034: in_progress rows have no completion
+    // timestamp yet. ack_queue_item stamps now() on the transition to
+    // 'succeeded' / 'failed'.
+    completedAt: timestamp('completed_at', { withTimezone: true }),
   },
-  (t) => [check('run_log_status_check', sql`${t.status} in ('succeeded', 'failed')`)],
+  (t) => [
+    // Status set widened from ('succeeded','failed') by migration 0034 so
+    // pull_queue_item can create the row in 'in_progress' at claim time.
+    // ack_queue_item flips it to a terminal value.
+    check('run_log_status_check', sql`${t.status} in ('in_progress', 'succeeded', 'failed')`),
+    // Audit round 6 (migration 0032): UNIQUE on (queue_item_id,
+    // agent_token_id) so the find-or-create path can use INSERT ...
+    // ON CONFLICT DO NOTHING to win the race against a concurrent writer.
+    // Still relevant post-0034: pull_queue_item creates the row, but a
+    // defensive find-or-create on the write/ack path is cheap insurance.
+    unique('run_log_queue_item_agent_unique').on(t.queueItemId, t.agentTokenId),
+  ],
 )

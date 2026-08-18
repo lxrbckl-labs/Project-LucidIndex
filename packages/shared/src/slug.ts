@@ -24,7 +24,7 @@
  *
  * Why split into two functions instead of always disambiguating: the
  * dashboard slug should read as a clean URL by default; only collisions
- * pay the readability cost of a hash suffix. And callers (mcp-store
+ * pay the readability cost of a hash suffix. And callers (mcp-dashboard
  * `write_articles`) do their own DB-level retry — they need both the
  * "first try" form and the "retry" form distinct.
  *
@@ -32,8 +32,8 @@
  * interpreted via `new Date(...)` and reduced to its ISO date prefix
  * (`YYYY-MM-DD`). UTC is the contract; the publish-day pill on the
  * article page derives its display label from a separate field (the
- * raw `source_published_at` timestamp), not the slug, so a UTC slug
- * with a local-tz pill is correct and unambiguous.
+ * `created_at` timestamp), not the slug, so a UTC slug with a local-tz
+ * pill is correct and unambiguous.
  */
 
 import { createHash } from 'node:crypto'

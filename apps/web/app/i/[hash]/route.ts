@@ -1,7 +1,7 @@
 /**
  * Hero-image serve route — `/i/<hash>` (#74).
  *
- * Resolves a content-hash filename written by `mcp-store`'s `write_articles`
+ * Resolves a content-hash filename written by `mcp-dashboard`'s `write_articles`
  * tool (#45) under `<MCP_IMAGE_DIR>/<hash>.{webp,jpg}` and streams it back
  * with a forever cache. Two assets are written per article:
  *
@@ -41,14 +41,25 @@
  *   the only sensible target.
  *
  * Why we don't stream:
- *   `mcp-store/src/lib/image-pipeline.ts` resizes hero images to 1600px
+ *   `mcp-dashboard/src/lib/image-pipeline.ts` resizes hero images to 1600px
  *   wide before encoding — finished WebP files end up in the ~50-200 KB
  *   range. `readFile` into a single Response body is fine at that size and
  *   keeps the handler trivial. If image budgets ever get into the MB range
  *   a `createReadStream` -> `ReadableStream` swap is a one-function diff.
+ *
+ * Forum uploads:
+ *   The forum composer (`/api/forum/upload-image`) writes preserved originals
+ *   under the SAME `MCP_IMAGE_DIR` with their canonical extension (`png`,
+ *   `webp`, `gif`, or `jpg`) — no resize, no transcode. When the dashboard's
+ *   `<hash>.webp` / `<hash>.jpg` pair is missing for a given hash, this
+ *   handler falls through to those forum extensions in priority order
+ *   (webp → png → jpg → gif) and serves the first match with the correct
+ *   MIME. The Accept-driven webp preference is preserved when both webp
+ *   and jpg exist (the dashboard hero case); forum uploads only have one
+ *   file per hash and the fall-through picks it up.
  */
 
-import { readFile } from 'node:fs/promises'
+import { access, readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import type { NextRequest } from 'next/server'
 
@@ -58,7 +69,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /**
- * Same default as `apps/mcp-store/src/env.ts` — keep the two in lock-step
+ * Same default as `apps/mcp-dashboard/src/env.ts` — keep the two in lock-step
  * so a deployment that overrides one and not the other is the only way to
  * see a mismatch (the Compose file mounts the same `mcp_images` volume on
  * both services). Resolved once at module load; the env var is never going
@@ -70,6 +81,27 @@ const IMAGE_DIR = resolve(process.env.MCP_IMAGE_DIR ?? 'data/images')
 const HASH_RE = /^[a-f0-9]{64}$/
 
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365 // 31,536,000
+
+/**
+ * Forum-upload extensions, probed when the dashboard's webp/jpg pair isn't
+ * present. Order is preference: webp (smallest), then png/gif (lossless
+ * formats common in forum content), then jpg (last resort).
+ */
+const FORUM_EXT_MIME: ReadonlyArray<{ ext: string; mime: string }> = [
+  { ext: 'webp', mime: 'image/webp' },
+  { ext: 'png', mime: 'image/png' },
+  { ext: 'gif', mime: 'image/gif' },
+  { ext: 'jpg', mime: 'image/jpeg' },
+]
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await access(path)
+    return true
+  } catch {
+    return false
+  }
+}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ hash: string }> }) {
   const { hash } = await params
@@ -84,10 +116,34 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ hash
   // get the smaller WebP; Safari < 14 / IE / curl get the JPEG.
   const accept = req.headers.get('accept') ?? ''
   const wantsWebP = accept.includes('image/webp')
-  const ext = wantsWebP ? 'webp' : 'jpg'
-  const contentType = wantsWebP ? 'image/webp' : 'image/jpeg'
+  const preferredExt = wantsWebP ? 'webp' : 'jpg'
+  const preferredMime = wantsWebP ? 'image/webp' : 'image/jpeg'
 
-  const filePath = join(IMAGE_DIR, `${hash}.${ext}`)
+  // First try the dashboard's webp/jpg pair (a single hash usually has
+  // both written by `mcp-dashboard/src/lib/image-pipeline.ts`).
+  let filePath = join(IMAGE_DIR, `${hash}.${preferredExt}`)
+  let contentType = preferredMime
+  let found = await exists(filePath)
+
+  // Fall through to the forum-upload extensions if the dashboard pair
+  // wasn't found. Forum uploads write exactly one file per hash with the
+  // canonical extension for their MIME.
+  if (!found) {
+    for (const { ext, mime } of FORUM_EXT_MIME) {
+      if (ext === preferredExt) continue // already tried
+      const candidate = join(IMAGE_DIR, `${hash}.${ext}`)
+      if (await exists(candidate)) {
+        filePath = candidate
+        contentType = mime
+        found = true
+        break
+      }
+    }
+  }
+
+  if (!found) {
+    return new Response('Not found', { status: 404 })
+  }
 
   let buf: Buffer
   try {
@@ -109,7 +165,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ hash
   // produced by `Buffer` is structurally narrower than the `Uint8Array`
   // overload `BodyInit` accepts. Reconstruct as a fresh ArrayBuffer-backed
   // Uint8Array — `Uint8Array.from(buf)` copies the bytes once (negligible
-  // for the 50-200 KB hero sizes capped by mcp-store's image pipeline).
+  // for the 50-200 KB hero sizes capped by mcp-dashboard's image pipeline).
   const body = Uint8Array.from(buf)
 
   return new Response(body, {

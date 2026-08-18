@@ -1,7 +1,8 @@
-# LucidIndex — local / production stack: Postgres 16 + Next.js web + mcp-store + cron.
+# LucidIndex — local / production stack: Postgres 16 + Next.js web + mcp-dashboard
+# + mcp-forum + cron.
 #
 # Phase 1: postgres + web.
-# Phase 3: mcp-store sidecar (full MCP server — see apps/mcp-store/README.md).
+# Phase 3: mcp-dashboard sidecar (full MCP server — see apps/mcp-dashboard/README.md).
 # Phase 4: cron sidecar (scheduled jobs — see apps/cron/README.md). The
 #          sidecar has no HTTP surface; it writes to cron_runs and reads
 #          targets / settings via @lucidindex/db.
@@ -9,11 +10,22 @@
 # Ports are bound to 127.0.0.1 so that only the host Caddy reverse proxy
 # (outside this stack) can reach them. No service is exposed to the LAN.
 #
+# Image strategy:
+#   Each app service has `image:` pointing at the DockerHub-published
+#   tag (lxrbckl/lucidindex-<app>:main) AND a `build:` block as a
+#   local-build fallback. CI (.github/workflows/publish.yml) publishes
+#   on `publish` commits to main. Auto-updates are handled by the host's
+#   own Watchtower container (a separate process on the server, NOT part
+#   of this stack) — it watches containers carrying the
+#   `com.centurylinklabs.watchtower.scope: lucidindex` label below and
+#   rolling-restarts the ones whose digest changed. This stack does not
+#   ship its own Watchtower.
+#
 # Usage:
-#   cp apps/web/.env.example .env   # fill in IRON_SESSION_PASSWORD at minimum
-#   docker compose up -d postgres   # bring up DB + verify healthy
-#   docker compose up -d --build web
-#   docker compose down -v          # tear down (removes pg_data volume)
+#   cp apps/web/.env.example .env       # fill in IRON_SESSION_PASSWORD at minimum
+#   docker compose up -d                # pulls published images, starts everything
+#   docker compose down -v              # tear down (removes pg_data volume)
+#   # Force a local rebuild instead of pull: `docker compose up -d --build`
 
 services:
   postgres:
@@ -41,18 +53,24 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
     restart: unless-stopped
+    labels:
+      # Opt into the HOST's Watchtower (a separate container on the server,
+      # not part of this stack). Scoped so one host can run multiple
+      # Watchtower instances against different stacks without crosstalk.
+      com.centurylinklabs.watchtower.enable: "true"
+      com.centurylinklabs.watchtower.scope: lucidindex
     depends_on:
       postgres:
         condition: service_healthy
     # Healthcheck doubles as a "web has finished migrations" signal — the
-    # entrypoint runs `drizzle-kit migrate` and seed before binding port 3000,
-    # so a TCP listener on 3000 means the schema is ready. mcp-store + cron
+    # entrypoint runs `drizzle-kit migrate` and seed before binding port 47892,
+    # so a TCP listener on 47892 means the schema is ready. mcp-dashboard + cron
     # use this via `service_healthy` so they don't try to query a half-
     # migrated DB. We probe with `nc -z` (BusyBox built-in) rather than wget
     # because we only care that the listener is up — HTTP status is irrelevant
     # to "is the schema migrated".
     healthcheck:
-      test: ["CMD", "nc", "-z", "127.0.0.1", "3000"]
+      test: ["CMD", "nc", "-z", "127.0.0.1", "47892"]
       interval: 5s
       timeout: 5s
       retries: 30
@@ -66,26 +84,56 @@ services:
       # WebAuthn relying-party config. Bare hostname (no scheme/port) for RP_ID.
       # Defaults are valid for local dev; production overrides via .env.
       WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:-localhost}
-      WEBAUTHN_ORIGIN: ${WEBAUTHN_ORIGIN:-http://localhost:3000}
+      WEBAUTHN_ORIGIN: ${WEBAUTHN_ORIGIN:-http://localhost:47892}
       # Founding-token guard (Phase 1, ticket #27) — empty default is intentional.
       # Admin must set a value on first deploy; app logic (Phase 1 #27) enforces this.
       LUCIDINDEX_FOUNDING_TOKEN: ${LUCIDINDEX_FOUNDING_TOKEN:-}
+      # Dev-only auth bypass. Default off; ONLY works when NODE_ENV != production.
+      # See apps/web/.env.example for the full description and production warning.
+      LUCIDINDEX_DEV_SKIP_AUTH: ${LUCIDINDEX_DEV_SKIP_AUTH:-false}
+      # Demo-data seeder toggle. When `true` / `1` / `yes` (case-insensitive),
+      # the entrypoint runs packages/db/seed-demo.ts after migrations to
+      # populate an empty DB with ~1000 articles + 50–80 targets + supporting
+      # rows for stress-testing the dashboard, FTS, retention, etc.
+      # IDEMPOTENT — only fires when targets/articles are empty. Default off.
+      # See apps/web/.env.example for the full description.
+      LUCIDINDEX_SEED_DEMO: ${LUCIDINDEX_SEED_DEMO:-false}
+      # Hero-image pipeline config (mirrors mcp-dashboard env). Demo data writes
+      # through the same image-pipeline used by mcp-dashboard — disk layout and
+      # content-hash format match — so the dashboard's image route resolves
+      # seeded and real images identically. Operators who want demo images
+      # served by the image route should mount the mcp_images volume on web
+      # too (this compose file leaves that as a deployment-time choice).
+      MCP_IMAGE_DIR: ${MCP_IMAGE_DIR:-/app/data/images}
+      MCP_IMAGE_FETCH_TIMEOUT_MS: ${MCP_IMAGE_FETCH_TIMEOUT_MS:-10000}
+      MCP_IMAGE_MAX_BYTES: ${MCP_IMAGE_MAX_BYTES:-26214400}
+      MCP_IMAGE_MAX_WIDTH: ${MCP_IMAGE_MAX_WIDTH:-1600}
       # Next.js standalone reads HOSTNAME (not HOST) for the bind address.
       # Default behaviour binds to the container's eth0 IP, which makes the
-      # in-container healthcheck (`localhost:3000`) fail even though the
+      # in-container healthcheck (`localhost:47892`) fail even though the
       # listener is up. Forcing 0.0.0.0 fixes that and is also required for
       # the `wget` healthcheck below.
       HOSTNAME: 0.0.0.0
-      PORT: "3000"
+      PORT: "47892"
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:47892:47892"
+    volumes:
+      # Shared hero-image store. web SERVES /i/<hash> from here and also WRITES
+      # forum upload images here (apps/web/app/api/forum/upload-image), so it
+      # must be read-write and must point at the same volume mcp-dashboard uses
+      # — otherwise every hero image and forum upload 404s. (Previously left as
+      # a "deployment-time choice"; in practice every deployment needs it.)
+      - mcp_images:/app/data/images
 
-  mcp-store:
-    image: lxrbckl/lucidindex-mcp-store:main
+  mcp-dashboard:
+    image: lxrbckl/lucidindex-mcp-dashboard:main
     build:
       context: .
-      dockerfile: apps/mcp-store/Dockerfile
+      dockerfile: apps/mcp-dashboard/Dockerfile
     restart: unless-stopped
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+      com.centurylinklabs.watchtower.scope: lucidindex
     depends_on:
       postgres:
         condition: service_healthy
@@ -95,7 +143,7 @@ services:
     environment:
       DATABASE_URL: postgres://lucidindex:${POSTGRES_PASSWORD:-lucidindex_dev}@postgres:5432/lucidindex
       NODE_ENV: production
-      MCP_PORT: "4000"
+      MCP_DASHBOARD_PORT: "4000"
       # Hero-image pipeline (#45) writes WebP+JPEG outputs here. Path is
       # resolved relative to the workdir inside the container; the
       # `mcp_images` named volume below persists the files across restarts.
@@ -104,6 +152,52 @@ services:
       - mcp_images:/app/data/images
     ports:
       - "127.0.0.1:4000:4000"
+    # /healthz is the auth-bypassed liveness probe exposed by the HTTP
+    # transport (see apps/mcp-dashboard/src/transports/http.ts). wget is
+    # part of the BusyBox shim in the Alpine base image.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  mcp-forum:
+    image: lxrbckl/lucidindex-mcp-forum:main
+    build:
+      context: .
+      dockerfile: apps/mcp-forum/Dockerfile
+    restart: unless-stopped
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+      com.centurylinklabs.watchtower.scope: lucidindex
+    depends_on:
+      postgres:
+        condition: service_healthy
+      # Wait for web to apply migrations before consuming the schema.
+      web:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://lucidindex:${POSTGRES_PASSWORD:-lucidindex_dev}@postgres:5432/lucidindex
+      NODE_ENV: production
+      MCP_FORUM_PORT: "4100"
+      # CORS allowlist for the Streamable HTTP transport. Default `*`
+      # (header-auth, no ambient credentials to protect); narrow to a
+      # known forum dashboard origin when one is fronted.
+      MCP_FORUM_CORS_ORIGINS: ${MCP_FORUM_CORS_ORIGINS:-*}
+    ports:
+      - "127.0.0.1:4100:4100"
+    # /healthz is the auth-bypassed liveness probe exposed by the
+    # HTTP transport (see apps/mcp-forum/src/transports/http.ts).
+    # The probe now does a real `SELECT 1` with a 1s timeout, so a
+    # failing DB correctly flips the container's health status. wget
+    # is part of the BusyBox shim in the Alpine base image.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4100/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   cron:
     image: lxrbckl/lucidindex-cron:main
@@ -111,6 +205,9 @@ services:
       context: .
       dockerfile: apps/cron/Dockerfile
     restart: unless-stopped
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+      com.centurylinklabs.watchtower.scope: lucidindex
     depends_on:
       postgres:
         condition: service_healthy

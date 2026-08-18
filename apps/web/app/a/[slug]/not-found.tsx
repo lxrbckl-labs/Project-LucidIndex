@@ -1,63 +1,40 @@
 /**
- * not-found.tsx — editorial 404 page for /a/[slug] (#70).
+ * not-found.tsx — 404 for /a/[slug] (#70).
  *
- * Rendered by Next.js App Router automatically when `notFound()` is
- * called from page.tsx (missing slug OR hidden article). HTTP 404 is
- * set by the framework — no manual header needed.
+ * Rendered by Next.js App Router automatically when `notFound()` is called
+ * from page.tsx (missing slug OR hidden article). HTTP 404 is set by the
+ * framework — no manual header needed.
  *
- * Design rules:
- *   - Same chrome as the article page (TopNav + Wordmark + hairline rule).
- *   - Magazine tone: editorial copy, NOT a stack-trace style error page.
- *   - Centered column, generous vertical whitespace.
- *   - A single hairline-bordered text link → "/" (Back to LUCIDINDEX).
+ * Styled to match the dashboard empty-state / invalid-topic card (see the
+ * `!session && articles.length === 0` branch in app/page.tsx): TopNav + a
+ * centered compact card with a normal-weight heading, muted tagline, and a
+ * full-width primary Dashboard button. Keep the two in lockstep.
  *
- * This surface also covers the hide-article case (#69): when an article
- * is hidden, the loader returns null → page.tsx calls notFound() →
- * this page renders. The hide-action itself ships in a separate PR.
+ * Also covers the hide-article case (#69): a hidden article's loader returns
+ * null → page.tsx calls notFound() → this page renders.
  */
 
+import { LayoutDashboard } from 'lucide-react'
 import Link from 'next/link'
 import { TopNav } from '@/components/chrome/TopNav'
-import { Wordmark } from '@/components/chrome/Wordmark'
+import { Button } from '@/components/ui/button'
 
 export default function ArticleNotFound() {
   return (
-    <div className="min-h-screen bg-paper">
+    <div className="flex min-h-screen flex-col bg-background">
       <TopNav />
-
-      <main className="px-6 pt-12 pb-24 md:px-18">
-        <div className="py-6 md:py-10">
-          <Wordmark />
-        </div>
-
-        {/* Hairline rule — matches the article page separator. */}
-        <div className="mt-6 mb-12 h-px w-full bg-[var(--color-card-border)]" />
-
-        {/* Editorial 404 body — single column, centered. */}
-        <div className="mx-auto w-full max-w-[820px]">
-          <div className="flex flex-col items-center py-24 text-center">
-            {/* Primary message — quiet magazine tone, no large "404" heading. */}
-            <p
-              className="font-display text-[length:var(--text-display-md)] font-bold uppercase tracking-tight text-ink"
-              style={{ letterSpacing: '-0.01em' }}
-            >
-              This article isn't available.
-            </p>
-
-            {/* Subtitle — one explanatory line in muted body type. */}
-            <p className="mt-6 max-w-[480px] text-[length:var(--text-body)] leading-relaxed text-[var(--color-muted-700)]">
-              It may have been hidden or removed. Browse the latest issue:
-            </p>
-
-            {/* CTA — hairline-bordered text link back to the magazine root. */}
-            <Link
-              href="/"
-              className="mt-10 inline-flex items-center border border-[var(--color-card-border)] px-6 py-3 text-[var(--text-meta)] uppercase tracking-[0.08em] text-ink no-underline transition-colors duration-150 hover:border-ink"
-              style={{ borderRadius: 'var(--radius-pill)' }}
-            >
-              Back to LUCIDINDEX
+      <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
+        <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-3 rounded-xl border bg-background p-6 text-center shadow-sm">
+          <h2 className="text-xl font-semibold tracking-tight">Article not found</h2>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            It may have been hidden or removed. Browse the latest issue from the dashboard.
+          </p>
+          <Button variant="default" asChild className="mt-2 w-full">
+            <Link href="/">
+              <LayoutDashboard className="mr-2 h-5 w-5 rotate-90" />
+              Dashboard
             </Link>
-          </div>
+          </Button>
         </div>
       </main>
     </div>

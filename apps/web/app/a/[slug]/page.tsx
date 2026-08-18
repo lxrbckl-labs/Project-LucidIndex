@@ -1,65 +1,67 @@
 /**
  * Standalone article page (#64 / #65 / #66).
  *
+ * Phase 5 rebuild on shadcn primitives with neutral defaults.
+ *
  * Route: `/a/<slug>` — the per-article home and the canonical share-link
  * target. Public by design (friends opening a share link must NOT hit a
- * login wall); admin-only interactions (star toggle) gate themselves.
+ * login wall). Starring is a client-only localStorage preference, open to
+ * everyone (no sign-in) — see `article-prefs.ts`.
  *
- * Anatomy (rendered top-to-bottom inside a single 820px column):
+ * Anatomy (rendered top-to-bottom inside a single 640px column):
  *
  *   Page chrome:
- *     - <TopNav>   ← Settings + Account links (matches dashboard)
- *     - <Wordmark> ← page-spanning LUCIDINDEX wordmark
+ *     - <TopNav>       ← Settings + Account links + back button on /a/* (matches dashboard)
+ *     - <Wordmark>     ← page-spanning LUCIDINDEX wordmark
  *     - hairline rule
  *
  *   Article header:
  *     - Date pill ("~"-prefixed when source date was estimated)
- *     - Topic-badge pills (every badge, not just the primary)
+ *     - Topic badges — shadcn <Badge variant="secondary">
  *
- *   Body (single 720-820px column, generous editorial whitespace):
- *     - Hero image (in-frame, object-cover; placeholder when null)
- *     - Title (display, condensed, bold — Bebas Neue from #54)
+ *   Body (single 640px column, generous editorial whitespace):
+ *     - Hero image (aspect-[2/1], rounded corners; placeholder when null)
+ *     - Title (<h1 className="text-3xl font-bold tracking-tight">)
  *     - Summary (italic standfirst paragraph)
- *     - Byline + read time ("Analysis by <agent.label>" + N min)
+ *     - Byline + read time
  *     - Agent deep-dive (server-capped at 2000 words for fair-use)
  *     - Reasonableness rating (hidden when null)
  *
  *   Cross-source list (hidden when N=0):
- *     - "Other coverage" hairline-bordered text list
+ *     - shadcn <Card> with "Also covered by" header
  *
  *   Bottom interactions:
- *     - Star toggle (admin-gated; renders disabled for public visitors)
- *     - "Copy share link" skeleton (full UX in #68)
+ *     - Star toggle (client-only localStorage; open to all visitors)
+ *     - Share button (shadcn Button variant="outline" + Share2)
  *
  * Read-state: this page calls `markRead(article.id)` server-side on
  * every render. The action is a no-op when the row is already read,
  * so revisits don't issue a write — the visit-marks-read semantics
  * cost one update per *unread* visit, not per visit.
  *
- * 404 handling: the loader returns null for missing OR `hidden` slugs.
- * The page calls Next.js `notFound()` in both cases. The friendly 404
- * page (#70) is a separate ticket; standard Next.js 404 UI is fine
- * for this PR.
+ * 404 handling: the loader returns null for missing slugs.
+ * The page calls Next.js `notFound()` in that case.
  */
-
-import { requireAdmin } from '@lucidindex/auth'
+import { sentimentToSliderPercent } from '@lucidindex/shared/article-view'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { CrossSourceList } from '@/components/article/CrossSourceList'
-import { EscapeToBack } from '@/components/article/EscapeToBack'
-import { HideArticleButton } from '@/components/article/HideArticleButton'
-import { NewBadge } from '@/components/article/NewBadge'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { AgentOpinionSection } from '@/components/article/AgentOpinionSection'
+import { MarkSeenOnMount } from '@/components/article/MarkSeenOnMount'
 import { ShareLinkButton } from '@/components/article/ShareLinkButton'
+import { SourcesSection } from '@/components/article/SourcesSection'
 import { StarButton } from '@/components/article/StarButton'
+import { TopicBadgeLink } from '@/components/article/TopicBadgeLink'
+import { SiteFooter } from '@/components/chrome/SiteFooter'
 import { TopNav } from '@/components/chrome/TopNav'
-import { Wordmark } from '@/components/chrome/Wordmark'
-import { getNewBadgeHours, isNew } from '@/lib/new-badge'
+import { markdownComponents } from '@/components/markdown/markdown-config'
+import { Separator } from '@/components/ui/separator'
 import { markRead } from './actions'
-import { applyFairUseCap, estimateReadMinutes, loadArticleBySlug } from './loader'
+import { applyFairUseCap, loadArticleBySlug } from './loader'
 
-// DB-backed (loadArticleBySlug, markRead) + session-aware (canInteract via
-// requireAdmin) — never statically renderable.
+// DB-backed (loadArticleBySlug, markRead) — never statically renderable.
 export const dynamic = 'force-dynamic'
 
 /**
@@ -73,7 +75,7 @@ export const dynamic = 'force-dynamic'
  *   3. Hard fallback for local dev.
  */
 function getBaseUrl(): string {
-  return process.env.WEBAUTHN_ORIGIN ?? process.env.LUCIDINDEX_BASE_URL ?? 'http://localhost:3000'
+  return process.env.WEBAUTHN_ORIGIN ?? process.env.LUCIDINDEX_BASE_URL ?? 'http://localhost:47892'
 }
 
 /**
@@ -133,8 +135,6 @@ export async function generateMetadata({
   }
 }
 
-const MOCK_MODE = process.env.LUCIDINDEX_MOCK === '1'
-
 export default async function ArticlePage({
   params,
 }: {
@@ -163,203 +163,221 @@ export default async function ArticlePage({
     void markRead(article.id)
   }
 
-  // Public visitors can read but can't star. The button still renders
-  // (so the visual anchor stays) but it goes inert.
-  const session = MOCK_MODE ? { adminId: 'mock' } : await requireAdmin()
-  const canInteract = !!session
-
   // Apply the fair-use cap to the deep-dive body.
   const bodyText = article.agentDeepDive ?? ''
   const { text: cappedBody, truncated } = applyFairUseCap(bodyText)
-  const readMinutes = estimateReadMinutes(article.summary, bodyText)
 
-  const datePrefix = article.publishedEstimated ? '~ ' : ''
-  const showRating = article.reasonablenessRating !== null
+  // Bearish/Bullish gauge is driven by the agent's `sentiment` (-5..+5) — the
+  // literal bearish→bullish signal. Always shown on the meta row; when the
+  // agent hasn't supplied a rating the marker rests at neutral center. (The
+  // reasonableness rating is a separate "how credible" measure and is
+  // intentionally not surfaced here.)
+  const sentimentValue = article.sentiment ?? 0
+  const sentimentUnrated = article.sentiment === null
 
-  // "NEW" pill (#79) — hours window read from settings (60s cache).
-  // The badge is measured from agent-insertion time, NOT source publish.
-  const newBadgeHours = await getNewBadgeHours()
-  const showNewBadge = isNew(article.createdAt, newBadgeHours)
+  // Filed date — when our system ingested this article. Shown as the
+  // primary date pill in the header (replaces source-published date,
+  // which moves to a supplementary line below the byline).
+  const filedLabel = (() => {
+    const d = article.createdAt
+    const day = d.getUTCDate()
+    const month = new Intl.DateTimeFormat('en-GB', { month: 'long', timeZone: 'UTC' }).format(d)
+    const year = d.getUTCFullYear()
+    return `${day} ${month} ${year}`
+  })()
 
   return (
-    <div className="min-h-screen bg-paper">
+    <div className="flex min-h-dvh flex-col bg-background">
       {/* Same chrome as the dashboard so the article reads as a
           magazine page within the same product. */}
       <TopNav />
 
-      {/* Phase 8 #84 — Esc returns the reader to the previous page
-          (typically the dashboard, /search, or /c/<slug>). */}
-      <EscapeToBack />
+      {/* Mark article as seen in localStorage on mount — drives the ✓ indicator
+          on dashboard tiles. Renders nothing visible. */}
+      <MarkSeenOnMount articleId={article.id} />
 
-      {/* Phase 8 #83 — mobile-polished article page.
+      {/* Mobile-polished article page.
           The article page is the canonical share-link target — most
           mobile traffic lands here, so polish matters. Px-4 on mobile
           tightens up the page edges; px-6 / md:px-18 picks back up at
           tablet+. */}
-      <main className="px-4 pt-8 pb-20 sm:px-6 sm:pt-12 sm:pb-24 md:px-18">
-        <div className="py-4 sm:py-6 md:py-10">
-          <Wordmark />
-        </div>
+      <main className="flex-1 px-4 pt-4 pb-4 sm:px-6 sm:pt-6 sm:pb-6 md:px-18">
+        {/* Reading column — max-w-4xl per assignment spec; preserved
+            narrower 640px inner column for prose readability. */}
+        <div className="mx-auto max-w-4xl px-0">
+          <article className="mx-auto w-full max-w-[640px]">
+            {/* Header — topic badges.
+                Back button moved to TopNav (rendered on /a/* routes).
+                The filed date moved into the metadata grid below. */}
+            <header className="flex flex-wrap items-center gap-3">
+              {article.topicBadges.map((badge) => (
+                <TopicBadgeLink key={badge} badge={badge} />
+              ))}
+            </header>
 
-        {/* Hairline rule under the wordmark, page-width — matches the
-            dashboard's editorial separator. */}
-        <div className="mt-6 mb-10 h-px w-full bg-[var(--color-card-border)] sm:mb-12" />
+            {/* Title — <h1>. Placed above the hero so the article reads
+                title-first, image-second. The summary that lived here is
+                dropped — readers already saw it on the dashboard tile. */}
+            <h1 className="mt-3 text-3xl font-bold tracking-tight text-foreground">
+              {article.title}
+            </h1>
 
-        {/* Reading column.
-            Phase 8 #83 — narrowed from 820px to 640px so the line-length
-            on a 13" laptop stays comfortable for long-form prose; the
-            previous 820px reads too wide for body type. The page padding
-            still scales down to px-4 on mobile so the column fills the
-            phone viewport. */}
-        <article className="mx-auto w-full max-w-[640px]">
-          {/* Header — date pill + NEW pill (when applicable) + every
-              topic-badge pill. */}
-          <header className="flex flex-wrap items-center gap-3">
-            {article.publishedLabel ? (
-              <time
-                className="inline-flex items-center border border-[var(--color-card-border)] bg-paper px-3 py-1 text-[var(--text-meta)] uppercase tracking-[0.08em] text-[var(--color-muted-700)]"
-                style={{ borderRadius: 'var(--radius-pill)' }}
-                dateTime={article.publishedAtIso ?? undefined}
-              >
-                {datePrefix}
-                {article.publishedLabel}
-              </time>
-            ) : null}
-            {showNewBadge ? <NewBadge /> : null}
-            {article.topicBadges.map((badge) => (
-              <span
-                key={badge}
-                className="inline-flex items-center justify-center border border-ink px-3 py-1 text-[0.65rem] uppercase tracking-[0.08em] text-ink"
-                style={{ borderRadius: 'var(--radius-pill)' }}
-              >
-                {badge}
-              </span>
-            ))}
-          </header>
-
-          {/* Hero image — full-column-width, in-frame, object-cover.
-              Falls back to a muted-surface placeholder when null. The
-              placeholder is intentionally simple — Phase 7 #74 lands
-              the image-serve route, after which `heroImageUrl` is
-              always populated for real articles. */}
-          <figure className="mt-10 aspect-[16/9] w-full overflow-hidden bg-[var(--color-muted-300)]">
-            {article.heroImageUrl ? (
-              // biome-ignore lint/performance/noImgElement: dev-only mock heroes / placeholder route
-              <img
-                src={article.heroImageUrl}
-                alt=""
-                className="h-full w-full object-cover"
-                loading="eager"
-              />
-            ) : (
-              <div
-                aria-hidden="true"
-                className="flex h-full w-full items-center justify-center text-[var(--text-meta)] uppercase tracking-[0.12em] text-[var(--color-muted-500)]"
-              >
-                No hero image
-              </div>
-            )}
-          </figure>
-
-          {/* Title — display sans, condensed, bold. */}
-          <h1
-            className="font-display mt-10 text-[length:var(--text-display-lg)] font-black leading-[0.95] tracking-tight text-ink"
-            style={{ letterSpacing: '-0.02em' }}
-          >
-            {article.title}
-          </h1>
-
-          {/* Summary — italicized standfirst-style intro. */}
-          <p className="mt-6 text-[length:var(--text-body)] italic leading-relaxed text-[var(--color-muted-700)]">
-            {article.summary}
-          </p>
-
-          {/* Byline + read time — magazine-credit style label/value pairs.
-              The "From" credit links to the creator page when a slug is
-              available. Click the creator's name to see all articles
-              from that source at `/c/<slug>`. */}
-          <div className="mt-8 flex flex-wrap items-baseline gap-6 border-t border-[var(--color-card-border)] pt-6 text-[var(--text-meta)]">
-            {article.creatorLabel ? (
-              <span className="flex items-baseline gap-2">
-                <span className="uppercase tracking-[0.08em] text-[var(--color-muted-500)]">
-                  From
+            {/* Byline — faint, close-set under the title. Author and filed date
+                share one row, divided by a middot. Either side may be absent. */}
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
+              {article.creatorLabel ? (
+                <span>
+                  by{' '}
+                  {article.creatorSlug ? (
+                    <Link
+                      href={`/c/${article.creatorSlug}`}
+                      className="underline-offset-4 hover:underline"
+                    >
+                      {article.creatorLabel}
+                    </Link>
+                  ) : (
+                    article.creatorLabel
+                  )}
                 </span>
-                {article.creatorSlug ? (
-                  <Link
-                    href={`/c/${article.creatorSlug}`}
-                    className="text-ink underline-offset-4 hover:underline"
-                  >
-                    {article.creatorLabel}
-                  </Link>
-                ) : (
-                  <span className="text-ink">{article.creatorLabel}</span>
-                )}
-              </span>
-            ) : null}
-            <span className="flex items-baseline gap-2">
-              <span className="uppercase tracking-[0.08em] text-[var(--color-muted-500)]">
-                Analysis by
-              </span>
-              <span className="text-ink">{article.agentLabel}</span>
-            </span>
-            <span className="flex items-baseline gap-2">
-              <span className="uppercase tracking-[0.08em] text-[var(--color-muted-500)]">
-                Duration
-              </span>
-              <span className="text-ink">{readMinutes} Min</span>
-            </span>
-          </div>
-
-          {/* Agent deep-dive — long-form body. Whitespace-pre-wrap so
-              paragraph breaks from the source survive the cap-trim. */}
-          {cappedBody ? (
-            <section className="mt-10">
-              <p className="whitespace-pre-wrap text-[length:var(--text-body)] leading-[1.7] text-ink">
-                {cappedBody}
-              </p>
-              {truncated ? (
-                <p className="mt-6 border-t border-[var(--color-card-border)] pt-4 text-[var(--text-meta)] uppercase tracking-[0.08em] text-[var(--color-muted-500)]">
-                  Truncated for fair-use
-                </p>
               ) : null}
-            </section>
-          ) : null}
-
-          {/* Reasonableness rating — small, subtle, hidden when null. */}
-          {showRating ? (
-            <section
-              className="mt-10 border-t border-[var(--color-card-border)] pt-6"
-              data-testid="article-rating"
-            >
-              <span className="flex items-baseline gap-2 text-[var(--text-meta)]">
-                <span className="uppercase tracking-[0.08em] text-[var(--color-muted-500)]">
-                  Reasonableness
+              {article.creatorLabel ? (
+                <span aria-hidden="true" className="text-muted-foreground/40">
+                  ·
                 </span>
-                <span className="text-ink">{article.reasonablenessRating}/10</span>
-              </span>
-            </section>
-          ) : null}
+              ) : null}
+              <time dateTime={article.createdAt.toISOString()}>{filedLabel}</time>
+            </p>
 
-          {/* Cross-source list — hairline-bordered text list under the
-              deep-dive (#80). Component renders nothing when N=0. */}
-          <CrossSourceList entries={article.crossSource} />
+            {/* Hero image — full-column-width, aspect-[2/1], rounded corners.
+                Omitted entirely when the article has no hero (no placeholder). */}
+            {article.heroImageUrl ? (
+              <figure className="mt-8 aspect-[2/1] w-full overflow-hidden rounded-lg bg-muted">
+                {/* biome-ignore lint/performance/noImgElement: dev-only mock heroes / placeholder route */}
+                <img
+                  src={article.heroImageUrl}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  loading="eager"
+                />
+              </figure>
+            ) : null}
 
-          {/* Bottom interaction row — star + share + hide (admin-only).
-              The hide affordance is intentionally quiet — hairline text
-              only, no destructive red coloring. It belongs at the end
-              of the row so it can't be accidentally tapped. */}
-          <div className="mt-12 flex flex-wrap items-center gap-3 border-t border-[var(--color-card-border)] pt-8">
-            <StarButton
-              articleId={article.id}
-              slug={article.slug}
-              initialStarred={article.starred}
-              disabled={!canInteract}
-            />
-            <ShareLinkButton url={`${getBaseUrl()}/a/${slug}`} />
-            {canInteract ? <HideArticleButton articleId={article.id} slug={article.slug} /> : null}
-          </div>
-        </article>
+            {/* Metadata strip — a single horizontal row: Star on the left,
+                Share pinned right. The Bearish/Bullish scale (when present)
+                sits inline in the middle on sm+, but wraps to its own
+                The filed date moved up into the byline. Everything stays on one
+                line at all widths — the gauge flexes to fill the middle. */}
+            <div className="mt-8 flex items-center gap-x-3 border-b border-t border-border py-4 text-sm sm:gap-x-5">
+              {/* Star — left end of the diagnostics row. Compact icon, sized to
+                  match the Share button pinned to the right end. */}
+              <StarButton
+                articleId={article.id}
+                variant="icon"
+                className="h-8 w-8 shrink-0 border-input bg-background"
+              />
+
+              <Separator orientation="vertical" className="h-5 shrink-0" />
+              <div
+                className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3"
+                data-testid="article-rating"
+              >
+                <span className="shrink-0 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                  Bearish
+                </span>
+                <div className="relative h-4 flex-1">
+                  {/* Thin baseline + bearish/neutral/bullish tick marks — keeps
+                      the scale legible without a heavy filled bar. */}
+                  <div
+                    className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border"
+                    aria-hidden="true"
+                  />
+                  <div
+                    className="absolute left-0 top-1/2 h-2 w-px -translate-y-1/2 bg-border"
+                    aria-hidden="true"
+                  />
+                  <div
+                    className="absolute left-1/2 top-1/2 h-1.5 w-px -translate-x-1/2 -translate-y-1/2 bg-border"
+                    aria-hidden="true"
+                  />
+                  <div
+                    className="absolute right-0 top-1/2 h-2 w-px -translate-y-1/2 bg-border"
+                    aria-hidden="true"
+                  />
+                  {/* Filled marker — solid dot at the sentiment position. */}
+                  <div
+                    className={`absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground ${
+                      sentimentUnrated ? 'opacity-30' : ''
+                    }`}
+                    style={{
+                      left: `${sentimentToSliderPercent(sentimentValue)}%`,
+                    }}
+                    role="img"
+                    aria-label={
+                      sentimentUnrated
+                        ? 'Sentiment not yet rated (neutral)'
+                        : `Sentiment ${article.sentiment} on a -5 (bearish) to +5 (bullish) scale`
+                    }
+                  />
+                </div>
+                <span className="shrink-0 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                  Bullish
+                </span>
+              </div>
+
+              {/* Matching divider between the gauge and Share, mirroring the
+                  Star/gauge separator. */}
+              <Separator orientation="vertical" className="h-5 shrink-0" />
+
+              {/* Share — right end of the diagnostics row. The flex-1 gauge fills
+                  the middle, so Share sits snug after the divider. */}
+              <div className="shrink-0">
+                <ShareLinkButton url={`${getBaseUrl()}/a/${slug}`} />
+              </div>
+            </div>
+
+            {/* Agent deep-dive — long-form body, rendered as markdown so
+                authors can style with **bold** / *italic* / `code` / lists /
+                headings / links / blockquotes / tables. Shares the exact
+                component map with the forum post + reply bodies via
+                markdown-config. `whitespace-pre-wrap` on the wrapper preserves
+                the source's own line breaks, and `disallowedElements={['p']}
+                unwrapDisallowed` keeps inline runs flowing within that pre-wrap
+                (no injected paragraph blocks that would double the spacing) —
+                the same posture the reply renderer uses. Block elements
+                (headings, lists, tables) still render normally. */}
+            {cappedBody ? (
+              <section className="mt-8">
+                <div className="whitespace-pre-wrap text-base leading-relaxed text-foreground text-justify">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
+                    disallowedElements={['p']}
+                    unwrapDisallowed
+                  >
+                    {cappedBody}
+                  </ReactMarkdown>
+                </div>
+                {truncated ? (
+                  <p className="mt-6 border-t border-border pt-4 text-sm uppercase tracking-[0.08em] text-muted-foreground">
+                    Truncated for fair-use
+                  </p>
+                ) : null}
+              </section>
+            ) : null}
+
+            {/* Additional Resources — unified list of structured citations
+                plus folded-in cross-source coverage. Renders nothing when
+                there are no resources of either kind. */}
+            <SourcesSection citations={article.citations} crossSource={article.crossSource} />
+
+            {/* Agent opinion — collapsible subjective take on the source.
+                Positioned after Sources; always rendered (shows placeholder
+                when null so the section is consistently discoverable). */}
+            <AgentOpinionSection agentOpinion={article.agentOpinion} />
+          </article>
+        </div>
       </main>
+      <SiteFooter />
     </div>
   )
 }

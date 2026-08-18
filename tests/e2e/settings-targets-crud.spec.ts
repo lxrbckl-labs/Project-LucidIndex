@@ -26,14 +26,12 @@
 import { execFileSync } from 'node:child_process'
 import { type APIRequestContext, expect, request, test } from '@playwright/test'
 import { type StackHandle, startStack } from './support/dev-server'
-import { setupVirtualAuthenticator } from './support/webauthn'
-
-const FOUNDING_TOKEN = 'phase2-targets-acceptance-test-token-do-not-use-in-prod'
+import { foundAdmin } from './support/found-admin'
 
 let stack: StackHandle
 
 test.beforeAll(async () => {
-  stack = await startStack({ foundingToken: FOUNDING_TOKEN })
+  stack = await startStack()
 })
 
 test.afterAll(async () => {
@@ -66,18 +64,9 @@ test('settings/targets CRUD: empty -> create -> pause -> edit, plus 401s and emp
   // -----------------------------------------------------------------------
   const ctx = await browser.newContext({ baseURL })
   const page = await ctx.newPage()
-  const auth = await setupVirtualAuthenticator(page)
-
-  await page.goto(`/settings/found?token=${encodeURIComponent(FOUNDING_TOKEN)}`)
-  await page.getByTestId('founding-name').fill('Phase2 Targets')
-  await page.getByTestId('founding-device').fill('Phase2 Virtual Authenticator')
-  await page.getByTestId('founding-submit').click()
-  await expect(page.getByTestId('recovery-modal')).toBeVisible()
-  await page.getByTestId('recovery-dismiss').click()
-  await page.waitForURL(/\/settings(\/|$)/, { timeout: 30_000 })
-  // The session cookie is set by `/api/auth/founding/finalize` AFTER the
-  // recovery-code modal is dismissed. Wait until /api/auth/session reports
-  // ok so subsequent navigations don't race the cookie write.
+  const auth = await foundAdmin(page)
+  // foundAdmin lands on /settings signed in, but wait until /api/auth/session
+  // reports ok so subsequent navigations don't race the cookie write.
   await expect
     .poll(
       async () => {

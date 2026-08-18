@@ -1,46 +1,69 @@
 'use client'
 
 /**
- * Settings → Badges interactive panel.
+ * Settings → Badges interactive panel — rebuilt on shadcn (Phase 2).
  *
  * Two stacked sections:
- *
- *   1. Curated badges — list of `topic_badges` rows with inline edit. New
- *      badges are added via a small form that toggles open under the
- *      section header. v0.1 has no delete (per NO DELETIONS); admins are
- *      told as much in the empty-state and the "Edit" form copy.
- *
- *   2. Suggestion inbox — list of unresolved `topic_badge_suggestions`
- *      with per-row Approve / Reject buttons AND a multi-select bulk-
- *      action affordance. Per the Round-7 spec, the bulk path is a
- *      client-side loop over the single-row endpoint — no batch endpoint
- *      yet (we revisit if/when the inbox gets noisy).
- *
- * Style is plain Tailwind via local `className`s rather than shadcn
- * components. Two reasons:
- *   - Adding shadcn components means pulling in `@radix-ui/*` deps, and
- *     the assignment forbids new deps.
- *   - The rest of `apps/web/app/settings/*` is already plain Tailwind
- *     (see `_components/PanelPlaceholder.tsx`, `LoginPanel.tsx`), so
- *     this matches the prevailing style and won't visually clash with a
- *     Phase-5 visual-identity pass.
+ *   1. Curated badges — list with inline edit. New Badges added via Dialog.
+ *   2. Suggestion inbox — per-row Approve/Reject plus bulk-select actions.
  */
 
+import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { Eye, EyeOff, GripVertical, Pencil } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import {
   type FormEvent,
   type MouseEvent,
   useCallback,
+  useEffect,
   useMemo,
   useState,
   useTransition,
 } from 'react'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 export type BadgeRow = {
   id: string
   name: string
-  color: string | null
-  displayOrder: number | null
+  displayOrder: number
+  hidden: boolean
   createdAt: string
 }
 
@@ -50,7 +73,7 @@ export type SuggestionRow = {
   count: number
   createdAt: string
   lastSeenAt: string
-  articleId: string
+  articleId: string | null
   articleSlug: string | null
   articleTitle: string | null
 }
@@ -60,16 +83,10 @@ export type BadgesPanelProps = {
   initialSuggestions: SuggestionRow[]
 }
 
-type Banner = { kind: 'error' | 'info'; message: string } | null
-
 export function BadgesPanel(props: BadgesPanelProps) {
   const { initialBadges, initialSuggestions } = props
   const router = useRouter()
-  const [banner, setBanner] = useState<Banner>(null)
   const [, startTransition] = useTransition()
-
-  // Track which suggestions are checked for bulk actions. Set, not array,
-  // so toggling is O(1) and we don't fight React reconciliation.
   const [selectedSuggestionIds, setSelectedSuggestionIds] = useState<Set<string>>(new Set())
 
   const refresh = useCallback(() => {
@@ -78,44 +95,48 @@ export function BadgesPanel(props: BadgesPanelProps) {
     })
   }, [router])
 
+  const [newOpen, setNewOpen] = useState(false)
+
   return (
-    <div className="max-w-[840px]">
-      <p className="text-xs uppercase tracking-wide text-neutral-400 mb-2">Phase 2</p>
-      <h1
-        className="text-[clamp(2rem,5vw,3.5rem)] font-black tracking-tight leading-none text-black uppercase"
-        style={{ fontStretch: 'condensed', letterSpacing: '-0.02em' }}
-      >
-        Badges
-      </h1>
-      <div className="mt-6 mb-10 h-px w-full bg-neutral-200" />
-
-      {banner ? (
-        <div
-          className={`mb-6 rounded border px-3 py-2 text-sm ${
-            banner.kind === 'error'
-              ? 'border-red-200 bg-red-50 text-red-900'
-              : 'border-neutral-200 bg-neutral-50 text-neutral-700'
-          }`}
-          role={banner.kind === 'error' ? 'alert' : 'status'}
-        >
-          {banner.message}
+    <div className="flex flex-col gap-8">
+      <div className="-mx-6 -mt-6 px-6 pt-6 pb-6 border-b flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Badges</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Curated topic badges and the agent suggestion inbox.
+          </p>
         </div>
-      ) : null}
+        <Dialog open={newOpen} onOpenChange={setNewOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm">New Badge</Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>New Badge</DialogTitle>
+            </DialogHeader>
+            <BadgeFormContent
+              mode="create"
+              onCancel={() => setNewOpen(false)}
+              onSuccess={() => {
+                setNewOpen(false)
+                toast.success('Badge created.')
+                refresh()
+              }}
+              onError={(error) => toast.error(error)}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
 
-      <CuratedBadgesSection
-        initialBadges={initialBadges}
-        onAfterMutate={refresh}
-        onBanner={setBanner}
-      />
+      <CuratedBadgesSection initialBadges={initialBadges} onAfterMutate={refresh} />
 
-      <div className="mt-16 mb-8 h-px w-full bg-neutral-200" />
+      <Separator />
 
       <SuggestionInboxSection
         initialSuggestions={initialSuggestions}
         selectedIds={selectedSuggestionIds}
         setSelectedIds={setSelectedSuggestionIds}
         onAfterMutate={refresh}
-        onBanner={setBanner}
       />
     </div>
   )
@@ -123,111 +144,186 @@ export function BadgesPanel(props: BadgesPanelProps) {
 
 /* ---------------------------- Curated badges --------------------------- */
 
-function CuratedBadgesSection(props: {
-  initialBadges: BadgeRow[]
-  onAfterMutate: () => void
-  onBanner: (b: Banner) => void
-}) {
-  const { initialBadges, onAfterMutate, onBanner } = props
-  const [showNewForm, setShowNewForm] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
+function CuratedBadgesSection(props: { initialBadges: BadgeRow[]; onAfterMutate: () => void }) {
+  const { initialBadges, onAfterMutate } = props
+  const [items, setItems] = useState<BadgeRow[]>(initialBadges)
+
+  // Keep local order in sync when server-driven refresh fires (e.g. after edit / hide).
+  useEffect(() => {
+    setItems(initialBadges)
+  }, [initialBadges])
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  async function persistOrder(orderedIds: string[]) {
+    try {
+      const res = await fetch('/api/settings/badges/reorder', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ids: orderedIds }),
+      })
+      if (!res.ok) {
+        toast.error('Could not save the new order.')
+        onAfterMutate()
+        return
+      }
+    } catch {
+      toast.error('Network error.')
+      onAfterMutate()
+    }
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = items.findIndex((b) => b.id === active.id)
+    const newIndex = items.findIndex((b) => b.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+    const next = arrayMove(items, oldIndex, newIndex)
+    setItems(next)
+    void persistOrder(next.map((b) => b.id))
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+        No curated badges yet. Add one with the &ldquo;New Badge&rdquo; button above, or approve a
+        suggestion below.
+      </div>
+    )
+  }
 
   return (
-    <section>
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-black">Curated badges</h2>
-        <button
-          type="button"
-          onClick={() => {
-            setShowNewForm((s) => !s)
-            setEditingId(null)
-          }}
-          className="text-xs font-medium uppercase tracking-wide border border-black px-3 py-1.5 hover:bg-black hover:text-white transition-colors"
-        >
-          {showNewForm ? 'Cancel' : 'New badge'}
-        </button>
-      </div>
-
-      {showNewForm ? (
-        <div className="mt-4 border border-neutral-200 p-4">
-          <BadgeForm
-            mode="create"
-            onCancel={() => setShowNewForm(false)}
-            onSuccess={() => {
-              setShowNewForm(false)
-              onBanner({ kind: 'info', message: 'Badge created.' })
-              onAfterMutate()
-            }}
-            onError={(error) => onBanner({ kind: 'error', message: error })}
-          />
-        </div>
-      ) : null}
-
-      <p className="mt-4 text-xs text-neutral-500 leading-relaxed">
-        Badges are persistent — there is no delete in v0.1. Edit a badge to rename or restyle it.
-      </p>
-
-      {initialBadges.length === 0 ? (
-        <div className="mt-6 border border-dashed border-neutral-300 p-8 text-center text-sm text-neutral-500">
-          No curated badges yet. Add one with the "New badge" button above, or approve a suggestion
-          below.
-        </div>
-      ) : (
-        <ul className="mt-6 divide-y divide-neutral-200 border-t border-b border-neutral-200">
-          {initialBadges.map((badge) => (
-            <li key={badge.id} className="py-3">
-              {editingId === badge.id ? (
-                <BadgeForm
-                  mode="edit"
-                  badge={badge}
-                  onCancel={() => setEditingId(null)}
-                  onSuccess={() => {
-                    setEditingId(null)
-                    onBanner({ kind: 'info', message: 'Badge updated.' })
-                    onAfterMutate()
-                  }}
-                  onError={(error) => onBanner({ kind: 'error', message: error })}
-                />
-              ) : (
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3 min-w-0">
-                    {badge.color ? (
-                      <span
-                        aria-hidden="true"
-                        className="inline-block h-3 w-3 rounded-sm border border-neutral-300 shrink-0"
-                        style={{ backgroundColor: badge.color }}
-                      />
-                    ) : (
-                      <span className="inline-block h-3 w-3 shrink-0" aria-hidden="true" />
-                    )}
-                    <span className="text-sm font-semibold text-black truncate">{badge.name}</span>
-                    <span className="text-xs text-neutral-500 shrink-0">
-                      order: {badge.displayOrder ?? '—'}
-                    </span>
-                    <span className="text-xs text-neutral-400 shrink-0 hidden md:inline">
-                      added {formatDate(badge.createdAt)}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingId(badge.id)
-                    }}
-                    className="text-xs font-medium uppercase tracking-wide text-neutral-600 hover:text-black underline-offset-2 hover:underline"
-                  >
-                    Edit
-                  </button>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-8">
+              <span className="sr-only">Drag</span>
+            </TableHead>
+            <TableHead className="w-10">
+              <span className="sr-only">Edit</span>
+            </TableHead>
+            <TableHead className="w-10">
+              <span className="sr-only">Show / Hide</span>
+            </TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead className="text-right">Added</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <SortableContext items={items.map((b) => b.id)} strategy={verticalListSortingStrategy}>
+            {items.map((badge) => (
+              <BadgeTableRow key={badge.id} badge={badge} onAfterMutate={onAfterMutate} />
+            ))}
+          </SortableContext>
+        </TableBody>
+      </Table>
+    </DndContext>
   )
 }
 
-function BadgeForm(props: {
+function BadgeTableRow(props: { badge: BadgeRow; onAfterMutate: () => void }) {
+  const { badge, onAfterMutate } = props
+  const [editOpen, setEditOpen] = useState(false)
+  const [hideBusy, setHideBusy] = useState(false)
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: badge.id,
+  })
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : undefined,
+  }
+
+  async function toggleHidden() {
+    if (hideBusy) return
+    setHideBusy(true)
+    try {
+      const res = await fetch(`/api/settings/badges/${badge.id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ hidden: !badge.hidden }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
+      if (!res.ok || !data.ok) {
+        toast.error(data.error ?? 'Could not update visibility.')
+        return
+      }
+      toast.success(badge.hidden ? 'Badge shown on dashboard.' : 'Badge hidden from dashboard.')
+      onAfterMutate()
+    } catch {
+      toast.error('Network error.')
+    } finally {
+      setHideBusy(false)
+    }
+  }
+
+  return (
+    <TableRow ref={setNodeRef} style={style} className={badge.hidden ? 'opacity-60' : undefined}>
+      <TableCell className="w-8 cursor-grab touch-none" {...attributes} {...listeners}>
+        <span
+          className="inline-flex items-center justify-center text-muted-foreground"
+          aria-hidden="true"
+        >
+          <GripVertical className="h-4 w-4" />
+        </span>
+      </TableCell>
+      <TableCell className="w-10">
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={`Edit ${badge.name}`}
+              className="border border-input"
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Badge</DialogTitle>
+            </DialogHeader>
+            <BadgeFormContent
+              mode="edit"
+              badge={badge}
+              onCancel={() => setEditOpen(false)}
+              onSuccess={() => {
+                setEditOpen(false)
+                toast.success('Badge updated.')
+                onAfterMutate()
+              }}
+              onError={(error) => toast.error(error)}
+            />
+          </DialogContent>
+        </Dialog>
+      </TableCell>
+      <TableCell className="w-10">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleHidden}
+          disabled={hideBusy}
+          aria-label={badge.hidden ? `Show ${badge.name}` : `Hide ${badge.name}`}
+          className="border border-input"
+        >
+          {badge.hidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </Button>
+      </TableCell>
+      <TableCell className="font-semibold">{badge.name}</TableCell>
+      <TableCell className="text-right text-xs text-muted-foreground whitespace-nowrap">
+        {formatDate(badge.createdAt)}
+      </TableCell>
+    </TableRow>
+  )
+}
+
+function BadgeFormContent(props: {
   mode: 'create' | 'edit'
   badge?: BadgeRow
   onCancel: () => void
@@ -236,12 +332,6 @@ function BadgeForm(props: {
 }) {
   const { mode, badge, onCancel, onSuccess, onError } = props
   const [name, setName] = useState(badge?.name ?? '')
-  const [color, setColor] = useState(badge?.color ?? '')
-  const [displayOrder, setDisplayOrder] = useState(
-    badge?.displayOrder !== undefined && badge.displayOrder !== null
-      ? String(badge.displayOrder)
-      : '',
-  )
   const [submitting, setSubmitting] = useState(false)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -252,8 +342,6 @@ function BadgeForm(props: {
         mode === 'create' ? '/api/settings/badges' : `/api/settings/badges/${badge?.id ?? ''}`
       const method = mode === 'create' ? 'POST' : 'PATCH'
       const payload: Record<string, unknown> = { name: name.trim() }
-      payload.color = color.trim() === '' ? null : color.trim()
-      payload.displayOrder = displayOrder.trim() === '' ? null : Number(displayOrder)
 
       const res = await fetch(url, {
         method,
@@ -277,72 +365,29 @@ function BadgeForm(props: {
   }
 
   return (
-    <form className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end" onSubmit={handleSubmit}>
-      <div className="md:col-span-5">
-        <label
-          htmlFor={`badge-name-${badge?.id ?? 'new'}`}
-          className="block text-xs font-medium uppercase tracking-wide text-neutral-600 mb-1"
-        >
-          Name
-        </label>
-        <input
+    <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={`badge-name-${badge?.id ?? 'new'}`}>Name</Label>
+        <Input
           id={`badge-name-${badge?.id ?? 'new'}`}
           type="text"
           required
           maxLength={64}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="block w-full border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:border-black"
         />
       </div>
-      <div className="md:col-span-3">
-        <label
-          htmlFor={`badge-color-${badge?.id ?? 'new'}`}
-          className="block text-xs font-medium uppercase tracking-wide text-neutral-600 mb-1"
-        >
-          Color (hex, optional)
-        </label>
-        <input
-          id={`badge-color-${badge?.id ?? 'new'}`}
-          type="text"
-          placeholder="#112233"
-          value={color}
-          onChange={(e) => setColor(e.target.value)}
-          className="block w-full border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:border-black"
-        />
-      </div>
-      <div className="md:col-span-2">
-        <label
-          htmlFor={`badge-order-${badge?.id ?? 'new'}`}
-          className="block text-xs font-medium uppercase tracking-wide text-neutral-600 mb-1"
-        >
-          Order
-        </label>
-        <input
-          id={`badge-order-${badge?.id ?? 'new'}`}
-          type="number"
-          step={1}
-          value={displayOrder}
-          onChange={(e) => setDisplayOrder(e.target.value)}
-          className="block w-full border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:border-black"
-        />
-      </div>
-      <div className="md:col-span-2 flex items-center gap-2">
-        <button
-          type="submit"
-          disabled={submitting}
-          className="text-xs font-medium uppercase tracking-wide bg-black text-white px-3 py-2 disabled:opacity-50"
-        >
-          {submitting ? 'Saving' : mode === 'create' ? 'Create' : 'Save'}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="text-xs font-medium uppercase tracking-wide text-neutral-600 hover:text-black"
-        >
+
+      <p className="text-xs text-muted-foreground">Order is set by drag-and-drop on the table.</p>
+
+      <DialogFooter className="sm:justify-between">
+        <Button size="sm" type="button" variant="outline" onClick={onCancel} disabled={submitting}>
           Cancel
-        </button>
-      </div>
+        </Button>
+        <Button size="sm" type="submit" disabled={submitting}>
+          {submitting ? 'Saving…' : mode === 'create' ? 'Create' : 'Save'}
+        </Button>
+      </DialogFooter>
     </form>
   )
 }
@@ -354,9 +399,8 @@ function SuggestionInboxSection(props: {
   selectedIds: Set<string>
   setSelectedIds: (s: Set<string>) => void
   onAfterMutate: () => void
-  onBanner: (b: Banner) => void
 }) {
-  const { initialSuggestions, selectedIds, setSelectedIds, onAfterMutate, onBanner } = props
+  const { initialSuggestions, selectedIds, setSelectedIds, onAfterMutate } = props
   const [busy, setBusy] = useState(false)
 
   const suggestions = initialSuggestions
@@ -383,10 +427,7 @@ function SuggestionInboxSection(props: {
   async function resolveOne(
     id: string,
     action: 'approve' | 'reject',
-  ): Promise<{
-    ok: boolean
-    error?: string
-  }> {
+  ): Promise<{ ok: boolean; error?: string }> {
     try {
       const res = await fetch(`/api/settings/badges/suggestions/${id}`, {
         method: 'POST',
@@ -416,14 +457,10 @@ function SuggestionInboxSection(props: {
     const result = await resolveOne(id, action)
     setBusy(false)
     if (!result.ok) {
-      onBanner({ kind: 'error', message: result.error ?? 'Action failed.' })
+      toast.error(result.error ?? 'Action failed.')
       return
     }
-    onBanner({
-      kind: 'info',
-      message: action === 'approve' ? 'Suggestion approved.' : 'Suggestion rejected.',
-    })
-    // Drop this id from the selection set if it happened to be selected.
+    toast.success(action === 'approve' ? 'Suggestion approved.' : 'Suggestion rejected.')
     if (selectedIds.has(id)) {
       const next = new Set(selectedIds)
       next.delete(id)
@@ -438,10 +475,6 @@ function SuggestionInboxSection(props: {
     const ids = Array.from(selectedIds)
     let succeeded = 0
     const errors: string[] = []
-    // Sequential — keeps Postgres load tame and lets us short-circuit if
-    // a recurring error (e.g. duplicate-name on approve) is the same for
-    // every row. Volume is expected to be low (a handful of suggestions
-    // at a time), so the latency cost is negligible.
     for (const id of ids) {
       const result = await resolveOne(id, action)
       if (result.ok) {
@@ -453,96 +486,97 @@ function SuggestionInboxSection(props: {
     setBusy(false)
     setSelectedIds(new Set())
     if (errors.length === 0) {
-      onBanner({
-        kind: 'info',
-        message: `${succeeded} suggestion${succeeded === 1 ? '' : 's'} ${
+      toast.success(
+        `${succeeded} suggestion${succeeded === 1 ? '' : 's'} ${
           action === 'approve' ? 'approved' : 'rejected'
         }.`,
-      })
+      )
     } else {
-      // Surface the first error verbatim — duplicate-name is the most
-      // useful one and is already specific.
-      onBanner({
-        kind: 'error',
-        message: `${succeeded} succeeded, ${errors.length} failed. ${errors[0] ?? ''}`,
-      })
+      toast.error(`${succeeded} succeeded, ${errors.length} failed. ${errors[0] ?? ''}`)
     }
     onAfterMutate()
   }
 
   return (
-    <section>
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-black">Suggestion inbox</h2>
-      <p className="mt-2 text-xs text-neutral-500 leading-relaxed">
-        Agents propose new badges via <code className="bg-neutral-100 px-1">write_articles</code>.
-        Approve to add the badge to the curated list, or reject to dismiss the suggestion.
-      </p>
+    <section className="flex flex-col gap-4">
+      <div>
+        <h2 className="text-lg font-semibold">Suggestion inbox</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Agents propose new badges via{' '}
+          <code className="bg-muted px-1 rounded">write_articles</code>. Approve to add to the
+          curated list, or reject to dismiss.
+        </p>
+      </div>
 
       {suggestions.length === 0 ? (
-        <div className="mt-6 border border-dashed border-neutral-300 p-8 text-center text-sm text-neutral-500">
-          No suggestions yet. Suggestions will appear here when agents propose new badges via
-          <code className="bg-neutral-100 px-1 ml-1">write_articles</code>.
+        <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+          No suggestions yet. Suggestions appear here when agents propose new badges via{' '}
+          <code className="bg-muted px-1 rounded">write_articles</code>.
         </div>
       ) : (
         <>
-          <div className="mt-6 flex items-center justify-between gap-4 border-y border-neutral-200 py-2 px-2">
-            <label className="flex items-center gap-2 text-xs uppercase tracking-wide text-neutral-600">
-              <input
-                type="checkbox"
+          <div className="flex items-center justify-between gap-4 border-b pb-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Checkbox
+                id="select-all-suggestions"
                 checked={allSelected}
-                onChange={(e) => toggleAll(e.target.checked)}
+                onCheckedChange={(val) => toggleAll(!!val)}
                 aria-label="Select all suggestions"
-                className="h-4 w-4 border-neutral-400"
               />
-              {selectedIds.size === 0 ? 'Select all' : `${selectedIds.size} selected`}
-            </label>
+              <Label
+                htmlFor="select-all-suggestions"
+                className="font-normal cursor-pointer text-muted-foreground"
+              >
+                {selectedIds.size === 0 ? 'Select all' : `${selectedIds.size} selected`}
+              </Label>
+            </div>
             <div className="flex items-center gap-2">
-              <button
+              <Button
                 type="button"
+                size="sm"
                 disabled={busy || selectedIds.size === 0}
                 onClick={() => handleBulk('approve')}
-                className="text-xs font-medium uppercase tracking-wide bg-black text-white px-3 py-1.5 disabled:opacity-30"
               >
-                Approve selected
-              </button>
-              <button
+                Approve
+              </Button>
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 disabled={busy || selectedIds.size === 0}
                 onClick={() => handleBulk('reject')}
-                className="text-xs font-medium uppercase tracking-wide border border-neutral-400 text-neutral-700 px-3 py-1.5 disabled:opacity-30 hover:border-black hover:text-black"
               >
-                Reject selected
-              </button>
+                Reject
+              </Button>
             </div>
           </div>
 
-          <ul className="divide-y divide-neutral-200 border-b border-neutral-200">
+          <ul className="divide-y">
             {suggestions.map((s) => (
-              <li key={s.id} className="py-3 px-2">
+              <li key={s.id} className="py-3">
                 <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={selectedIds.has(s.id)}
-                    onChange={(e) => toggleOne(s.id, e.target.checked)}
+                    onCheckedChange={(val) => toggleOne(s.id, !!val)}
                     aria-label={`Select suggestion ${s.name}`}
-                    className="h-4 w-4 border-neutral-400 shrink-0"
+                    className="shrink-0"
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-semibold text-black">{s.name}</span>
-                      <span className="text-xs text-neutral-500">
+                      <span className="text-sm font-semibold">{s.name}</span>
+                      <span className="text-xs text-muted-foreground">
                         ×{s.count} article{s.count === 1 ? '' : 's'}
                       </span>
-                      <span className="text-xs text-neutral-400">
+                      <span className="text-xs text-muted-foreground">
                         last seen {formatDate(s.lastSeenAt)}
                       </span>
                     </div>
                     {s.articleSlug && s.articleTitle ? (
-                      <p className="mt-1 text-xs text-neutral-500 truncate">
+                      <p className="mt-1 text-xs text-muted-foreground truncate">
                         first triggered by{' '}
                         <a
                           href={`/articles/${s.articleSlug}`}
-                          className="underline hover:text-black"
+                          className="underline hover:text-foreground"
                         >
                           {s.articleTitle}
                         </a>
@@ -550,22 +584,23 @@ function SuggestionInboxSection(props: {
                     ) : null}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <button
+                    <Button
                       type="button"
+                      size="sm"
                       disabled={busy}
                       onClick={(e) => handleSingle(e, s.id, 'approve')}
-                      className="text-xs font-medium uppercase tracking-wide bg-black text-white px-3 py-1.5 disabled:opacity-30"
                     >
                       Approve
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      variant="outline"
+                      size="sm"
                       disabled={busy}
                       onClick={(e) => handleSingle(e, s.id, 'reject')}
-                      className="text-xs font-medium uppercase tracking-wide border border-neutral-400 text-neutral-700 px-3 py-1.5 disabled:opacity-30 hover:border-black hover:text-black"
                     >
                       Reject
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </li>

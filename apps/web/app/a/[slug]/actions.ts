@@ -1,36 +1,24 @@
 'use server'
 
 /**
- * Server actions for the article page (#66, #69).
+ * Server actions for the article page (#66).
  *
- * Three actions:
+ * Two actions:
  *
  *   - `toggleStar(articleId)` — admin-only. Flips `articles.starred`
- *     and revalidates the article page so a fresh visit reflects the
- *     new state. The button is hidden for unauthenticated visitors at
- *     the page level, so the auth guard here is defense-in-depth.
+ *     and revalidates all pages that reflect the starred state so a
+ *     fresh visit reflects the new state everywhere:
+ *       - `/a/<slug>` ('page') — the article detail page star button
+ *       - `/` — the dashboard (star button initialStarred prop)
+ *       - `/starred` — appears/disappears from the starred list
+ *       - `/favorites` — appears/disappears from the favorites list
+ *     The button is hidden for unauthenticated visitors at the page
+ *     level, so the auth guard here is defense-in-depth.
  *
  *   - `markRead(articleId)` — admin-only. Sets `articles.read = true`
  *     IF the article isn't already read. Called from the article page's
  *     server component on render; the `WHERE read = false` clause keeps
  *     repeat visits from issuing a no-op write on every page load.
- *
- *   - `hideArticle(articleId, slug)` — admin-only (#69). Sets
- *     `articles.hidden = true` and `articles.hidden_at = now()`.
- *     Revalidates the root path so the dashboard no longer shows the
- *     article. The article page itself will 404 on next visit (the
- *     loader filters `hidden = true` rows). Returns the caller to `/`
- *     via redirect after hiding (caller responsibility — the page uses
- *     `router.push('/')` after the action resolves).
- *
- *     Restoration UI is Phase 7 #78 (Settings → Hidden articles). For
- *     now, hidden articles are gone from all public surfaces but remain
- *     in the DB and are inspectable via the Drizzle studio or psql.
- *
- *     Note for Phase 7 #73 (search FTS): the `write_articles` FTS query
- *     will need to add `AND hidden = false` to exclude hidden articles
- *     from search results. This is a no-op today because search isn't
- *     built yet.
  *
  * Mock-mode behavior: under `LUCIDINDEX_MOCK=1` the actions mutate the
  * in-process mock array. That lets the visual gate exercise the star
@@ -65,7 +53,10 @@ export async function toggleStar(articleId: string, slug: string): Promise<void>
     if (article) {
       article.starred = !(article.starred ?? false)
     }
-    revalidatePath(`/a/${slug}`)
+    revalidatePath(`/a/${slug}`, 'page')
+    revalidatePath('/')
+    revalidatePath('/starred')
+    revalidatePath('/favorites')
     return
   }
 
@@ -81,7 +72,14 @@ export async function toggleStar(articleId: string, slug: string): Promise<void>
     .limit(1)
   const current = rows[0]?.starred ?? false
   await db.update(articles).set({ starred: !current }).where(eq(articles.id, articleId))
-  revalidatePath(`/a/${slug}`)
+  // Revalidate all pages that reflect starred state:
+  //   - article detail ('page' type required for dynamic routes in Next.js 15)
+  //   - dashboard (star button initialStarred prop reflects DB truth on re-render)
+  //   - /starred and /favorites (article appears/disappears from these lists)
+  revalidatePath(`/a/${slug}`, 'page')
+  revalidatePath('/')
+  revalidatePath('/starred')
+  revalidatePath('/favorites')
 }
 
 export async function markRead(articleId: string): Promise<void> {
@@ -106,50 +104,4 @@ export async function markRead(articleId: string): Promise<void> {
     .update(articles)
     .set({ read: true })
     .where(and(eq(articles.id, articleId), eq(articles.read, false)))
-}
-
-/**
- * hideArticle — admin-only (#69).
- *
- * Sets `hidden = true` and `hidden_at = now()` on the article row.
- * After calling this action the caller should redirect the user to `/`
- * because the article page will 404 on its next render (the loader
- * filters hidden rows). The redirect is caller-side (page.tsx uses
- * `useRouter().push('/')`) to preserve the server-action-as-mutation
- * pattern without baking navigation into this file.
- *
- * Revalidates `/` so the dashboard immediately drops the hidden article
- * from its masonry — the dashboard loader already filters
- * `dashboard_visible = true`, but hidden articles may not yet have
- * their `dashboard_visible` toggled (that's the retention purge job).
- * Revalidating the article's own slug path is redundant (the loader
- * returns null on `hidden = true`) but harmless.
- *
- * Restoration UI: Phase 7 #78 (Settings → Hidden articles list).
- * For now, hidden articles remain in the DB and are accessible via
- * Drizzle studio, psql, or direct DB query.
- *
- * FTS note: Phase 7 #73 (search) will need `AND hidden = false` in
- * the search query. Hidden articles must not appear in search results.
- */
-export async function hideArticle(articleId: string, slug: string): Promise<void> {
-  const session = await requireAdmin()
-  if (!session) return
-
-  if (MOCK_MODE) {
-    const article = mockArticles.find((a) => a.id === articleId)
-    if (article) {
-      article.hidden = true
-    }
-    revalidatePath('/')
-    revalidatePath(`/a/${slug}`)
-    return
-  }
-
-  await db
-    .update(articles)
-    .set({ hidden: true, hiddenAt: new Date() })
-    .where(eq(articles.id, articleId))
-  revalidatePath('/')
-  revalidatePath(`/a/${slug}`)
 }

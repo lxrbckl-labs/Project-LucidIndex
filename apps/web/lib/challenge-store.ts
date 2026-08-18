@@ -29,18 +29,36 @@
 
 import { randomBytes } from 'node:crypto'
 
-/** WebAuthn ceremonies are sub-minute; 5 minutes is generous. */
-const CHALLENGE_TTL_MS = 5 * 60_000
+/**
+ * WebAuthn ceremonies are sub-minute; 15 minutes leaves generous slack
+ * for slow passkey sheets, password-manager prompts, or the user
+ * pausing mid-ceremony. Production runs are typically much faster.
+ */
+const CHALLENGE_TTL_MS = 15 * 60_000
 
 type Entry = {
   challenge: string
   expiresAt: number
 }
 
-// Module-level Map — single instance per Node process. Next.js's dev
-// HMR can re-evaluate route modules but the underlying module graph
-// keeps this binding stable per worker.
-const store = new Map<string, Entry>()
+// Pin the Map to globalThis. Next.js dev HMR re-evaluates route
+// modules (and the modules they import) on file change OR on any
+// random invalidation event the bundler decides to fire. A plain
+// module-level `const store = new Map()` resets to empty on every
+// re-eval — which manifests as "Signup timed out" on perfectly fresh
+// passkey ceremonies, because /start stashes into one Map instance
+// and /finish reads from a different one.
+//
+// globalThis survives module re-evaluation within the same V8 isolate
+// (which dev mode keeps for the life of the worker), so the store is
+// stable across HMR cycles.
+// biome-ignore lint: TypeScript globalThis augmentation requires `var`
+declare global {
+  var __lucidindexChallengeStore: Map<string, Entry> | undefined
+}
+
+const store: Map<string, Entry> = globalThis.__lucidindexChallengeStore ?? new Map<string, Entry>()
+globalThis.__lucidindexChallengeStore = store
 
 /** Drop expired entries opportunistically on every read/write. */
 function sweep(now: number) {

@@ -1,0 +1,2 @@
+ALTER TABLE "forum_post_drafts" ADD COLUMN "cover_image_hash" text;--> statement-breakpoint
+ALTER TABLE "forum_post_drafts" ADD CONSTRAINT "forum_post_drafts_cover_image_hash_format" CHECK ("forum_post_drafts"."cover_image_hash" IS NULL OR "forum_post_drafts"."cover_image_hash" ~ '^[a-f0-9]{64}$');

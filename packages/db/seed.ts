@@ -1,10 +1,20 @@
 /**
  * First-boot seeder.
  *
- * Today, this only inserts the 7 starter prompt templates from
- * `@lucidindex/templates`. The script is idempotent — re-running it on a
- * populated DB is a no-op, because the insert is `ON CONFLICT (slug) DO
- * NOTHING`.
+ * Today this inserts:
+ *   1. The 7 starter prompt templates from `@lucidindex/templates`.
+ *   2. A starter set of reputable comparison sources (10 production-default
+ *      rows). Citation source_name values agents emit reference this table;
+ *      shipping a seed list means agents have something to cite from the
+ *      moment the DB comes up (without seeding, `get_comparison_sources`
+ *      returns [] on fresh installs and agents skip the cross-source step).
+ *   3. A starter topic-badge palette (12 broad names) so the forum has
+ *      legal `topic_badge_ids` for `create_post` from boot, and the
+ *      dashboard has a starter article-topic palette. Admins can
+ *      add/remove/hide via Settings → Badges.
+ *
+ * The script is idempotent — re-running it on a populated DB is a no-op,
+ * because each insert is `ON CONFLICT (<unique>) DO NOTHING`.
  *
  * Run modes:
  *   - From the repo root: `pnpm db:seed`
@@ -18,9 +28,135 @@
 
 import { STARTER_TEMPLATES } from '@lucidindex/templates'
 import { db } from './client.js'
-import { promptTemplates } from './schema/index.js'
+import { comparisonSources, promptTemplates, topicBadges } from './schema/index.js'
 
-export async function seed(): Promise<{ promptTemplatesInserted: number }> {
+/**
+ * Starter comparison sources — reputable outlets agents are likely to
+ * cite. Curated for breadth (general news, business, science, tech) and
+ * provenance (each is a primary outlet with a stable base URL — no
+ * aggregators). Admins can soft-deactivate any of these via Settings →
+ * Comparison sources without losing existing citation references.
+ */
+const STARTER_COMPARISON_SOURCES: ReadonlyArray<{
+  name: string
+  baseUrl: string
+  notes: string
+}> = [
+  {
+    name: 'Reuters',
+    baseUrl: 'https://www.reuters.com',
+    notes: 'International wire service — fast, terse, primary-source-heavy.',
+  },
+  {
+    name: 'Associated Press',
+    baseUrl: 'https://apnews.com',
+    notes: 'International wire service — neutral framing, broad coverage.',
+  },
+  {
+    name: 'The New York Times',
+    baseUrl: 'https://www.nytimes.com',
+    notes: 'US daily newspaper — broad coverage, investigative reporting.',
+  },
+  {
+    name: 'The Washington Post',
+    baseUrl: 'https://www.washingtonpost.com',
+    notes: 'US daily newspaper — strong politics + national-security desk.',
+  },
+  {
+    name: 'The Guardian',
+    baseUrl: 'https://www.theguardian.com',
+    notes: 'UK daily — international coverage, long-form features.',
+  },
+  {
+    name: 'Bloomberg',
+    baseUrl: 'https://www.bloomberg.com',
+    notes: 'Business + markets primary source.',
+  },
+  {
+    name: 'Financial Times',
+    baseUrl: 'https://www.ft.com',
+    notes: 'Business + global markets, UK-anchored.',
+  },
+  {
+    name: 'The Atlantic',
+    baseUrl: 'https://www.theatlantic.com',
+    notes: 'US long-form essays + cultural / political analysis.',
+  },
+  {
+    name: 'Nature',
+    baseUrl: 'https://www.nature.com',
+    notes: 'Peer-reviewed science journal — primary research citations.',
+  },
+  {
+    name: 'IEEE Spectrum',
+    baseUrl: 'https://spectrum.ieee.org',
+    notes: 'Engineering + applied-tech reporting, IEEE-backed.',
+  },
+]
+
+/**
+ * Starter topic-badge palette for both the forum (post tagging) and the
+ * dashboard (article topics). Broad enough to be useful out-of-the-box on
+ * any deploy regardless of which sources are being monitored. Admins can
+ * add/remove/hide via Settings → Badges; deactivation is soft (hidden
+ * flag) so existing references are preserved.
+ *
+ * Kept intentionally short — better to ship a small useful set and let
+ * the admin curate, than to dump a 30-item palette they have to prune.
+ */
+const STARTER_TOPIC_BADGES: ReadonlyArray<string> = [
+  'AI',
+  'Tech Industry',
+  'Politics',
+  'Economics',
+  'Science',
+  'Climate',
+  'Health',
+  'Long Reads',
+  'Books',
+  'Film',
+  'Music',
+  'Design',
+]
+
+export async function seedTopicBadges(): Promise<number> {
+  const values = STARTER_TOPIC_BADGES.map((name, displayOrder) => ({
+    name,
+    displayOrder,
+  }))
+  const inserted = await db
+    .insert(topicBadges)
+    .values(values)
+    .onConflictDoNothing({ target: topicBadges.name })
+    .returning({ id: topicBadges.id })
+  return inserted.length
+}
+
+export async function seedComparisonSources(): Promise<number> {
+  const values = STARTER_COMPARISON_SOURCES.map((s) => ({
+    name: s.name,
+    baseUrl: s.baseUrl,
+    notes: s.notes,
+    isActive: true,
+  }))
+
+  // RETURNING { id } gives us a count of newly-seeded rows — rows skipped
+  // by ON CONFLICT DO NOTHING are absent. Same idempotency strategy as
+  // the prompt-templates insert below.
+  const inserted = await db
+    .insert(comparisonSources)
+    .values(values)
+    .onConflictDoNothing({ target: comparisonSources.name })
+    .returning({ id: comparisonSources.id })
+
+  return inserted.length
+}
+
+export async function seed(): Promise<{
+  promptTemplatesInserted: number
+  comparisonSourcesInserted: number
+  topicBadgesInserted: number
+}> {
   const values = STARTER_TEMPLATES.map((t) => ({
     slug: t.slug,
     body: t.body,
@@ -36,7 +172,14 @@ export async function seed(): Promise<{ promptTemplatesInserted: number }> {
     .onConflictDoNothing({ target: promptTemplates.slug })
     .returning({ id: promptTemplates.id })
 
-  return { promptTemplatesInserted: inserted.length }
+  const comparisonSourcesInserted = await seedComparisonSources()
+  const topicBadgesInserted = await seedTopicBadges()
+
+  return {
+    promptTemplatesInserted: inserted.length,
+    comparisonSourcesInserted,
+    topicBadgesInserted,
+  }
 }
 
 // Allow direct execution: `pnpm db:seed` resolves to this file via
@@ -56,10 +199,16 @@ const isDirectRun = (() => {
 
 if (isDirectRun) {
   seed()
-    .then(({ promptTemplatesInserted }) => {
+    .then(({ promptTemplatesInserted, comparisonSourcesInserted, topicBadgesInserted }) => {
       // Keep this terse — verbose logging is the orchestration layer's job.
       console.log(
         `[seed] prompt_templates: inserted ${promptTemplatesInserted} new (existing rows skipped via ON CONFLICT)`,
+      )
+      console.log(
+        `[seed] comparison_sources: inserted ${comparisonSourcesInserted} new (existing rows skipped via ON CONFLICT)`,
+      )
+      console.log(
+        `[seed] topic_badges: inserted ${topicBadgesInserted} new (existing rows skipped via ON CONFLICT)`,
       )
       // The drizzle `postgres-js` client doesn't auto-close — exit cleanly.
       process.exit(0)

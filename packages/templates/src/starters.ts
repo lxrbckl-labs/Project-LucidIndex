@@ -7,18 +7,21 @@
  *   2. Use its own web tools to fetch the target's source
  *   3. Summarize what's new since `high_water_mark`
  *   4. Classify with `topic_badges`
- *   5. Cross-source N entries and call `write_articles`
+ *   5. Cross-reference N entries and call `write_articles`
  *
  * — but with source-shaped guidance for each surface (YouTube, blog, etc).
  *
- * Bodies are LiquidJS templates rendered by `mcp-store` (Phase 3) at
+ * Bodies are LiquidJS templates rendered by `mcp-dashboard` (Phase 3) at
  * queue-pull time with these context vars:
  *
  *   creator_name      — the human-readable label of the target
  *   target_url        — the URL or @handle the agent is watching
  *   high_water_mark   — opaque jsonb; whatever the agent stashed last pass
  *   cadence           — the schedule preset/cron string for this target
- *   cross_source_n    — how many "other coverage" entries to aim for
+ *   cross_references  — how many "other coverage" entries to aim for
+ *   cross_source_n    — alias of cross_references (legacy name, still
+ *                       resolved by the renderer for back-compat with
+ *                       admin-edited templates)
  *
  * Editorial note: bodies should be clear and instructive, not chatty.
  * Admins are expected to fork and tune them per target after seeing how
@@ -29,6 +32,63 @@ export type Starter = {
   slug: string
   body: string
   cross_source_n: number
+}
+
+/**
+ * The opinion instruction appended to every prompt template body.
+ * Contains a stable marker so idempotent re-runs can detect and skip
+ * already-patched bodies.
+ */
+export const AGENT_OPINION_INSTRUCTION =
+  "\n\n**Opinion (required):** After your analysis, include your own subjective take on this source in the `agent_opinion` field of your response. Be specific — flag what's strong, weak, or worth pushback. 1–3 sentences.\n<!-- AGENT_OPINION_INSTRUCTION -->"
+
+/**
+ * Returns true when a template body already contains the opinion instruction.
+ */
+export function hasOpinionInstruction(body: string): boolean {
+  return body.includes('<!-- AGENT_OPINION_INSTRUCTION -->')
+}
+
+/**
+ * Append the opinion instruction to a body string if not already present.
+ * Idempotent — safe to call multiple times.
+ */
+export function appendOpinionInstruction(body: string): string {
+  if (hasOpinionInstruction(body)) return body
+  return body + AGENT_OPINION_INSTRUCTION
+}
+
+/**
+ * Author-hygiene block — appended to every starter so the agent fills in
+ * `targets.description` and `targets.social_url` on first encounter.
+ *
+ * The block is wrapped in a stable HTML comment marker so we can detect
+ * existing-body patches without false positives, mirroring the opinion
+ * instruction's idempotency strategy.
+ */
+export const AUTHOR_HYGIENE_INSTRUCTION = `
+
+**Author hygiene (call before \`ack_queue_item\`):**
+
+1. Cross-reference: call \`list_targets\` once per session and use its presence flags to avoid duplicate effort. If a target with the same author already exists under a different label, surface that in your \`agent_opinion\` rather than re-describing them.
+2. Description: if the queue-pull metadata shows \`target_description\` is empty AND no equivalent target carries one, call \`write_target_description({ target_id, description })\` with a 1–2 sentence bio (≤ 500 chars) describing who this creator is, what they cover, and what perspective they bring. Write-once-when-null — admin curation is preserved.
+3. Social URL: if \`target_social_url\` is empty, look on the source page for a canonical author/personal/social link (homepage, X profile, LinkedIn, GitHub, Substack — whichever is most representative). When found, call \`write_target_social_url({ target_id, social_url })\` with the absolute http(s) URL. Same write-once-when-null contract — do not call when one already exists.
+4. Photograph: if \`target_photo_url\` is empty, look for a representative photograph or avatar of the creator — author headshot on the source site, profile picture on the social link from step 3, or an "About" page portrait. When found, call \`write_target_photo_url({ target_id, photo_url })\` with the absolute http(s) URL of the image (not the page that hosts it). Prefer stable host URLs (CDN-served originals) over short-lived share URLs. Same write-once-when-null contract.
+<!-- AUTHOR_HYGIENE_INSTRUCTION -->`
+
+/**
+ * Returns true when a template body already contains the hygiene block.
+ */
+export function hasHygieneInstruction(body: string): boolean {
+  return body.includes('<!-- AUTHOR_HYGIENE_INSTRUCTION -->')
+}
+
+/**
+ * Append the author-hygiene block if not already present. Idempotent.
+ */
+export function appendHygieneInstruction(body: string): string {
+  if (hasHygieneInstruction(body)) return body
+  return body + AUTHOR_HYGIENE_INSTRUCTION
 }
 
 const youtubeBody = `You are watching {{ creator_name }}'s YouTube channel at {{ target_url }}.
@@ -49,11 +109,11 @@ For each new upload:
     "you'll learn".
   - Classify the upload with one or more topic_badges. Prefer existing badges
     when they fit; only suggest new ones when nothing existing applies.
-  - Cross-source roughly {{ cross_source_n }} other recent entries that cover
+  - Cross-source roughly {{ cross_references }} other recent entries that cover
     the same story or topic. Independent outlets only — no aggregators, no
     other uploads from this same channel.
   - Call write_articles with the summary, topic_badges, significance,
-    difficulty, source_published_at, and the cross_source list.
+    difficulty, and the cross_source list.
 
 Cadence for this target: {{ cadence }}. Stop once you've processed every new
 upload past the high_water_mark.`
@@ -75,11 +135,11 @@ For each new post:
     it's a release note or changelog, keep it short and structural.
   - Classify with topic_badges. Prefer existing badges; suggest new ones
     only when nothing existing fits.
-  - Cross-source about {{ cross_source_n }} independent entries that cover
+  - Cross-source about {{ cross_references }} independent entries that cover
     the same idea, release, or controversy from a different angle. Skip
     syndicated copies of this exact post.
   - Call write_articles with summary, deep_dive, topic_badges,
-    significance, difficulty, source_published_at, and cross_source.
+    significance, difficulty, and cross_source.
 
 Cadence: {{ cadence }}. Process every new post past the high_water_mark,
 then stop.`
@@ -100,9 +160,8 @@ For each new issue:
     one article for the whole issue. If it's a single coherent essay, file
     one.
   - For each filed item: 3-6 sentence summary, topic_badges, significance,
-    difficulty, source_published_at (use the issue's publish date for all
-    sections from that issue).
-  - Cross-source roughly {{ cross_source_n }} independent entries per filed
+    and difficulty.
+  - Cross-source roughly {{ cross_references }} independent entries per filed
     item that cover the same story from a different outlet.
   - Call write_articles with the full payload.
 
@@ -126,11 +185,11 @@ For each new story:
     the substance, not the editorial voice.
   - Classify with topic_badges. News stories often span multiple badges
     (e.g. politics + economics) — apply all that fit.
-  - Cross-source about {{ cross_source_n }} entries from DIFFERENT outlets
+  - Cross-source about {{ cross_references }} entries from DIFFERENT outlets
     covering the same story. The whole point of cross-sourcing news is
     triangulation — duplicates from the same outlet add no signal.
   - Call write_articles with summary, topic_badges, significance, difficulty,
-    source_published_at, and cross_source.
+    and cross_source.
 
 Cadence: {{ cadence }}. Process every story past the high_water_mark, then
 stop.`
@@ -154,10 +213,10 @@ For each new post:
     image with a short caption, the summary can be a single sentence.
   - Classify with topic_badges based on what the post is actually about,
     not the platform itself.
-  - Cross-source roughly {{ cross_source_n }} independent entries
+  - Cross-source roughly {{ cross_references }} independent entries
     discussing the same thing from non-Instagram surfaces.
   - Call write_articles with summary, topic_badges, significance,
-    difficulty, source_published_at, and cross_source.
+    difficulty, and cross_source.
 
 Cadence: {{ cadence }}. Stop once every new post past the high_water_mark
 is filed.`
@@ -183,7 +242,7 @@ For each new post worth filing:
     "worth filing" should be roughly: would a reasonable person remember
     this in a week.
   - Classify with topic_badges.
-  - Cross-source about {{ cross_source_n }} independent entries discussing
+  - Cross-source about {{ cross_references }} independent entries discussing
     the same topic from outlets other than X.
   - Call write_articles.
 
@@ -207,10 +266,10 @@ For each new piece of content:
   - Summarize in 3-6 sentences. Lead with what the update IS, not what the
     site is. Readers already know the site; they're here for what changed.
   - Classify with topic_badges that describe the CONTENT, not the site.
-  - Cross-source roughly {{ cross_source_n }} independent entries covering
+  - Cross-source roughly {{ cross_references }} independent entries covering
     the same announcement, release, or topic from a different source.
   - Call write_articles with summary, topic_badges, significance,
-    difficulty, source_published_at, and cross_source.
+    difficulty, and cross_source.
 
 If the page genuinely has nothing new (the high_water_mark covers
 everything visible), file nothing and ack the queue item as succeeded
@@ -220,11 +279,39 @@ Cadence: {{ cadence }}. Stop once every new piece past the high_water_mark
 is filed.`
 
 export const STARTER_TEMPLATES: ReadonlyArray<Starter> = [
-  { slug: 'youtube', body: youtubeBody, cross_source_n: 3 },
-  { slug: 'blog', body: blogBody, cross_source_n: 3 },
-  { slug: 'newsletter', body: newsletterBody, cross_source_n: 3 },
-  { slug: 'news', body: newsBody, cross_source_n: 3 },
-  { slug: 'instagram', body: instagramBody, cross_source_n: 3 },
-  { slug: 'x', body: xBody, cross_source_n: 3 },
-  { slug: 'website', body: websiteBody, cross_source_n: 3 },
+  {
+    slug: 'youtube',
+    body: youtubeBody + AGENT_OPINION_INSTRUCTION + AUTHOR_HYGIENE_INSTRUCTION,
+    cross_source_n: 3,
+  },
+  {
+    slug: 'blog',
+    body: blogBody + AGENT_OPINION_INSTRUCTION + AUTHOR_HYGIENE_INSTRUCTION,
+    cross_source_n: 3,
+  },
+  {
+    slug: 'newsletter',
+    body: newsletterBody + AGENT_OPINION_INSTRUCTION + AUTHOR_HYGIENE_INSTRUCTION,
+    cross_source_n: 3,
+  },
+  {
+    slug: 'news',
+    body: newsBody + AGENT_OPINION_INSTRUCTION + AUTHOR_HYGIENE_INSTRUCTION,
+    cross_source_n: 3,
+  },
+  {
+    slug: 'instagram',
+    body: instagramBody + AGENT_OPINION_INSTRUCTION + AUTHOR_HYGIENE_INSTRUCTION,
+    cross_source_n: 3,
+  },
+  {
+    slug: 'x',
+    body: xBody + AGENT_OPINION_INSTRUCTION + AUTHOR_HYGIENE_INSTRUCTION,
+    cross_source_n: 3,
+  },
+  {
+    slug: 'website',
+    body: websiteBody + AGENT_OPINION_INSTRUCTION + AUTHOR_HYGIENE_INSTRUCTION,
+    cross_source_n: 3,
+  },
 ]

@@ -1,40 +1,21 @@
 /**
- * Root layout — wires the Phase 5 typography (#54).
+ * Root layout — typography setup.
  *
- * Final pick: **Bebas Neue (display) + Inter (body)**.
- *
- * Why these (decided against Archivo Black + Inter and Anton + DM Sans —
- * see the #54 PR body for the side-by-side comparison and the read of
- * `<vault>/Projects/Project-LucidIndex/Design/main.jpg`):
- *
- *   - **Bebas Neue** is the closest free Google Fonts approximation of
- *     the Fyrre Magazine cover wordmark — condensed, all-caps by nature,
- *     heavy verticals, very tight rhythm. It also reads convincingly as
- *     a card-title display sans at 18-22px.
- *   - **Inter** is the workhorse body sans the Visual Identity spec
- *     calls out by name (`Visual Identity.md` line 68). Variable font,
- *     widest-deployed editorial sans, pairs cleanly with a condensed
- *     display face without competing for attention.
- *
- * Both are loaded via `next/font/google` — self-hosted, zero CLS, no
- * runtime call to fonts.googleapis.com (privacy + offline-friendly per
- * the spec's "Self-host all fonts via `next/font` — zero CLS, no Google
- * CDN dependency" rule).
- *
- * `display: 'swap'` — render with the system fallback while the font
- * loads so first paint is never blocked. The Visual Identity spec's
- * type scale was sized against the system stack, so the swap looks
- * coherent during the brief unload window.
+ * Fonts: **Bebas Neue (display) + Inter (body)**, loaded via `next/font/google`
+ * — self-hosted, zero CLS, no Google CDN dependency.
  *
  * The two CSS variables (`--font-display`, `--font-body`) are wired into
- * `globals.css`'s `@theme` block as the source-of-truth tokens; every
- * component that uses `text-display-*` or default body type inherits
- * them automatically via Tailwind v4's auto-utility generation.
+ * `globals.css`'s `@theme` block; every component that uses `font-display`
+ * or `font-body` utilities inherits them automatically via Tailwind v4.
  */
 
 import type { Metadata, Viewport } from 'next'
 import { Bebas_Neue, Inter } from 'next/font/google'
 import type { ReactNode } from 'react'
+import { ThemeColorMeta } from '@/components/chrome/ThemeColorMeta'
+import { ThemeProvider } from '@/components/chrome/ThemeProvider'
+import { Toaster } from '@/components/ui/sonner'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import './globals.css'
 
 // Display face — the page-spanning LUCIDINDEX wordmark + card titles.
@@ -70,12 +51,25 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  // Browser UI tint (Safari toolbar, mobile address bar) — matched to the page
+  // `--background`. Static media values cover SSR + the default `system` theme;
+  // <ThemeColorMeta /> refines them to the resolved theme after hydration.
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f8f6f2' },
+    { media: '(prefers-color-scheme: dark)', color: '#1e1e1e' },
+  ],
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable}`}>
-      <body className="font-body">{children}</body>
+    <html lang="en" className={`${display.variable} ${body.variable}`} suppressHydrationWarning>
+      <body className="font-body antialiased">
+        <ThemeProvider>
+          <ThemeColorMeta />
+          <TooltipProvider delayDuration={200}>{children}</TooltipProvider>
+          <Toaster />
+        </ThemeProvider>
+      </body>
     </html>
   )
 }

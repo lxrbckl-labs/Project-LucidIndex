@@ -7,12 +7,40 @@
     "./slug": {
       "source": "./src/slug.ts",
       "default": "./dist/slug.js"
+    },
+    "./image-pipeline": {
+      "source": "./src/image-pipeline.ts",
+      "default": "./dist/image-pipeline.js"
+    },
+    "./article-view": {
+      "source": "./src/article-view.ts",
+      "default": "./dist/article-view.js"
+    },
+    "./article-density": {
+      "source": "./src/article-density.ts",
+      "default": "./dist/article-density.js"
+    },
+    "./url": {
+      "source": "./src/url.ts",
+      "default": "./dist/url.js"
     }
   },
   "typesVersions": {
     "*": {
       "slug": [
         "./dist/slug.d.ts"
+      ],
+      "image-pipeline": [
+        "./dist/image-pipeline.d.ts"
+      ],
+      "article-view": [
+        "./dist/article-view.d.ts"
+      ],
+      "article-density": [
+        "./dist/article-density.d.ts"
+      ],
+      "url": [
+        "./dist/url.d.ts"
       ]
     }
   },
@@ -20,6 +48,9 @@
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "sharp": "0.34.4"
   },
   "devDependencies": {
     "@types/node": "25.6.0",

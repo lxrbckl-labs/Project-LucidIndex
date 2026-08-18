@@ -11,15 +11,38 @@ export {
   getAdminCredentials,
 } from './account.js'
 export {
-  type FinalizeFoundingSessionResult,
-  type FinishFoundingEnrollmentInput,
-  type FinishFoundingEnrollmentResult,
-  finalizeFoundingSession,
-  finishFoundingEnrollment,
+  DEV_BYPASS_ADMIN_ID,
+  devForumBypassUsername,
+  isDevAuthBypassActive,
+} from './dev-bypass.js'
+export {
+  type FinishForumLoginInput,
+  type FinishForumLoginResult,
+  finishForumLogin,
+  type StartForumLoginResult,
+  startForumLogin,
+} from './forum-login.js'
+export {
+  type FinishForumRegistrationInput,
+  type FinishForumRegistrationResult,
+  FORUM_USERNAME_RE,
+  finishForumRegistration,
+  type StartForumRegistrationResult,
+  startForumRegistration,
+} from './forum-register.js'
+export {
+  destroyForumSession,
+  establishForumSession,
+  FORUM_SESSION_COOKIE_NAME,
+  type ForumSessionData,
+  getForumSession,
+  requireForumUser,
+} from './forum-session.js'
+export {
+  type ClaimFoundingAdminResult,
+  claimFoundingAdmin,
   isFoundingFlowAvailable,
   makeDrizzleFoundingStore,
-  type StartFoundingEnrollmentResult,
-  startFoundingEnrollment,
 } from './found.js'
 export {
   type FoundFirstAdminFailure,
@@ -39,6 +62,11 @@ export {
   startLogin,
 } from './login.js'
 export {
+  PASSCODE_SESSION_MARKER,
+  type PasscodeSignInResult,
+  signInWithPasscode,
+} from './passcode-login.js'
+export {
   generatePlaintextCode,
   hashCode,
   verifyHash,
@@ -47,6 +75,16 @@ export {
   type RegenerateRecoveryCodeResult,
   regenerateRecoveryCode,
 } from './recovery-actions.js'
+export {
+  type FinalizeRecoverySessionResult,
+  type FinishRecoveryEnrollmentInput,
+  type FinishRecoveryEnrollmentResult,
+  finalizeRecoverySession,
+  finishRecoveryEnrollment,
+  makeDrizzleRecoveryStore,
+  type StartRecoveryEnrollmentResult,
+  startRecoveryEnrollment,
+} from './recovery-login.js'
 export {
   type FinishPasskeyRegistrationInput,
   type FinishPasskeyRegistrationResult,

@@ -2,7 +2,7 @@
  * Curated topic-badge collection endpoints.
  *
  *   GET  /api/settings/badges  → list curated badges
- *   POST /api/settings/badges  → create a new badge { name, color?, displayOrder? }
+ *   POST /api/settings/badges  → create a new badge { name }
  *
  * Both gated by `requireAdmin()` — no admin session, no access. Errors
  * are deliberately non-revealing: a duplicate name surfaces as a 409 with
@@ -12,7 +12,7 @@
 
 import { requireAdmin } from '@lucidindex/auth'
 import { db } from '@lucidindex/db/client'
-import { asc } from '@lucidindex/db/query'
+import { asc, sql } from '@lucidindex/db/query'
 import { topicBadges } from '@lucidindex/db/schema'
 import { NextResponse } from 'next/server'
 
@@ -21,44 +21,15 @@ export const dynamic = 'force-dynamic'
 
 type CreateBody = {
   name?: unknown
-  color?: unknown
-  displayOrder?: unknown
 }
 
-function parseCreate(body: CreateBody):
-  | {
-      ok: true
-      value: { name: string; color: string | null; displayOrder: number | null }
-    }
-  | { ok: false; error: string } {
+function parseCreate(
+  body: CreateBody,
+): { ok: true; value: { name: string } } | { ok: false; error: string } {
   const name = typeof body.name === 'string' ? body.name.trim() : ''
   if (!name) return { ok: false, error: 'Name is required.' }
   if (name.length > 64) return { ok: false, error: 'Name must be 64 characters or fewer.' }
-
-  let color: string | null = null
-  if (body.color !== undefined && body.color !== null && body.color !== '') {
-    if (typeof body.color !== 'string') return { ok: false, error: 'Color must be a string.' }
-    const c = body.color.trim()
-    // Accept either #abc or #aabbcc — anything else, reject.
-    if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(c)) {
-      return { ok: false, error: 'Color must be a hex value like #112233 or #abc.' }
-    }
-    color = c
-  }
-
-  let displayOrder: number | null = null
-  if (body.displayOrder !== undefined && body.displayOrder !== null && body.displayOrder !== '') {
-    const n = typeof body.displayOrder === 'string' ? Number(body.displayOrder) : body.displayOrder
-    if (typeof n !== 'number' || !Number.isFinite(n) || !Number.isInteger(n)) {
-      return { ok: false, error: 'Display order must be an integer.' }
-    }
-    if (n < -2147483648 || n > 2147483647) {
-      return { ok: false, error: 'Display order is out of range.' }
-    }
-    displayOrder = n
-  }
-
-  return { ok: true, value: { name, color, displayOrder } }
+  return { ok: true, value: { name } }
 }
 
 export async function GET() {
@@ -94,8 +65,7 @@ export async function POST(request: Request) {
       .insert(topicBadges)
       .values({
         name: parsed.value.name,
-        color: parsed.value.color,
-        displayOrder: parsed.value.displayOrder,
+        displayOrder: sql`(SELECT COALESCE(MAX(display_order), -1) + 1 FROM topic_badges)`,
       })
       .returning()
     return NextResponse.json({ ok: true, badge: created }, { status: 201 })

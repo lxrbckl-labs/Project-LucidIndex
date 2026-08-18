@@ -1,57 +1,40 @@
 'use client'
 
 /**
- * TopicBadgeFilterRow — interactive topic-badge filter pills (#55, #61).
+ * TopicBadgeFilterRow — sub-card with pinned All/Starred + infinite-scroll belt.
  *
- * Reference: <vault>/Projects/Project-LucidIndex/Visual Identity.md
- * (the "Filter pill row" section is binding) and `Design/main.jpg`.
+ * Layout:
+ *   <Card>
+ *     [All] [Starred]  │  ╱ auto-scrolling belt of topic pills ╱
+ *   </Card>
  *
- * Behavior (#61):
+ * The pinned cluster (All + Starred) sits in a non-scrolling flex slot
+ * on the left so users can always click them. The belt fills the
+ * remaining width and auto-scrolls right-to-left via a main-thread
+ * requestAnimationFrame loop (see the rAF effect below).
  *
- *   - "All" pill is always first, selected by default on first paint.
- *   - Single-select — only one badge filter active at a time.
- *   - Click the active pill → clears the filter (URL drops the param,
- *     "All" goes back to selected).
- *   - Filter state lives in the URL via `?badge=<name>` so bookmarks +
- *     back/forward navigation all behave correctly. The masonry below
- *     reads the same param server-side and filters the article list.
+ * Topics are rendered three times in the track ([copy0][copy1][copy2])
+ * to give the impression of an infinite belt without ballooning the DOM.
+ * After translating one copy width the loop wraps back to 0 seamlessly
+ * because the visible window now contains [copy1][copy2] in the same
+ * screen positions copy0 and copy1 occupied at start.
  *
- * Layout decision:
+ * Hover pauses the scroll (a CSS animation paused on hover snaps backward
+ * as the compositor reconciles to the main thread — the rAF loop commits
+ * the transform on the main thread every frame, so the pause is jolt-free).
+ * Touch / coarse-pointer / reduced-motion get a non-animated, native
+ * horizontal-scroll variant with duplicates hidden. See `globals.css`
+ * `.lucidindex-belt-*`.
  *
- *   The pill row is NOT sticky — Visual Identity.md doesn't pin this,
- *   and Fyrre print magazines put filters above-the-fold without
- *   following the reader. Non-sticky reads more editorial and is
- *   simpler to implement (no z-index / blur backdrop dance). Document
- *   here so future changes are deliberate.
- *
- * Visual:
- *
- *   - Each pill is hairline-bordered, text-only, pill-radius (the only
- *     rounded element on the dashboard per spec).
- *   - Active pill = filled background (`bg-ink`) + paper text.
- *   - Inactive pill = paper background + ink border + ink text.
- *   - Smooth ~150ms color transition on hover and on selection change.
- *
- * Phase 8 #82 — mobile horizontal scroll:
- *
- *   - Below the lg breakpoint (≤1023px), the row scrolls horizontally
- *     when its pills overflow. `overflow-x-auto` + iOS momentum scroll
- *     keep the touch feel native. The scrollbar is hidden visually
- *     (`scrollbar-width: none` for Firefox, `::-webkit-scrollbar
- *     { display: none }` for WebKit) — the row remains scrollable, the
- *     visual chrome stays editorial.
- *   - When the user picks a pill, we scroll the active element into
- *     view via `Element.scrollIntoView({ inline: 'nearest', behavior:
- *     'smooth' })` so it stays visible after a tap on a clipped pill.
- *
- * Why client-side: the pill click needs to update the URL via
- * `router.replace()` AND surface the active state immediately. We
- * derive `active` from the URL search params on every render so the
- * pill state and the URL never drift.
+ * URL writeback (unchanged): Active badge → ?badge=<name>;
+ * starred → ?starred=1; All → params cleared.
  */
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useRef, useTransition } from 'react'
+import { useCallback, useEffect, useRef, useTransition } from 'react'
+import { Card } from '@/components/ui/card'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { useTopicPrefs } from '@/lib/topic-prefs'
 
 export type TopicBadgeOption = {
   /** The canonical badge name as stored in `topic_badges.name`. */
@@ -65,131 +48,226 @@ type Props = {
 
 /** URL search-param key carrying the selected badge name. */
 export const BADGE_PARAM = 'badge'
+/** URL search-param key for the "Starred" virtual filter. */
+export const STARRED_PARAM = 'starred'
+/** Sentinel value used by the pinned ToggleGroup for the Starred entry. */
+const STARRED_VALUE = '__starred__'
+/**
+ * Sentinel for `pinnedValue` when the active filter is a topic badge —
+ * matches no pinned item, so neither All nor Starred renders pressed.
+ */
+const PINNED_NONE = '__no_pinned__'
+
+// One shared class string for belt buttons. Mirrors what
+// ToggleGroupItem variant=outline size=sm produces, since rendering 3
+// copies through Radix would collide on duplicate values.
+const BELT_PILL_CLASS =
+  'shrink-0 cursor-pointer inline-flex items-center justify-center h-9 rounded-full px-4 text-xs uppercase tracking-[0.1em] border bg-transparent ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=on]:bg-zinc-200 data-[state=on]:text-zinc-600 dark:data-[state=on]:bg-zinc-800 dark:data-[state=on]:text-zinc-200'
+
+const PINNED_PILL_CLASS =
+  'shrink-0 cursor-pointer rounded-full px-4 text-xs uppercase tracking-[0.1em] font-extrabold data-[state=on]:bg-zinc-200 data-[state=on]:text-zinc-600 dark:data-[state=on]:bg-zinc-800 dark:data-[state=on]:text-zinc-200'
 
 export function TopicBadgeFilterRow({ badges }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
+  const { starred } = useTopicPrefs()
 
-  // Active badge = current value of `?badge=...` from the URL. Empty / null
-  // means "All" is selected. We never store this in client state — the URL
-  // is the source of truth so deep links and back-button work cleanly.
-  const active = searchParams.get(BADGE_PARAM)?.trim() ?? ''
+  // The belt is driven by a main-thread rAF loop rather than a CSS keyframe
+  // animation. A compositor-run CSS animation paused on hover snaps backward —
+  // the pause reconciles the compositor's few-frame lead back to the main
+  // thread. Writing the transform on the main thread every frame keeps the
+  // displayed position equal to the committed position, so hover-pause is
+  // jolt-free. `pausedRef` is a ref (not state) so toggling it on hover never
+  // re-renders the 3×N belt.
+  const trackRef = useRef<HTMLDivElement>(null)
+  const pausedRef = useRef(false)
 
-  // Build the row in render order. "All" is always the first cell and is
-  // synthetic — it doesn't appear in `topic_badges`.
-  const items = useMemo(() => {
-    const list: Array<{ key: string; label: string; value: string | null }> = [
-      { key: '__all__', label: 'All', value: null },
-    ]
-    for (const b of badges) {
-      list.push({ key: b.name, label: b.name, value: b.name })
+  useEffect(() => {
+    const track = trackRef.current
+    if (!track) return
+
+    // Touch / coarse-pointer / reduced-motion get the native horizontal-scroll
+    // variant (CSS media query); the JS loop stays out of their way.
+    const mq = window.matchMedia(
+      '(prefers-reduced-motion: reduce), (hover: none), (pointer: coarse)',
+    )
+
+    let raf = 0
+    let lastTs = 0
+    let offset = 0
+    let period = 0
+
+    // One copy width = the seamless wrap distance (three identical copies).
+    const measure = () => {
+      period = track.scrollWidth / 3
     }
-    return list
-  }, [badges])
 
-  const handleClick = useCallback(
-    (value: string | null, target: HTMLElement) => {
-      // Clone the existing search params so any non-badge filters (future
-      // additions like `?starred=1`) survive a pill click.
-      const next = new URLSearchParams(searchParams.toString())
-
-      // "All" always clears the param. Clicking the active pill toggles off
-      // (single-select with click-same-to-clear). Otherwise set it.
-      const shouldClear = value === null || value === active
-      if (shouldClear) {
-        next.delete(BADGE_PARAM)
-      } else {
-        next.set(BADGE_PARAM, value)
+    const step = (ts: number) => {
+      if (period > 0 && lastTs !== 0 && !pausedRef.current) {
+        // Match the prior cadence: one copy width per 35s.
+        offset -= (period / 35_000) * (ts - lastTs)
+        if (-offset >= period) offset += period
+        track.style.transform = `translate3d(${offset}px, 0, 0)`
       }
+      lastTs = ts
+      raf = requestAnimationFrame(step)
+    }
 
-      const qs = next.toString()
+    const startLoop = () => {
+      if (mq.matches) {
+        track.style.transform = ''
+        return
+      }
+      measure()
+      lastTs = 0
+      raf = requestAnimationFrame(step)
+    }
+
+    const stopLoop = () => {
+      if (raf) cancelAnimationFrame(raf)
+      raf = 0
+    }
+
+    startLoop()
+
+    // Hover-pause, attached natively (not via JSX) so it stays a pure
+    // pointer-only visual nicety with no a11y semantics on the wrapper. The
+    // mask is the track's parent.
+    const mask = track.parentElement
+    const pause = () => {
+      pausedRef.current = true
+    }
+    const resume = () => {
+      pausedRef.current = false
+    }
+    mask?.addEventListener('mouseenter', pause)
+    mask?.addEventListener('mouseleave', resume)
+
+    // Recompute the wrap distance when the belt's width changes (font load,
+    // viewport resize, badge list changes).
+    const ro = new ResizeObserver(() => {
+      if (!mq.matches) measure()
+    })
+    ro.observe(track)
+
+    // Re-evaluate if the user switches pointer/motion mode mid-session.
+    const onModeChange = () => {
+      stopLoop()
+      offset = 0
+      track.style.transform = ''
+      startLoop()
+    }
+    mq.addEventListener('change', onModeChange)
+
+    return () => {
+      stopLoop()
+      ro.disconnect()
+      mask?.removeEventListener('mouseenter', pause)
+      mask?.removeEventListener('mouseleave', resume)
+      mq.removeEventListener('change', onModeChange)
+    }
+  }, [])
+
+  const starredActive = searchParams.get(STARRED_PARAM) === '1'
+  const badgeActive = searchParams.get(BADGE_PARAM)?.trim() ?? ''
+  const active = starredActive ? STARRED_VALUE : badgeActive
+
+  // Pinned ToggleGroup mirrors only the All/Starred state. When a topic
+  // is active, point at PINNED_NONE so neither pinned item is pressed.
+  const pinnedValue = active === '' ? '' : active === STARRED_VALUE ? STARRED_VALUE : PINNED_NONE
+
+  const handleValueChange = useCallback(
+    (next: string) => {
+      const params = new URLSearchParams(searchParams.toString())
+      params.delete(BADGE_PARAM)
+      params.delete(STARRED_PARAM)
+      if (next === STARRED_VALUE) {
+        params.set(STARRED_PARAM, '1')
+      } else if (next && next !== PINNED_NONE) {
+        params.set(BADGE_PARAM, next)
+      }
+      const qs = params.toString()
       const url = qs.length > 0 ? `/?${qs}` : '/'
-
-      // `replace` (not `push`) — the filter is a view filter, not a
-      // navigation step. Avoids piling history entries when the admin
-      // scrubs through pills.
       startTransition(() => {
         router.replace(url, { scroll: false })
       })
-
-      // Phase 8 #82 — scroll the just-tapped pill into view on mobile,
-      // so a tap on a clipped pill at the row's edge isn't lost behind
-      // the overflow boundary. `inline: 'nearest'` only scrolls when
-      // the pill isn't already fully visible; `block: 'nearest'`
-      // prevents the page from jumping vertically.
-      target.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' })
     },
-    [active, router, searchParams],
+    [router, searchParams],
   )
 
-  // Phase 8 #82 — when the active filter changes (e.g. via deep-link or
-  // back/forward), scroll the active pill into view so the user sees
-  // which one is selected. Runs on mount + on `active` change.
-  // The effect doesn't read `active` directly — it queries the DOM for
-  // the element carrying `data-active` — but we still depend on `active`
-  // so the effect re-runs whenever the URL-derived selection changes.
-  const navRef = useRef<HTMLElement | null>(null)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `active` is the trigger; the body reads from the DOM.
-  useEffect(() => {
-    const nav = navRef.current
-    if (!nav) return
-    const activeEl = nav.querySelector<HTMLElement>('button[data-active]')
-    if (!activeEl) return
-    activeEl.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' })
-  }, [active])
-
   return (
-    <nav
-      ref={navRef}
-      aria-label="Topic filter"
-      // Phase 8 #82 — `flex-nowrap` keeps pills on a single line on
-      // mobile so the horizontal-scroll behavior actually triggers
-      // (with `flex-wrap`, pills would wrap to a second line and the
-      // overflow rule would never fire). The custom class
-      // `lucidindex-pill-row` carries the scrollbar-hide rules from
-      // globals.css.
-      className="lucidindex-pill-row flex flex-nowrap items-center gap-3 overflow-x-auto py-1"
-      // Keep the scrollbar invisible on macOS-style trackpads but still
-      // scrollable. `overscroll-behavior` keeps horizontal flicks from
-      // pulling the page along.
-      style={{
-        overscrollBehaviorX: 'contain',
-        // iOS momentum scroll for natural touch feel.
-        WebkitOverflowScrolling: 'touch',
-      }}
-      data-pending={isPending ? '' : undefined}
-    >
-      {items.map((item) => {
-        const isActive = item.value === null ? active === '' : item.value === active
-        return (
-          <button
-            key={item.key}
-            type="button"
-            onClick={(e) => handleClick(item.value, e.currentTarget)}
-            aria-pressed={isActive}
-            data-active={isActive ? '' : undefined}
-            className={[
-              'inline-flex shrink-0 items-center justify-center border px-4 py-1.5',
-              'text-[0.7rem] uppercase tracking-[0.1em] transition-colors duration-150',
-              'cursor-pointer',
-              // Phase 8 #85 — focus ring. The pill already carries a
-              // hairline border so the global :focus-visible 1px outline
-              // would double up; we use an inset box-shadow instead so
-              // the focus indicator reads as a thickened border without
-              // extending past the pill silhouette.
-              'focus:outline-none focus-visible:outline-none',
-              'focus-visible:[box-shadow:inset_0_0_0_2px_var(--color-ink)]',
-              isActive
-                ? 'border-ink bg-ink text-paper'
-                : 'border-ink bg-paper text-ink hover:bg-ink hover:text-paper',
-            ].join(' ')}
-            style={{ borderRadius: 'var(--radius-pill)' }}
+    <Card className="overflow-hidden" data-pending={isPending ? '' : undefined}>
+      <nav aria-label="Topic filter" className="flex items-stretch pl-4 pr-4 sm:pr-0">
+        {/* Pinned cluster — always visible, never scrolls. On mobile (belt
+            hidden) it spans the row with All/Starred pushed to opposite ends;
+            on sm+ it's a tight left cluster with the belt filling the rest. */}
+        <ToggleGroup
+          type="single"
+          value={pinnedValue}
+          onValueChange={handleValueChange}
+          className="flex w-full items-center justify-between gap-2 py-4 sm:w-auto sm:shrink-0 sm:justify-start"
+        >
+          <ToggleGroupItem
+            value=""
+            aria-label="Show all topics"
+            variant="outline"
+            size="sm"
+            className={PINNED_PILL_CLASS}
           >
-            {item.label}
-          </button>
-        )
-      })}
-    </nav>
+            All
+          </ToggleGroupItem>
+          <ToggleGroupItem
+            value={STARRED_VALUE}
+            aria-label="Filter by Starred"
+            variant="outline"
+            size="sm"
+            className={PINNED_PILL_CLASS}
+          >
+            Starred
+          </ToggleGroupItem>
+        </ToggleGroup>
+
+        {/* Separator + the topic belt are desktop/tablet only — on mobile the
+            scrolling pill belt is too cramped, so we keep just All/Starred. */}
+        <div
+          className="hidden self-stretch w-px bg-border shrink-0 ml-3 sm:block"
+          aria-hidden="true"
+        />
+
+        {/* Auto-scrolling belt — three copies for seamless looping.
+            Hover-pause listeners are attached natively in the rAF effect. */}
+        <div className="lucidindex-belt-mask hidden flex-1 min-w-0 py-4 sm:block">
+          <div
+            ref={trackRef}
+            className="lucidindex-belt-track flex flex-nowrap items-center gap-2 w-max"
+          >
+            {[0, 1, 2].map((copyIdx) =>
+              badges.map((b) => {
+                const isActive = active === b.name
+                const isStarred = starred.has(b.name)
+                const isCopy = copyIdx > 0
+                return (
+                  <button
+                    key={`copy-${copyIdx}-${b.name}`}
+                    type="button"
+                    onClick={() => handleValueChange(isActive ? '' : b.name)}
+                    data-state={isActive ? 'on' : 'off'}
+                    data-belt-copy={isCopy ? 'duplicate' : 'primary'}
+                    aria-hidden={isCopy ? true : undefined}
+                    tabIndex={isCopy ? -1 : 0}
+                    aria-label={isCopy ? undefined : `Filter by ${b.name}`}
+                    aria-pressed={isCopy ? undefined : isActive}
+                    className={`${BELT_PILL_CLASS} ${isStarred ? 'font-extrabold' : ''}`}
+                  >
+                    {b.name}
+                  </button>
+                )
+              }),
+            )}
+          </div>
+        </div>
+      </nav>
+    </Card>
   )
 }

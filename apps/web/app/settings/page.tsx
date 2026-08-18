@@ -1,97 +1,219 @@
 /**
- * /settings — the authenticated hub.
+ * /settings — the authenticated hub (Phase 2).
  *
- * Lists the eight sub-panels with a one-line description each, so an
- * admin landing on `/settings` for the first time sees what's behind
- * each link without having to click through. Real CRUD lives in the
- * sub-panels (Phase 2 / Phase 7).
+ * Grouped grid of shadcn Cards mirroring the sidebar structure exactly
+ * (see _components/SettingsSidebar.tsx). Keep these in lockstep: the
+ * landing page is the "what's here?" entry point and the sidebar is
+ * the persistent nav — divergence between them confuses operators.
+ *
+ *   Dashboard — Targets, Comparison Sources, Agents, MCP API Docs, Templates
+ *   System    — System, Agent Tokens
+ *   Inbox     — Badges
+ *   Forum     — User Invites, Agents, MCP API Docs, Posting, Templates
+ *   Account   — Account
+ *
+ * Layout: grid-cols-1 md:grid-cols-2 xl:grid-cols-3, gap-6
+ * Each card: icon + title + description, full-card Link, hover lift.
  */
 
+import {
+  Bell,
+  BookOpen,
+  Bot,
+  Code,
+  FileText,
+  Key,
+  Settings2,
+  ShieldCheck,
+  Tag,
+  Ticket,
+} from 'lucide-react'
 import Link from 'next/link'
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
-const PANELS: ReadonlyArray<{ href: string; title: string; blurb: string; phase: string }> = [
+type Panel = {
+  href: string
+  title: string
+  blurb: string
+  icon: React.ElementType
+  newTab?: boolean
+}
+
+type Group = {
+  label: string
+  panels: Panel[]
+}
+
+const GROUPS: Group[] = [
   {
-    href: '/settings/account',
-    title: 'Account',
-    blurb: 'Registered passkeys, register another device, regenerate recovery code.',
-    phase: 'Phase 2',
+    label: 'Dashboard',
+    panels: [
+      {
+        href: '/settings/targets',
+        title: 'Targets',
+        blurb: 'Sources the agent crawls — feeds, sites, and ingestion targets.',
+        icon: Settings2,
+      },
+      {
+        href: '/settings/comparison-sources',
+        title: 'Comparison Sources',
+        blurb: 'External sources used by the agent when comparing and rating articles.',
+        icon: BookOpen,
+      },
+      {
+        href: '/settings/dashboard-agent-invites',
+        title: 'Agents',
+        blurb:
+          'Issue bearer invites so external agents can authorize against the dashboard MCP server.',
+        icon: Bot,
+      },
+      {
+        href: '/agents/dashboard',
+        title: 'MCP API Docs',
+        blurb:
+          'Public reference for the dashboard MCP server — tools, parameters, connection details.',
+        icon: Code,
+        newTab: true,
+      },
+      {
+        href: '/settings/templates',
+        title: 'Templates',
+        blurb: 'Prompt templates with Liquid validation and starter library.',
+        icon: FileText,
+      },
+    ],
   },
   {
-    href: '/settings/targets',
-    title: 'Targets',
-    blurb: 'Sources the agent crawls — feeds, sites, and ingestion targets.',
-    phase: 'Phase 2',
+    label: 'System',
+    panels: [
+      {
+        href: '/settings/system',
+        title: 'System',
+        blurb: 'Cron run history, queue depth, and drift histograms.',
+        icon: Settings2,
+      },
+      {
+        href: '/settings/agent-tokens',
+        title: 'Agent Tokens',
+        blurb: 'Issue, display once, hash, and revoke tokens for headless agents.',
+        icon: Key,
+      },
+    ],
   },
   {
-    href: '/settings/badges',
-    title: 'Badges',
-    blurb: 'Curated badges, agent-suggested badge inbox, and bulk actions.',
-    phase: 'Phase 2',
+    label: 'Inbox',
+    panels: [
+      {
+        href: '/settings/badges',
+        title: 'Badges',
+        blurb: 'Curated badges, agent-suggested badge inbox, and bulk actions.',
+        icon: Tag,
+      },
+    ],
   },
   {
-    href: '/settings/templates',
-    title: 'Templates',
-    blurb: 'Prompt templates with Liquid validation and starter library.',
-    phase: 'Phase 2',
+    label: 'Forum',
+    panels: [
+      {
+        href: '/settings/forum-invites',
+        title: 'User Invites',
+        blurb: 'Single-use invite codes that gate human forum signup.',
+        icon: Ticket,
+      },
+      {
+        href: '/settings/agent-invites',
+        title: 'Agents',
+        blurb:
+          "Mint bearer tokens so another person's agent can authorize a session against this forum's MCP server.",
+        icon: Bot,
+      },
+      {
+        href: '/agents/forum',
+        title: 'MCP API Docs',
+        blurb: 'Public reference for the forum MCP server — tools, parameters, connection details.',
+        icon: Code,
+        newTab: true,
+      },
+      {
+        href: '/settings/posting',
+        title: 'Posting',
+        blurb: 'Character ceilings, image-per-post caps, and other forum-composer limits.',
+        icon: Settings2,
+      },
+      {
+        href: '/settings/forum-templates',
+        title: 'Templates',
+        blurb:
+          "Share-invite copy that goes out with an Agent Invite, plus the role template defining the invited agent's behavior.",
+        icon: FileText,
+      },
+    ],
   },
   {
-    href: '/settings/agent-tokens',
-    title: 'Agent tokens',
-    blurb: 'Issue, display once, hash, and revoke tokens for headless agents.',
-    phase: 'Phase 2',
-  },
-  {
-    href: '/settings/off-site-backup',
-    title: 'Off-site backup',
-    blurb: 'Configure the rclone remote that receives nightly DB dumps.',
-    phase: 'Phase 2',
-  },
-  {
-    href: '/settings/system',
-    title: 'System',
-    blurb: 'Cron run history, queue depth, and drift histograms.',
-    phase: 'Phase 7',
-  },
-  {
-    href: '/settings/hidden-articles',
-    title: 'Hidden articles',
-    blurb: 'List and restore articles you previously hid from the dashboard.',
-    phase: 'Phase 7',
+    label: 'Account',
+    panels: [
+      {
+        href: '/settings/account',
+        title: 'Account',
+        blurb: 'Registered passkeys, register another device, regenerate recovery code.',
+        icon: ShieldCheck,
+      },
+      {
+        href: '/settings/notifications',
+        title: 'Notifications',
+        blurb: '@-mentions of you and replies to your posts. Mark read or delete from one place.',
+        icon: Bell,
+      },
+    ],
   },
 ]
 
 export default function SettingsHubPage() {
   return (
-    <div className="max-w-[680px]">
-      <h1
-        className="text-[clamp(2rem,5vw,3.5rem)] font-black tracking-tight leading-none text-black uppercase"
-        style={{ fontStretch: 'condensed', letterSpacing: '-0.02em' }}
-      >
-        Settings
-      </h1>
-      <div className="mt-6 mb-10 h-px w-full bg-neutral-200" />
-      <p className="text-base text-neutral-600 leading-relaxed mb-12">
-        Eight panels — pick one to configure. Phase 2 fills in the day-to-day controls; Phase 7 adds
-        the operational read-outs.
-      </p>
+    <>
+      <div className="-mx-6 -mt-6 px-6 pt-6 pb-6 border-b">
+        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+        <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+          Configure LucidIndex — pick a panel to get started.
+        </p>
+      </div>
 
-      <ul className="space-y-8">
-        {PANELS.map((panel) => (
-          <li key={panel.href}>
-            <Link href={panel.href} className="group block">
-              <div className="flex items-baseline justify-between gap-4">
-                <h2 className="text-xl font-semibold text-black group-hover:underline underline-offset-4 decoration-2">
-                  {panel.title}
-                </h2>
-                <span className="text-xs uppercase tracking-wide text-neutral-400 shrink-0">
-                  {panel.phase}
-                </span>
-              </div>
-              <p className="mt-1 text-sm text-neutral-600 leading-relaxed">{panel.blurb}</p>
-            </Link>
-          </li>
+      <div className="max-w-[960px] space-y-10">
+        {GROUPS.map((group) => (
+          <section key={group.label}>
+            <h2 className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              {group.label}
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {group.panels.map((panel) => {
+                const Icon = panel.icon
+                return (
+                  <Link
+                    key={panel.href}
+                    href={panel.href}
+                    className="group block"
+                    {...(panel.newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                  >
+                    <Card className="h-full transition-colors hover:bg-accent/50 hover:shadow-sm">
+                      <CardHeader>
+                        <div className="mb-2 flex size-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                          <Icon className="size-4" />
+                        </div>
+                        <CardTitle className="text-base font-semibold group-hover:underline underline-offset-4 decoration-2">
+                          {panel.title}
+                        </CardTitle>
+                        <CardDescription className="text-sm text-muted-foreground">
+                          {panel.blurb}
+                        </CardDescription>
+                      </CardHeader>
+                    </Card>
+                  </Link>
+                )
+              })}
+            </div>
+          </section>
         ))}
-      </ul>
-    </div>
+      </div>
+    </>
   )
 }

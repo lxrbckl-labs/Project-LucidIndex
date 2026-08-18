@@ -4,9 +4,9 @@
 //
 // Two-phase sweep:
 //
-//   1. ROLL OFF DASHBOARD AT 14 DAYS
+//   1. ROLL OFF DASHBOARD AT 6 DAYS
 //      UPDATE articles SET dashboard_visible = false
-//      WHERE dashboard_visible = true AND created_at < now() - interval '14 days'
+//      WHERE dashboard_visible = true AND created_at < now() - interval '6 days'
 //
 //      The article still exists, is still searchable, and the share-link still
 //      works — it just no longer appears on the / dashboard. This is a one-way
@@ -53,14 +53,14 @@ import { type JobDetails, runJob } from '../lib/run-job.js'
 
 export async function runRetentionPurge(): Promise<void> {
   await runJob('retention_purge', async (): Promise<JobDetails> => {
-    // Phase 1: roll off dashboard at 14 days.
+    // Phase 1: roll off dashboard at 6 days.
     const rolledOff = await db
       .update(articles)
       .set({ dashboardVisible: false })
       .where(
         and(
           eq(articles.dashboardVisible, true),
-          sql`${articles.createdAt} < now() - interval '14 days'`,
+          sql`${articles.createdAt} < now() - interval '6 days'`,
         ),
       )
       .returning({ id: articles.id })

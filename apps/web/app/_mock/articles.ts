@@ -77,6 +77,9 @@ export type MockArticle = {
   readMinutes: number
   /** 1-10 reasonableness rating; null when the agent skipped the field. */
   reasonablenessRating: number | null
+  /** Bearish→bullish sentiment (-5..+5); null when the agent skipped it.
+   * Drives the article page's Bearish/Bullish gauge. */
+  sentiment?: number | null
   /** Cross-source list rendered under "Other coverage" on the article page. */
   crossSource: MockCrossSource[]
   /** Source URL — drives slug disambiguation and the cross-source link out. */
@@ -100,6 +103,15 @@ export type MockArticle = {
   /** Mock-mode runtime state (mutated by server actions in mock mode). */
   starred?: boolean
   read?: boolean
+  /**
+   * Real-DB-only field — populated by the dashboard loader's row mapper
+   * with the actual `articles.created_at` so the "NEW" badge (#79)
+   * reflects the agent-insertion timestamp on production data. Mock
+   * articles continue to synthesize `created_at` via `insertedAtOffsetHours`,
+   * which `getMockCreatedAt` consults as a fallback when this field is
+   * absent.
+   */
+  createdAt?: Date
 }
 
 const HERO = (seed: string, w: number, h: number) =>
@@ -491,13 +503,23 @@ export const mockArticles: MockArticle[] = seeds.map(fromSeed)
 const DEFAULT_INSERTED_OFFSET_HOURS = 24 * 30
 
 /**
- * Synthesize the mock article's agent-insertion timestamp for the
- * "NEW" badge (#79). Mocks don't carry a real `created_at`, so we
- * derive one at read time by subtracting `insertedAtOffsetHours` from
- * "now". A couple of seeds are flagged with a small offset (< 24h)
- * to demo the badge in the visual gate.
+ * Resolve the article's agent-insertion timestamp for the "NEW" badge
+ * (#79). Three cases:
+ *
+ *   1. Real-DB row → returns the populated `createdAt` directly (the
+ *      dashboard loader's row mapper sets it from `articles.created_at`).
+ *   2. Mock with `insertedAtOffsetHours` → synthesizes "now − offset"
+ *      so the visual gate can demo the badge without a DB.
+ *   3. Mock without an offset → uses `DEFAULT_INSERTED_OFFSET_HOURS`
+ *      so unflagged mocks read as "old".
+ *
+ * Despite the `Mock` prefix, this helper is the canonical NEW-badge
+ * timestamp accessor for the dashboard — kept in this file because the
+ * masonry's prop type is still `MockArticle[]` (renaming that view-model
+ * is a follow-up).
  */
 export function getMockCreatedAt(article: MockArticle): Date {
+  if (article.createdAt) return article.createdAt
   const offsetHours = article.insertedAtOffsetHours ?? DEFAULT_INSERTED_OFFSET_HOURS
   return new Date(Date.now() - offsetHours * 60 * 60 * 1000)
 }

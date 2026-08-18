@@ -6,22 +6,34 @@
  * just the editorial heading + the client form.
  */
 
+import Link from 'next/link'
+import { AuthHomeMark } from '@/components/auth/AuthHomeMark'
+import { Separator } from '@/components/ui/separator'
 import { LoginPanel } from './LoginPanel'
 
 export default function LoginPage() {
   return (
     <div>
-      <h1
-        className="text-[clamp(2.5rem,7vw,4.5rem)] font-black tracking-tight leading-none text-black uppercase"
-        style={{ fontStretch: 'condensed', letterSpacing: '-0.02em' }}
-      >
-        Sign in
-      </h1>
-      <div className="mt-6 mb-10 h-px w-full bg-neutral-200" />
-      <p className="text-base text-neutral-600 leading-relaxed mb-8">
-        Use the passkey on this device to access Settings.
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="font-display text-5xl font-black tracking-tight leading-none text-foreground uppercase">
+          Sign in
+        </h1>
+        <AuthHomeMark />
+      </div>
+      <Separator className="mt-4 mb-5" />
+      <p className="text-base text-muted-foreground leading-relaxed mb-5">
+        Use the passkey on this device to sign in and access your settings.
       </p>
       <LoginPanel />
+      <p className="mt-6 text-sm text-muted-foreground">
+        <Link
+          href="/settings/recover"
+          className="underline-offset-4 hover:underline"
+          data-testid="recover-link"
+        >
+          Lost your passkey?
+        </Link>
+      </p>
     </div>
   )
 }

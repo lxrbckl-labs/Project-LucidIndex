@@ -81,10 +81,10 @@ docker logs $(docker ps --filter ancestor=li-cron-smoke:local -q) 2>/dev/null | 
 kill $CRON_PID 2>/dev/null; docker stop li-smoke-pg; docker network rm li-smoke-net
 ```
 
-### mcp-store container
+### mcp-dashboard container
 
 ```sh
-docker build -t li-mcp-smoke:local -f apps/mcp-store/Dockerfile .
+docker build -t li-mcp-smoke:local -f apps/mcp-dashboard/Dockerfile .
 docker network create li-smoke-net 2>/dev/null || true
 docker run -d --name li-smoke-pg --network li-smoke-net \
   -e POSTGRES_USER=lucidindex \
@@ -99,7 +99,7 @@ docker run --rm --network li-smoke-net -p 4000:4000 \
   li-mcp-smoke:local &
 MCP_PID=$!
 sleep 6
-# Expected: "mcp-store listening on 4000" log line.
+# Expected: "mcp-dashboard listening on 4000" log line.
 # Must NOT contain: ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING
 
 # Teardown
