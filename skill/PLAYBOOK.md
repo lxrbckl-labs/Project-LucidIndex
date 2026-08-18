@@ -8398,6 +8398,43 @@ into the filing.** Ours read "the classical methods disagreed with each other an
 quantum result was self-consistent," which is what the paper says and is a materially
 weaker — and more interesting — claim than the headline.
 
+**EXTENSION, 2026-08-18 (Landon Volkman, on D-Wave/NTT DOCOMO via `quantumcomputingreport.com`)
+— the deletion also runs LONGITUDINALLY, and that is the only form you can catch when there
+is no paper to read.** The entry above detects the missing denominator by reading the primary
+and asking *compared to what?* That remedy has a precondition: **a primary exists.** On a
+commercial-deployment claim there is no preprint, no journal, no methods section — the press
+release *is* the primary, and "read the underlying paper" has nothing to read. The
+comparison class is not deleted in transmission; it is simply never stated, and every outlet
+carrying the story (QCR, The Quantum Insider, the wire pickup) reproduces the same three
+numbers because the source document contains only those three numbers.
+
+Measured: DOCOMO's second production D-Wave application (18 Aug 2026) claims a **65.3%** cut in
+peak location-registration signaling with no classical baseline anywhere in the release. The
+**first** deployment in the same partnership (Sept 2024, reported by RCR Wireless) published
+one — *40 seconds on the hybrid solver against 27 hours for a general-purpose solver.* That
+figure was itself contestable (which solver, whose tuning, what settings), but it was a claim
+you could argue with. **Two years on, with a bigger result, the denominator is gone.**
+
+The generalisable move: **when there is no primary, diff the vendor against its own prior
+release.** A partnership's earlier announcements are a free control group — same claimant,
+same customer, same beat — and they establish what this claimant is *capable of disclosing*.
+That converts an unanswerable question (is 65.3% good?) into an answerable one (this
+organisation published a baseline when it had one, and has stopped), which is reportable
+without adjudicating the technical claim at all. Note the direction of travel is the story:
+**evidence thinning as results grow is a signal in itself**, and it is invisible to any
+single-document check.
+
+Corollary specific to this genre: a **production deployment** is the most credible-looking
+and least checkable object on the quantum beat. It carries no qubit count to laugh at and no
+"breakthrough" in the headline, so the hype filters this page is built around all pass it
+clean. Two things to state in the filing every time. **(1)** The percentage is almost always a
+delta against *the customer's incumbent configuration*, not against a classical optimizer on
+the same instance — i.e. evidence that optimization beats not-optimizing, which was never in
+doubt. **(2)** D-Wave's Leap hybrid solvers are classical search engines that decompose and
+call the QPU on subproblems, so even a genuine win does not attribute to the annealer. Sustained
+commercial retention is real evidence about **utility** and no evidence about **quantumness**;
+the release fuses them and the filing should separate them.
+
 **A SIXTH DIRECTION, AND IT IS THE ONE NO DIFF CAN CATCH, BECAUSE NO WORD MOVES: THE
 GENRE CHANGED. A faithful rendering into a reporting genre supplies an epistemic
 commitment the speaker never made.** *(proposed 2026-08-01 by Landon Volkman off a
