@@ -2363,6 +2363,54 @@ isn't defended, then reconstruct the body from other outlets.**
   it dedups correctly), but source the contents from The Black Vault (mirrors
   every AARO release), DefenseScoop, or MeriTalk.
 
+  **CORRECTION — the AARO report PDFs are NOT unreachable end-to-end. Wayback
+  `id_` replay of the `media.defense.gov` mirror returns the real PDF.**
+  *(2026-08-18, Landon Volkman — proved on the Historical Record Report Vol I
+  while answering a forum challenge; the "unreachable end-to-end" claim above is
+  now wrong for the PDFs and stands only for `aaro.mil` HTML.)* The entry above
+  and the `dni.gov` entry below both say the DoD-mirror escape hatch fails —
+  true for a **live** fetch (`media.defense.gov` 403s WebFetch *and* `curl` with
+  a browser UA), and that is where both notes stopped. But the *archive* holds
+  the mirror. Full recipe, ~3 calls, no lock-burn:
+
+  ```bash
+  # 1. find the asset by its numeric DoD asset ID, NOT by filename
+  curl -s "http://web.archive.org/cdx/search/cdx?url=media.defense.gov/2024/Mar/08/2003409233*\
+&output=text&limit=20&fl=timestamp,original,statuscode,mimetype"
+  # 2. pick a row with statuscode 200 + mimetype application/pdf, then id_-replay it
+  curl -sL -o doc.pdf "http://web.archive.org/web/<timestamp>id_/<original-url>"
+  # 3. file doc.pdf  -> "PDF document"   (an HTML body means you got a stored denial)
+  pdftotext -layout doc.pdf doc.txt
+  ```
+
+  **The trap that makes the wildcard mandatory: DoD renames the file while
+  keeping the asset ID.** One document, asset `2003409233`, has shipped under
+  **three different filenames** —
+  `DOPSR-CLEARED-508-COMPLIANT-HRRV1-08-MAR-2024-FINAL.PDF` (the URL every 2024
+  news story links, and the one this playbook would have had you try),
+  `DOPSR-2024-0263-AARO-HISTORICAL-RECORD-REPORT-VOLUME-1-2024.PDF`, and
+  `AARO-HISTORICAL-RECORD-REPORT-VOLUME-1.PDF`. So an exact-URL CDX lookup on the
+  filename a source cites can return **nothing** for a document the archive
+  holds several 200s of. Query `.../<assetID>*` with `matchType` implied by the
+  wildcard and read the filenames back. Generalises past AARO: on
+  `media.defense.gov` the **numeric asset ID is the stable identifier and the
+  filename is cosmetic**, which is the same lesson as the `odni.gov` migration
+  below — the identifier that looks permanent (the path) isn't, and the one that
+  looks like an implementation detail is.
+
+  Second gotcha, same shape as the stored-403 note elsewhere on this page: the
+  CDX rows for this asset include **403 `text/html` captures interleaved with
+  200 `application/pdf` captures** (403s on 2026-02-28, 03-13, 03-20; 200s on
+  02-21, 02-23, 03-29, 04-04). Filter on `statuscode` **and** `mimetype`, and
+  `file` the result — a 529-byte "PDF" is a denial page wearing a `.pdf` name.
+
+  Worth the three calls whenever the story turns on **exact wording or sentence
+  order** in a primary document. Reconstructing from outlets gets you the
+  headline sentence and reliably loses the sentence next to it, which on this
+  beat is usually the qualifier — the AARO Vol I finding turned entirely on the
+  fact that "Additional claims will be addressed in Volume II" sits *between*
+  two sentences that outlets did quote.
+
   **ENUMERATION surfaces for AARO, when CDX is down — and the one that lags**
   *(measured 2026-08-17 by Kendall Bingham, certifying a 27-day zero with the
   archive unusable).* The documented rung-5 path failed outright this run:
