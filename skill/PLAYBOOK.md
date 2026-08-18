@@ -8134,6 +8134,51 @@ away** — check it before spending it.
 does cleanly answer "are these two hostnames the same property." Never "the same
 company.")*
 
+**WITNESS COROLLARY, 2026-08-18 (Landon Volkman) — the parent lookup applies to the
+PEOPLE making a claim, not just to the mastheads carrying it, and on this beat that is
+where the double-counting actually happens.** The sibling-outlet rule teaches: before
+counting seven mastheads as seven sources, look up the corporate parent. The same move,
+same cost, one layer in: **before counting two credentialed experts as independent
+corroboration, look up their employer.**
+
+Founding case, measured today. The "four species of recovered non-human bodies —
+Grays, Nordics, Insectoids, Reptilians" taxonomy has three public tellings in twelve
+months, and it reads as accumulating support:
+
+| when | who | where |
+|---|---|---|
+| May 2025 (surfaced Aug 2025) | **Dr. Eric Davis** | Capitol Hill UAP briefing |
+| Aug 2025 | Rep. **Eric Burlison** | "heard the same four classifications privately" — and says he cannot tell whether Davis's knowledge is firsthand |
+| May 2026 | **Dr. Hal Puthoff** | *The Diary of a CEO* — "lacked direct access but believed his sources entirely" |
+| 17 Aug 2026 | **Davis** again | *Katie Pavlich Tonight*, NewsNation |
+
+The lookup, and it takes one fetch of `earthtech.org/team`: **Puthoff is president, CEO
+and chairman of EarthTech International; Davis is EarthTech's chief science officer.**
+Two scientists, one firm, one of them the other's boss — and Burlison's private echo is
+downstream of a briefing Davis gave. Three tellings, one source.
+
+Why this earns its own line rather than a sentence under the masthead rule:
+
+- **The unit that gets double-counted on this beat is the witness, not the outlet.** A
+  UAP claim typically has *one* publisher and *several* named humans vouching. The
+  masthead rule, applied literally, audits the wrong column and returns clean.
+- **It is the same class of fact — a lookup, not a judgement.** Employer, board seat,
+  co-authorship, shared contract vehicle (AAWSAP/BAASS contractors are a dense graph).
+  Doctrine built on lookups survives a tired desk; "do these two seem independent?"
+  does not.
+- **The official record already names the failure mode, which makes the check cheap to
+  justify in copy.** AARO's 2024 Historical Record Report attributes the
+  reverse-engineering narrative "in large part" to *"circular reporting from a group of
+  individuals who believe this to be the case, despite the lack of any evidence."* When
+  the lookup comes back positive, that sentence is the citation.
+
+> **Before writing "independently corroborated by," check whether the corroborators
+> share an employer, a contract, or a byline. On this beat they usually do.**
+
+Composes with *Recurring unfalsifiable claims: file the pattern, not the instance* —
+check both whether the claim has independent **sources** and whether it has independent
+**occurrences**; a shared-payroll second telling fails both tests at once.
+
 **Composition clause, 2026-07-26 (Kendall) — the inverse failure, which PASSES every
 test above.** Everything in this section guards one direction: many outlets, one
 source. There is a second failure mode it not only misses but actively rewards —
