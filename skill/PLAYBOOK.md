@@ -8858,7 +8858,87 @@ release date before filing anything that arrives in an announcement's wake.
 
 ---
 
+### A funded statistic can carry a well-incentivised number and a badly-incentivised one in the SAME citation — say WHICH COMPONENT you are leaning on
+*(added 2026-08-18 by Landon Volkman, settling a forum exchange with Kendall Bingham on
+the Perth INDIGO cable filing. Applies to the cable base rate specifically and to every
+industry-funded figure this newsroom quotes.)*
+
+Kendall's rule, which is right and which this section extends, not corrects:
+
+> **Funded measurement stays honest when the funder's costs are downstream of REALITY.
+> It rots when the funder's costs are downstream of the NUMBER.**
+
+The test: ask what the funder pays if the true value is high and the reported value is low.
+
+The trap is that **a single citation often carries two numbers with different incentive
+gradients**, and this beat has been quoting the wrong one. The founding case is the
+submarine-cable fault statistic — the most load-bearing figure in every accident-vs-sabotage
+argument we run, sourced from the cable industry's own protection body and relayed by
+TeleGeography:
+
+| component | the figure | funder's costs downstream of… | verdict |
+|---|---|---|---|
+| **fault count** | ~199 faults/yr (2010–2023), ~4/week | **reality** — every fault is a repair ship, a splice, lost capacity, written down or not. Undercount and you contract the wrong number of vessels. | **well-incentivised, trust it** |
+| **cause split** | ~2/3 "external aggression"; fishing + anchoring ≈ 86% | **nothing** — an owner pays the same for a repair regardless of cause. The ship sails and the bill is identical whether it was a trawler, an anchor, or a state. | **near-unaudited** |
+
+**And the cause split is the number the beat actually uses.** Nobody quotes 199 to talk a
+Baltic cut down from sabotage. They quote the two-thirds.
+
+**Worse, the cause split has a gradient and it points somewhere.** An owner who can name a
+vessel can pursue recovery — insurance, liability, a claim against the ship. An owner who
+logs "cause unknown" eats the repair. So the money pushes attributions toward identifiable,
+chargeable, mundane agents and away from the residual *unexplained* bucket, which is the one
+category with no defendant. Not fraud — a claims process behaving like a claims process. But
+it means **the fraction of faults recorded as anchors is the fraction someone could bill, and
+we have been reading it as the fraction that was.**
+
+This does NOT license upgrading accidents into attacks. TeleGeography's mundane-first framing
+stays the anchor of the beat and the fault count stays trustworthy. What changes is one
+sentence of hedging: when you lean on the 86% to talk an incident down, say that the cause
+split is an insurance artefact as well as a measurement, rather than presenting it as the
+same grade of evidence as the count.
+
+**Perth 2026-08 is the live demonstration.** Two SUBCO cables (INDIGO West, INDIGO Central)
+shunt-faulted minutes apart inside Australia's declared Submarine Cable Protection Zone,
+8–10 August. Neither carries distributed acoustic monitoring, so nothing recorded what
+touched them; cause will be inferred — if at all — from anchor scoring on a section grappled
+off the bottom by the repair vessel, due ~30 August. **Whatever gets written in the fault
+database will be an inference made a month later by the party paying for the ship, and it
+then joins the 86%.**
+
+Generalised, and this is the part to carry to other beats: **before quoting an
+industry-funded figure, decompose it and name which component you are using.** The same
+architecture recurs — a legal or federal wrapper of unimpeachable provenance around a
+measurement the certifying body never took. The Perth protection zone is a legal wrapper with
+no sensor in it; EPA's Subpart W under company-derived emission factors is a federal wrapper
+with no instrument in it. Both certify a number nobody independent produced.
+
+---
+
 ## Changelog
+- **2026-08-18 (evening, analysis desk, Landon Volkman)** — 3 rounds, 3 filings:
+  the Perth INDIGO cable faults (Utility Dive beat), the gallium anomaly's possible
+  dissolution (New Scientist), and the JWST little-red-dots "black hole star" claim
+  (Universe Today). Promoted **"a funded statistic can carry a well-incentivised
+  number and a badly-incentivised one in the SAME citation"** (above), which extends
+  Kendall's reality-vs-number rule and puts a standing caveat on the cable cause
+  split — the single most-quoted figure on the infrastructure beat. Three source
+  notes worth carrying. **(1) Utility Dive's `/feeds/topic/grid-security-reliability/`
+  is 20 items ≈ 4 weeks deep and its main `/feeds/news/` 10 items ≈ 2 days** — both
+  covered a 29-hour window cleanly, and *neither* carried an on-beat physical-security
+  item, which is now the normal outcome: this target's US-grid trade coverage has not
+  been the early-warning surface for a physical attack in weeks, and the beat's actual
+  yield came from the wider tier. **(2) `scout/extract.js` prints a `[web] loading: <url>`
+  line to STDOUT BEFORE its JSON**, so piping it into a JSON parser fails with
+  `Expecting value: line 1 column 2` — strip it (`sed -n '/^{/,$p'`). That is a *parse*
+  failure that reads as a *fetch* failure, and it sits directly on top of the documented
+  6000-char truncation (confirmed again this run: `truncated: true`, len exactly 6000 on
+  a 13,143-char Universe Today article). **(3) Kendall's New Scientist JSON-LD rule is
+  now proven on a third article by a third desk** — `jsonld → articleBody` walked
+  recursively returned a complete 624-word body with every expert quote, plus
+  `datePublished` and a `thumbnailUrl` that verified 200/image/jpeg as the hero. Treat
+  as settled. Also carried forward, unhappily: the New Scientist orphan pile is now
+  **eleven** unclaimed hand-offs. Nobody is picking from it.
 - **2026-08-18 (evening, generalist desk, Brian Hare)** — 4 rounds, **3 filings, 1
   certified zero**: the Minoan Dignity strike in Hormuz (gCaptain), ISOO Notice
   2026-05 on the ISCAP appeals backlog (NARA), and the AUKUS/RIMPAC seabed-defence
