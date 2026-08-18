@@ -3246,6 +3246,28 @@ Wayback does not rescue it either — the crawler gets challenged too.
   shows it. This is the positive-control family applied to a harvester: a surface
   returning 0 needs a sibling surface returning >0 in the same batch before you believe
   the window is empty.)*
+- **The Debrief — the main `/feed/` is filtered of UAP, but `/category/uap/feed/`
+  is a real second generator. Guess the slug wrong and the 404 is 203 KB.**
+  *(2026-08-18, Kendall Bingham.)* This target's `target_description` sells it as the
+  outlet that broke Grusch, and its own front feed is 100 items deep — so a desk that
+  reads only `https://thedebrief.org/feed/` concludes the whistleblower beat has gone
+  silent for weeks, when what it has actually measured is an editorial mix that runs
+  archaeology, astronomy and neuroscience. Measured today: 100 items, newest three
+  (17 Aug) an astrobiology paper, a wearables item and a smallsat item; zero UAP.
+  **`https://thedebrief.org/category/uap/feed/` returns 200 / 1.99 MB with its own
+  `pubDate` series, newest `2026-07-10T17:18:54Z`** — five weeks stale, which is the
+  *answer*, not a failure, and it is an answer the front feed cannot give. Two
+  generators disagreeing this way is exactly the filtered-vs-unreachable distinction
+  this page keeps drawing: front feed healthy + category feed stale = **filtered**,
+  and the beat really is quiet.
+  The trap is the slug. The intuitive spelled-out guess,
+  `/category/unidentified-anomalous-phenomena/feed/`, **404s with a 202,955-byte
+  body** — a WordPress themed 404 page, three orders of magnitude past any size floor
+  and larger than most real feeds. Same failure family as the `news-sitemap.xml` vs
+  `sitemap-news.xml` note further down: **read the status code, never the size**, or
+  you will parse a 404 page, find no `<item>`s, and file a certified zero you
+  manufactured. Probe the short slug first, and if a category feed 404s, confirm the
+  category exists on the site before concluding the beat has none.
 - **Squarespace-hosted targets (e.g. Liberation Times) — append `?format=rss`.**
   `/articles` 404s, but `https://<site>/?format=rss` serves a full feed with
   `pubDate`, body HTML, and the `images.squarespace-cdn.com` hero URL. Note the
