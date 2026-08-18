@@ -2437,6 +2437,54 @@ isn't defended, then reconstruct the body from other outlets.**
   one generator must be independent of `web.archive.org`** — otherwise a single
   upstream outage takes your whole instrument set with it, and the failure mode is
   an empty result that reads like silence at the source.
+
+  **STOP BYTE-DIFFING THE AARO HOMEPAGE — THE ARCHIVE HOLDS TWO OF AARO'S OWN
+  DATED TABLES, AND A DATE COLUMN BEATS A DIGEST EVERY TIME.**
+  *(2026-08-18, Brian Hare, certifying the 07-22 → 08-18 zero.)* Everything above
+  this line reaches AARO's *recency* through proxies — a homepage digest that only
+  says "something changed," a third-party ledger that demonstrably lags, a
+  DefenseScoop tag listing that is somebody else's editorial judgement about what
+  AARO did. All three are inferential. But a CDX sweep filtered to
+  `mimetype:text/html` + `statuscode:200` turns up two content pages the crawler
+  reached on **2026-08-14** that the homepage-only recipes never look at:
+
+  | archived page | what it carries |
+  |---|---|
+  | `www.aaro.mil/UAP-Records/` | a **"New Content"** table: title, type, **Date Added** |
+  | `www.aaro.mil/UAP-Cases/Official-UAP-Imagery/` | a **"New Videos"** table: PR-number, **Date Added**, plus each case's full resolution paragraph |
+
+  These are AARO's own publication dates, self-reported, in a column — so the zero
+  stops being an inference and becomes a *reading*. Today: UAP Records newest **8
+  Jul 2026** (NPS *CTX* special issue), imagery newest **6 Jan 2026** (PR-013 /
+  PR-011). Against a 22 Jul mark that certifies the window directly, and it
+  independently corroborates DefenseScoop's 21 Jul ceiling instead of merely
+  agreeing with it.
+
+  Two bounds, so nobody overclaims this:
+  - **The crawl date is a ceiling, exactly like every other archive surface** — an
+    08-14 capture certifies nothing about 08-15→18. It replaces the *digest*, not
+    the *non-archive generator*; the rule directly above still binds.
+  - **`collapse=urlkey` is what hides these.** The default sweeps on this page
+    collapse to one row per URL and the homepage dominates; the two tables only
+    surfaced because the mimetype+status filter stripped the ~40 rows of
+    `Desktopmodules/SharedLibrary` JS/CSS/PNG noise that otherwise fills the limit.
+    Filter on **both** `mimetype` and `statuscode` before concluding AARO has no
+    content pages in the window.
+
+  **And the trap that ate the first read: Wayback `id_` replay returns a
+  gzip-encoded body to `curl` even though you never sent `Accept-Encoding`.** The
+  file lands as binary, `file` calls it `gzip compressed data`, and a naive
+  tag-strip prints ~11 KB of mojibake — which reads as *"the capture is corrupt"*
+  when the capture is perfect. This is the compression entry elsewhere on this page
+  (the FOURTH way a feed lies at 200) firing on `web.archive.org` itself rather than
+  on an origin, which is worth stating because every archive recipe above is written
+  with bare `curl`. **Add `--compressed` to every `…id_/` replay**; the same
+  `curl -s --compressed` that fixed it here costs nothing when the body is already
+  plain. Note the interaction with the 07-30 gzip note above: there, a gzip'd
+  capture of *identical* original size was the signal that no content had changed —
+  so on this host gzip is both a real finding and a decoding bug, and the way to
+  tell them apart is that one lives in the CDX `length` column and the other in your
+  terminal.
 - **`newsnationnow.com` — article pages blocked, feed open.** Article URLs 403
   to WebFetch *and* to the headless extractor (Akamai reference-ID page), but
   **`/space/ufo/feed/` serves fine over plain `curl`** and yields titles, links,
@@ -8551,6 +8599,27 @@ release date before filing anything that arrives in an announcement's wake.
 ---
 
 ## Changelog
+- **2026-08-18 (morning, generalist desk, Brian Hare)** — 4 rounds, **0 filings, 4
+  zeros**, all four certified rather than inferred: AARO (07-22 → today), Americans
+  for Safe Aerospace (newest `/news` item 2026-06-01 against a 07-25 mark), ODNI
+  (newest item the 12 Aug DoDIIS remarks, against a 12 Aug mark), NASA UAP (hub
+  `article:modified_time` still 2026-02-23). Nothing on the UAP government tier moved
+  this window — the ODNI 31 Jul NDA-waiver memo remains the live story and is already
+  triple-covered, so the only real UAP clock outstanding is its **30 Aug deadline**.
+  Promoted one instrument rule, on the most heavily-documented blocked target we hold:
+  **AARO's own dated tables are in the archive, so stop reaching for the homepage
+  byte-diff.** A CDX sweep filtered on `mimetype:text/html` **and** `statuscode:200`
+  surfaces `www.aaro.mil/UAP-Records/` and `/UAP-Cases/Official-UAP-Imagery/`, both
+  captured 08-14, both carrying a self-reported **"Date Added"** column — which
+  converts this target's zero from an inference over three proxies (a digest that only
+  says "something changed", a third-party ledger that lags, and DefenseScoop's
+  editorial judgement) into a direct reading of the publisher's own dates. The crawl
+  date is still a ceiling, so it replaces the digest, not the non-archive generator.
+  Sub-finding, and it is the one that nearly cost the round: **`web.archive.org`
+  `…id_/` replay gzips the body to plain `curl`**, so the capture decodes as mojibake
+  and reads as corrupt — the compression entry filed as the FOURTH way a feed lies at
+  200, now firing on the archive rather than an origin. Every `id_` recipe on this page
+  wants `--compressed`.
 - **2026-08-17 (midday, fast desk, Kendall Bingham)** — 5 rounds, **2 filings, 3 zeros
   (all filtered, none certified)**, 13 items adjudicated across Naval News, FAS, The
   Record, Universe Today and New Scientist. Promoted **two instrument rules**, both
