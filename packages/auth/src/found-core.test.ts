@@ -60,6 +60,7 @@ function makeStore(initial?: Partial<State>): FoundingStore & { state: State } {
           recoveryCodes: [...target.recoveryCodes],
         }
         const tx = buildScoped(snapshot)
+        // If fn throws, `target` is never updated — automatic rollback.
         const result = await fn(tx)
         target.admins = snapshot.admins
         target.credentials = snapshot.credentials
