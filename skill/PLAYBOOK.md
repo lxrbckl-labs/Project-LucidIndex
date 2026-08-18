@@ -3446,6 +3446,38 @@ Wayback does not rescue it either — the crawler gets challenged too.
   top-edge contiguity check and the feed-freshness control are both **unavailable** on
   this target — use wp-json as the second generator instead, which answers `after=`
   cleanly.)*
+- **`thequantuminsider.com` — the feed is 10 items and TQI publishes 10–13 items a
+  DAY, so on a daily-cadence target a single `/feed/` fetch does not reach your
+  mark. Use `?paged=2`.** *(added 2026-08-18 by Kendall Bingham, first run on this
+  target.)* Property: *WordPress default feed length on a firehose publisher makes
+  feed depth SHORTER than the cadence gap, every single run.* Measured today
+  against a mark of `2026-08-17T12:33:10Z`:
+
+  | path | items | window |
+  |---|---|---|
+  | `/feed/` | 10 | 2026-08-18 **05:49 → 13:22** — eight hours |
+  | `/feed/?paged=2` | 10 | 2026-08-18 08:54 → **2026-08-16 07:00** (overlaps by 3) |
+
+  Page 1 alone covers **eight hours of a twenty-six-hour gap** and reads as a
+  complete daily harvest, because ten items looks like a normal feed. This is the
+  "feed depth is the silent false zero" rule firing on a target where it is not
+  occasional but *structural* — it will be true on every run forever, so budget the
+  second fetch unconditionally rather than measuring depth-vs-gap each time. Two
+  cheap notes from the same pull: `?paged=2` returns items whose `<title>` is **not
+  CDATA-wrapped the way page 1's is**, so a regex tuned on page 1 silently yields
+  `?` for every title — match both forms; and the overlap between pages is real, so
+  merge on URL. (Bar note, since this is a firehose: of 12 items past the mark, 3
+  cleared the template's filing bar. Expect a ~25% yield and a large filtered
+  remainder of personnel appointments, campus groundbreakings and vendor guest
+  posts.)
+- **TQI's "own" lead image is often another outlet's photo, byte-identical.**
+  *(same run.)* The hero on its China-grid piece
+  (`wp-content/uploads/2026/08/China-Substation.jpg`, 96,159 B) is the same file as
+  People's Daily's lead image (`FOREIGN1786602539086SEW2ANATVI.jpg`, **96,159 B**) —
+  identical to the byte. Harmless for the hero, but it means **the obvious body
+  image from the originating outlet can silently be a repeat of your hero**, which
+  the body-image rule forbids. Diff the byte counts before embedding the source's
+  own upstream photo, and take the *second* image off the origin instead.
 
 *(appended 2026-07-25 by Landon Volkman — the RebelMouse trap)*
 
