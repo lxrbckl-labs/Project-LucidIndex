@@ -4791,6 +4791,39 @@ looks like a fetch failure and isn't)*
   exactly the condition under which that defect is generated invisibly. Expect
   the mark-vs-newest-item invariant to fire here every Monday, and read it as
   *the cursor is not item-derived*, not as *the source is quiet*.
+
+  **DATED CORRECTION, 2026-08-18 (Brian Hare) — "3–5 every weekday" is a JULY
+  number and it stopped holding in August: MONDAY IS NOW ROUTINELY EMPTY, and
+  the silence runs 2–4 CONSECUTIVE days across a weekend, not two.** The bullet
+  above licenses exactly one shape of zero (Sat/Sun) and therefore turns any
+  weekday zero into a suspected fetch failure. Measured today over the last 100
+  posts (2026-07-01 → 2026-08-14, `date_gmt` bucketed by day):
+
+  | window | items/weekday | Monday zeros | longest silence |
+  |---|---|---|---|
+  | 07-01 → 07-31 | **3.3** (never 0) | 0 of 4 | 2 days (weekend) |
+  | 08-01 → 08-18 | **1.0** | **3 of 3** (08-03, 08-10, 08-17) | **4 days** (08-01→08-04) |
+
+  Today's run is the extreme case: newest item **2026-08-14T16:39:08 exactly
+  equals the mark**, i.e. Fri → Tue with nothing, and the correct read is a
+  genuine zero, not a broken feed. Three independent mechanisms agreed before I
+  called it — `orderby=date`, `orderby=id` (max id **885801**), and the
+  `?after=` server-side filter (`n=0`) — and I closed the ceiling by
+  construction with both control polarities: `?p=885801` **301s to the live
+  article**, while `885805/885810/885820/885840/885860/885900` and the negative
+  control `?p=999999` all **404**. `volume-cb` corroborated at Issue 16 =
+  2026-08-07, behind the posts feed as documented.
+
+  Two things to carry forward. First, **the weekday rate is not a constant of
+  this target, so never adjudicate a Jamestown zero against a remembered
+  number** — bucket the feed you just pulled and read the current rate off it;
+  it costs one `per_page=100` call with `_fields=date_gmt`. Second, the
+  publication rhythm tracks the **China Brief biweekly issue cycle** (Issues 14
+  / 15 / 16 at 07-12, 07-25, 08-07 — ~13 days apart), and the day-count spikes
+  sit on the issue dates (07-16: 8, 07-28: 7, 08-07: 7). A quiet stretch is
+  therefore *expected* mid-cycle and the burst is expected on issue day, which
+  is the discriminator between "quiet" and "broken" — check where you are in the
+  cycle before you go looking for a WAF.
 - **Both of the above are column-2 targets, and that is the more useful fact.**
   Jamestown publishes constantly and is off-beat *because it is adjacent* (China
   Brief + Eurasia, roughly half Russia on any given day); Focus Taiwan publishes
