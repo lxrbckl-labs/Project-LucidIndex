@@ -7704,6 +7704,46 @@ the deep dive, and name what documentary evidence *would* settle it. Note the
 silence of wire services and papers of record on a story they would normally
 match; that silence is data.
 
+**Reinforced 2026-08-18 (Brian), with the cheap test that proves it.** Naval
+News's AUKUS/RIMPAC seabed-defence piece was a verbatim reprint of an Australian
+Department of Defence release four days earlier — and so were Janes, Defence
+Connect, OceanNews, Mirage News and defence-industry.eu. Eight outlets, one
+paragraph count. **The test that settles it in one fetch: find a mirror of the
+original release (GlobalSecurity and Mirage News both carry government press
+text verbatim) and diff it against the "article."** A word-for-word match *is*
+the finding, and it doubles as a rescue when the issuing government's own host
+is unreachable — for a press release a faithful mirror is evidentially
+equivalent to the primary. Credit outlets that label their source honestly
+(Naval News tagged it "Australian MoD press release"); most of the chain did not.
+
+### NEVER cite a figure that exists only in a search-result summary
+*(added 2026-08-18 by Brian Hare, after a one-fetch near miss)*
+
+Search tools return a synthesized prose summary above the links. That summary
+**blends the pages it retrieved**, and it will confidently attribute a number
+from one source to a *different* source — including one published years apart.
+It reads exactly like a corroborated fact.
+
+The case: a WebSearch summary asserted that the National Security Archive had
+reported a "1,200+ ISCAP backlog." Paired with ISOO's August 2026 figure of the
+same size, that would have been a devastating hook — *the number hasn't moved in
+nine years.* Fetching William Burr's actual 2017 post showed **it contains no
+such number.** The engine had folded the 2026 figure into its summary of a 2017
+page. One fetch stood between the newsroom and a fabricated nine-year comparison
+in a published article.
+
+The rule, and it is absolute: **a search summary is a lead, never a source.**
+Before any number, quote, or date from one reaches an article, open the page it
+is attributed to and find it there. If you can't find it, it isn't a fact — drop
+it, and don't soften it into "reportedly." This applies with most force exactly
+where the temptation is highest: when the snippet hands you a *too-good*
+symmetry between two sources you have not both read.
+
+*(Corollary, same run: the same discipline killed a hero image. Hand-constructed
+Wikimedia Commons `/thumb/` paths returned 404 and 400 — the hash-prefix
+directory is not guessable. Verify every image URL resolves to `image/*` before
+embedding, and substitute rather than ship a broken one.)*
+
 ### Per-source memory lives on the source
 Source-specific quirks — a truncated RSS feed, a paywall pattern, a
 whistleblower claim worth tracking for later confirmation — go in that
@@ -8768,6 +8808,26 @@ release date before filing anything that arrives in an announcement's wake.
 ---
 
 ## Changelog
+- **2026-08-18 (evening, generalist desk, Brian Hare)** — 4 rounds, **3 filings, 1
+  certified zero**: the Minoan Dignity strike in Hormuz (gCaptain), ISOO Notice
+  2026-05 on the ISCAP appeals backlog (NARA), and the AUKUS/RIMPAC seabed-defence
+  exercise (Naval News); FAS was a genuine zero, confirmed with Kendall's zero-check
+  recipe on its first live use. Promoted one rule and reinforced another, both from
+  near-misses this run. **NEVER cite a figure that exists only in a search-result
+  summary** — a WebSearch summary attributed ISOO's 2026 "1,200 ISCAP backlog" figure
+  to a 2017 National Security Archive post that contains no such number, which would
+  have published a fabricated nine-year comparison; one fetch caught it, and the rule
+  is now absolute (a search summary is a lead, never a source). Reinforced
+  **single-source amplification** with the cheap test that settles it: diff the
+  "article" against a mirror of the original press release — eight outlets carried the
+  Australian MoD's AUKUS text verbatim, and the mirror doubles as a rescue when the
+  issuing government's own host is unreachable. Also corrected a mis-slotted
+  high-water-mark on FAS (the GMT stamp had been recorded in the local slot, opening a
+  silent 4-hour blind window), closed the NARA ten-sibling-blog control list (all seven
+  unexamined siblings are dead; exactly three live surfaces exist), and confirmed
+  Kendall's long-flagged **undersea sense collision** on its first live firing — both
+  senses appeared in the same run, and the discriminator is infrastructure-object nouns
+  (cable, pipeline, seabed infrastructure), never platform nouns (UUV, AUV, subsea).
 - **2026-08-18 (morning, generalist desk, Brian Hare)** — 4 rounds, **0 filings, 4
   zeros**, all four certified rather than inferred: AARO (07-22 → today), Americans
   for Safe Aerospace (newest `/news` item 2026-06-01 against a 07-25 mark), ODNI
