@@ -4851,6 +4851,65 @@ inherits the surface-independence caution — the thread's own citation is a gen
 independent generator only when it is a **primary** (a NASA catalogue record, a
 bibliography, a docket). A link to another aggregator is the same surface twice.
 
+### AI-"enhanced" media: grade it on physics, never on provenance — every provenance test returns nothing STRUCTURALLY
+*(added 2026-08-18 by Kendall Bingham, measured on the Skinny Bob colorization and the
+qtecqot 2026 tranche; the discriminator half was put to @brian_hare in the forum the
+same night and is recorded here as MY position, not yet a settled two-desk finding.)*
+
+Enhanced/upscaled/colorized versions of contested footage are arriving on every archival
+surface at once — UAP clips, Blue Book stills, degraded microfilm, NARA film — and the
+enhanced cut reliably out-travels its source because it is brighter, sharper and legible
+on a phone. Two rules, because desks keep reaching for the wrong instrument.
+
+**1. The provenance ladder is a dead end, and it fails silently rather than loudly.**
+Measured on the qtecqot clips: YouTube re-upload **strips container metadata** before
+ExifTool sees it; there are **no C2PA manifests** and their absence proves nothing;
+**SynthID only flags Google-generated content**, so an open-weight model leaves no
+signature at all. Every one of those returns a clean negative that reads like exoneration
+and means nothing. The consequence for filing: **an epistemic label must never rest on a
+provenance test.** "No AI signature found" is not evidence of anything and does not
+support DEBUNKED *or* PARTIALLY CORROBORATED.
+
+The corollary for a clock: *"did anyone state which model and which source file"* is
+measuring the wrong axis and will always resolve as "no" — not from reticence, but
+because **the toolchain does not produce those facts.** Set the clock on whether anyone
+runs a **physics** test instead — lighting, shadow and motion coherence, e.g. *highlights
+that stay locked while the geometry moves*, a known generative failure. That test needs no
+access to anything and is the only one that returned a signal.
+
+**2. The discriminator, for deciding whether an image claim is arguable at all:
+is the artifact RECOVERABLE FROM THE SOURCE, or only REPRODUCIBLE FROM THE MODEL?**
+Lossy compression is subtractive and deterministic — same file, same decoder, same pixel,
+every time; a codec discards and redistributes information, it never adds any. So a
+compression-artifact claim (the Mars-jellyfish "single-pixel solid-black double strike")
+has somewhere to go: a raw pre-JPEG product upstream either shows it or doesn't. A
+generative enhancement is not a function of its input — it is input **plus weights plus
+seed**, with no inverse and no error bound. Run it twice, get two different rooms.
+
+> **If you can name the transform's inverse or its error bound, you are arguing about a
+> photograph with a defect. If the only available check is to run it again and see whether
+> you get the same answer, you are arguing about a drawing.**
+
+Practical tells that the claim has no floor: count the lossy hops down to a primary. The
+jellyfish bottoms out on a NASA product. Skinny Bob's "original" is a 2011 YouTube
+re-encode of an artifact with **no custody at any hop** (three display identities across
+2011 / 2021 / 2026, linked by branding only), so the enhancement is a model's guess about
+a lossy copy of something nobody owns. A healthy image argument *splits into competing
+testable claims* about the same pixels (the jellyfish thread produced two, on opposite
+sides); a claim with no source cannot produce that shape no matter how many people show up.
+
+**Beat-level warning worth carrying:** "grainy 1960s 8mm classified film" is about the most
+forgiving prompt style there is — blur, grain and crushed resolution conceal precisely the
+artifacts that expose generation. The aesthetic a hoax adopted to be un-debunkable is now
+the aesthetic that makes generation un-detectable, and most genuine archival material is
+already in it by accident.
+
+**House rule on reproduction:** show the enhancement, never alone and never larger.
+Enhancement beside source, equal size or smaller, captioned as a claim *about* the image
+rather than an image *of* a thing. Refusing to show it is not tenable — it is what readers
+will see elsewhere — but unaccompanied reproduction launders it. The line that travels:
+**an enhancement does not remove noise, it adds confident guesses.**
+
 ### Two more ways a feed lies while returning HTTP 200
 *(added 2026-07-25 by Landon Volkman — proven on Naval News, FAS, TeleGeography)*
 
