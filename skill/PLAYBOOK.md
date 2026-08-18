@@ -2262,6 +2262,57 @@ pull in opposite directions here**, doctrine pushes toward precision, and the tr
 made unconsciously. No rule yet — keying on the hub would degrade dedup to buy an audit — but make
 it knowingly.
 
+**A THIRD AXIS, AND BOTH RULES ABOVE PASS IT CLEAN: THE FIELD WAS DRAFTED, SERIALISED, AND
+FILLED WITH A PLACEHOLDER — AND THE UNIT THAT ESCAPED WAS A WHOLE ARTICLE, NOT A FIELD.**
+*(Kendall Bingham, 2026-08-18, by shipping one.)* The pair above is complete on the axis it
+governs and I ran both. I assembled first. I read the object back against the field list. Both
+returned green, and `write_articles` accepted **two** articles when I meant to file **one** —
+the second being a stub I had drafted into the same `articles` array and left carrying
+`agent_opinion: "Placeholder — will not be filed."` and `agent_deep_dive: "Placeholder."`
+`accepted: 2`, `failures: []`, live, unfixable. It is now on the dashboard, thin, beside a good
+filing about the same incident.
+
+Why neither existing rule fires, stated precisely, because this is the useful part:
+
+| rule | asks | my payload's honest answer |
+|---|---|---|
+| assemble first, call last | was it drafted before the call? | **yes** — both objects were |
+| read the object back | is every field present in what I send? | **yes** — all six required keys, on both |
+| *(missing)* | should this object be in the array at all, and is what's in it REAL? | never asked |
+
+**A presence check cannot distinguish content from furniture, because a placeholder is a
+present value.** Every discipline on this page that inspects our own payload counts keys; the
+string `"Placeholder."` satisfies `minLength: 1` exactly as well as six hundred words do. And
+the schema is on the placeholder's side — `summary`, `agent_opinion` and `agent_deep_dive` are
+free text with no floor, so the server will never reject a stub, and `accepted: 2` reads as a
+*better* result than `accepted: 1`.
+
+The **array** is the specific hazard and it is worth naming separately from the field question.
+Everything written above about this call reasons about *an article*, singular — "the object,"
+"the field list," "the piece that gets no second chance." `write_articles` takes a **list**, so
+the read-back has a cardinality it never checks: I verified the shape of the thing I was
+looking at and never counted how many things I was sending. A multi-article call is precisely
+where a draft rides along, because the correct article passes inspection and vouches for the
+batch. Note the direction it fails in — this is not the over-caution class most of this page
+belongs to. It is an **irreversible over-production**: the desk publishes more than it meant
+to, and the response's success fields all go up.
+
+> **Before `write_articles`: COUNT the array, and name what each entry is for. Then read every
+> free-text value you are about to send and confirm it is the finished text, not a marker.
+> If an entry is a draft, a maybe, or a second angle you have not decided on — delete it from
+> the array. There is no draft state on this call; the array IS the publication.**
+
+Cheapest durable form, and it costs nothing: **build the array with exactly one article in it
+unless you have positively decided to file two.** A second entry should be an act, not a
+leftover. If you catch yourself drafting a stub "to fill in later," that later does not exist —
+this call has no later.
+
+Recorded honestly per rule 4: the stub is `3ef4a5c8` (Gulf News satellite-imagery URL,
+2026-08-18), duplicating an incident already covered properly by `82a558f2`. Flagged to Alex in
+the run report as an admin hide/purge candidate — the one repair surface that exists, per the
+"not a lost cause" note above. No superseding filing, since it embarrasses a desk rather than
+misleading a reader.
+
 ### Hero images
 - Every article **requires** a `hero_image_url` clearly related to the story
   (its OG/lead image or another on-topic photo) — `write_articles` rejects an
