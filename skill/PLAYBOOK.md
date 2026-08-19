@@ -375,6 +375,34 @@ lives HERE (this playbook) or on the target — **never** the forum. Nothing new
 to say about the world this run? Post nothing. *(Standing correction 2026-08-15:
 the forum had filled with process chatter instead of the news.)*
 
+### Forum `topic_badge_ids` are WRITE-ONCE — resolve them by NAME, every time
+*(added 2026-08-19 by Brian Hare, from mistagging a Taiwan naval post as **UAP** on a
+live thread.)* A forum post's badges are set in the `create_post` call and there is
+**no edit path** — no update tool, no delete tool. A wrong badge is permanent and
+publicly visible until a human fixes it in the dashboard.
+
+The trap is that badge UUIDs are *everywhere except where you should get them*. Every
+`read_post` response carries a `topics: [{id, name}]` array, so a UUID you have just
+seen in context is one copy-paste away, and it looks authoritative. It is authoritative
+— **for that post's topics**, which is precisely not what you want. Reusing one is how
+a Taiwan/China/National-Security piece went out tagged `c9466d56…` = **UAP**: the ID
+was live, valid, and from the wrong thread.
+
+Compounding it: **the forum and the dashboard both expose a tool literally named
+`get_topic_badges`**, and they are different servers. The dashboard's returns
+`{name, display_order}` — *names only, no ids* — so it cannot supply what
+`create_post` needs, and reaching for it produces nothing usable. Only
+`mcp__lucidindex-forum-*__get_topic_badges` returns `{id, name, display_order}`.
+
+> **Before every `create_post` with badges: call the FORUM's `get_topic_badges`, match
+> by NAME, and paste the id from THAT response. Never a UUID scraped from a
+> `read_post` topics array, and never one remembered from a previous run.**
+
+It costs one read-only call the tool's own description says is safe on every cold
+start. The check is cheap; the mistake is uncorrectable, which is the whole argument.
+Same family as `write_articles` being insert-only — **on any write with no update path,
+the verification goes BEFORE the call, because there is no after.**
+
 ### First-run post-mortem protocol
 *(locked 2026-07-11 by Kendall Bingham + Landon Volkman; scope corrected 2026-08-15 — keep it OFF the forum)*
 
@@ -832,6 +860,47 @@ empty set; believed, it files an unreachable zero as a genuine one.
 returns `invalid_source_url`, it throws, it 500s. It cannot quietly answer "no."
 An **enumeration** step can, and empty-because-nothing-published is byte-identical
 to empty-because-the-harvester-failed.
+
+**EXTENSION, 2026-08-19 (Brian Hare, from filing the same event twice in one run
+and catching it only on the second pull) — ON THE QUANTUM CLUSTER, `check_article_exists`
+CANNOT SEE A DUPLICATE, BECAUSE THE DUPLICATE IS NOT THE SAME URL.** The sequence rule
+above says `check_article_exists` is unconditionally first because it is O(1) and
+terminal. True — and on `thequantuminsider.com` / `quantumcomputingreport.com` it is
+also *structurally incapable of firing*, which makes its clean return the most
+dangerous kind of reassurance.
+
+Measured today on one vendor announcement (IBM's modular cryogenic link):
+
+| target | published (GMT) | slug |
+|---|---|---|
+| The Quantum Insider | **10:29** | `/2026/08/19/ibm-connects-two-modular-cryogenic-systems-quantum-computing/` |
+| Quantum Computing Report | **14:22** | `/ibm-links-modular-cryogenic-cells-to-scale-multi-chip-architectures-for-2029-starling-quantum-computer/` |
+
+Different hosts, different slugs, ~4 hours apart, **same press release**. No amount of
+server-side canonicalisation collapses those two — canonicalisation normalises cosmetic
+variation within a URL, and these are genuinely different URLs pointing at genuinely
+different pages that happen to reproduce the same PR. `check_article_exists` returned
+`exists: false` on the QCR item and was *correct*; the article was already filed under
+the sibling target.
+
+Why it is worth its own line rather than folding into "run `search_articles` second":
+the existing rule frames the topic query as the check that catches what the URL check
+misses, which is right, and then justifies its second position by saying you need
+entities you can only name after reading the item. **On a same-day PR echo you do not
+need to read anything** — the vendor name and the artifact are in the headline. So the
+cheap form here inverts the usual cost argument:
+
+> **On any beat where two targets subscribe to the same wire, run `search_articles` on
+> the headline's proper nouns BEFORE opening the item — not after.** It costs one call
+> and it terminates the round.
+
+The clusters where this bites are the ones with a shared upstream: the quantum pair
+(TQI + QCR, both republishing vendor PR verbatim, TQI usually first by hours), and any
+target that syndicates. **The tell is not the URL, it is the publication gap** — a
+sibling target that publishes the same story 2–6 hours later is a wire relationship,
+not a coincidence, and once you have seen it once on a pair you should treat every
+overlap on that pair as suspect. The AM desk sees the first copy and the PM desk sees
+the second, which is exactly the schedule that hides it.
 
 **The widening (Brian, same night) — the real test is not error-vs-empty:**
 
