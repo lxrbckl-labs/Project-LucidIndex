@@ -5111,6 +5111,94 @@ inherits the surface-independence caution — the thread's own citation is a gen
 independent generator only when it is a **primary** (a NASA catalogue record, a
 bibliography, a docket). A link to another aggregator is the same surface twice.
 
+**THE 25-ENTRY LISTING CEILING IS NOT A CEILING — `?limit=100` ON `new/.rss` RETURNS 100
+ENTRIES, AND THAT TURNS A ONE-DAY WINDOW INTO A SIX-DAY ONE.** *(measured 2026-08-19 by
+Kendall Bingham on r/UFOs; a dated correction to the "25 entries and that is the whole
+window it gives you" note above, which is right for the bare URL and wrong for the
+parameterized one.)* `https://www.reddit.com/r/UFOs/new/.rss?limit=100` returned **HTTP
+200 / 417 KB / exactly 100 `<entry>` elements**, oldest `2026-08-12T17:23:01Z` against a
+mark of `2026-08-18T11:58:07Z` — six days of cover on the subreddit the depth note was
+written about. Three consequences:
+
+- **The gap check gets cheap and usually passes.** The existing rule (compare
+  `entries[-1]`'s `<updated>` against the mark before trusting a filtered zero) still
+  governs, but at `limit=100` a missed day no longer forces the `top/.rss?t=week|month`
+  merge — which is exactly the pull most likely to be rate-limited out. Ask for 100
+  first; fall back to the merge only when the oldest entry is still newer than the mark.
+- **Count the entries, don't assume them.** `grep -c '<entry>'` reads **1** on this feed
+  because the Atom arrives on a single line — the byte floor and an
+  `re.findall(r'<entry>')` count are the assertions that work; a line-based count is a
+  false zero waiting to happen.
+- **It does not buy you `score` / `num_comments`** — that limitation is unchanged, and
+  `top` ordering remains the only engagement proxy.
+
+**RATE LIMIT, RE-MEASURED THE SAME NIGHT: ~7 s OF BACKOFF IS NOT ENOUGH EITHER.**
+*(Kendall Bingham, 2026-08-19.)* Three per-post `.rss` fetches issued sequentially with
+`sleep 7` between them: **200 / 429 / 200** — the middle one a 0-byte 429, i.e. the
+documented failure exactly one rung above the ~6 s figure the earlier note records as
+sufficient. Treat the backoff number as a floor that drifts, not a constant: **assert
+status AND bytes AND entry count on every Reddit fetch and retry the failures at the
+end**, rather than trusting any particular sleep. A 429 costs one retry; an unnoticed
+0-byte body costs a filed zero.
+
+### The one-eye test: for any "it's in this frame and not that one" planetary-image claim, read the PDS label first
+*(added 2026-08-19 by Kendall Bingham, measured on the r/UFOs sol-688 "second jellyfish".)*
+
+This claim shape recurs on every community target and it has a mechanical, ~30-second
+answer that nobody in the thread ever runs. The poster links two NASA raw frames and says
+the object appears in one and is absent from "another of the same area." **Read the
+filenames, then read the label.**
+
+- MSL navcam products are `N**L**B_<sclk>EDR_…` and `N**R**B_<sclk>EDR_…` — **L**eft and
+  **R**ight eye. A shared `<sclk>` block (the spacecraft clock count) means the same
+  exposure command.
+- The PDS Imaging Node serves the label in plain ASCII at the head of the `.IMG`, so a
+  **range request is enough** — no full download:
+  `curl -r 0-12000 https://planetarydata.jpl.nasa.gov/img/data/msl/msl_navcam_raw/DATA/SOL00688/NRB_458574869EDR_F0390444NCAM00295M1.IMG | strings`
+- Fields that settle it: `START_TIME` (identical to the millisecond on both products),
+  `PLANET_DAY_NUMBER`, `SOLAR_LONGITUDE`, and `INSTRUMENT_NAME` = `"NAVIGATION CAMERA
+  LEFT/RIGHT STRING B"`.
+
+**The inference, and it is stronger than "probably an artifact":** identical `START_TIME`
++ opposite eyes = a simultaneous **stereo pair**, not two frames a minute apart. Anything
+physically in the scene appears in BOTH, displaced by parallax — that is what the pair is
+for. Present in one eye only ⇒ it was never in the scene; it is in the detector or the
+pipeline. Verdict `DEBUNKED`, not `UNCONFIRMED`.
+
+Two riders, both hit on the same thread:
+
+- **The label also pre-empts the "redaction" turn.** `SHUTTER_EFFECT_CORRECTION_FLAG` and
+  `BAD_PIXEL_REPLACEMENT_FLAG` read `"TRUE"` on ordinary products; commenters read the
+  resulting hard black edge as censorship. The flags are published on *every* frame and
+  describe onboard corrections — quote them rather than arguing about the pixels.
+- **The `_-br2.jpg` raw JPEGs on `mars.nasa.gov` serve clean 200s (~0.5 MB) and make good
+  hero + inline images** — hero the eye with the anomaly, inline the eye without it. The
+  pair *is* the illustration, which is rare on this beat.
+
+Generalizes past MSL: the same one-eye/one-frame logic covers the August 2023 sol-3924
+"jellyfish" (right navcam, gone from the companion frame inside a minute). Two viral
+Martians in one week, one diagnostic.
+
+### Pre-1912 East Asian sightings carry LUNISOLAR dates — never reprint the raw numerals
+*(added 2026-08-19 by Kendall Bingham, measured on the 1892 Nanjing 赤焰騰空 case.)*
+
+A Qing/Joseon/Edo-era account dated "the Nth month, Mth day" of a reign year is on the
+**lunisolar** calendar, and the offset to the Gregorian date runs ~20–50 days depending on
+the year. There is no error signal when you get it wrong — you just print a plausible date
+in the wrong season, which silently corrupts every downstream check (what shower was
+running, how long the night was, what the weather was).
+
+Measured instance: Wu Youru's plate gives "ninth month, twenty-eighth day, Guangxu 18."
+The correct conversion is **17 November 1892**. The Chinese-language references carry it;
+the English-language ones — including the en.wikipedia stub, which flags the date as
+"likely" lunar and then supplies **no conversion** — overwhelmingly print "September 28,
+1892" and have for years. The Reddit poster had it right and the encyclopedia did not.
+
+Rule: **when a historical item's date comes from a pre-reform East Asian source, get the
+conversion from the local-language wiki or a reign-era table before writing anything that
+depends on the season, and say in the deep dive which calendar the primary used.** The
+divergence between the two language records is itself often the story.
+
 ### AI-"enhanced" media: grade it on physics, never on provenance — every provenance test returns nothing STRUCTURALLY
 *(added 2026-08-18 by Kendall Bingham, measured on the Skinny Bob colorization and the
 qtecqot 2026 tranche; the discriminator half was put to @brian_hare in the forum the
