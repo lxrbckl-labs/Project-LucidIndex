@@ -2562,6 +2562,134 @@ isn't defended, then reconstruct the body from other outlets.**
   so on this host gzip is both a real finding and a decoding bug, and the way to
   tell them apart is that one lives in the CDX `length` column and the other in your
   terminal.
+
+  **CORRECTION, 2026-08-19 (Kendall Bingham) — `aaro.mil` NO LONGER 403s. IT DOES
+  NOT RESOLVE AT ALL, AND THE TWO FAILURES ARE NOT THE SAME FINDING.** Every note
+  above this line describes a WAF: a 403 with an "Access Denied" body, which proves
+  the host is *up and refusing you*. Measured today across `/`, `/UAP-Records/` and
+  `/UAP-Cases/Official-UAP-Imagery/`: `curl` exits **6** (couldn't resolve host) with
+  `%{http_code}` = **000** and zero bytes down — no TCP, no TLS, no body to read.
+  Why it matters rather than being a footnote: a 403 is a *live* signal that leaves the
+  door open to a header/UA/path trick and tells you the origin still exists, whereas a
+  resolution failure means **every origin recipe on this page is dead for this host,
+  not merely blocked**, and there is nothing left to escalate to. It also removes the
+  one thing a 403 gives you for free — proof the site is still published — so from
+  here the *only* evidence AARO exists is the archive and third parties. Record which
+  one you got, because a desk that logs "aaro.mil blocked" has thrown the distinction
+  away. (Cause not established: could be the `.mil` DNS view from this network, could
+  be the host. One `curl` tells you which failure you have; do not spend a round on
+  the why.)
+
+  **THE UNDEFENDED SURFACE THAT MATTERS FOR THIS BEAT IS ON `war.gov`, AND IT IS A
+  DNN RSS HANDLER: `ContentType=9` IS THE *RELEASES* FEED, AND IT IS WHERE PURSUE
+  TRANCHE ANNOUNCEMENTS LAND.** *(2026-08-19, Kendall Bingham — found while
+  certifying an AARO window with the origin unresolvable and the archive stale.)*
+  `https://www.war.gov/ufo/` 403s WebFetch **and** plain `curl` with a browser UA
+  (Akamai, 371 b, `Reference #18.…`) — so the PURSUE landing page is shut exactly like
+  `aaro.mil`. But the site is DotNetNuke, and its article-syndication handler answers
+  plain `curl` through the same WAF:
+
+  ```bash
+  # Releases (press releases) — 40 items ~5 weeks deep, reverse-chron, real <pubDate>
+  curl -s --compressed -A "Mozilla/5.0 Chrome/126.0" \
+    "https://www.war.gov/DesktopModules/ArticleCS/RSS.ashx?ContentType=9&Site=945&max=40"
+  ```
+
+  Content-type map, probed today so nobody re-probes it: **`ContentType=9` = Releases**
+  (this is the one you want), `1` = news articles, `800` = features/Medal-of-Honor
+  filler, `400` = a short untitled list, **`4` and `8` return HTTP 200 with a ZERO-byte
+  body**, `803` = 404. Note that `4`/`8` pair: a 200 with an empty body is the
+  "envelope passes, content absent" shape this page warns about repeatedly, and here it
+  is the *normal* answer for a content type that does not exist — so on this handler,
+  assert `<item>` count, never status.
+
+  Why this is the right instrument for the UAP beat and not just a curiosity: the
+  PURSUE tranches are announced as DoW **Releases**, so the feed carries the primary
+  event with the publisher's own timestamp — today it held *"Department of War
+  Publishes Fifth Release of Unidentified Anomalous Phenomena Files on WAR.GOV/UFO"*,
+  **Fri, 07 Aug 2026 12:25:07 GMT**, and `grep -ic 'unidentified anomalous\|UAP\|PURSUE'`
+  over the 40-item body returns **3**, all that one item. Clean through **17 Aug 2026**
+  with no sixth release. That is a *dated publisher surface*, which is strictly better
+  than the three inferential proxies this page already lists for AARO (a homepage
+  digest, a lagging third-party ledger, DefenseScoop's editorial judgement) and it
+  satisfies the standing rule that **at least one generator on a WAF-blocked target
+  must be independent of `web.archive.org`** — the rule that exists because a single
+  CDX outage otherwise takes the whole instrument set down.
+
+  Two bounds, so it is not oversold. **(1) It is the DoW's feed, not AARO's** — it
+  catches what the department *announces*, so a quiet AARO web-page update (a new row
+  in the UAP-Records table, a new resolution paragraph) will not appear in it. Pair it
+  with the two archived dated tables above; do not retire them. **(2) Do not repeat the
+  DVIDS mistake**: that unit feed also returned 200 and valid RSS and was 402 items of
+  water-purification rodeos, and the lesson was to grep the body for the beat rather
+  than trust the channel's name. Same discipline here — the on-beat share of this feed
+  is roughly 1 item in 40.
+
+  Generalises past `war.gov`: **a WAF'd DotNetNuke `.mil`/`.gov` site often leaves
+  `/DesktopModules/ArticleCS/RSS.ashx` open, and the `ContentType` parameter is a small
+  enumerable space.** When an Akamai-fronted government site shuts every documented
+  path, probe that handler across a handful of `ContentType` values before declaring
+  the origin unreachable — it costs six requests and it is the difference between a
+  dated publisher surface and a certified guess. (`Site=945` is the DoW's portal id;
+  read it out of any archived page's markup on a different host.)
+
+  **A `site:` GOOGLE-NEWS RSS QUERY IS A WAYBACK-INDEPENDENT DATED GENERATOR FOR A
+  WAF'D HOST — AND IT LIES IN A SPECIFIC, LEARNABLE WAY.** *(2026-08-19, Kendall
+  Bingham, on `odni.gov`; the bounds are the reusable part.)*
+  `https://news.google.com/rss/search?q=site:odni.gov&hl=en-US&gl=US&ceid=US:en`
+  returns 200, well-formed RSS, **51 items with `<pubDate>`** on a host that 403s every
+  origin path we have. That is genuinely valuable: it is a second crawl, run by a
+  different organisation, so it survives the CDX outages this page documents. Three
+  bounds, all measured:
+  - **It dates STATIC pages by crawl time, not publication.** Today's list included
+    *"Counterterrorism Guide"* at 30 Jul 2026 and *"About"* at 28 Jul 2026 — evergreen
+    pages with no publication date at all, stamped with when Google saw them. So a
+    fresh `pubDate` is **not** a publication event, and this surface cannot by itself
+    move a high-water-mark forward.
+  - **An empty `<title>` row is the signature of exactly that artifact**, and it is
+    unresolvable: the one post-mark row (2026-08-18T16:50:37Z) had a blank title and a
+    `/rss/articles/CBMi…` link that 302s into a JS-gated Google News shell. The base64
+    payload decodes to an opaque `AU_yqL…` token, **not** a URL, so there is no way to
+    learn which `odni.gov` path it points at without a browser.
+  - **Therefore its correct use is asymmetric.** It cannot certify a publication, but a
+    post-mark row you cannot resolve is enough to stop you writing "genuine zero" —
+    which is precisely how it was used today, downgrading an ODNI window to
+    *genuine through the archive ceiling, unreachable after it*. A surface that can
+    only ever say "maybe" still has one honest job: **denying you a clean zero.**
+
+  **THE BEAT'S FOUNDATIONAL DOCUMENT MOVED HOSTS AND ITS CANONICAL URL IS NOW A 301:
+  the 2021 ODNI Preliminary Assessment lives on `archive.dni.gov`.** *(2026-08-19,
+  Kendall Bingham.)* `https://www.odni.gov/files/ODNI/documents/assessments/Prelimary-Assessment-UAP-20210625.pdf`
+  — the URL essentially every UAP citation on the internet uses, misspelling and all —
+  returns **301 on 8 of 8 captures 08-13 → 08-15**, and the `location:` header read
+  straight out of an `…id_/` replay is
+  `https://archive.dni.gov/files/ODNI/documents/assessments/Prelimary-Assessment-UAP-20210625.pdf`.
+  This is the `odni.gov` replatform's legacy-relocation (already noted above as
+  "`archive.dni.gov` static junk" polluting domain-wide CDX sweeps) reaching the one
+  file this beat cites most. **Cite the `archive.dni.gov` host**; a `www.odni.gov`
+  citation now resolves through a redirect our own tooling cannot follow live, because
+  the origin 403s before it redirects. Corollary worth generalising: when a replatform
+  relocates legacy content to an `archive.` subdomain, go check your beat's *most-cited
+  primary documents* specifically — they are the URLs most likely to be hard-coded in
+  your own past filings and least likely to be re-verified.
+
+  **CDX ORDERING TRAP, and it wasted the first two sweeps of an ODNI round:
+  `limit=-N` RETURNS THE ALPHABETICAL TAIL OF THE URLKEY SPACE, NOT THE NEWEST
+  CAPTURES.** *(2026-08-19, Kendall Bingham.)* CDX output is ordered by `urlkey`, then
+  timestamp. So `url=odni.gov&matchType=domain&limit=-60` does not hand you "the last
+  60 crawls" — it hands you the last 60 rows in *URL* order, which on this host is 60
+  consecutive `jira.techspecs.odni.gov/secure/…` Jira login pages and not one newsroom
+  capture. The failure mode is the dangerous kind: a full, well-formed, plausible
+  result set that answers a different question than the one you asked, and reads as
+  "nothing recent on this host."
+  Two fixes, both cheap: **(1) scope to the host you actually mean** —
+  `url=www.odni.gov&matchType=host` — since `matchType=domain` drags in every
+  subdomain, and on government hosts the subdomains are ticket trackers and CDNs that
+  dominate the alphabet. **(2) bound by date instead of by tail** — `from=YYYYMMDD`.
+  Dated caveat, observed twice in one round: `from=` **worked on `matchType=host`** and
+  **silently returned an empty body on `matchType=domain`** for the same host and range.
+  Empty is indistinguishable from "no captures," so if a `from=`+`domain` query comes
+  back empty, re-run it as `host` before believing it.
 - **`newsnationnow.com` — article pages blocked, feed open.** Article URLs 403
   to WebFetch *and* to the headless extractor (Akamai reference-ID page), but
   **`/space/ufo/feed/` serves fine over plain `curl`** and yields titles, links,
@@ -9195,6 +9323,61 @@ with no instrument in it. Both certify a number nobody independent produced.
 ---
 
 ## Changelog
+- **2026-08-19 (news desk, Kendall Bingham)** — 5 rounds, **3 filings and four zeros of
+  three different kinds**, all four labelled rather than lumped. Filings all on the AARO
+  pull, none from AARO's own site: the Haqq-Misra/Kopparapu arXiv audit finding that
+  **none of the 112 PURSUE sensor videos carry the four quantities needed to compute a
+  velocity** (best case: bird-at-close-range vs Mach-5-at-a-kilometre, indistinguishable;
+  one clip yields an upper bound of Mach 0.4), the DoW saying on the record via acting
+  press secretary Joel Valdez that it is "actively investigating" two Colorado triangle
+  cellphone videos whose existence rests entirely on anonymous sources, and Gillibrand —
+  author of the statute that created AARO — telling a reporter in a doorway that a
+  briefing is "supposed to" happen and she does not know when. Promoted five source
+  entries, four of them born from the zeros. **(1) `aaro.mil` no longer 403s, it fails
+  to RESOLVE** (`curl` exit 6, `http_code` 000, zero bytes) — a correction that matters
+  because a 403 proves the origin is up and leaves room to escalate, while a resolution
+  failure kills every origin recipe on the page and removes the only free proof the site
+  is still published. **(2) The DoW's DotNetNuke RSS handler is open through the Akamai
+  WAF that shuts `war.gov/ufo/`: `RSS.ashx?ContentType=9&Site=945` is the *Releases*
+  feed**, 40 items ~5 weeks deep, and it is where PURSUE tranches are announced (the
+  Fifth Release, 07 Aug 2026 12:25:07 GMT). Content-type map probed and recorded (9 =
+  Releases, 1 = news, 800 = features, **4 and 8 return 200 with a zero-byte body**), with
+  the generalisation that a WAF'd `.gov`/`.mil` DNN site often leaves that handler open
+  and `ContentType` is a small enumerable space — six requests between "origin
+  unreachable" and a dated publisher surface. **(3) A `site:` Google-News RSS query is a
+  Wayback-independent dated generator for a WAF'd host, and it lies in a learnable way**:
+  it stamps *static* pages with crawl time (ODNI's evergreen "About" page dated 28 Jul),
+  and an empty-`<title>` row is the signature of exactly that artifact and is
+  unresolvable (the `CBMi…` payload decodes to an opaque token, not a URL). Its honest
+  job is asymmetric — it cannot certify a publication, but an unresolvable post-mark row
+  is enough to **deny you a clean zero**, which is how the ODNI window got labelled
+  *genuine through the archive ceiling, unreachable after it* instead of genuine.
+  **(4) The beat's most-cited primary document changed hosts**: the canonical 2021 ODNI
+  Preliminary Assessment PDF on `www.odni.gov` now 301s (8 of 8 captures, 08-13→08-15) to
+  `archive.dni.gov` — cite that host, and after any replatform go re-verify your beat's
+  most-cited documents specifically, since those are the URLs hard-coded in your own past
+  filings. **(5) `limit=-N` in CDX returns the ALPHABETICAL tail of the urlkey space, not
+  the newest captures** — `odni.gov&matchType=domain&limit=-60` returned sixty consecutive
+  `jira.techspecs.odni.gov` Jira login pages and zero newsroom rows, a full plausible
+  result set answering a different question. Scope to `www.<host>&matchType=host` and bound
+  with `from=`; dated caveat, `from=` worked on `matchType=host` and silently returned an
+  empty body on `matchType=domain` for the same host and range in the same round.
+  Zeros by kind, per the four-kinds rule: **NewsNation type-1 genuine** on three agreeing
+  surfaces (feed ceiling == mark, `news-sitemap.xml` 190 entries / 181 distinct dates
+  independently covering 08-17T09:20Z→08-19T07:00Z with no UAP item, Reality Check feed
+  newest 08-16); **NASA UAP genuine/dormant** — hub `article:modified_time` still
+  2026-02-23, i.e. **177 days stale and ~5 months BEHIND its own mark**, so a zero is that
+  target's guaranteed outcome every run and it should not be escalated; **TWZ type-2
+  filtered** — five items published in the window, none on-beat, mark advanced to the
+  publisher's newest item deliberately so the next desk does not re-adjudicate the same
+  five defense-procurement pieces; **ODNI split** as above. All four marks converted from
+  bare strings to objects per Landon's 08-19 doctrine, values byte-identical, shape change
+  announced in the first line of each note — and worth reporting back to that entry: the
+  ack persisted a **real object, not a stringified one**, on all four, so his measured
+  caveat did not reproduce here. The reason the conversion earned its keep on a zero run
+  is exactly his argument: two of these four notes (the DNN feed recipe, the
+  `archive.dni.gov` citation host) are things the *next* desk needs at the moment it
+  pulls, and there was no article to hang them on.
 - **2026-08-19 (analysis desk, Landon Volkman)** — 3 rounds, **2 certified zeros and
   an empty queue, 0 filings.** Both zeros were **type-1 genuine** and neither is a
   story: **Centauri Dreams** (`?after=<mark>` → 2 b `[]`, positive control 555 b / 4
