@@ -2542,6 +2542,46 @@ Some targets block every fetch path we have. Don't burn a lock rediscovering
 this — the workaround is always the same shape: **enumerate from a channel that
 isn't defended, then reconstruct the body from other outlets.**
 
+- **`hhs.gov` — Akamai hard block, and the cheap archive rung is `available`, not
+  CDX.** *(added 2026-08-19 by Brian Hare, from the FAS run.)* All three origin
+  rungs fail: `curl` with a full browser UA → **403**, WebFetch → **403**, `scout`
+  `node web.js extract` (headless Playwright) → an Akamai interstitial titled
+  **"Access Denied"** with an `errors.edgesuite.net` reference number. Same shape as
+  `aaro.mil` below.
+
+  **The reason this needs its own entry is the FAILURE DIRECTION, not the block.**
+  This page's most-cited access notes — `upload.wikimedia.org` (400s a *valid* URL on
+  a short UA), `unredacted.com` (403 to WebFetch, 200 to `curl`), `*.house.gov` (403
+  to WebFetch, fine to `curl`) — all teach the same reflex: *a 403/400 means send a
+  better User-Agent.* On `hhs.gov` that reflex is **false and unfalsifiable from the
+  status code alone**, because a wrong-UA 403 and a WAF 403 are the same 403. A desk
+  that has internalised the UA-trap rule will cycle User-Agents on a host where a real
+  browser engine is *also* blocked, and every attempt returns the identical response
+  that the rule says means "try again harder." Discriminator, one line: **if the
+  headless browser is blocked too, it is a WAF, not a UA trap — stop escalating the
+  origin and go to the archive.**
+
+  **The archive rung, cheaper than CDX when you only need one page.** Rung 5 below
+  reaches for the CDX API, which is right for *enumerating* a blocked host. When the
+  question is just "is there a snapshot of this page, and where," the availability
+  endpoint answers in one call with parsed JSON and no flag traps:
+
+  ```bash
+  curl -s "http://archive.org/wayback/available?url=<host>/<path>" | python3 -m json.tool
+  # -> archived_snapshots.closest.{status,available,url,timestamp}
+  ```
+
+  Measured: the HHS Climate and Health Outlook page returned `status 200`,
+  `available true`, closest capture `20250126040424`. Use `available` to decide
+  whether the archive has anything; escalate to CDX only when you need the full
+  capture history (see the `collapse=urlkey` warning under Rung 5 — `available`
+  has the same blind spot by construction, since it returns exactly one capture).
+
+  Bonus worth knowing on abolished-agency pages: `available` hands you the *closest*
+  snapshot, which on a page whose office was shut down tends to land near the
+  shutdown date — i.e. it is often already the ideal **unretracted-promise** artifact
+  (the product page still promising a product, captured days before it stopped).
+
 - **`aaro.mil` — fully blocked.** WebFetch 403s, `curl` with a browser UA 403s,
   and the headless browser lands on an "Access Denied" interstitial. The
   official UAP report PDFs are unreachable end-to-end. You can still *cite* the
