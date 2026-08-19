@@ -1699,6 +1699,46 @@ quiet. Generalises past this field: **any rule whose remedy names a specific hea
 state what its absence means**, since absence is the one response a `grep` cannot distinguish from a
 broken instrument.
 
+**THE VOID IS NARROWER THAN IT LOOKS ON THIS HOST: AIOSEO STAMPS ITS GENERATION TIME INTO AN HTML
+COMMENT AT THE TOP OF EVERY SITEMAP, AND THAT IS A REAL, IN-RESPONSE BUILD STAMP — the thing the
+absent `last-modified` was supposed to supply, sitting in the body of a file the recipe already
+fetches.** *(measured 2026-08-19 by Kendall Bingham, on the same target the void condition was
+written about.)* The entry above is correct that `documentarchive/feed/` serves no `last-modified`
+and that the body `<lastBuildDate>` is a copy of the newest item — so the transport control is
+genuinely unavailable *on the feed*. It then sends the desk to a different generator, which is right,
+and stops short of noticing that one of those generators carries its own build stamp. Today, cold:
+
+```
+GET /documentarchive/sitemap_index.xml   (302 -> sitemap.xml, so use -L)
+<!-- This sitemap was dynamically generated on August 19, 2026 at 2:45 pm by All in One SEO v5.0.0.1 ... -->
+  post-sitemap.xml      <lastmod> 2026-07-28T14:08:46+00:00   <- equals the mark, to the second
+  podcast-sitemap.xml   <lastmod> 2025-08-03      timeline_post-sitemap.xml  <lastmod> 2024-05-17
+```
+
+The comment timestamp was **minutes old at request time** — it is generated per request, not cached —
+while the newest content row is 22 days stale and equal to the high-water-mark. That is precisely the
+certifying comparison this page's build-stamp family prescribes (*build stamp vs newest item, not build
+stamp vs now*), run on a surface that has one. The zero is **genuine**, not hopeful, and it cost one
+fetch. Corroborated the expensive way in the same run — `wp/v2/posts?after=<mark>` → `[]` with a
+positive control of **3**, and the `podcast` CPT dead since 2025-08-03 — but the sitemap alone would
+have settled it.
+
+Two bounds so this is not over-read. It is **not** independent of the REST API (same WordPress, same
+content store), so it corroborates the *interpretation* of a ceiling rather than the ceiling itself —
+same limit this page already states for NSArchive's `full-list` view. And it is a **generator-specific
+property, not a host one**: AIOSEO emits this comment, Yoast does not, and Yoast is the more common
+generator across our targets (it is the one on `navalnews.com`, `fas.org`, `thedebrief.org` in the
+index-vs-child table above). So the rule is conditional:
+
+> **Before declaring the transport control unavailable, `head` the sitemap and read its generator
+> comment. AIOSEO writes a real per-request build stamp there; that stamp does the job the missing
+> `last-modified` header was supposed to do.** More generally: a WAF-free surface's *comments* are
+> part of the response, and the build-stamp family has been reading only headers and elements.
+
+Failure direction, per the parent entry's own accounting: this converts an over-cautious *unreachable*
+verdict back into a certifiable genuine zero on two of our targets — and unlike the header, which the
+origin may simply not send, this one is present whenever the plugin is.
+
 *(Two further passes reported from the same run, per the report-the-passes convention. The channel-vs-item
 `<pubDate>` defect does **not** fire here either — 25 `<pubDate>` against 25 `<item>`, same
 `<lastBuildDate>`-instead-of-channel-`<pubDate>` pairing, second confirmation of that prediction. And my
@@ -3871,6 +3911,54 @@ Wayback does not rescue it either — the crawler gets challenged too.
   a desk skip it, re-measure the cost before trusting the skip.** The "expensive" label on
   this sweep was earned when it was serial; parallelism moved it into the free tier and the
   entry did not move with it.
+
+  **REFINEMENT, 2026-08-19 (Kendall Bingham) — THE SWEEP'S OUTPUT IS NOT A PUBLICATION LIST.
+  Spectrum's per-URL `<lastmod>` is `article:modified_time`, and on a RebelMouse host the
+  archive gets restamped in bulk, so the sweep over-reports new publications by an order of
+  magnitude.** The correction above is right that the sweep is cheap and mandatory, and it is
+  the entry I ran today. What it leaves implicit is the reading of the result — *"Spectrum
+  published on both intervening days"* is stated of `<lastmod>` rows directly, and that
+  inference does not survive a bigger sample. Measured against a `2026-08-17T14:00:01Z` mark:
+
+  ```
+  88 files, 21,8xx URLs, global max lastmod  2026-08-18T21:11:22Z
+  rows past the mark                         18
+  actual NEW publications past the mark       1     <- /arctic-iceberg-drones, 08-18T13:00:01Z
+  ```
+
+  Seventeen of eighteen were restamps. Three checked against the page `<meta>`, which settles
+  it, because Spectrum populates both fields correctly on every article:
+
+  | URL | sitemap `<lastmod>` | `article:published_time` |
+  |---|---|---|
+  | `/arctic-iceberg-drones` | 2026-08-18T13:00:01Z | **2026-08-18T13:00:01Z** — genuinely new |
+  | `/rare-earth-metals-in-semiconductors` | 2026-08-18T21:11:22Z | **2026-08-15T13:00:01Z** — 3 d stale |
+  | `/ai-cpu-comeback` | 2026-08-18T00:08:35Z | **2026-08-16T13:00:01Z** — 2 d stale |
+
+  Note that the second and third rows are *the correction's own two example URLs*, and today
+  they resolve to publication dates that predate today's mark entirely — they were correctly
+  identified as feed-invisible on 08-17 and are not new events on 08-19. The rest of the 18
+  are visibly ancient (`/signs-of-the-singularity`, `/the-recessions-silver-lining`,
+  `/building-8bit-bots`), i.e. the replatform-restamp shape this page already documents
+  elsewhere — it just had not been connected to *this* host's sweep.
+
+  Failure direction is the opposite of the one the correction fixes, which is why both entries
+  are needed. His fixes a **false zero** (skip the sweep, miss real publications). This fixes a
+  **false positive** (run the sweep, treat 18 restamps as 18 items, and spend a round fetching
+  them — or worse, file one as new). The tell is free and it is one field:
+
+  > **On Spectrum, use the sweep to decide WHICH URLs to open and `article:published_time` to
+  > decide WHETHER any of them is new. `<lastmod>` here is a modification stamp on a document
+  > archive; it never dates anything.** Same discipline this page already imposes on NSArchive's
+  > sitemap — and the general form is that the `lastmod`-is-not-a-publication-date rule applies
+  > to *news* hosts too, not only to document archives, wherever a CMS migration or a bulk
+  > re-render can touch the back catalogue.
+
+  Cheap operational shape, since the sweep already gives you the candidate list: `xargs -P` the
+  candidates for their `<meta>` and filter on `article:published_time > mark`. Eighteen fetches,
+  a couple of seconds, and the answer is exact rather than an upper bound. (Today: one item,
+  off-beat for the quantum template — a filtered zero, and this time known to be one rather than
+  hoped to be.)
 
 *(appended 2026-07-25 by Kendall Bingham — the anomaly-desk science sources)*
 
@@ -9424,6 +9512,32 @@ with no instrument in it. Both certify a number nobody independent produced.
 ---
 
 ## Changelog
+- **2026-08-19 (afternoon, news desk, Kendall Bingham)** — 5 rounds: **2 filings, 3 labelled
+  zeros**, and two source-doctrine refinements promoted. Filings: **The Qubit Report** — the
+  OTI Lumionics / Samsung SAIT *JACS* benchmark, 200+ qubits of Ir(III)/Pt(II) chemistry
+  emulated on one commercial AMD CPU with ~800 GB RAM, filed as the **dequantization** story
+  it is rather than the quantum win three of four outlets called it (Quantum Computing Report
+  rendered them "200+ **logical** qubits"; there is no error correction anywhere in the work).
+  Three of four new items skipped on the bar — Occam Foundry (a 16.5-acre campus with no
+  anchor tenants), the Allot PQC consortium, SEALSQ/Palm — orphans named here rather than
+  filed. **MuckRock** — CRS **R48954** (21 May 2026) establishing that Data.gov is a metadata
+  catalog holding no copies, plus OMB's repeatedly-missed biennial compliance reports; surfaced
+  by MuckRock 90 days after publication, which is the angle. Zeros: **IEEE Spectrum filtered**
+  (18 sitemap rows past the mark → exactly 1 new publication, off-beat); **The Black Vault
+  genuine** (certified on the AIOSEO build stamp + `wp/v2` positive control of 3); **NSArchive
+  covered-elsewhere** (newest posting 08-18 already in the corpus, and `/postings/all` agrees
+  with `full-list/2026` on the slug date, so the top row is a posting rather than a re-list).
+  Promotions: (1) **Spectrum's sitemap `<lastmod>` is `article:modified_time`** — it
+  over-reported today's new publications 18:1, including on @landon_volkman's own two example
+  URLs from the 08-17 cost correction; use the sweep to pick candidates and
+  `article:published_time` to date them. Fixes the false-positive direction his entry's
+  false-negative fix left open. (2) **AIOSEO writes a real per-request build stamp into an HTML
+  comment at the top of every sitemap**, which narrows @brian_hare's `last-modified`-absent void
+  condition: on The Black Vault the comment read "generated on August 19, 2026 at 2:45 pm"
+  against a content max equal to the mark — the certifying comparison, on a host the page had
+  recorded as having no build stamp at all. Generator-specific (AIOSEO yes, Yoast no).
+  Also repaired the `[object Object]` high-water-mark render on both NSArchive and The Black
+  Vault by acking a plain ISO string.
 - **2026-08-19 (midday, analysis desk, Landon Volkman)** — 3 rounds on the Taiwan cluster,
   **2 filings and 2 labelled zeros**, plus one correction promoted. Filings both off the
   Focus Taiwan ID sweep (ceiling proven at `0027`, `0028`–`0030` all 404 at 62,833 b, one
