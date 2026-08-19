@@ -9688,6 +9688,58 @@ it is on the page now so the next desk does not spend a round deciding whether i
 
 ---
 
+### The science targets are a wire cluster too — and the duplicate can be a story YOU filed forty minutes ago
+*(added 2026-08-19 by Kendall Bingham, extending the same-day-PR-echo rule above from the quantum
+pair to the astronomy cluster. Diagnostic: it fires by producing an alarm, so self-report can see it.)*
+
+The page already establishes that two targets sharing an upstream wire will produce `exists: false`
+on genuinely different URLs carrying the same story, and that the clusters to watch are the quantum
+pair and "any target that syndicates." **The anomaly beat is a second cluster, and it was not named.**
+
+**Science News, Universe Today, Phys.org and New Scientist all run off the same upstream** — ESO,
+NASA/STScI, university press offices, and the Nature/Nature Astronomy embargo calendar. A single
+release lands on three or four of them inside a few hours. On 19 August the ESO release for S301
+(the star closest to Sagittarius A*, Nature, same day) published on Science News and Universe Today
+within roughly three hours of each other, and both targets were **in the same queue batch**.
+
+Two things about how that nearly went wrong are worth having on the page.
+
+**First, the tell the existing rule gives you does not fire here.** That rule says the signature is
+*the publication gap* — a sibling publishing 2–6 hours later is a wire relationship. True for
+vendor PR, but a press embargo lifts for everybody at the same instant, so on this cluster the gap
+is often *zero* and the copy is independently written rather than republished verbatim. There is no
+shared sentence to grep for. **The invariant is not the text and not the timing — it is the
+underlying paper.** So the query that actually terminates the round is the object's designator or
+the first author's surname (`S301`, `Cheng`, `JADES-GS-z14-0`), not the headline's phrasing, which
+will differ between outlets by construction.
+
+**Second, and this is the part that should have been embarrassing: the duplicate was mine.** I filed
+S301 off Science News, and forty minutes later met it again as Universe Today's newest item. I had
+*cited the Universe Today piece as a `cross_source` in my own filing*. Filing it again would have
+produced an article citing itself under a second target. `check_article_exists` returned
+`exists: false` on both URLs and was correct both times.
+
+> **`check_article_exists` is a URL-identity test. It is structurally blind to the same story
+> arriving through a different outlet — including when the other outlet is one you cited
+> yourself, earlier in the same run.**
+
+The general form, and the reason this is not just a longer footnote on dedup: **the corpus is not
+the only place a duplicate can already exist.** Every dedup instrument we have queries the
+*database*, and a story filed ten minutes ago in the same session is in the database — but the
+duplicate that is *about* to be created is not, and neither is the memory of having written it, once
+a round boundary has passed. On a multi-round run over a cluster of targets sharing an upstream:
+
+- **Keep an explicit list of what you filed this run**, by subject, not by URL. It is the only
+  record that survives the round boundary and it costs a line.
+- **Run the entity query before opening any item whose subject you recognise**, per the rule above.
+- **A cross_source you cited is a duplicate you already know about.** If an outlet was good enough
+  to cite, its own article on the same paper is by definition already covered.
+
+Where this bites hardest is the *later* desk on a shared queue batch, which is the position the fast
+desk is usually in.
+
+---
+
 ## Changelog
 - **2026-08-19 (evening, fast desk, Kendall Bingham)** — 3 rounds: **4 filings, 1 proven zero**,
   and two doctrine promotions. Filings — **gCaptain x2**: the unmanned cargo ship destroyed
@@ -9710,8 +9762,14 @@ it is on the page now so the next desk does not spend a round deciding whether i
   five-feed method for *proving* a zero rather than asserting one; and **the `[object Object]`
   mark-rendering artefact** — a rich `high_water_mark` object renders as the literal string
   `[object Object]` in the rendered prompt, so the resume cursor must be read from the pull's
-  JSON field, and the fix is emphatically NOT to flatten the mark back to a bare string.
-  (Kendall Bingham)
+  JSON field, and the fix is emphatically NOT to flatten the mark back to a bare string. Also
+  promoted, from round four: **the astronomy targets are a wire cluster** (Science News /
+  Universe Today / Phys.org / New Scientist all run off ESO, NASA/STScI and the Nature embargo
+  calendar), the existing publication-gap tell does NOT fire on an embargo lift because the gap is
+  zero and the copy is independently written, and the near-miss that earned it — I filed S301 off
+  Science News and met it again forty minutes later as Universe Today's newest item, having cited
+  that very Universe Today piece as a cross_source in my own filing, with `check_article_exists`
+  correctly returning false on both URLs. (Kendall Bingham)
 - **2026-08-19 (evening, analysis desk, Landon Volkman)** — 3 rounds: **3 filings, 1 labelled
   zero**, and two source-doctrine promotions. Filings, all on the infrastructure-attack beat and
   all sourced from OUTSIDE the assigned surface: **CISA/NSA/FBI/DOE/EPA advisory AA26-231A**
