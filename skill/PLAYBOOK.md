@@ -6498,6 +6498,56 @@ sent** — read `persisted` in the ack response, which exists precisely so you c
 verify what landed without a follow-up read. If a future desk pulls this target and
 finds a string where this entry promises an object, that is expected, not damage.
 
+### CROSS-SUBREDDIT CROSSPOSTS ARE THE COMMUNITY-TARGET VERSION OF THE CROSS-POST HOLE — AND `check_article_exists` IS STRUCTURALLY BLIND TO THEM, BECAUSE REDDIT MINTS A NEW POST ID PER SUBREDDIT
+*(measured 2026-08-19 by Brian Hare on r/aliens + r/HighStrangeness; answers the
+"one host, one item / I did not establish how common cross-posting is across the
+fleet" limit left open on the Skeptical Inquirer entry above.)*
+
+It is common, it is near-universal between our community targets, and it is worse
+than the WordPress case because there is no canonical tag to even argue about. The
+same submission crossposted to two subreddits gets **two different post IDs and two
+different permalinks**, both genuinely canonical, both returning a truthful
+`exists: false`. Three instances in a single morning's window:
+
+| story | first target | second target | gap |
+|---|---|---|---|
+| "The 'Jinn' Abduction Photographs" | r/aliens `1vru2c1` | r/HighStrangeness `1vru24y` | **11 seconds** |
+| "Remember these two tiny, red, armless humanoids?" | r/aliens `1vs10nu` | r/HighStrangeness `1vs111e` | **21 seconds** |
+| "Corroborating David Grusch's Claims…" | r/UFOs `1vpeqko` (filed 08-16) | r/HighStrangeness `1vrok42` (08-18) | **~2 days** |
+
+Two distinct hazards, and they need different defenses:
+
+- **The seconds-apart pair is one author firing a crosspost button**, so the two
+  copies land in the SAME pull window on two targets. Whichever desk pulls first
+  files it; the second desk gets `exists: false` on a URL that is honestly new and
+  researches the identical story from scratch. This is the expensive one — it burns a
+  full research cycle, not just a write.
+- **The days-later crosspost lands after the sibling target already published.** The
+  Grusch/Ariel-School item had been filed off r/UFOs two days earlier and still
+  returned `exists: false` on the r/HighStrangeness permalink. So the check must be
+  run against the CORPUS, not against the window.
+
+> **On any community target, `check_article_exists` is a necessary first rung and
+> never a sufficient one. Run `search_articles` on the story's distinctive proper
+> nouns for EVERY candidate — not only the ones that feel familiar — because the
+> crosspost you have not seen before is exactly the one that reads as new.**
+
+Pick the query terms from the claim, not the title: titles get edited between
+subreddits, entities do not. `Ariel School Ruwa Zimbabwe 1994 telepathy` returned the
+already-filed r/UFOs piece at rank 0.88; the post titles were identical here, but
+that is luck, not a mechanism to rely on. And pass `include_suppressed: true` — a
+retention-rolled-off sibling is still work you should not redo.
+
+Why the failure direction is this page's usual bad one: both desks come away
+*confirmed*. The dedup tool answered honestly, the URL really is new, and nothing in
+the pull says a sibling target holds the same story under a different key. As with
+the Skeptical Inquirer case, the remedy manufactures confidence in the duplicate.
+
+Corollary for cursor hygiene, since it bit here: a crosspost is NOT a reason to hold
+a target's mark back. Skip the item, keep advancing past it — the mark records what
+you have *evaluated*, not what you have filed, and the r/HighStrangeness run above
+acked a skipped crosspost and two live items with the mark on the newest entry seen.
+
 ### Feed depth is the silent false zero — measure it against your gap
 *(added 2026-07-25 by Brian Hare, after it nearly bit on 3 of 4 targets in one run)*
 
