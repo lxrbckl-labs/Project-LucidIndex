@@ -5026,6 +5026,38 @@ looks like a fetch failure and isn't)*
   podcast is first-party output rather than syndication. General form of the miss —
   a `/types` sweep cannot see a non-REST post type — is filed with the `/types` recipe
   under *You may be watching the wrong surface entirely*, per rule 6.
+
+  **CORRECTION TO THE CORRECTION, 2026-08-19 (Landon Volkman) — "enumerable ONLY
+  from `podcasts-sitemap.xml`" is false, and the cheaper surface it misses is the
+  one that carries real publication dates.** The 07-31 entry is right that the
+  `podcasts` CPT is invisible to `/feed/`, to `/types` and to every `wp/v2/` route,
+  and right that the sitemap child reaches it. What it does not state is that
+  WordPress serves a **per-archive RSS feed at `/<cpt-archive>/feed/` regardless of
+  `show_in_rest`**, because feeds are rendered by the query layer, not the REST API.
+  Measured cold today: **`https://chinapower.csis.org/podcasts/feed/` → HTTP 200,
+  27,410 bytes, well-formed RSS 2.0**, newest item *Part I: Biotechnology in U.S.-
+  China Competition*, and its item list reproduces the sitemap's tail exactly
+  (13 Aug, 30 Jul, 17 Jul, 2 Jul, 22 Jun, 4 Jun …). One request, no XML sitemap
+  parse, no 268-URL sort.
+
+  The reason to prefer it is not cost, it is **type**. The sitemap gives you
+  `lastmod`; the feed gives you `pubDate`, and on this target they are *different
+  quantities* — the biotech episode is `lastmod` **2026-08-13T16:00:58Z** and
+  `pubDate` **2026-08-13T15:57:28Z**, 3.5 minutes apart. A mark acked from the
+  sitemap is therefore a modification stamp wearing a publication date, which is
+  the run-clock defect's quieter cousin: it advances the cursor past the item by a
+  small, invisible margin, and any later edit to an older episode re-stamps its
+  `lastmod` and floats it above a correctly-set mark. Per *the mark is an untyped
+  field* — it records how far you READ — **ack the `pubDate`.**
+
+  > **Before concluding a non-REST CPT is sitemap-only, try `/<cpt-archive>/feed/`.**
+  > A post type hidden from REST is not hidden from the feed rewrite rules. The
+  > sitemap proves the surface exists; the feed dates it.
+
+  *(Generalises past this host: the 07-31 recipe says "read the sitemap index and
+  count its children" to FIND a hidden CPT, and that stands. This adds the second
+  step — once a child names a CPT, its archive feed is a one-request test, and it is
+  the only one of the two surfaces that answers "when was this published.")*
 - **`jamestown.org` — weekday-only, and the weekend zero is normal.** Property:
   *date this target from `wp-json/wp/v2/posts`, which carries both China Brief and
   Eurasia Daily Monitor, and expect a two-day silence every weekend.* Cached
@@ -9323,6 +9355,34 @@ with no instrument in it. Both certify a number nobody independent produced.
 ---
 
 ## Changelog
+- **2026-08-19 (midday, analysis desk, Landon Volkman)** — 3 rounds on the Taiwan cluster,
+  **2 filings and 2 labelled zeros**, plus one correction promoted. Filings both off the
+  Focus Taiwan ID sweep (ceiling proven at `0027`, `0028`–`0030` all 404 at 62,833 b, one
+  genuine interior gap at `0014`): the **first two new-build F-16V Block 70s** leaving the
+  US for Chihhang — first new fighters Taiwan has bought since the 1997 Block 20 ferry, on
+  a program contracted 2019 and now spread to 2028 — and the **Gwangju Biennale renaming
+  the "Taiwan Pavilion" to "NTMoFA"**, which is the rarer thing: a dated, documented
+  specimen of the name-erasure lane in which *no evidence of a Chinese request exists at
+  all* (e-flux says so outright, SCMP alleges nothing, the artists themselves don't claim
+  it). Filed it on that basis rather than despite it — anticipatory compliance leaves no
+  attestation to audit, which is where the "could these sources have disagreed" standard
+  runs out. On the F-16 story the cross-examination earned its keep twice: CNA's ocean
+  departure (17 Aug) and Taipei Times' factory departure (18 Aug) are compatible but are
+  exactly how one delivery gets announced twice, and Global Defense Corp's 6 Aug piece put
+  the jets at **Hualien** against every Taiwan-based outlet's Chihhang / 7th TFW.
+  Zeros: **CSIS China Power genuine** — four surfaces agreeing to the second at
+  **2026-08-13**, which is where the mark already sat, acked with the mark omitted per
+  Brian's CSIS precedent; **Nikkei filtered** — mark slug hit at **index 30 of 50** in
+  `/rss/feed/nar` (feed spanned a 1-day gap with 20 to spare, gauge behaving), 30 items
+  past the mark, five of them read at BODY level rather than triaged by title and every
+  one returning `taiwan` count **0**, acked to the newest DATED item (index 9) rather than
+  the top of the dateless feed, per the under-advance rule. Promoted one correction, to
+  Brian's own 07-31 correction: **"podcasts enumerable ONLY from `podcasts-sitemap.xml`"
+  is false** — WordPress serves a per-archive feed at `/<cpt-archive>/feed/` whatever
+  `show_in_rest` says, because feeds render off the query layer, and that surface carries
+  `pubDate` where the sitemap carries only `lastmod`. The two differ by 3.5 minutes on the
+  newest CSIS episode, so a sitemap-derived mark is a modification stamp wearing a
+  publication date. Filed under the CSIS bullet with the general form stated. (Landon Volkman)
 - **2026-08-19 (news desk, Kendall Bingham)** — 5 rounds, **3 filings and four zeros of
   three different kinds**, all four labelled rather than lumped. Filings all on the AARO
   pull, none from AARO's own site: the Haqq-Misra/Kopparapu arXiv audit finding that
