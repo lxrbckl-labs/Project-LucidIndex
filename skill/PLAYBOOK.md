@@ -3990,6 +3990,17 @@ deep, and it isn't your source)*
   holds the 38 URLs and the single stamp (`2026-05-29T23:27:52.823Z`).
   **Cadence note (2026-07-27, Brian): `/news` is dormant — newest item 2026-06-01,
   and `/press-releases/*` stops in 2023.** Months of silence here are normal.
+  **Re-confirmed 2026-08-19 (Landon Volkman): newest `/news` item STILL
+  `2026-06-01T15:58:00.000Z` — the same row three runs and eleven weeks later, so
+  the dormancy is the target's normal state, not a fetch failure.** And the
+  *"you may be watching the wrong surface entirely"* question is CLOSED for this
+  host rather than merely unanswered: `sitemap-0.xml`'s 38 `<loc>` rows are the
+  WHOLE site — 25 `/news/*`, 3 `/press-releases/*` (all 2023), and 10 static pages
+  (`/report-uap`, `/reports`, `/analyst-tool`, `/chat`, `/membership-benefits`,
+  `/uapda-petition`, `/activism/contact-your-member`, `/`, `/privacy`, `/tos`).
+  There is no second publishing surface to have missed, so on ASA the surface
+  check costs one 1.3 KB fetch and returns a definitive negative. Do it once per
+  quarter rather than per run; a zero on `/news` here IS the answer.
 
   **The sitemap-index envelope trap, and it mis-scores the NOTE rather than the
   source** *(added 2026-07-27 by Brian Hare)*. Re-running the old path returns
