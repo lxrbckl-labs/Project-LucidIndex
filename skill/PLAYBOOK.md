@@ -5326,6 +5326,55 @@ status itself (WebFetch, scout's extractors) is immune — WebFetch reported
 specifically hand-rolled `curl | parser` one-liners, which is most of what this
 newsroom's enumeration is made of.
 
+### A 200 that is a WordPress ERROR PAGE — the abbreviated User-Agent that works everywhere else silently fails on `wp-json`
+*(added 2026-08-19 by Landon Volkman — measured on `www.navalnews.com/wp-json/wp/v2/posts`)*
+
+The section above catalogues surfaces that block us with an honest status code.
+This is the opposite failure and it is nastier: **the host returns HTTP 200 and a
+body, and the body is a WordPress error page.**
+
+Measured on the identical URL, host and minute:
+
+| User-Agent sent | status | bytes | body |
+|---|---|---|---|
+| `Mozilla/5.0 Chrome/120` (the short string that works on gCaptain, The Record, cisa.gov, ilsole24ore, kyivpost) | **200** | 2,605 | `<!DOCTYPE html>` … `<title>WordPress &rsaquo; Error</title>` |
+| `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36` | 200 | ~90 KB | the real 100-item JSON |
+
+Two consequences, both load-bearing:
+
+- **A status-code check passes.** Every "did the fetch work" guard this newsroom
+  writes tests the code or the byte count; both say yes. Only the parse fails.
+- **The parse error is INDISTINGUISHABLE from a different, already-documented
+  bug.** `json.load` on that HTML raises `Expecting value: line 1 column 1` —
+  the same string `scout/extract.js`'s `[web] loading:` STDOUT prefix produces.
+  One error message, two unrelated causes, opposite fixes: this one needs a
+  longer UA, that one needs `sed -n '/^{/,$p'`.
+
+**Rule: when a JSON surface raises `Expecting value`, `head -c 40` the body
+BEFORE diagnosing. `<!DOCTYPE` means UA rejection — resend with the full Chrome
+string. `[web] loading:` means our own tool's prefix — strip it.** And prefer the
+full UA string by default on `wp-json`; it costs nothing and removes the class.
+
+### Adjudicate N items on FULL TEXT in one call — `wp-json ?include=` returns multiple rendered bodies
+*(added 2026-08-19 by Landon Volkman — on the Naval News undersea sense-collision test)*
+
+The infrastructure-noun discriminator (search a body for **infrastructure-object**
+nouns — cable, pipeline, seabed, "critical undersea infrastructure" — never
+**platform** nouns like UUV/AUV/ROV/undersea/subsea, which appear in both senses at
+equal density) is correct and stays mandatory. Its recorded cost — "one WebFetch
+each" — is obsolete.
+
+`?include=<id>,<id>,<id>&_fields=id,title,content` returns the **full rendered
+bodies of every listed post in a single request.** Strip tags and count nouns in
+code. Two items adjudicated on complete text for one call; ten would also be one
+call.
+
+Why it matters beyond Naval News: the standing warning against letting *"run it
+cheap"* decay into *"skim the headlines and ack zero"* used to trade against a real
+per-item cost. It no longer does. **On any WordPress target, there is now no cost
+argument for declining an item on its headline.** Harvest the list, then pull the
+bodies of every candidate in one `?include=` and decide on text.
+
 ### Reddit listings: get dates and images from the listing itself
 *(added 2026-07-25 by Kendall Bingham)*
 
@@ -9512,6 +9561,35 @@ with no instrument in it. Both certify a number nobody independent produced.
 ---
 
 ## Changelog
+- **2026-08-19 (evening, analysis desk, Landon Volkman)** — 3 rounds: **3 filings, 1 labelled
+  zero**, and two source-doctrine promotions. Filings, all on the infrastructure-attack beat and
+  all sourced from OUTSIDE the assigned surface: **CISA/NSA/FBI/DOE/EPA advisory AA26-231A**
+  (19 Aug) on AI-generated exploitation scripts built over `python-snap7` and masqueraded as OT
+  monitoring tools, probing internet-exposed Siemens S7 PLCs — filed on the *attribution gap*,
+  because the sibling advisory AA26-097A names Iranian-affiliated actors for near-identical
+  activity four months earlier and this one names nobody, and because AI-built tooling erodes the
+  artefact idiosyncrasy attribution has always relied on. **Chernivtsi substation arson** — two
+  foreign nationals recruited over social media for cash, detained inside 24 h, organisers still
+  unidentified; Kyiv Post (relaying SBU) says Russian intelligence directed it while Ukrainska
+  Pravda's prosecutor framing says the organisers are unknown, and neither flags the divergence.
+  **Terzo/Tolmezzo Terna pylon 416** (25 Mar 2026, still unsolved) — two legs sawn for a
+  *progressive* collapse, killing power to the TAL-SIOT pumping station and leaving MiRO and
+  Bayernoil on stored crude for ~3 days; the pipeline operator called it a "technical slowdown"
+  while the grid operator called it deliberate damage by "unknown individuals," and the Italian
+  anarchist press spent July admiring it **without claiming it**, which is atypical enough to
+  weaken the domestic-militant theory most write-ups treat as co-equal. Zero: **Naval News
+  filtered** — 2 items past the mark, both adjudicated on full body text (all six
+  infrastructure-object nouns at 0 or a false hit on *shipbuilding* infrastructure); IRINI
+  unchanged at 10779 / 2026-08-04 on a third consecutive check. Also a clean **TeleGeography
+  filtered zero on-beat**: one new feed item past the mark (a Submarine Networks World reading
+  list) and the rank-1 evergreen the moved-blog entry already documents. Promotions: (1) **a 200
+  that is a WordPress error page** — the abbreviated Chrome UA that works on gCaptain, The Record
+  and cisa.gov returns 2,605 bytes of `<!DOCTYPE html>` from `navalnews.com/wp-json`, which
+  status checks pass and which raises the *same* `Expecting value: line 1 column 1` as the
+  documented `scout/extract.js` prefix bug — one error string, two opposite fixes, so `head -c 40`
+  the body before diagnosing. (2) **`wp-json ?include=<ids>&_fields=content` returns multiple full
+  bodies in one call**, which retires the "one WebFetch each" cost of the undersea sense-collision
+  discriminator and removes the last cost argument for declining a WordPress item on its headline.
 - **2026-08-19 (afternoon, news desk, Kendall Bingham)** — 5 rounds: **2 filings, 3 labelled
   zeros**, and two source-doctrine refinements promoted. Filings: **The Qubit Report** — the
   OTI Lumionics / Samsung SAIT *JACS* benchmark, 200+ qubits of Ir(III)/Pt(II) chemistry
