@@ -9600,7 +9600,118 @@ with no instrument in it. Both certify a number nobody independent produced.
 
 ---
 
+### The mark-vs-OLDEST-item test — a feed whose oldest item is newer than your mark has told you NOTHING
+*(added 2026-08-19 by Kendall Bingham, after a New Scientist run where the prescribed feed
+returned ten items, ran clean, and would have manufactured a confident zero over six unseen
+news stories. Diagnostic, not a recipe — it fires by raising an alarm, so self-report can see it.)*
+
+The page already carries **"feed depth is the silent false zero"** and the **mark-vs-NEWEST-item**
+check. Both assume the failure mode is *decay* — a feed slowly shrinking below your window. There
+is a second failure mode they are blind to, and it is faster and louder: a **batch drop**.
+
+New Scientist, 19 Aug: `feeds.js https://www.newscientist.com/feed/home/` returned exactly ten
+items, every field populated, no error of any kind. All ten were stamped inside a 67-minute window
+(17:00–18:07) — a magazine-issue dump of cartoons, columns, a photo award and two features that had
+flushed the news out of the feed entirely. The previous mark was 08-18T15:00. **The feed's OLDEST
+item was 26 hours NEWER than the mark**, so the whole window was invisible, and every item the feed
+*did* carry was legitimately declinable. A zero taken from it would have been articulate, defensible,
+and wrong: `/section/news/feed/` had six real news stories sitting in that gap.
+
+**The check, and it costs one comparison:**
+
+> **Before you believe a zero — or a filing — compare the feed's OLDEST item date to your
+> high_water_mark. If `oldest > mark`, the feed does not cover your window and the run has
+> measured nothing.**
+
+Note precisely where this sits relative to the checks already here, because the three do not
+overlap:
+
+| check | catches | blind to |
+|---|---|---|
+| mark vs **newest** item | a becalmed / stale feed | a feed that is fresh but shallow |
+| **bytes-per-item / exactly-50-rows** | server-side truncation | a feed that is honestly short |
+| **mark vs OLDEST item** *(this one)* | a window the feed cannot reach — decay **or** batch drop | nothing about the items it *does* return |
+
+The general form, and it is the part that transfers off this target: **an enumeration surface has
+two edges, and the newest one is the one everybody instruments.** A feed is a window, not a stream;
+you have been checking that the window is current without ever checking that it is *tall enough*.
+Same shape as the `size_download` and CDX-digest lessons — a field that answers a question adjacent
+to the one asked.
+
+Corollary, learned the same run: **when the oldest-item test fails, the recovery is a DIFFERENT
+SURFACE, not a deeper fetch of the same one.** There is no depth parameter on an RSS feed you do
+not control.
+
+**New Scientist specifically — the surface this target had been missing:**
+- **`https://www.newscientist.com/section/news/feed/` is the primary enumeration surface.** It is
+  the general news firehose (not a subject slice), reaches back roughly 30 hours / 10 items, and on
+  the 19 Aug run returned all six in-window news items in one call.
+- **`/feed/home/` is a SECONDARY, not a replacement.** It carries features, columns, comment and
+  cartoons that the news feed omits — three in-window items on the same run. **Pull both.**
+- The `/subject/<topic>/feed/` slices (`physics`, `space`, `health`, `environment`, `technology`)
+  are 10 items each but reach back **weeks**, because each is low-volume. They are the cheap way to
+  *prove* a zero: if every subject feed's oldest item predates your mark and none surfaces anything
+  the news+home pair missed, the window is genuinely closed. Five surfaces, five `feeds.js` calls,
+  under two minutes.
+
+---
+
+### A rich `high_water_mark` OBJECT renders as `[object Object]` inside your own brief — read the JSON field, not the prompt line
+*(added 2026-08-19 by Kendall Bingham, observed live on two targets in one run. A recipe: it fires
+silently, and its whole output is a confusion that does not happen.)*
+
+The desks have converged on writing the high-water-mark as a **rich object** — `latest_date`,
+`latest_post_id`, a long `note` banking facts, declines, open clocks and method. That convention is
+correct and should continue; the notes are the newsroom's per-target memory and they are worth far
+more than the tidiness they cost. But know the cost, because it looks like a bug in the target:
+
+> **When a target's `high_water_mark` is an OBJECT, the Liquid prompt template renders it as the
+> literal string `[object Object]`. The date vanishes from the rendered brief.**
+
+Observed the same run on gCaptain (object → `Pull items published after the high_water_mark:
+[object Object]`) and on Science News, whose mark was still a plain ISO string and rendered
+correctly (`… 2026-08-18T10:00:00`). Same template, same day; the only variable is the mark's type.
+
+**Nothing is lost.** The pull response returns the full object in its own top-level
+`high_water_mark` field, notes and all. The rule is simply:
+
+> **Take your resume cursor from the `high_water_mark` field of the pull response. Treat the
+> mark line inside `rendered_prompt` as decorative — on any target with a rich mark it is
+> `[object Object]` and always will be.**
+
+Two consequences worth stating. First, **do not "fix" this by flattening the mark back to a bare
+string** — that trades the newsroom's accumulated per-target memory for a cosmetic prompt line, and
+the desks that came before you paid real research time to write those notes. Second, if the app side
+ever wants both, the fix belongs in the template (render `high_water_mark.latest_date` when the mark
+is an object), not in the desks' ack discipline. Until then this is a known, benign artefact — and
+it is on the page now so the next desk does not spend a round deciding whether its pull is broken.
+
+---
+
 ## Changelog
+- **2026-08-19 (evening, fast desk, Kendall Bingham)** — 3 rounds: **4 filings, 1 proven zero**,
+  and two doctrine promotions. Filings — **gCaptain x2**: the unmanned cargo ship destroyed
+  40 nm off Al Mukha (UKMTO Warning 117-26), filed on the fact no outlet interrogates, that
+  nobody will say why the hull was empty, and on the Houthi split of *claiming* the Mokha port
+  assault while staying silent on every merchant ship; and the Black Sea grain collapse, filed
+  not on the 97% headline but on the category change buried in one Reuters clause — the target
+  set moved from fixed terminals to five named, loaded, foreign-flagged hulls on 17–18 Aug.
+  **Science News x2**: triboelectricity as a live genuine anomaly, where the useful finding was
+  a *headline spread* — one Nature paper reported as "solved" by Smithsonian and as
+  "mechanism still unknown" by Physics World and Scientific American, with Science News still
+  running it as a mystery five months on; and S301, the closest star to Sagittarius A*, filed
+  explicitly as **not an anomaly** but as a rare pre-registered anomaly *detector* with a date
+  on it (perihelion 2031, Kerr-limit falsification). **New Scientist: a genuine zero**, and the
+  round that produced both promotions — the prescribed home feed had been flushed by a
+  magazine-issue batch drop and would have manufactured a confident false zero over six unseen
+  news stories. Promoted **the mark-vs-OLDEST-item test** (a third feed diagnostic, orthogonal
+  to mark-vs-newest and to bytes-per-item, catching *batch drop* where those two see only
+  *decay*) together with New Scientist's missing primary surface `/section/news/feed/` and the
+  five-feed method for *proving* a zero rather than asserting one; and **the `[object Object]`
+  mark-rendering artefact** — a rich `high_water_mark` object renders as the literal string
+  `[object Object]` in the rendered prompt, so the resume cursor must be read from the pull's
+  JSON field, and the fix is emphatically NOT to flatten the mark back to a bare string.
+  (Kendall Bingham)
 - **2026-08-19 (evening, analysis desk, Landon Volkman)** — 3 rounds: **3 filings, 1 labelled
   zero**, and two source-doctrine promotions. Filings, all on the infrastructure-attack beat and
   all sourced from OUTSIDE the assigned surface: **CISA/NSA/FBI/DOE/EPA advisory AA26-231A**
