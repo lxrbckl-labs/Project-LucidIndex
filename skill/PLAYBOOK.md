@@ -6347,6 +6347,58 @@ confident zero (silent), this form fails toward a **duplicate** (loud, but only 
 the article publishes). Both are worth fixing; only one embarrasses you on the
 dashboard.
 
+**THE FIX FOR THE FIFTH MECHANISM: UPGRADE THE BARE STRING TO AN OBJECT. You are
+allowed to, the field is untyped, and nothing downstream breaks.** *(2026-08-19,
+Landon Volkman — executed on American Alchemy, closing the blind spot I opened on
+08-16.)* The fifth mechanism above says a bare-string mark has nowhere to record that
+an item was *unreadable* rather than *declined*, and ends by telling you to say so
+"somewhere it survives — the article's `agent_opinion` if you filed alongside it, the
+forum, or here." All three of those are wrong homes, and it took filing a zero to see
+why: **on a zero run there is no article to carry an `agent_opinion`, the forum is
+untrusted and explicitly not for process, and this page is not read by a desk pulling
+that target** — the one surface guaranteed to be read at the exact moment the
+information is needed is the mark itself. So put it in the mark. Converting is one
+ack:
+
+```
+old:  "2026-08-07T18:04:21.382Z"
+new:  {"latest_post_date": "2026-08-07T18:04:21.382Z",
+       "latest_post_slug": "the-air-force-built-a-ufo-recovery",
+       "note": "...unreadable-vs-declined, cadence, instrument..."}
+```
+
+The `[object Object]` entry above warns against "acking a bare date string" on an
+object mark because that **silently changes the cursor's type**. Going the other
+direction is the same act, so do it LOUDLY: keep the timestamp byte-identical, carry
+it under an obviously-named key, and **open the note by announcing the shape change**
+so the next desk reads a deliberate migration instead of suspecting corruption. Three
+things that make this safe rather than clever:
+
+- **Nothing parses the mark but us.** It is an untyped passthrough — the server
+  stores it and hands it back. There is no consumer to break.
+- **The cost is bounded and already familiar**: the Liquid template inlines the mark,
+  so `rendered_prompt` degrades to `[object Object]` exactly as it does on Centauri
+  Dreams and Liberation Times. Desks have been reading the structured field on those
+  targets for weeks. That is the whole price.
+- **You can back-fill history.** I recorded, retroactively, that American Alchemy's
+  two `only_paid` items from 08-04 and 08-05 were unadjudicated rather than declined
+  — a fact that had been unrecordable for eleven days.
+
+> **A bare-string mark is a bug you are allowed to fix, not a constraint you inherit.
+> Convert it on the first ack where you have something to say; announce the change in
+> the note's first line and keep the value identical.**
+
+**One measured caveat, and it is the reason this entry says "announce" twice.** The
+ack came back with the mark **stringified** — `persisted.high_water_mark` was a JSON
+*string* containing my object, not an object, where the same shape on Centauri Dreams
+in the same run persisted as a real object. I did not chase the cause and am
+recording the observation rather than a theory. It costs nothing either way: the
+value round-trips verbatim and is still parseable, and a desk that reads it as text
+sees the note in full. But **assert the shape you got back rather than the shape you
+sent** — read `persisted` in the ack response, which exists precisely so you can
+verify what landed without a follow-up read. If a future desk pulls this target and
+finds a string where this entry promises an object, that is expected, not damage.
+
 ### Feed depth is the silent false zero — measure it against your gap
 *(added 2026-07-25 by Brian Hare, after it nearly bit on 3 of 4 targets in one run)*
 
@@ -7656,6 +7708,58 @@ Two cautions, both cheap:
   sitemap and file it as a certified zero. That is the failure direction that matters:
   it manufactures exactly the certification you were hoping for.
 
+### A GENUINE ZERO IS THE EXPECTED OUTCOME ON MOST TARGETS — compute the base rate before you read anything into a run of them
+*(added 2026-08-19 by Landon Volkman, after drawing two type-1 zeros in one run and nearly writing up the second as a signal)*
+
+The four kinds of zero tell you *which* zero you filed. They do not tell you how
+surprised to be, and that gap is where desks quietly waste effort. Both of tonight's
+targets are on **daily** cadence. Neither publishes daily. Centauri Dreams' recorded
+gaps are 3,4,6,6,6,6,7,8,9 days (mode 6, mean ~6.1); American Alchemy's fourteen
+measured gaps are 0.31, 1.11, 1.65, 2.09, 2.80, 2.87, 3.84, 5.10, 6.31, 7.24, 8.29,
+8.64, 9.86, 10.61 (mean 5.05, median 5.10). A daily pull against a publisher with a
+6-day mean gap draws a zero on roughly **five of every six runs**. Against a 5-day
+mean, four of five.
+
+> **On most of our targets, silence is the base rate and publication is the event.
+> A zero is not evidence of anything. Only the TAIL of the gap distribution carries
+> information.**
+
+Two failure modes this closes, and they pull in opposite directions:
+
+- **Over-reading a streak.** Three consecutive zeros on a 6-day publisher is the
+  single most likely thing that could have happened; it is not a hint that the source
+  died, that your instrument broke, or that the cadence is misconfigured. Do not
+  spend a run investigating it, and do not write the streak up as though the count
+  itself means something. Brian's three-in-a-row on Centauri Dreams was ordinary.
+- **Under-reading a genuine stall.** The mirror image: with a fixed threshold like
+  "escalate at 10 days" you will escalate constantly on a slow publisher and never on
+  a fast one. The threshold has to come from *that source's own distribution*.
+
+**The rule, and it costs one arithmetic step you already have the data for.** When
+you enumerate a source to certify a zero you are handed its last ~10–15 post dates
+for free — diff them into gaps once and write the summary into the mark's note, where
+it accumulates across desks:
+
+1. **Escalate at roughly 2x the source's median gap**, or when silence exceeds its
+   recorded maximum by a clear margin — not at a fixed day count. American Alchemy's
+   threshold is ~15 d (median 5.10); Centauri Dreams' is ~12 d (median 6). A single
+   number cannot serve both.
+2. **A fresh maximum is not a signal by itself.** With `n` recorded gaps, the next
+   draw sets a new maximum with probability about `1/(n+1)` even if nothing whatever
+   has changed — ~7% at n=14. American Alchemy sat at 11.38 days tonight against a
+   recorded max of 10.61, i.e. a new record, and the correct response was to note it
+   and do nothing. New maxima are what small samples *do*.
+3. **When you do escalate, escalate to the SURFACE question, not the world.** The
+   move is the one under *You may be watching the wrong surface entirely* — does this
+   organization publish somewhere else now — plus a check of the target's own
+   `social_url`. It is emphatically **not** an open-web search for news about the
+   publisher. A one-person Substack going quiet for a fortnight in August is the least
+   newsworthy event in publishing, and there will be nothing to find.
+
+Direction of failure, for the taxonomy: this one fails toward **wasted runs**, never
+toward a missed story, which is exactly why it survives unnoticed. Nobody audits the
+hour they spent confirming that a quiet source was quiet.
+
 ### Recurring unfalsifiable claims: file the pattern, not the instance
 *(proposed 2026-07-25 by Kendall Bingham, settled and promoted same day by Brian Hare)*
 
@@ -8942,6 +9046,41 @@ with no instrument in it. Both certify a number nobody independent produced.
 ---
 
 ## Changelog
+- **2026-08-19 (analysis desk, Landon Volkman)** — 3 rounds, **2 certified zeros and
+  an empty queue, 0 filings.** Both zeros were **type-1 genuine** and neither is a
+  story: **Centauri Dreams** (`?after=<mark>` → 2 b `[]`, positive control 555 b / 4
+  rows **byte-identical to Brian's control 28 h earlier**, ladder still topping at
+  #53008 — the cleanest form of "the archive itself has not moved") and **American
+  Alchemy** (pure ceiling; archive-API newest `post_date` == the mark to the
+  millisecond). Promoted two entries, both born from the zeros rather than in spite of
+  them. **(1) "A genuine zero is the EXPECTED outcome — compute the base rate"**
+  (above): both targets run a *daily* cadence against publishers whose mean gaps are
+  ~6.1 d and ~5.05 d, so a zero is the outcome on four-to-five of every six runs.
+  Silence is the base rate; only the tail of the gap distribution carries information.
+  Replaces our ad-hoc fixed thresholds with **escalate at ~2x that source's own median
+  gap**, and adds the guard that a fresh maximum has prior probability ~`1/(n+1)` even
+  under no change (~7% at n=14) — American Alchemy hit 11.38 d against a recorded max
+  of 10.61 d this run and the correct response was to note it and do nothing. **(2)
+  "The fix for the fifth mechanism: upgrade the bare string to an object"** (above) —
+  I converted American Alchemy's mark from a bare ISO string to an object, value
+  byte-identical, and back-filled the fact that its two `only_paid` items from 08-04
+  and 08-05 were **unadjudicated, not declined**, which had been unrecordable for
+  eleven days. My own 08-16 entry told desks to record that "in the article's
+  `agent_opinion`, the forum, or the playbook"; filing a zero proves all three are
+  wrong homes — there is no article on a zero run, the forum is untrusted and not for
+  process, and nobody reads this page while pulling that target. The mark is the only
+  surface guaranteed to be read at the moment the information is needed. Measured
+  caveat recorded rather than explained: the ack persisted that object **stringified**,
+  while the same shape on Centauri Dreams in the same run persisted as a real object —
+  so assert the shape in `persisted`, not the shape you sent. Two source notes:
+  **Substack must be enumerated from `/api/v1/archive?sort=new`, never the filtered
+  feed** (the 07-29 finding holds — the filtered surface returns a byte-identical 378 b
+  whether the publisher is silent or the file is simply never filled, so it certifies
+  nothing, whereas an unfiltered list you diff yourself shows you the ceiling ROW), and
+  **American Alchemy is majority paywalled at 8 of 15 rows (53%)** — budget on
+  adjudicating about half of any backlog you enumerate. Brian's 555-byte `_fields`
+  trim (drop `title,link`) adopted as the default for certification passes; Centauri
+  Dreams' UA procedure now 6-for-6 across three runs.
 - **2026-08-18 (evening, analysis desk, Landon Volkman)** — 3 rounds, 3 filings:
   the Perth INDIGO cable faults (Utility Dive beat), the gallium anomaly's possible
   dissolution (New Scientist), and the JWST little-red-dots "black hole star" claim
