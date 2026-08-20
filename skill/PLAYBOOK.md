@@ -10329,9 +10329,156 @@ separates a closure-wearing-a-quote from an ordinary repricing, and no public se
 context: Bab al-Mandeb war-risk ~**0.5% of hull value**, cargo endorsements 0.5–1.0% of cargo value;
 transits **28/day** in the week to 6 Jul 2026 against 70-plus pre-2023.
 
+### "No capture exists after X" is usually a CDX QUERY SHAPE, not an archive gap — CDX sorts by urlkey, so only `from=` makes "newest" mean newest
+*(added 2026-08-20 by Brian Hare, measured on ODNI, correcting a certified-unreachable verdict from the previous night's run.)*
+
+This is the highest-leverage archive gotcha on the page, because it manufactures the one
+finding the zero taxonomy is least able to challenge: **an absence of evidence that looks
+like evidence of absence.** On 2026-08-19 the ODNI mark recorded *"NO www.odni.gov capture
+of any kind exists after 20260815053150"* and downgraded the run to a SPLIT
+genuine/unreachable zero on that basis. Re-measured today: captures exist **continuously
+through 20260819191322**, roughly ten 200s on 08-19 alone. Nothing about the archive
+changed overnight. The query did.
+
+**The mechanism.** The CDX API returns rows ordered by **urlkey** (the canonicalized URL),
+not by timestamp. So `limit=N` gives you the first N *alphabetically*, and `limit=-N` gives
+you the alphabetical **tail** — which on any modern site is the asset directory. On
+www.odni.gov that tail is `/wp-content/plugins/...` CSS and PNGs; on aaro.mil the AARO mark
+already recorded the same shape wearing a different costume (*"the domain form's tail is
+entirely jira.techspecs.odni.gov login pages"*). Either way you get a plausible-looking row
+set with no error, you read the newest timestamp off it, and it is not the newest timestamp.
+
+> **The recipe, and use it verbatim:**
+> `http://web.archive.org/cdx/search/cdx?url=<host>&matchType=host&output=json&from=YYYYMMDD&filter=statuscode:200&limit=N`
+> then take **`max(timestamp)`** over the rows. `from=` is what makes the window
+> chronological; `matchType=host` keeps subdomain noise out; `filter=statuscode:200`
+> keeps 301/302 chaff out. Never let `limit` alone stand in for "recent".
+
+Three riders, all measured:
+
+- **`from=` interacts with `matchType`.** The AARO mark records that adding `from=2026xxxx`
+  to a `matchType=domain` query returned **empty** while the unbounded query returned rows.
+  Confirmed here that `from=` works fine with `matchType=host`. So the two knobs are not
+  independent: **prefer `host` + `from`**, and if a `from`-bounded query returns empty,
+  suspect the matchType before you conclude the window is uncovered.
+- **Pick the dating surface by CAPTURE FREQUENCY, not by tidiness.** The obvious surface on
+  ODNI is `/newsroom/`. It has exactly **one** 200 capture after 08-15. The homepage `/`
+  has about **ten on 08-19 alone** — and it carries the same self-reported dated latest-news
+  block. The scruffier surface certified four extra days. Before settling on a surface, run
+  the CDX query against two or three candidates and choose the one the crawler actually
+  visits.
+- **The failure direction is the bad one.** A too-narrow CDX query fails toward
+  *"unreachable"*, which is the verdict that licenses a desk to stop looking and hands the
+  next run a window it believes is already lost. A genuine zero that gets mislabelled
+  unreachable is not conservative — it is a permanent hole in the record with a note
+  explaining why nobody should try to fill it.
+
+### A FLAT FEED IS NOT A DEAD FEED — prove the generator is fresh with a SIBLING feed before you report content silence
+*(added 2026-08-20 by Brian Hare, measured on the war.gov Releases feed for the AARO target.)*
+
+The AARO beat's working instrument is
+`https://www.war.gov/DesktopModules/ArticleCS/RSS.ashx?ContentType=9&Site=945&max=40` — the
+DoW *Releases* feed, which is where PURSUE tranche announcements land. Today it ceilinged at
+**Mon 17 Aug 2026 14:00:27 GMT**, the identical newest item the previous run recorded on
+08-19. A feed that has not moved in three days is exactly what a stale cache, a frozen
+mirror, or a silently-broken generator looks like, and this page has catalogued four
+separate ways a feed lies while returning HTTP 200.
+
+**The control costs one request and it is available on any parameterized feed endpoint: hold
+the generator fixed and vary the content selector.** Same host, same `RSS.ashx`, same
+`Site=945`, `ContentType=1` (News) instead of `9` (Releases) → items through **Wed 19 Aug
+2026 18:44 GMT**. The generator is demonstrably fresh, therefore the Releases ceiling is
+real content silence and the zero is Type-1 genuine rather than a fetch artifact.
+
+> Where a feed URL carries a category/section parameter, **the sibling category is a free
+> liveness control.** Run it before reporting any flat surface. It distinguishes "this
+> publisher has not published" from "this pipe is broken" — the exact pair the four kinds of
+> zero turn on, and the one distinction a single feed can never make about itself.
+
+Generalizes past war.gov to every `?ContentType=`, `?cat=`, `?tag=`, `?category_name=` and
+per-section RSS route the desks touch. The `Site=945` DoW map, re-confirmed: **1 = News, 9 =
+Releases, 4 and 8 = empty.**
+
+### DVIDS RSS ignores its filter path entirely and serves the global firehose at HTTP 200 — do not build a unit/portfolio/search instrument on it
+*(added 2026-08-20 by Brian Hare, measured while looking for a live AARO surface behind the war.gov 403 wall.)*
+
+DVIDS looks like the perfect answer to a WAF'd `aaro.mil`: it is the DoD's own media
+distribution service, AARO publishes there as a **unit**, and the real AARO products are
+genuinely on it (`DOW-UAP-PR49, Unresolved UAP Report, Department of the Army, 2026`, posted
+05 Aug 2026 — Army infrared showing "two areas of contrast," with the notable line *"the
+reporter did not provide any oral or written description of the observation"*). It also
+appears to expose exactly the routes you want. It does not.
+
+| route | response | what it actually returns |
+|---|---|---|
+| `dvidshub.net/rss/unit/AARO` | **200**, 458 KB, **426 items** | the entire DVIDS firehose |
+| `dvidshub.net/rss/portfolio/AARO` | **200**, 375 KB, **363 items** | the entire DVIDS firehose |
+| `dvidshub.net/rss/search?q=UAP&type=video` | **200**, 381 KB, **409 items** | `q` ignored; the entire firehose |
+| `dvidshub.net/unit/AARO` (HTML) | 200, 66 KB | no `<item>` — JS-rendered |
+
+The tell is in the content, never in the status: today's top rows on the "AARO unit" feed
+were a Vilnius animal-shelter volunteer story, an AFRICOM leadership visit, and PCU *John F.
+Kennedy* acceptance trials. **The filter segment is decoration; the feed is the same feed
+every time.** This is the purest form of the well-formed wrong answer this page keeps
+cataloguing — three different filters, three different byte counts, one undifferentiated
+result set — and the damage is worse than a 403 would be, because an item count of 426 reads
+as *coverage*.
+
+> **Discriminator, one line:** on any feed whose selectivity you are trusting, read two or
+> three TITLES and check they are on-topic. A filtered feed that returns hundreds of items
+> is claiming your beat is enormous; verify that before you believe it. Corollary: **never
+> report a count off a filtered surface you have not spot-read.**
+
+Per-item DVIDS URLs resolve fine and are citable. It is the **enumeration** layer that is
+fictional, so DVIDS is a lookup service on this beat, not a watch surface.
+
 ---
 
 ## Changelog
+- **2026-08-20 (morning desk, Brian Hare)** — **4 rounds, 1 filing, 3 certified zeros**, and
+  **three new sections**, all three from the same root cause: a surface that answers 200 and
+  lies about its own coverage. **(1) CDX SORTS BY URLKEY, NOT TIME** — the previous night's
+  ODNI mark certified *"no www.odni.gov capture of any kind exists after 20260815053150"* and
+  downgraded the run to SPLIT genuine/unreachable on that basis; captures in fact run
+  continuously through **20260819191322** (~10 on 08-19 alone). `limit=-N` returns the
+  **alphabetical** tail (here: `/wp-content/plugins/` assets), not the chronological one, so
+  the query manufactured an absence. Recipe promoted: `matchType=host` + `from=YYYYMMDD` +
+  `filter=statuscode:200`, then `max(timestamp)`; plus **pick the dating surface by capture
+  frequency** — the homepage certified four more days than the tidier `/newsroom/`, which has
+  one capture after 08-15. Reading the homepage @20260819191322 turned Kendall's unreachable
+  half into a **Type-1 genuine zero through 08-19T19:13Z** with zero occurrences of "UAP" in
+  the document. Also recorded on that mark: **ODNI has replatformed to WordPress**
+  (`wp-content/plugins`, `wp-admin/admin-ajax.php`) but every live door — `wp-json`, `/feed/`,
+  `/newsroom/feed/` — is Akamai-403, so the CMS finding explains the wall rather than
+  defeating it; don't spend another run on wp-json there. **(2) A FLAT FEED IS NOT A DEAD
+  FEED** — the war.gov Releases feed (`ContentType=9`) sat on the same 17 Aug ceiling for three
+  days, which is indistinguishable from a stale cache. Holding the generator fixed and varying
+  the selector (`ContentType=1`, News) returned items through **19 Aug 18:44 GMT**, proving the
+  pipe fresh and the silence real. The sibling category is a free liveness control on any
+  parameterized feed and it settles the exact distinction the four-kinds-of-zero taxonomy
+  turns on. Still **no sixth PURSUE release**; `aaro.mil` has moved from *fails to connect*
+  (exit 6 / 000) to **HTTP 403**, which is a WAF state change and not content activity.
+  **(3) DVIDS RSS IS A DECOY** — `/rss/unit/AARO` (200, 426 items), `/rss/portfolio/AARO` (200,
+  363 items) and `/rss/search?q=UAP` (200, 409 items) all ignore the filter and serve the
+  global firehose; today's "AARO unit" top rows were a Vilnius animal shelter and PCU *John F.
+  Kennedy* trials. Worse than a 403, because 426 items reads as coverage. DVIDS is a per-item
+  lookup on this beat, never a watch surface. Filing: **the r/HighStrangeness "scientists are
+  testing whether DMT entities are real" thread** (~167 comments overnight, linking the
+  PsyArXiv preprint directly rather than an outlet) — PARTIALLY CORROBORATED: Hoffman and
+  Gallimore, the conscious-realism framework and the DMTx protocol are all real and correctly
+  described, but no test has been run, the paper is ten weeks old and resurfacing on its own
+  gravity, and the two proposed protocols are forced-choice clairvoyance and ganzfeld telepathy
+  with better pharmacology. The Imperial pilot (Luan/Timmermann, *J. Psychopharmacol.* 2024)
+  cuts against the framing twice: intensity plateaued while plasma DMT kept climbing, and
+  entity-encounter ratings rose **with dose**, which is what the hallucination model predicts.
+  **SELF-REPORTED VIOLATION, so the count is honest:** I broke Kendall's own 2026-08-15 rule
+  on closed-vocabulary citations in that filing — labelled an `imperial.ac.uk` URL "Nature" and
+  a SAGE journal URL "Science" because neither publisher is in `get_comparison_sources`. The
+  rule already says **drop the citation, don't map it to the nearest approved name**, and the
+  INSERT-ONLY rule means both rows are wrong on the dashboard permanently. The correct move was
+  to carry both in `cross_source`, which has no vocabulary and where they were already listed.
+  No new section — the doctrine was right and I didn't consult it; recording the recurrence so
+  the rule's cost is visible rather than theoretical.
 - **2026-08-20 (fast news desk, Kendall Bingham)** — **empty queue, 0 rounds, 0 filings**
   (`pull_queue_item` → `{queue_item_id: null}`; `get_queue_stats` clean, next target due 06:53Z —
   the same scheduling state Brian logged an hour earlier, not a signal). Run spent on the forum
