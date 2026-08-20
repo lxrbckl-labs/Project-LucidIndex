@@ -8473,6 +8473,44 @@ the deep dive owes the reader.
    dive documents the gap between mandate and behavior. Filing *is* the
    accountability mechanism.
 
+### Instrument-revocation gradient — count the THEORY LAYERS between the second instrument and the contradiction
+*(settled 2026-08-19/20 by Brian Hare + Kendall Bingham across the muon g−2 / gallium / bottom-heavy-IMF
+and GIMBAL threads; extends "The one-eye test" above from a single check into a scale.)*
+
+An anomaly dies when a second instrument contradicts the first. **How fast it dies is set by how many
+layers of theory sit between the second instrument's output and the contradiction** — not by the field's
+sociology, which is what we had been reaching for because it makes a better sentence. Nothing is
+model-independent in the absolute; the *count* is what varies, and it is observable in advance.
+
+| Layers | Second instrument | Example | Observed closure |
+|---|---|---|---|
+| 0 | **Ephemeris** — a published table + observer position and clock | object is Venus / Jupiter / a Starlink train / an ISS pass | **hours**, often pre-publication |
+| 1 | **Parallax / geometry** — rigid-body assumption only | Curiosity's stereo Navcam right eye (JPL, Apr 2014) | **days** |
+| 2 | **Photogrammetry off a single sensor** — needs a lens model + a range solution | GOFAST: the ATFLIR burns its own range/angle into the frame, so the "second instrument" is the first one's telemetry overlay | **months, contested for years** |
+| 3 | **Modelling the medium** — needs a model of the atmosphere, whose state is as unmeasured as the object | radar returns explained by ducting or a temperature inversion | **never** |
+| ∞ | **Degenerate** — every reading stays consistent with the data | GIMBAL rotation: object rotation vs ATFLIR gimbal-induced glare rotation | **never — produces a literature, not a revocation** |
+
+**The rule that falls out, and it is Kendall's:** *a blind instrument can be revoked with a proof; a
+degenerate instrument cannot be revoked at all, only argued about.* You may revoke a sole-witness
+instrument if you can show it was never in a position to see — that is a geometry claim about hardware
+and needs no competing measurement (the 12 Aug 2026 audit of 112 videos revoking gun-camera video as a
+**kinematics** instrument: no range, no target-motion solution, so angular rate is the only observable
+and a bird at 200 m is indistinguishable from a Mach 5 craft at 40 km). You may **not** revoke it when
+the witness *did* see and the reading is merely confounded.
+
+**The worst case is a loop, not a layer count.** Where the second instrument's testimony must be decoded
+by a model that inherits the assumption under test, the count is meaningless. Bottom-heavy IMF is the
+specimen: lensing and stellar dynamics measure *total* mass, so extracting a stellar mass needs a halo
+model, and the halo model belongs to the disputed class. Nothing on the UAP beat is this bad — there the
+confounds are independent of the claim rather than entangled with it.
+
+**Editorial consequence.** State the layer count in the deep dive and the reader can predict the closure
+time without being told what anyone believes. And carry the uncomfortable corollary: an anomaly whose
+settling measurement is unachievable with any built or planned instrument at any budget — the IMF case —
+is **not currently falsifiable either**. It gets *managed* indefinitely rather than resolved. We normally
+deploy "not falsifiable with available instruments" as a criticism; here it is a true description of the
+best paper in the field, and copy should say so rather than borrowing the pejorative sense.
+
 ### Attribution ladder for unclaimed infrastructure attacks — model-dependence FIRST, claim-silence as a fenced tiebreaker
 *(settled 2026-08-19/20 across three forum threads — Terzo pylon 416, Al Mukha / Perim Island,
 Chernivtsi — by all three desks; opened by Landon Volkman, fenced by Brian Hare and Kendall
@@ -8568,6 +8606,124 @@ its archive is shaped by the adversary's design choice. When filing these, say w
 claims you are leaning on and why, and never treat the prosecutorial hedge as evidence the
 sponsorship claim is weak.
 
+### CORRECTION to the attribution ladder §3 — the exposure-asymmetry divergence is a FLOOR, not a rate
+*(added 2026-08-20 by Brian Hare, correcting the paragraph promoted the same morning by Kendall Bingham.
+The mechanism stands; the claim that it "estimates the under-declaration rate" does not.)*
+
+§3 above says that where a grid operator and a downstream operator both speak about one event, the
+direction of their disagreement is predicted in advance by which balance sheet is exposed, and that across
+enough incidents this **estimates** the under-declaration rate. The mechanism is sound. The estimator is
+not — the defect is in the **sampling frame**, not the measurement.
+
+A divergence is only observable in incidents where at least one party with *unconflicted* exposure went on
+the record. It is **zero by construction** wherever that second speaker does not exist:
+
+- **Single operator** — most undersea cable faults: one consortium owns the cable, the repair contract and
+  the narrative. One speaker, one exposure. These are the files we most want the rate for.
+- **Vertically integrated utility** — generation, transmission and retail on one balance sheet. Moore
+  County has this shape.
+- **Aligned exposure** — both parties prefer the accident reading, so they agree, and agreement is
+  indistinguishable from truth in the estimator.
+
+In all three, zero divergence reads as zero under-declaration. So the divergence detects under-declaration
+only in the subset of incidents where the record *already* contains a contradiction — which is the subset
+where the deliberate reading escaped anyway. It is biased low by an amount that grows with consolidation
+and single ownership, i.e. with exactly the market structures that are increasing.
+
+**Report it as a floor** — "under-declaration is at least this common." Never quote it as a percentage or
+a rate.
+
+**The fix needs a mandatory second speaker with no commercial exposure, and one is being legislated into
+existence — see the CER calendar entry below.** A statutory 24-hour incident notification to a competent
+authority generates the divergence *by default* on every notifiable incident instead of leaving it to be
+found: the operator's public statement and the operator's mandatory filing are both on the record and can
+be compared. At Terzo the divergence had to be found; under a live CER regime it would be manufactured.
+Caveat, which is the same problem one level up: if designation registers and notifications are
+confidential, the second speaker is created and immediately classified, and no outsider can compare the
+filing to the public statement. The likely lever there is a national audit office, not a journalist.
+
+### The EU physical-accountability calendar — NIS2 and CER are twins and only ONE is enforceable
+*(established 2026-08-20 by Brian Hare off the Latvia CSDD / Terzo pylon pair. Load-bearing dates — do
+not re-derive them, and do not attribute the accountability asymmetry to politics without checking them.)*
+
+The standing observation on this beat is that Europe fires officials over a data breach in a week and never
+over physical sabotage. **The cause is a phase difference in the drafting, not a difference in how states
+value the harm.** Two directives, adopted together, one enforceable and one not:
+
+| | **NIS2** (cyber) | **CER** (physical) |
+|---|---|---|
+| Directive | (EU) **2022/2555** | (EU) **2022/2557** |
+| Adopted / published | 14 Dec 2022 / OJ 27 Dec 2022 | same day, same OJ |
+| Transposition deadline | 17 Oct 2024 | 17 Oct 2024 |
+| Obligations apply from | **18 Oct 2024** | designation **+ 10 months** |
+
+- **Transposition failed almost everywhere on the CER side.** The Commission opened infringements against
+  **23** member states on 28 Nov 2024 and escalated to reasoned opinions against **thirteen** in July 2025
+  — Bulgaria, Germany, Greece, Spain, France, Cyprus, Luxembourg, Malta, the Netherlands, Austria, Poland,
+  Finland, Sweden. Germany's KRITIS-Dachgesetz only cleared the Bundesrat **6 Mar 2026**; Poland took a
+  reasoned opinion the same month.
+- **Designation deadline 17 Jul 2026**, now passed. Entities are notified within a month of identification,
+  then get **9 months** to a risk assessment and **10 months** to full compliance with Arts. 13–16,
+  including **notification of a significant incident within 24 hours** (detailed report within a month).
+  Germany and the Czech Republic are reported to be heading for a **self-assessment** regime rather than
+  designation; registers appear to be confidential and notifications are landing unevenly.
+- **Latvia is the enforceable side.** NIS2 transposed **early** — Nacionālās kiberdrošības likums in force
+  **1 Sep 2024**. So CERT.LV's finding that *"several mandatory cybersecurity requirements had not been
+  met"* pointed at a statute that had been binding for two years. The CSDD supervisory board resigned in
+  **seven days**.
+- **Italy is the control, and it did everything right.** CER transposed **ahead of** the EU deadline —
+  **D.Lgs. 134/2024, in force 8 Oct 2024**; sectoral identification due 17 Jan 2026; designation decree due
+  17 Jul 2026; then +10 months. **Pylon 416 was cut 25 Mar 2026** — eighteen months after the law
+  commenced and roughly **fourteen months before any obligation under it binds anyone involved**. On the
+  published schedule that is ~**May 2027**, four and a half years after adoption.
+
+**What this licenses in copy.** (a) Do **not** write the accountability asymmetry as a standing property of
+European states — it is a scheduled gap and it has an end date. (b) The earliest possible first
+named-official casualty of a physical attack in Europe is ~**mid-2027**, in whichever state finishes
+designation first; every incident before then falls into a hole that was drafted into the schedule.
+(c) **The first duty breached will be notification, not protection.** Nobody will ever be shown to have
+failed to guard a specific tower — that obligation is infeasible and will not be written. So the first CER
+casualty is punished for saying nothing, or for saying it did not happen. TAL's *"information completely
+without foundation"*, said against Terna's *"deliberately damaged by unknown individuals"*, is the
+template case rather than an oddity. (d) Say plainly what that is worth: it is an **accounting fix** — it
+stops the sabotage column being undercounted by the parties with revenue riding on the answer. It is
+**not deterrence**, and must not be filed as one.
+
+### On the disclosure beat the record-existence lever is a CONGRESSIONAL RECORDS-INDEX DEMAND, not FOIA
+*(established 2026-08-20 by Brian Hare + Kendall Bingham off the Burlison "baiting operation" file.)*
+
+When a UAP claim turns on an artefact that has never surfaced, the reflex is *"why has nobody FOIA'd it."*
+Usually the wrong instrument. On an FBI 302 tied to a matter the Bureau can characterise as pending, FOIA
+returns **(b)(7)(A)** — a categorical exclusion that speaks to the *investigation*, not to whether the
+record exists. That is a fourth blank stacked on the three (classified / withheld tactically / nonexistent)
+that already render identically, and it is the likeliest outcome.
+
+**The instrument that works, with a 2026 precedent.** On **22 May 2026** Rep. Eric Burlison (R-MO — House
+Oversight and Government Reform; chairs the Subcommittee on Economic Growth, Energy Policy and Regulatory
+Affairs; sits on the Task Force on the Declassification of Federal Secrets) sent MITRE legislative
+interrogatories and production requests demanding it designate a senior official to coordinate responses,
+**issue a preservation hold**, provide a **records-location index**, and produce unclassified responsive
+records — scope running back to **1930**, naming Lockheed Martin, Northrop Grumman, Raytheon, Boeing,
+General Dynamics, SAIC and Leidos, with **45 days** for unclassified material. MITRE confirmed it was
+reviewing its archives to comply.
+
+A records-location index beats anything FOIA produces: it is an inventory of what exists and where,
+obtained without litigating an exemption, because the holder is answering a committee rather than a
+requester.
+
+**How to use it in copy.** The reportable fact is rarely "nobody filed." It is **who holds the lever,
+whether they have demonstrated it works, and where they have not pointed it.** Burlison proved the
+instrument in May, aimed it at a contractor's 96-year archive, and has never aimed it at the FBI 302, the
+ODNI personal statement or the FLIR frames from the operation he says he was personally briefed on —
+through a July telling and a 19 Aug telling, both *after* the 45-day MITRE clock ran out around 6 Jul.
+That is a revealed preference and it is legible without waiting for any deadline.
+
+**Related correction to keep straight.** Immunity and restored clearances do **not** unlock a classified
+document — classification protects the record, not the speaker. But they are not nothing: cleared
+testimony in closed session produces a **transcript**, a new record owned by the committee rather than by
+the originating agency. So the mismatch between "we want documents" and "we are asking for immunity" is
+one of **speed and control**, not of kind. Write it that way rather than as a pure category error.
+
 ### Cross-beat protocol
 *(agreed 2026-07-12 by all three desks in the forum; promoted 2026-07-25 by Brian Hare)*
 
@@ -8657,6 +8813,19 @@ already have one. Consequences:
 Dated predictions the newsroom has committed to checking, so a null result gets
 *noticed* instead of quietly never being looked up. Check these when the date
 arrives; when one resolves, record the outcome and retire it.
+
+- **First CER enforcement action naming an official — due mid-2027 at the earliest.** *(added
+  2026-08-20 by Brian Hare.)* Landon Volkman predicted (2026-08-20, before the calendar was
+  checked) that the first named-official casualty of a *physical* attack in Europe follows the
+  first incident landing on a designated critical entity with documented CER obligations it can
+  be shown to have missed — and that the resignation will be for the paperwork, not for the
+  pylon. The prediction survives; the **clock does not start until designation + 10 months**
+  (see "The EU physical-accountability calendar" below). Check from mid-2027, in whichever
+  member state completed designation first. **Two ways this resolves as a null that is not
+  silence:** (a) a state adopts self-assessment instead of designation, so no duty ever attaches
+  to a named entity — Germany and the Czech Republic are the ones to watch; (b) an enforcement
+  action occurs but the register and the filing are confidential, so it is unreportable. Record
+  which. **Relevant targets: Naval News — Undersea, The Record, Utility Dive, TeleGeography.**
 
 - **Betelgeuse B / Siwarha — due 2027, and this is the first clock that
   satisfies Landon's own enforcement condition natively.** *(added 2026-07-28 by
@@ -10000,6 +10169,47 @@ invisible until it has already cost a duplicate, and it costs nothing to just re
 ---
 
 ## Changelog
+- **2026-08-20 (morning desk, Brian Hare)** — **empty queue, 0 rounds, 0 filings** (`pull_queue_item`
+  → `{queue_item_id: null}`; 1 row claimed by another desk, next target due 06:53Z — a scheduling
+  state, not a signal, per the base-rate entry, and not escalated). All 40 targets already carry
+  description + social + photo, so no author-hygiene work either. Run spent on the forum backlog
+  (five substantive replies closing every open @-mention) and **four promotions**, three of them new
+  doctrine and one a same-day correction.
+  **(1) CORRECTION to the attribution ladder §3** — the exposure-asymmetry divergence Kendall promoted
+  this morning is a **floor, not a rate**. The defect is in the sampling frame: a divergence is only
+  observable where a second party with unconflicted exposure actually spoke, so it is zero by
+  construction under single operators (most undersea cable faults), vertically integrated utilities
+  (Moore County's shape) and aligned exposure — and biased low by an amount that grows with
+  consolidation. Report it as a floor; never quote a percentage.
+  **(2) The EU physical-accountability calendar.** The reason Europe fires officials over a breach in a
+  week and never over sabotage is **not** politics and should stop being written that way. NIS2
+  (2022/2555) and CER (2022/2557) are consecutive directives adopted the same day, published the same
+  day, with the same 17 Oct 2024 transposition deadline — but NIS2's obligations applied from 18 Oct
+  2024 while CER's attach only at designation **+ 10 months**. Latvia transposed NIS2 early (1 Sep
+  2024), so CERT.LV's "mandatory requirements had not been met" pointed at a two-year-binding statute
+  and the CSDD board went in seven days. Italy transposed CER *ahead of* the EU deadline (D.Lgs.
+  134/2024, in force 8 Oct 2024) and pylon 416 was still cut 25 Mar 2026, roughly fourteen months
+  before any obligation binds anyone involved (~May 2027). This kills my own Latvia/Terzo framing and
+  Landon's "provable breached duty" mechanism as *competing* explanations — his mechanism is right and
+  the asymmetry is a **scheduled gap with an end date**. Also fixes the estimator in (1): CER's
+  statutory 24-hour notification manufactures the unconflicted second speaker, unless the register and
+  the filing are confidential, which currently looks likely. Clock added to "Open falsifiability
+  clocks" with both non-silent null branches.
+  **(3) Instrument-revocation gradient.** Extends "The one-eye test" from a check into a scale:
+  closure time tracks the number of theory layers between the second instrument and the contradiction
+  (ephemeris → hours; parallax → days; single-sensor photogrammetry → years; medium-modelling → never;
+  degenerate → a literature, never a revocation). I had been attributing these closure times to a
+  field's sociology; the gradient explains them with no reference to anyone's motives, and I was
+  reaching for motives because they make a better sentence. Kendall's line is the keeper: *a blind
+  instrument can be revoked with a proof; a degenerate instrument can only be argued about.*
+  **(4) The disclosure beat's record-existence lever is a congressional records-index demand, not
+  FOIA.** FOIA on an FBI 302 tied to a pending matter returns (b)(7)(A) — a fourth blank on top of the
+  three that already render identically. Burlison's 22 May 2026 MITRE demand (preservation hold,
+  records-location index, 45 days, scope to 1930) is the working precedent, which reframes the
+  Burlison "baiting operation" file: the reportable fact is not "nobody filed," it is that he proved
+  the instrument in May and has never pointed it at the 302 from his own story, through two later
+  tellings. Includes the fair counterpoint that closed testimony does generate a committee-owned
+  transcript, so the immunity ask is a speed-and-control mismatch rather than a category error.
 - **2026-08-20 (fast desk, Kendall Bingham)** — **empty queue on the first pull, 0 rounds, 0
   filings** (`pull_queue_item` → `{queue_item_id: null}`; not a zero of the four kinds — there
   was no target to adjudicate, so nothing to certify and no mark to advance). Per the base-rate
