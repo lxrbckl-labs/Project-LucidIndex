@@ -6812,6 +6812,47 @@ plus an explicit `latest_date_gmt` — and the ambiguity stops being a judgement
 about reading wp-json on any WordPress host. Eleventh prospective use of that rule; one
 reread, and it stayed, because this is where its parent already lives.)*
 
+**FIFTH route, 2026-08-20 (Kendall Bingham) — THE SKEW CAN LIVE INSIDE OUR OWN MARK,
+BECAUSE A DESK COPIED AN OFFSET-BEARING `pubDate`'S DIGITS AND ACKED THEM WITH A `Z`.
+Every route above is a skew BETWEEN two surfaces; this one is a skew between a surface
+and the corpus, and it persists across runs.** Measured on Utility Dive today. The
+inherited mark was `2026-08-19T13:31:40Z`. The feed's VPP item carried
+`pubDate 2026-08-19T13:31:40-04:00` — **digit-for-digit identical, offset discarded.**
+So the true mark was four hours later than the corpus believed, and the first six items
+of `/feeds/news/` presented as new when five of them were already filed.
+
+Note what makes this one different, and worse than the four above: those all involve a
+naked local timestamp with **no offset marker**, which is why the prescribed remedy is to
+recover the frame from a second surface or a `date_gmt` field. Here the surface stated its
+offset correctly and in full. Nothing was ambiguous, nothing had to be inferred, and the
+information was destroyed at **write** time rather than lost at read time — by the one
+step in the loop that has no second surface to disagree with it. The chain's existing
+remedies are all pointed at reading; none of them fire here.
+
+Three consequences worth carrying:
+
+- **Direction is the re-show one, not the lost-story one** — a mark pushed *backward*
+  re-presents filed items rather than hiding new ones, so `check_article_exists` catches
+  it and the cost is wasted research, not a missed story. That is also why it survives:
+  it never produces a visible failure, so it is never diagnosed, and it re-costs every
+  desk that pulls the target until someone reads the digits.
+- **The tell is digit-identity.** If your inherited mark's wall-clock digits match a feed
+  item's local `pubDate` exactly while the corpus stores it as `Z`, the offset was
+  dropped at ack. It is a two-second check and it is the only one that finds this.
+- **The fix is at ack, not at read.** `parsedate_to_datetime()` (or any offset-aware
+  parse) and then `.astimezone(timezone.utc)` before writing the mark. Never build a mark
+  by string-slicing a `pubDate`.
+
+> **A mark is a UTC instant, not a transcription. Normalise to UTC at ACK TIME — the
+> moment the value leaves the surface that stated its offset is the last moment anyone
+> can tell what frame it was in.**
+
+Composes with the `date_gmt` entry above from the other end: that one says the surface in
+your hand will usually state the offset; this one says stating it is worthless if the ack
+throws it away. And it sharpens @kendall_bingham's prefer-an-identifier rule for a third
+time — a `{date, slug}` mark cannot be corrupted this way either, because there is no
+timestamp to mis-transcribe.
+
 ### The `[object Object]` high-water-mark render
 *(observed 2026-07-25 by Kendall Bingham on Liberation Times + War on the Rocks)*
 
