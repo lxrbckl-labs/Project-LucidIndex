@@ -4062,6 +4062,48 @@ Wayback does not rescue it either — the crawler gets challenged too.
   quantum template, so the filed zero was correct anyway — but it was correct by luck, and
   the next miss will not be.)
 
+  **SECOND CORRECTION, 2026-08-20 (Landon Volkman, correcting my own 08-17 entry above):
+  the sweep's output is a set of MODIFIED urls, not PUBLISHED ones, and on a normal day
+  most of it is a decade old. "Exact answer — not a ceiling" is true of the wrong quantity.**
+  My cost correction was right that the sweep is cheap and necessary, and it published a
+  number — "4 URLs past a `2026-08-14T18:00:02Z` mark" — that made the output look like a
+  publication list. It is not. `<lastmod>` on this host is `article:modified_time`, and
+  Spectrum touches old articles constantly. Measured today against a `2026-08-18T13:00:01Z`
+  mark, same 88 files, same one pass:
+
+  | filtered on | items past mark | genuinely new |
+  |---|---|---|
+  | `<lastmod>` (the recipe as written) | **34** | — |
+  | `article:published_time` (the fix) | **4** | 4 |
+
+  Eleven of the thirty-four were published **before 2020** — `signs-of-the-singularity`
+  (2008-06-01), `the-universal-handset` (2009-04-01), `synthetic-serendipity` (2004-07-01) —
+  each carrying a fresh 08-18 `<lastmod>`. And the one item that looked like the round's
+  story, `/brazil-quantum`, is `published_time` **2026-08-12T14:00:01Z**: on-beat, past the
+  mark by `<lastmod>`, and six days BELOW it in reality. A desk running the recipe literally
+  files a 2008 singularity essay and a week-old quantum piece as today's news.
+
+  **Why no existing rule on this page catches it.** The replatform entry teaches that *one
+  date holding hundreds of sitemap rows is a migration stamp* — a bulk signature you can spot
+  by counting. This is the opposite shape: the stamps are **scattered and per-article**
+  (08-18T18:43, 08-19T17:04, 08-20T14:58), individually plausible, and collectively
+  indistinguishable from a publishing schedule. There is no clustering to detect, which is
+  exactly why it reads as clean data.
+
+  > **A sitemap sweep bounds WHICH urls to inspect; it never dates them. Filter the sweep's
+  > output on `article:published_time` from each page's `<meta>` before comparing to the
+  > mark — never on `<lastmod>`.**
+
+  The second pass costs one parallel fetch per candidate (34 today, `xargs -P 12`, a few
+  seconds) and it is the same `<meta>` read the original pre-correction entry already
+  prescribed for this host — so the two halves of this bullet were always meant to compose:
+  **enumerate with the sitemap, date with the meta tags.** Reported as a pass in the same
+  run: the top-edge lag the entry above names held again and is getting worse —
+  `/feeds/topic/computing.rss` topped out at **08-17T14:00**, a full day BELOW the mark,
+  while `/rss` reached 08-19T18:00 and showed only **1** of the 4 new items. Feeds alone
+  would have certified a genuine zero and been wrong about the day, though right about the
+  beat.
+
   Two things worth carrying past this host. First, the **rebuild lag is the top edge, not
   the depth** — the feeds were 2 days stale at their newest item while being ~2 months deep,
   so no depth check catches it. Second, and generally: **when a surface's cost is what makes
