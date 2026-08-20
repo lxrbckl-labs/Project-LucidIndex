@@ -3921,6 +3921,26 @@ Wayback does not rescue it either — the crawler gets challenged too.
   cleared the template's filing bar. Expect a ~25% yield and a large filtered
   remainder of personnel appointments, campus groundbreakings and vendor guest
   posts.)
+  **UPGRADE, 2026-08-20 (Brian Hare) — use `wp-json ?after=` INSTEAD of `?paged=2`, and
+  then RE-FILTER IT CLIENT-SIDE, because WP REST's `after=` does NOT compare against
+  `date_gmt`.** The `?paged=2` remedy above is correct and it costs two fetches, a
+  dual-form CDATA regex, and a URL merge. This host answers
+  `wp-json/wp/v2/posts?after=<mark>&per_page=100&_fields=date_gmt,link,title` in one
+  request with no CDATA anywhere, and it is a genuinely *independent generator* (JSON,
+  different code path) rather than a second page of the same feed — so it closes the
+  depth hole and the corroboration requirement in the same call. Measured today against
+  a mark of `2026-08-19T14:36:28Z`: feed = **10 items, 07:36 → 15:47 on 08-20, eight
+  hours** (structural, exactly as Kendall recorded); wp-json = **12 items** spanning the
+  full 25-hour gap. Requires the FULL browser User-Agent — the abbreviated one trips the
+  `wp-json` WordPress-error-page trap filed above.
+
+  The catch, and it fails toward **over**-collection rather than a false zero, so it is
+  the safe direction but it still needs saying: passing a `Z` mark to `after=` returned
+  **two rows at or before the mark** (`2026-08-19T13:57:46` and `2026-08-19T14:36:28`,
+  the mark item itself). WP REST filters `after=` against the site's local `date`
+  column, not `date_gmt`, and it is inclusive at the boundary. So the query is a
+  *narrowing hint, not a filter*: always request `_fields=date_gmt` and re-compare in
+  your own code. A desk that trusts `after=` re-files its own boundary item every run.
 - **TQI's "own" lead image is often another outlet's photo, byte-identical.**
   *(same run.)* The hero on its China-grid piece
   (`wp-content/uploads/2026/08/China-Substation.jpg`, 96,159 B) is the same file as
@@ -4566,6 +4586,31 @@ for the wrong-format trap and a headline-triage near-miss)*
   on 07-29 — 8 consecutive 404s at 62,792–62,793 b against live articles at 86–93 KB, so
   the fixed-size discriminator holds three days on. Paced at 1.2 s/request; 40 requests in
   2 tool calls, no 429s.)*
+  **BOUND, 2026-08-20 (Brian Hare) — "interior gaps are real misses" is TOO STRONG: an
+  interior ID can be genuinely DEAD, and it is byte-indistinguishable from the ceiling
+  404s you are using to prove the ceiling.** The third bullet above says every number in
+  the range *is* an article, so a gap is a story you have not seen. Measured today on a
+  clean sweep of `20260819`: `0002`–`0027` live, ceiling proven at `0028`–`0030`
+  (404 at **62,751 b** against live articles at 86–95 KB, exactly as recorded) — and
+  `0014` **404s in the middle of the run, at the identical 62,751 bytes**, with `0015`
+  live at 86,789 b immediately after it. So the dense-ID-space property holds for
+  *enumeration* and fails as a *completeness claim*: a pulled, spiked, or never-published
+  ID leaves the same hole as a missed one, and the size discriminator that makes the
+  ceiling provable cannot tell them apart, because it is the same 404.
+
+  This matters in the honest direction rather than the dangerous one — you will chase a
+  hole that isn't a story, not miss one that is — but it changes what an interior gap
+  licenses. **Probe an interior 404 on a second prefix before treating it as a miss**
+  (the section prefix is cosmetic, so `/society/<id>` and `/politics/<id>` are two
+  fetches of one document — that is a re-fetch, NOT a second generator, and it only
+  rules out a transient). If it 404s at the fixed dead size on both, record it as an
+  interior dead ID and move on; do not report the day as incompletely swept. Day counts
+  from a sweep are therefore a **lower bound on published items and an upper bound on
+  the ID range**, and those are not the same number.
+  *(Re-verified 2026-08-20: sweep clean on both days, ceilings proven at `0027` on 08-19
+  and `0016` on 08-20, three consecutive 404s each at 62,751 b. Dates still `+08:00` —
+  the mark `2026-08-19T13:42:00Z` lands exactly on `0027`'s `21:42:00+08:00`, so the
+  boundary-item rule fires on this target's marks routinely, not rarely.)*
 - **`asia.nikkei.com` — the feed is RSS 1.0/RDF, and it is not the beat surface.**
   Two separate traps. First, `/rss/feed/nar` returns a healthy 25 KB of valid feed
   in which `grep -c '<item>'` returns **0**, because RSS 1.0 uses
