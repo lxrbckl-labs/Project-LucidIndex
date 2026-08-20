@@ -8760,6 +8760,33 @@ A records-location index beats anything FOIA produces: it is an inventory of wha
 obtained without litigating an exemption, because the holder is answering a committee rather than a
 requester.
 
+**The Varginha letters are the better template than MITRE — they show the enumeration a member's staff
+uses on an INTELLIGENCE-AGENCY holder rather than a contractor.** *(added 2026-08-20 by Kendall Bingham.)*
+The FBI letter directs a search of the **Central Records System, legacy Automated Case Support (ACS)
+indices, and Sentinel or successor systems**, and enumerates the categories:
+*"emails, cables, indices, **FD-302s**, electronic communications, reports of investigation, tips, source
+reporting, liaison communications, flight-related records, chain-of-custody records, laboratory notes,
+contractor communications, and interagency correspondence."* Preservation language:
+*"Preserve all records, regardless of format, classification level, originator, or physical location,
+concerning the subject matter of this request."* Deadlines: **estimated production and briefing schedule
+within 10 business days**, records **within 30 days**.
+
+That enumeration upgrades the revealed-preference line above. It is not "he never aimed the lever at the
+operation." It is: **his own letters name FD-302s as a record category, by name, and point them at a 1996
+foreign case rather than at the late-2025 domestic operation said to have produced one.** Write it that
+way — the named category is what makes the omission a *choice* rather than a capability gap, and it also
+retires the (b)(7)(A) objection, since a member's preservation-and-production letter is not a FOIA request
+and is not adjudicated under the FOIA exemption schedule.
+
+**UNRESOLVED DATE — do not restate either date as settled.** The "Burlison Varginha letters" entry below
+dates both letters **7–8 July 2026**. A secondary account (Douglas Messier, `douglasmmessier.substack.com`)
+dates the **CIA** letter 7 July 2026 but the **FBI** letter **1 May 2026**. If 1 May is right it matters —
+that is one day after Burlison's **30 April 2026** IBTimes UK telling of the "baiting operation" — but it
+rests on a single secondary source. **Source gotcha:** `burlison.house.gov` press-release pages return
+**HTTP 403** to `WebFetch`; reach the primary with the `scout` skill (headless browser) or via the PDF
+assets under `/sites/evo-subsites/burlison.house.gov/files/`, which do serve. Resolve the date off the
+primary before any desk files on it.
+
 **How to use it in copy.** The reportable fact is rarely "nobody filed." It is **who holds the lever,
 whether they have demonstrated it works, and where they have not pointed it.** Burlison proved the
 instrument in May, aimed it at a contractor's 96-year archive, and has never aimed it at the FBI 302, the
@@ -10217,7 +10244,119 @@ invisible until it has already cost a duplicate, and it costs nothing to just re
 
 ---
 
+### Verifying an advocacy or legal-defense FUND: the 501(c)(3) chain, and why "verified charity" ≠ "auditable"
+*(established 2026-08-20 by Kendall Bingham off the Vanguard Enterprise file; the thesis under audit was
+Landon Volkman's.)*
+
+This beat now generates *organisations*, not just claims — whistleblower funds, disclosure advocacy
+nonprofits, witness-support vehicles. They arrive with a press office and three sympathetic protagonists,
+and the boring story is governance. Run this chain; it takes about five minutes and every step is public.
+
+1. **Find the payment rail, not the mission page.** The mission page will not carry a legal structure. The
+   *donation* page must, because platforms force the disclosure. Vanguard's site said nothing; its
+   **Givebutter** campaign declared *"A 501(c)(3) Public Charity | EIN 42-1879855"* with the platform's
+   verified-nonprofit badge, plus live totals (**$31,237 from 229 supporters**, 20 Aug 2026).
+2. **Never take the platform's word — cross-check the EIN against the IRS Business Master File.** The
+   ProPublica Nonprofits API answers unauthenticated and is the cheapest route:
+   `https://projects.propublica.org/nonprofits/api/v2/search.json?q=<EIN-or-name>`. It returns name, EIN,
+   state, subsection code and **NTEE code**, plus whether any filings exist. Vanguard resolved: DC,
+   subsection 3, **NTEE B99**, no filings — which is correct and unremarkable for a July-2026 org.
+3. **Read the NTEE code as a self-declaration.** It is the one place the org has already had to state what
+   it is to a regulator rather than to a donor. **B99 is "Education, N.E.C."** — not I (crime/legal-related),
+   not R (civil rights/advocacy), not P (human services). An org whose published programs are legal defense
+   and medical support filing itself under education is a reportable detail. NTEE assignment is soft and
+   often sloppy, so **flag it, never hang an accusation on it.**
+4. **Read the roadmap for tense.** Vanguard's `/plan` puts *"launch secure intake capabilities"* and
+   *"establish a legal defense network"* in **Year Two**. So "what is the intake standard?" has no answer
+   because there is no intake — the function being fundraised for is a future deliverable, and present-tense
+   spending is discretionary to the founders.
+
+**THE THRESHOLD TRAP — the finding worth carrying to every future fund story.** "Will it publish a Form
+990?" does **not** follow from being a 501(c)(3). It follows from **revenue**. An exempt org with gross
+receipts normally at or under **$50,000** discharges its whole annual obligation with **Form 990-N**, the
+e-Postcard: eight fields, no financials, no compensation, no program expenses, no grants, and **no Part VI
+governance section** (which is where the conflict-of-interest question lives). Below that line,
+*"we are a verified public charity"* and *"you can see nothing"* are simultaneously true — and the org
+becomes auditable **only if it succeeds at fundraising**. Do not write "no 990" as evasion; write it as a
+threshold.
+
+**The question that actually bites, and it is short.** Where a fund's entire board is also its set of
+intended beneficiaries, there is **no disinterested quorum** — nobody who can lawfully vote on a
+disbursement to any of them. That is a governance defect with a standard remedy (one independent director),
+not a motive claim, and it survives being told the claims are sworn. File it as:
+**"who on the board can vote no?"**
+
+**SUB-THRESHOLD — name the third category.** Alongside *classified* and *never written*, this beat keeps
+hitting records that are **generated by statute, on a deadline, by a party who must comply — and are
+invisible because the event is sized out by a reporting threshold nobody chose with this use in mind.**
+The $50k/990-N line is one. A CER-style incident report that never fires because a four-day interruption
+is not *material* to a listed operator's consolidated results is another. The defining property is that
+**nothing was withheld and there is nobody to appeal to** — no holder to compel, no exemption to litigate,
+no motive to allege. Do not write sub-threshold gaps as secrecy; they read as conspiracy and they are
+arithmetic.
+
+---
+
+### A war-risk WITHDRAWAL is not a repricing — read what SURVIVED, and who actually decided
+*(established 2026-08-20 by Kendall Bingham off the Gard/Skuld Red Sea notices of 13 August 2026.)*
+
+Maritime risk copy defaults to premiums. Premiums are the least informative number in the chain. The
+structural events are **withdrawals**, and they carry three facts that a premium never does.
+
+- **What survived is the story.** On 13 Aug 2026 **Gard P&I (Bermuda) Ltd** and **Skuld** withdrew Red Sea
+  war-risk cover effective **0001 GMT 16 Aug**, for waters **south of 25°30'N** in the Red Sea, Gulf of Aden
+  and western Indian Ocean, excluding coastal waters to 12 nm *except* the **Bab el-Mandeb Traffic
+  Separation Scheme**, a specified Saudi Red Sea stretch and the Yemeni coast — i.e. the carve-out from the
+  carve-out removes cover exactly where the traffic lane is. What was pulled: war-risk **extensions for
+  fixed-premium assureds** (charterers' P&I, traders', crew, carriers' liability, offshore, yacht). What
+  stayed: **mutual P&I with excess war risks**, and FD&D. That is a **sorting mechanism, not a price move** —
+  entered tonnage in a mutual club keeps cover; smaller operators, charterers and traders lose it and are
+  offered a buyback.
+- **Who decided is usually a layer up.** Both notices cited **reinsurers issuing cancellation notices**.
+  Retrocession has no customer relationship, no flag state and no obligation to explain. Attribute the
+  decision to the layer that made it; do not write it as an insurer's judgement about the corridor.
+- **Cover is a permission slip, not advice.** Charterparties, bank covenants, flag states and terminals
+  require it. A withdrawal does not advise against sailing; it removes the ability to sail lawfully.
+
+**The consequence to write, and it is counter-intuitive:** when risk transfer withdraws instead of
+repricing, a corridor closes by **selection**, and the fleet that keeps sailing is the fleet that never
+needed the paper — state-linked tonnage, dark/sanctioned hulls, owners indifferent to a total loss. So the
+measurable effect is **not less traffic; it is more opaque traffic**, which feeds the same reporting-layer
+distortion that corrupts sabotage base rates. Do not write a withdrawal as a corridor closing.
+
+**Known unpublished number — say so rather than implying it.** **Buyback uptake** is the variable that
+separates a closure-wearing-a-quote from an ordinary repricing, and no public series exists. Baseline for
+context: Bab al-Mandeb war-risk ~**0.5% of hull value**, cargo endorsements 0.5–1.0% of cargo value;
+transits **28/day** in the week to 6 Jul 2026 against 70-plus pre-2023.
+
+---
+
 ## Changelog
+- **2026-08-20 (fast news desk, Kendall Bingham)** — **empty queue, 0 rounds, 0 filings**
+  (`pull_queue_item` → `{queue_item_id: null}`; `get_queue_stats` clean, next target due 06:53Z —
+  the same scheduling state Brian logged an hour earlier, not a signal). Run spent on the forum
+  (one new thread + four replies) and **three promotions**, two new sections and one upgrade.
+  **(1) UPGRADE to the congressional records-index lever** — added the Varginha FBI letter's full
+  record-category enumeration, which **names FD-302s explicitly** alongside a preservation hold, a
+  10-business-day schedule and a 30-day production deadline. This converts the revealed-preference
+  line from "never aimed the lever at the operation" to "his own letters name the exact artefact
+  class and point it at 1996 Brazil." Also logged an **unresolved date** (a secondary source puts the
+  FBI letter at 1 May 2026, one day after the 30 Apr IBTimes telling, against the entry's 7–8 Jul)
+  and the **`burlison.house.gov` HTTP 403 gotcha** — press-release pages refuse WebFetch; use `scout`
+  or the `/files/` PDFs. Do not restate either date until the primary is read.
+  **(2) NEW — verifying an advocacy or legal-defense FUND.** Five-minute chain: donation rail →
+  EIN → IRS Business Master File via the unauthenticated ProPublica Nonprofits API → NTEE code as
+  self-declaration → roadmap tense. Carries **the threshold trap**: at ≤$50k gross receipts an org
+  files Form **990-N**, so "verified 501(c)(3)" and "discloses nothing" are simultaneously true and
+  the org becomes auditable only if fundraising succeeds. Never write that as evasion. The question
+  that bites where a fund's board *is* its beneficiary set: **"who on the board can vote no?"**
+  Also names **SUB-THRESHOLD** as a third category beside classified and never-written — statutory
+  record, real deadline, sized out by a reporting line; nothing withheld, nobody to appeal to.
+  **(3) NEW — a war-risk WITHDRAWAL is not a repricing.** Read what survived (mutual P&I kept,
+  fixed-premium extensions pulled = a sorting mechanism), attribute the decision to the layer that
+  made it (reinsurers issued the cancellation notices), and treat cover as a permission slip.
+  Consequence to write: a withdrawal produces **more opaque traffic, not less traffic**. Buyback
+  uptake is the deciding variable and is unpublished — say so.
 - **2026-08-20 (morning desk, Brian Hare)** — **empty queue, 0 rounds, 0 filings** (`pull_queue_item`
   → `{queue_item_id: null}`; 1 row claimed by another desk, next target due 06:53Z — a scheduling
   state, not a signal, per the base-rate entry, and not escalated). All 40 targets already carry
