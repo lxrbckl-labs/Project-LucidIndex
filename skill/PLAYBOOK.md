@@ -5731,6 +5731,55 @@ rather than an image *of* a thing. Refusing to show it is not tenable — it is 
 will see elsewhere — but unaccompanied reproduction launders it. The line that travels:
 **an enhancement does not remove noise, it adds confident guesses.**
 
+### A COMMUNITY DEBUNK IS A CLAIM TOO — grade the IMAGERY and the ATTRIBUTION separately, because they cross the language line at different speeds
+*(added 2026-08-20 by Landon Volkman, measured on r/UFOs post `1vt959g`, the Chihuahuan-desert
+"downed craft.")* A Spanish-language post arrived debunking a viral AI-generated crash-site
+image, and the thread ratified it inside six comments on exactly the right grounds — a soldier
+writing on a notepad no hand holds, a third arm at an overlap, a misspelled sign, a cordon too
+short to enclose anything. Hands, held objects, rendered text and duplicated instances: the four
+places generation fails, and the crowd went there instead of to metadata, which is the outcome
+the AI-media section above asks for.
+
+**The post also convicted a named person and showed nothing.** It asserted that Jaime Maussan
+had promoted the images as a *"nave de origen no humano"* with paid-channel exclusives and calls
+to Congress, linked only the image, and cited no broadcast. Searched: no clip, no dated segment,
+nothing in his published weekly episodes covering 2–9 or 9–16 August 2026. So the filing carried
+**two labels, not one — imagery DEBUNKED, "Maussan promoted it" UNVERIFIED.**
+
+Three things generalise, and they compose with Brian Hare's Jinn-case asymmetry (a debunk that
+never crossed into English) rather than repeating it:
+
+- **A debunk is a claim about a claim, and it crosses the same language barrier with the same
+  friction — but it arrives with a credibility bonus, because skepticism reads as diligence.**
+  Run the desks' own summary-vs-primary test *on the debunk*: what crossed here was an assertion
+  about a Spanish-language broadcaster's on-air statements, with no primary, into the audience
+  least able to check a Spanish-language broadcast. Same mechanism as the Jinn case, opposite
+  polarity. **Extend the "name which primary documents crossed" filing line to debunks.**
+- **CREDIBILITY DEBT: once a name is discredited, any claim attached to it inherits a free pass
+  in the opposite direction.** Maussan's record is real and documented (Metepec's skinned monkey;
+  the 2015 *Be Witness* "alien child" that was a Puebloan mummy; the 2016 bat-and-epoxy "demon
+  fairy"; the 2023 congressional bodies UNAM disowned and Peruvian prosecutors called manufactured
+  dolls) — which is precisely what makes an unsourced accusation against him cost nothing to make
+  and nothing to believe. A person with a hoax history is the cheapest place in the ecosystem to
+  park an unverified attribution, because checking feels like defending them. **The desk checks
+  anyway; that is the whole value we add over the thread.**
+- **A synthetic story picks a setting with a pre-installed audience.** These images landed in the
+  desert that already owns "Mexico's Roswell" (the alleged 25 Aug 1974 Coyame collision), the week
+  before its anniversary. When a generated claim arrives near a legend's date, say so — it is the
+  cheapest available statement about *why now*, and it is checkable.
+
+### A DEAD `target_photo_url` CANNOT BE REPAIRED BY AN AGENT — write-once means it is an admin fix, so REPORT it
+*(added 2026-08-20 by Landon Volkman, measured on r/UFOs.)* The r/UFOs pull ships
+`target_photo_url` = `https://styles.redditmedia.com/t5_2xvxi/styles/communityIcon_5s296m5p2ky61.png`,
+which returns **HTTP 404 / `text/plain` / 13 bytes** on a full browser UA (i.e. not the Wikimedia
+short-UA trap documented under Hero images — this one is genuinely gone; Reddit rotates community
+icon filenames). `write_target_profile` and `write_target_photo_url` are **write-once-when-null**,
+so a non-null-but-broken value is unreachable to every desk forever. There is no agent-side repair
+path. **Verify a target's stored photo the first time you draw a target, and when it 404s, say so
+in the run report so the operator can clear it in the dashboard** — silently ignoring it leaves a
+coverless author card that no future run will ever fix.
+
+
 ### Two more ways a feed lies while returning HTTP 200
 *(added 2026-07-25 by Landon Volkman — proven on Naval News, FAS, TeleGeography)*
 
