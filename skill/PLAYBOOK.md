@@ -9740,7 +9740,98 @@ desk is usually in.
 
 ---
 
+### A DORMANCY VERDICT MUST CARRY AN EXPIRY — "dead" is a measurement, not a property
+
+**Established 2026-08-20 (Landon Volkman), on Skeptical Inquirer, by falsification of a
+finding three consecutive runs had inherited.**
+
+A desk that probes a secondary surface, finds it months stale, and writes *"treat as DEAD"*
+into the high-water-mark has recorded something true. The failure is what happens next: the
+next desk copies the line forward instead of re-measuring, the desk after that copies it
+again, and a *measurement with a date on it* silently becomes a *property of the source*.
+Nothing in the note's wording distinguishes the two, so the cost of the error compounds while
+its visibility drops to zero.
+
+Measured instance. Skeptical Inquirer's `videos` CPT was carried as *"newest 2026-04-20,
+~4 months dormant, treat as DEAD for cursor purposes"* across three runs. On 2026-08-20 it
+had published two days earlier — and the item was filable, on-beat, and the round's only
+filing. The blog cursor the desks were faithfully watching was a certified zero for the third
+straight run. **The one surface everybody was looking at was empty and the one surface
+everybody had written off was where the story was.**
+
+The rule, and it is cheap:
+
+- **Write dormancy with an expiry, not as a verdict.** *"videos: newest 2026-04-20, dormant
+  as of 2026-08-18 — RE-PROBE if this note is more than ~5 runs old"* costs one clause and
+  cannot fossilise. A bare "DEAD" can.
+- **A dormancy claim is only as good as its evidence span.** Eight-and-a-half years of
+  silence (SI's `newsletter`, untouched since 2018) is a different object from four months
+  (`videos`). Say the span, and let the next desk price the claim.
+- **Re-probing a stale sibling costs ONE request.** A `per_page=3` read of a sibling CPT is
+  the cheapest instrument in the toolbox. It is never worth inheriting a guess to save it.
+- **The asymmetry is the whole argument.** Re-probing a genuinely dead surface wastes one
+  request. Not re-probing a woken one loses every filing on it, invisibly, forever — and
+  produces a *clean, plausible, fully-certified zero* over the loss, which is the worst
+  failure shape this playbook tracks.
+
+Corollary, and it is the reason this entry exists at all: **the wake was found only because a
+prior desk had left a falsifiable tripwire.** Kendall's 08-18 note predicted that if the blog
+stayed silent at ~9.2 days, the quiet was outside the recorded band and deserved one harder
+probe — sibling CPTs plus a cold archive re-read. Silence hit 9.4 days, the trigger fired, the
+probe ran, and it found the woken CPT. A prediction with a **number and a prescribed action**
+paid for itself on its first firing. Prefer that shape to a narrative note: *"if X is still
+true at threshold N, do Y"* survives desk handoff in a way that *"worth watching"* does not.
+
+### A CPT's REST BASE AND ITS PERMALINK ROUTE CAN DISAGREE — take `source_url` from the row's own `link`
+
+**Established 2026-08-20 (Landon Volkman), on Skeptical Inquirer.** Live double-file hazard
+that `check_article_exists` does **not** catch.
+
+WordPress lets a custom post type register a REST base and a permalink slug independently, and
+on this host they differ by a letter: the endpoint is `/wp-json/wp/v2/videos` (**plural**), the
+canonical permalink in each row's `link` field is `/video/<slug>/` (**singular**). Both spellings
+resolve HTTP 200 in a browser, so nothing about either URL looks wrong.
+
+The dedup canonicalizer collapses tracking params, fragments, case, `www`, default ports and
+trailing slashes. **It does not collapse a differing path segment.** Verified by calling
+`check_article_exists` on both forms of the same article and getting two distinct `normalized`
+keys back. A desk that assembles the URL from the endpoint name it just queried — the natural
+move — writes a row that dedup will happily accept as new, and the corpus carries the same
+item twice under two publishers'-eye-identical URLs.
+
+**RULE: never construct `source_url` from a CPT/endpoint name. Read the API row's `link`
+field and file exactly that string.** This generalises past Skeptical Inquirer to any
+WordPress host with custom post types, which is most of the magazine tier — the mismatch is
+invisible until it has already cost a duplicate, and it costs nothing to just read `link`.
+
+---
+
 ## Changelog
+- **2026-08-20 (deep desk, Landon Volkman)** — 2 rounds so far: **1 filing, 1 filtered zero**,
+  and two doctrine promotions, both from the same round. **Quanta: a filtered zero** — the
+  ~36-hour gap Brian measured on 08-19 broke with exactly one publication, an image-gallery
+  photo essay on qubit hardware, adjudicated on full body text and declined as off-beat for the
+  mystery-signals template; mark advanced. Both slug-date generators agreed exactly (fifth cold
+  confirmation), and the feed-header control was **silently unavailable** — `api.quantamagazine.org/feed/`
+  served `cf-cache-status: DYNAMIC` with **no `last-modified` at all**, so the whole feed-stamp
+  family assumes a cache HIT and has no reading on a miss; the sitemap-comment control carried
+  the run instead. **Skeptical Inquirer: 1 filing, off the surface everyone had written off** —
+  the `blog` CPT the cursor lives on was a certified zero for the third straight run, but
+  Kendall's own 9.2-day tripwire fired at 9.4 days, the prescribed harder probe ran, and the
+  `videos` CPT that three runs had carried as DEAD had published two days earlier. Filed the
+  Janyce Boynton livestream billing as *The Empty Review Beneath The Telepathy Tapes* — built
+  not on the promo but on Schlosser et al.'s 17 Jul 2026 systematic review in the *Review
+  Journal of Autism and Developmental Disorders*, an **empty review**: 5,856 records screened,
+  **zero studies using a design capable of demonstrating authorship** at all. The sharp
+  distinction the piece turns on is that an empty review is not a disproof, it is a documented
+  void — the anomaly has never been isolated from its instrument. Cross-examined against The
+  Transmitter, the *EXPLORE* pro-side paper (Weiler & Woollacott), and the 2025 safeguarding
+  paper. Promoted **the dormancy-expiry rule** (a "treat as DEAD" note is a measurement with a
+  date, not a property; write it with an expiry or it fossilises — and the asymmetry is brutal,
+  since re-probing a dead surface costs one request while not re-probing a woken one loses every
+  filing on it behind a clean certified zero) and **the CPT REST-base/permalink mismatch**
+  (`/wp/v2/videos` vs `/video/<slug>/`; dedup does NOT collapse a differing path segment, so
+  always take `source_url` from the row's own `link`).
 - **2026-08-19 (evening, fast desk, Kendall Bingham)** — 3 rounds: **4 filings, 1 proven zero**,
   and two doctrine promotions. Filings — **gCaptain x2**: the unmanned cargo ship destroyed
   40 nm off Al Mukha (UKMTO Warning 117-26), filed on the fact no outlet interrogates, that
