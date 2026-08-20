@@ -5001,6 +5001,26 @@ for the wrong-format trap and a headline-triage near-miss)*
   half of it applies to any publisher. What is Nikkei-specific: its `/photos/` "In Focus"
   essays are a running, updated genre and are the items most likely to move under you, so
   do not park a cursor on one.)*
+
+  **HERO-IMAGE COROLLARY, 2026-08-20 (Kendall Bingham) — a Nikkei article can carry NO
+  `og:image` AT ALL, and the lead image is then reachable only from the same
+  `__NEXT_DATA__` payload you already downloaded for the body.** The 07-29 recipe says
+  "the lead image is a normal `og:image` on the same page and GET-verifies clean."
+  Measured today on the germanium/quartz export-slowdown exclusive: the 285 KB document
+  contains **zero `og:image` meta tags**, while its hydration payload carries the lead
+  image as an object with `caption` + `imageUrl` ("China controls the supplies of
+  numerous key industrial materials, including germanium. (Nikkei montage/Source photos
+  by Reuters and Getty Images)" →
+  `cms-image-bucket-productionv3-…amazonaws.com/images/…/4f1c6c69d29f-1g.jpg`,
+  GET-verified 200 `image/jpeg` 2.6 MB). Recipe: walking the JSON for any dict holding
+  BOTH a caption-ish key and a url-ish key returns exactly one object on an article
+  page, so it needs no path addressing and cannot pick up a related-module thumbnail.
+  Note the same page also exposes `images.ft.com/v3/image/raw/<url-encoded S3 URL>`
+  proxy variants — prefer the bare S3 URL, which is shorter and has no proxy to 403 you.
+
+  > **Take the hero from the payload, not the head. On this target the caption is IN
+  > the payload too, so you get relevance verification for free — which is the check
+  > the hero rules say a mechanical fetch cannot do for you.**
 - **Jamestown China Brief headlines do not tell you which country the piece is
   about — never triage its boundary items by title.** Jamestown mixes China Brief
   and Eurasia Daily Monitor in one wp-json feed, and its house style strips the
@@ -5305,6 +5325,39 @@ looks like a fetch failure and isn't)*
   field* — it records how far you READ — **ack the `pubDate`.**
 
   > **Before concluding a non-REST CPT is sitemap-only, try `/<cpt-archive>/feed/`.**
+
+  **THIRD CORRECTION, 2026-08-20 (Kendall Bingham) — this host now serves TWO LIVE
+  SITEMAP INDEXES, and `robots.txt` advertises the PODCAST-BLIND one first. A desk
+  running Brian's own "read the sitemap index and count its children" recipe on the
+  index it is handed reproduces the CLOSED-as-dormant verdict exactly.** Measured cold
+  today, same minute, browser UA:
+
+  | index | children | max `lastmod` | podcast rows |
+  |---|---|---|---|
+  | `/sitemap.xml` (**robots.txt line 1**) | 3 (`sitemap-1.xml`, image, video) | **2026-07-07** | **0** — `sitemap-1.xml` holds 171 URLs, none under `/podcasts/` |
+  | `/sitemap_index.xml` (Yoast block, lower in the same robots.txt) | post, page, **`podcasts-sitemap.xml`**, … | **2026-08-13T16:00:58Z** | 268 rows |
+
+  Both are HTTP 200, both well-formed, and the first one is the one a crawler-polite
+  desk fetches. Read it and you get "newest content 2026-07-07, nothing else live" —
+  which is the *precise* false verdict the 07-31 entry was written to kill, arriving
+  now through the recipe that killed it. The generator that sees the CPT is Yoast's;
+  the shallow index is a second plugin's, and nothing in either file says the other
+  exists.
+
+  > **A sitemap index is a GENERATOR'S view, not the SITE'S. Before you count an
+  > index's children, count the INDEXES: read every `Sitemap:` line in `robots.txt`
+  > (there were three here, two distinct), and on a WordPress host probe
+  > `/sitemap_index.xml` explicitly even when `/sitemap.xml` already answered 200.**
+
+  Failure direction is this page's worst class again, and note the shape: the fix from
+  July is still correct and still gets you the wrong answer, because the *input* to it
+  changed under us. Same lesson as "independent re-confirmation does not test the
+  verdict's blind spot" — running a good recipe on a surface you did not verify is the
+  new blind spot. Cheap discriminator, one line: **if an index has fewer children than
+  the host has obvious content types, you are holding the wrong index.**
+  (This run needed neither: `/podcasts/feed/` per the 08-19 correction answers the
+  cadence question in one request. The indexes only matter when you are auditing what
+  ELSE the host publishes.)
   > A post type hidden from REST is not hidden from the feed rewrite rules. The
   > sitemap proves the surface exists; the feed dates it.
 
