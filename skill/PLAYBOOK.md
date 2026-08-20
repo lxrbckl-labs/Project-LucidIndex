@@ -5596,6 +5596,62 @@ Generalizes past MSL: the same one-eye/one-frame logic covers the August 2023 so
 "jellyfish" (right navcam, gone from the companion frame inside a minute). Two viral
 Martians in one week, one diagnostic.
 
+**DON'T DERIVE THE ONE-EYE TEST — CITE IT. JPL PUBLISHED IT IN 2014, WITH A QUOTABLE LINE,
+ON THIS EXACT ROVER.** *(added 2026-08-20 by Brian Hare, measured on the Daily Mail's
+r/UFOs pickup of the 10 April 2024 Gale Crater "flying object".)* The section above builds
+the diagnostic from PDS labels, which is the strongest form and still the right move when
+you have the product IDs. But when you don't — a tabloid or a thread names no filenames —
+you do not have to argue from first principles, because **NASA already ran this play in
+public.** In April 2014 a bright spot in a Curiosity frame drew the identical wave, and
+Navcam lead **Justin Maki** settled it on the record: the spots *"appear in images from the
+right-eye camera of the stereo Navcam, but not in images taken within one second of those
+by the left-eye camera."* JPL's own release is **PIA18077**, and both **Universe Today** and
+**Phys.org** — the first of which is a legal `citations[].source_name` — carried it at the
+time. Three consequences:
+
+- **It converts the method from your inference into an agency's published finding**, which
+  is a different rhetorical object. You are no longer the skeptic in the thread; you are
+  quoting the person who runs the camera.
+- **It gives you a citable pair on a beat that is usually citation-poor.** `Universe Today`
+  and `Phys.org` are both in `get_comparison_sources`; `jpl.nasa.gov` is not, so JPL goes in
+  `cross_source` and the two outlets carry the formal `citations`.
+- **Working hero/inline image, verified 2026-08-20:**
+  `https://images-assets.nasa.gov/image/PIA18077/PIA18077~orig.jpg` (200, `image/jpeg`,
+  158 KB). Note the sizing suffixes are NOT interchangeable — `~orig.jpg` served 200 while
+  `~medium.jpg` **403'd** on the same asset, and `photojournal.jpl.nasa.gov/jpeg/PIA*.jpg`
+  now **301s to a landing page** (i.e. a coverless tile). Use `images-assets…~orig.jpg`.
+
+**The phrasing to grep for is "less than a minute earlier."** That clause — or "taken of the
+same area moments before" — is how the stereo pair reaches you *already mistranslated into
+time*, and it is the single tell that the one-eye test applies. It travels: the Daily Mail
+reprinted it verbatim in August 2026 for the sol-3924 figure, five weeks after the frames
+were published, without ever naming the products. Treat the phrase as a trigger, not a fact.
+
+### The outlet round-trip: when a subreddit's own aggregation returns to it wearing a masthead
+*(added 2026-08-20 by Brian Hare, measured on r/UFOs post `1vsxb6r`.)*
+
+Worth logging because it changes what a community post *is*. The submitter of that post was
+**`/u/dailymail`** — the outlet's own account, posting the outlet's aggregation of r/UFOs
+back into r/UFOs. The claim made a full circuit in about a day: raw NASA frame resurfaces on
+X → r/UFOs amplifies → a national tabloid writes it up *from the thread* → the tabloid
+submits its write-up to the thread. On the return leg the claim is no longer a community
+tip; it has a byline, and the subreddit can now cite "the Daily Mail reported" for something
+the subreddit generated.
+
+Operational rules:
+
+- **Read the submitter handle on every community pull.** A publisher-name account
+  (`/u/dailymail`, `/u/<outlet>`) means the post is distribution, not a tip, and the
+  `Community Signal` badge should sit alongside `Media` rather than alone.
+- **The round trip IS the story when the underlying claim is already filed.** We had covered
+  the sol-3924 frames the day before; a second article on the same object would be a dedup
+  violation. The laundering path is a genuinely distinct angle and passes the
+  "add-a-new-angle" test in the rendered prompt — file it as media, not as anomaly.
+- **Don't mistake it for fabrication.** The Mail's body copy was *more* careful than its
+  headline (it named cosmic rays, dust, and camera artifacts, and correctly ruled out
+  Ingenuity, grounded ~2,300 mi away in Jezero since January 2024). The failure is a missing
+  test, not an invented claim — and saying so is what separates the verdict from a dunk.
+
 ### Pre-1912 East Asian sightings carry LUNISOLAR dates — never reprint the raw numerals
 *(added 2026-08-19 by Kendall Bingham, measured on the 1892 Nanjing 赤焰騰空 case.)*
 
@@ -9240,6 +9296,48 @@ quotation altered.
 > content as a claim.** Promo copy is interrogative by design. Conversational speech
 > vouches without asserting. Marketing asserts without evidencing. A faithful rendering
 > across that line manufactures a commitment nobody made.
+
+**THIRD INSTANCE, AND THE FIRST WHERE THE SUPPLIED VERB SITS ON A MEMBER OF CONGRESS —
+"CONFIRMS" APPLIED TO A BRIEFING RECIPIENT.** *(added 2026-08-20 by Brian Hare, measured on
+r/UFOs `1vss2tp`, 19 Aug 2026.)* The post is titled *"Burlison … **He confirms** UFO baiting
+operation: 'ODNI CIA FBI were on site'."* Same mechanism as the Tim Taylor case, one tier
+up the credibility ladder and therefore harder to see: the quoted text is faithful, and the
+speaker is a sitting congressman, which makes the upgrade feel earned. It isn't. **Burlison
+was briefed; he did not witness.** A briefing recipient relaying a briefing is a *second-hand
+account with an official's name on it* — better than an anonymous tip, categorically not a
+confirmation. The genre's default commitment is "I was told this," and "confirms" swaps in
+"I establish this."
+
+The remedy is a two-line check and it caught the whole story:
+
+- **Ask when the claim FIRST aired, not whether it is true.** Burlison had described the same
+  operation to IBTimes UK on **30 April 2026** (*"a perfect case scenario … it was very
+  successful"*), and Liberation Times ran the granular version in **July** (FBI 302, a senior
+  ODNI official's personal statement, FLIR of orbs, classified briefings for Scalise/Burlison/
+  Burchett, sourced to Disclosure Foundation's Jordan Flowers). August was the **fourth**
+  airing. The filing writes itself once you have the count: *the only new content is the
+  agency roster.*
+- **Then ask whether the "new" detail is actually discriminating.** It wasn't. Scientific
+  American had reported on **2 July 2026** that the White House UAP Governance Board behind
+  Loeb's UAPSAC already draws its members from ODNI, the Pentagon, the White House and the
+  FBI. Burlison's list is roughly the cast you'd predict at *any* interagency UAP activity in
+  2026, so naming them raises specificity without adding independent support. **A detail that
+  a reader could have guessed from the org chart is not corroboration.**
+
+Two riders from the same filing:
+
+- **Check whether the "converted skeptic" was already inside.** The thread read Michael
+  Shermer's *"Make it so"* appeal as a lifelong debunker breaking. Shermer **sits on UAPSAC**,
+  and Scientific American quoted him in July saying *"pretty much everyone on the committee is
+  more open to the possibility that UAPs could represent something other than ordinary
+  terrestrial phenomena."* An insider asking the President to unblock his own council's
+  witnesses is a procedural request. The conversion narrative is the highest-value and
+  cheapest-to-check trope on this beat — **always look up the appointment date.**
+- **Aggregation posts are the friendliest possible material, so take the gift.** This poster
+  listed the whole August campaign with dates (Grusch 8/18, Borland 8/17, Brown 8/15,
+  Davis 8/14, Burlison 8/19) — i.e. built our timeline for us. **A thread that timestamps its
+  own claims is doing the aging-check's setup work; harvest the list even when you reject the
+  framing.**
 
 **Cross-language special case, and it is the expensive one** *(Volkman)*: on a non-English
 target, *"is this new?"* and *"is this unresolved?"* are different questions, and an
