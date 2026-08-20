@@ -432,6 +432,38 @@ across both desks at once instead of each desk hitting them in isolation.
 - Then `search_articles` on the story's key entities: if a near-duplicate
   already covers the **same event**, don't file a second article — unless you
   have a genuinely distinct angle, and if so, put that angle in `agent_opinion`.
+- **When a sibling desk has already filed today's event, don't look sideways for a
+  new angle — look BACKWARD for the same actor's earliest statement. That's where
+  the distinct angle almost always is, and nobody has filed it.** *(added
+  2026-08-20 by Landon Volkman, measured on r/aliens.)* The scale-vs-kind test
+  below answers "is this update filable." It does **not** answer the situation the
+  community desks now hit daily: `check_article_exists` returns `exists: true`
+  because a sibling desk covered the same event hours ago from a different target,
+  and everything *lateral* — another outlet's version, another subreddit's thread —
+  is the same event again. The move that works is temporal. **Take the named actor
+  out of the story and search the community archive for the OLDEST high-engagement
+  thread about that actor on that subject.** Three reasons it pays:
+  - **Nobody files it.** Community archives are re-litigated forward, never
+    backward; the corpus is dense at the event and empty six months upstream.
+  - **The old statement is usually the opposite polarity**, because a person's
+    first contact with a claim is skeptical and their fourth is promotional. That
+    contrast IS a mechanism in the scale-vs-kind sense — it's a change in how the
+    actor treats evidence, not a bigger version of the same claim.
+  - **It is cheap.** One `reddit-search.js` call, sorted by date ascending.
+
+  *Measured case:* r/aliens' top post (739↑) was Rep. Burlison's 19 Aug baiting-op
+  video; the r/UFOs desk had filed that exact event eight hours earlier and two
+  forum threads had already dissected it. Searching the actor rather than the event
+  returned a **3 January 2026** thread (868↑ — *more* engagement than the event
+  itself) in which Burlison describes personally testing a claimed summoner,
+  getting a null result, and publicly demanding that witnesses produce receipts.
+  Four months before the earliest date in anyone's timeline, never cited in any of
+  the four later tellings, and it reframes the whole arc from "credulous member" to
+  "member who had the standard and stopped applying it."
+  **Guard, because this is easy to abuse:** an old null result is *not* evidence
+  against the new claim — different actors, different instrumentation. State what
+  it actually establishes (that the standard was available to the actor, which is
+  the precondition for reading its later absence as a choice) and no more.
 - **The test for "genuinely distinct angle" on a running story is SCALE vs KIND:
   escalation in scale = DECLINE, escalation in KIND = FILE.** *(formulated
   2026-08-16 by Kendall Bingham on the Caroline Bezengi, who asked for it to be
@@ -3660,6 +3692,31 @@ Wayback does not rescue it either — the crawler gets challenged too.
   direction is the usual bad one: a desk reading the old note treats a certifiable
   zero as merely hopeful and either burns a round hunting a third surface or files an
   unreachable zero on a source that is simply quiet.)*
+  *(**THREE OPERATIONAL ADDITIONS, 2026-08-20, Landon Volkman — measured on the same
+  target, and the first one is a zero-manufacturing trap with a number on it.**
+  **(1) `/articles?format=rss` is a DECOY and it is bigger than the real feed.** It
+  returns **HTTP 404 with a 201,003-byte `text/html` body** that parses to zero
+  `<item>`s — so a desk that checks bytes, or that wraps the fetch in a try/except and
+  reads "no items" as "no news," manufactures a certified zero out of a 404. The real
+  feed, `https://www.liberationtimes.com/?format=rss`, ran **200,
+  458,112 b, `application/rss+xml`, 20 items, 2026-05-30 → 2026-08-19** on the same
+  minute. The decoy is **44% the size of the genuine article**, which is exactly why
+  the size heuristic fails here rather than merely being sloppy.
+  **(2) The feed carries full `<content:encoded>`, so a filing needs NO article
+  fetch.** Today's piece was written entirely off the feed payload — 1,252 words of
+  body text plus the in-body image URLs — never touching the article page. On a
+  Squarespace target, harvest the feed once and adjudicate every candidate on complete
+  text; there is no per-item cost argument for declining on a headline, same
+  conclusion the WordPress `?include=` rule reaches by a different route.
+  **(3) The og:image and the feed-body image are on DIFFERENT HOSTS, and the feed's is
+  the one to use.** `og:image` points at
+  `static1.squarespace.com/static/<id>/t/<hash>/<epoch>/Name.png?format=1500w`; the
+  feed body embeds `images.squarespace-cdn.com/content/v1/<id>/<uuid>/Name.png?format=1000w`.
+  Both 200, but the CDN form is the stable one. **And squarespace-cdn returns
+  `content-type: image/webp` for a URL whose path ends `.png`** — that is content
+  negotiation, not a broken link. Do not reject a hero on an extension/content-type
+  mismatch; the only test that means anything is status 200 plus an `image/*`
+  content-type.)*
 
 *(appended 2026-07-25 by Kendall Bingham — the listing-page blind spot)*
 
@@ -5492,6 +5549,37 @@ from last month. It now emits `created_iso`, `created_utc`, `thumbnail`, and
 - `preview_image` / `i.redd.it` URLs are usually reachable heroes, but
   **`external-preview.redd.it` URLs are signature-scoped and often 403** — verify
   before using one, and fall back to the linked outlet's OG image.
+  *(**EXTENDED 2026-08-20, Landon Volkman — `preview.redd.it` 403s too, and the
+  recovery is a one-line rewrite rather than a fallback.** The rule above names
+  only `external-preview`; measured today on an r/aliens gallery post, the plain
+  **`preview.redd.it/<hash>.jpg?width=…&s=<sig>` also returned 403**, because the
+  `s=` signature is scoped to the size params the listing minted it with. The same
+  image hash on **`i.redd.it/<hash>.jpg` served 200 `image/jpeg`** with no
+  signature at all. So on any Reddit-hosted image: **strip the query string and
+  swap the host to `i.redd.it`** before concluding you need an outside hero. On a
+  gallery post `reddit.js` emits `preview_image: null` and only a `thumbnail`, so
+  the hash has to be lifted out of the thumbnail URL — it is the same hash.)*
+
+**`reddit-search.js <query>` is a FIFTH rung, it is the only one that crosses
+subreddits and time, and it is how you find the older statement that makes a
+saturated story filable.** *(added 2026-08-20 by Landon Volkman.)* The four-rung
+ladder above (json → reddit.js → listing `.rss` → per-post `.rss`) all answer
+*"what is on this target right now."* None of them answer *"what has this
+community said about this actor before,"* which is the question that pays when
+a sibling desk has already filed today's event. Usage is `node reddit-search.js
+"<query>"` — it returns ~20 hits across all subreddits with `subreddit`, `score`,
+`comments`, `created` (epoch) and `url`. Sort the hits by `created` ASCENDING,
+not by score: the useful row is the OLDEST high-engagement thread about the same
+named actor, because that is the one nobody re-litigates and nobody has filed.
+Measured today: r/aliens' top post was a Burlison clip that a sibling desk had
+already covered from r/UFOs eight hours earlier, and `reddit-search.js "Burlison
+summon"` surfaced a **3 January 2026** thread (868↑/238c) in which the same
+congressman describes a summoning test he ran himself that **failed** — the exact
+opposite polarity, never cited in any of the four later tellings, and the whole
+basis of a distinct filing. Two cautions: the search index is relevance-ranked and
+returns cross-topic junk (r/HFY, r/deadbydaylight) that is trivially filtered by
+subreddit; and it reports `score`/`comments` at query time, so an old thread's
+numbers are current, not historical.
 
 **READ THE THREAD'S OWN CITATIONS BEFORE GOING OUTSIDE — on an engagement-ranked
 target the debunk is usually one click under the top comment, published by the
@@ -10435,6 +10523,56 @@ fictional, so DVIDS is a lookup service on this beat, not a watch surface.
 ---
 
 ## Changelog
+- **2026-08-20 (analysis desk, Landon Volkman)** — 3 rounds: **2 filings and 1 certified
+  zero**, plus four promotions. The zero was **TWZ type-2 filtered for the second
+  consecutive run** and I upgraded how it was certified rather than just repeating
+  Kendall's verdict: four items past the mark, **all four article bodies fetched in full
+  (209–248 KB, 2,300–3,064 words each) and keyword-counted** for UAP / UFO / unidentified
+  / anomalous / "drone sighting" — **0 on every keyword on every one of the four.** A
+  decline that rests on complete text rather than headlines is the strongest form of a
+  filtered zero available, and on this host it is nearly free. Recorded in the mark, not
+  here, because that is where the next desk reads it: TWZ's **on-beat gap is now ~58 days**
+  (newest UAP-relevant post 2026-06-23, via `wp-json/wp/v2/posts?search=UAP`), so the
+  ~2×-median-gap escalation rule must be applied to this target's **UAP sub-series**
+  (median ~6 weeks), never to its publishing cadence (~4 items/day) — otherwise a
+  guaranteed zero reads as an anomaly every single run. Also worth having: three reads of
+  the same `sitemap-news.xml` across three desks returned **160 b (Brian, 08-17), 1,109 b
+  (Kendall, 08-19) and 3,970 b (me, 08-20)** with two different root structures and the
+  same nine children — **size is noise on that file; parse the root and count children**
+  — and `/feed` itself ran 750 KB/39 items against Kendall's 193 KB/36 the day before, so
+  **bound the window by dates in the payload, never by item count.**
+  Four promotions, three of them born from the two filings. **(1) The dedup rule the
+  community desks actually needed** (above, in Dedup discipline): when a sibling desk has
+  already filed today's event, searching *laterally* only re-finds the event — search the
+  **actor** and take the **oldest** high-engagement thread. Measured: r/aliens' 739↑ top
+  post was an event the r/UFOs desk filed eight hours earlier and two forum threads had
+  already dissected; `reddit-search.js "Burlison summon"` returned a **3 January 2026**
+  thread (868↑, *more* engagement than the event) in which the same congressman describes
+  running a summoning test himself, getting a null, and demanding that witnesses produce
+  receipts — four months before the earliest date in anyone's timeline and uncited in all
+  four later tellings. **(2) `reddit-search.js` is a fifth rung on the Reddit ladder** and
+  the only one that crosses subreddits and time; the existing four all answer "what is on
+  this target now." **(3) `preview.redd.it` 403s, not just `external-preview`** — the `s=`
+  signature is scoped to the listing's size params; strip the query string and swap the
+  host to `i.redd.it` (served 200 `image/jpeg`). On a gallery post `reddit.js` gives
+  `preview_image: null` and only a thumbnail, but it is the same hash. **(4) Liberation
+  Times' `/articles?format=rss` is a 404 that returns 201,003 bytes of HTML** — 44% the
+  size of the genuine 458 KB feed at `/?format=rss`, which is precisely why a size check
+  manufactures a zero here. Same bullet: the feed carries full `<content:encoded>` (today's
+  1,252-word piece was written without ever fetching the article page), and its
+  `images.squarespace-cdn.com` body images are the stable heroes while `og:image` sits on
+  `static1.squarespace.com` — with the caveat that squarespace-cdn serves
+  `content-type: image/webp` for a `.png` path, which is content negotiation and **not** a
+  reason to reject a hero. Editorial note carried in the marks rather than here: the corpus
+  is now **saturated on the James Fox whistleblower-video series and the July NDA waiver**
+  (four filings each), so Liberation Times' re-reporting of both is not filable; the
+  uncovered thread was **Stephen Miller reportedly holding the UAP portfolio**
+  (`search_articles` = 0 hits) against the one hard datum about him on this subject — a
+  smirk and "Hmm" to a Capitol doorstep question on 22 July. Source notes: `askapoluaps.com`,
+  `defensescoop.com` and `abovethenormnews.com` are all open to WebFetch and useful on this
+  beat; **`burlison.house.gov` and `8newsnow.com` 403 to WebFetch but `burlison.house.gov`
+  succeeds via `curl` with a browser UA — a WebFetch 403 is not a dead host, retry with
+  curl before recording one as blocked.**
 - **2026-08-20 (morning desk, Brian Hare)** — **4 rounds, 1 filing, 3 certified zeros**, and
   **three new sections**, all three from the same root cause: a surface that answers 200 and
   lies about its own coverage. **(1) CDX SORTS BY URLKEY, NOT TIME** — the previous night's
