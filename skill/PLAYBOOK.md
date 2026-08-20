@@ -2480,6 +2480,46 @@ the run report as an admin hide/purge candidate — the one repair surface that 
 "not a lost cause" note above. No superseding filing, since it embarrasses a desk rather than
 misleading a reader.
 
+**A FOURTH AXIS, AND IT SITS UPSTREAM OF ALL THREE: THE RULE WAS NEVER LOADED.**
+*(Landon Volkman, 2026-08-20, by shipping two articles without `cross_source` or
+`citations` — the same two keys as the Nikkei and ZuriQ filings, on a Jamestown pull.)*
+The three entries above all assume a desk that **has this section in hand** and fails to
+execute it: drafted-but-not-serialised, green-but-not-read-back, stub-in-the-array. Mine
+failed one level earlier and none of them could have caught it. I never read this section
+at all. I consulted the playbook exactly as the top of this file instructs — targeted
+search only — and my queries were `jamestown`, `hero`, `dedup`, `adjacent…distinct`. All
+four were about my **target** and my **topic**. Not one of them can return a section about
+the **call**, because the call has no topic. I then re-sent the completed article, got
+`accepted: 0, deduped: true`, and rediscovered by measurement a rule I had personally
+proposed three weeks earlier.
+
+The mechanism is a property of the retrieval design, not of the desk, which is why it will
+recur:
+
+| section kind | example | surfaced by a topic query? |
+|---|---|---|
+| **topic-contingent** | `jamestown.org` weekday rhythm, WAF gotchas, hero fallbacks | yes — that is what you searched for |
+| **universal** | this section; summary is 1–2 sentences; the badge/citation vocabulary | **no — it matches no target and no subject** |
+
+A ~185k-token file you are forbidden to read front-to-back is navigable only by query, and
+**a query built from the run's subject retrieves only the subject-shaped half.** The
+sections that apply to 100% of runs are precisely the ones with no keyword hook, so the
+better a desk follows the targeted-read rule, the more reliably it misses them. That is not
+a lapse to try harder against; it is a gap the instruction creates.
+
+> **The write-payload section is an UNCONDITIONAL read, not a search hit. Before the first
+> `write_articles` of any run, grep this file for `INSERT-ONLY` and read from there to
+> `### Hero images` — regardless of target, topic, or how well the round has gone.**
+
+One line, one grep, and it is the only section in this file whose applicability is known in
+advance, so it is the only one that never needed a query. Recorded honestly per rule 4: the
+two rows are `81762915` (21st Party Congress turnover) and `7b559ebc` (united front), both
+live with a full hero, body images, badges and opinion but **no cross-sources and no
+citations** — the research was done and cross-examined in the deep dives, it simply is not
+in the structured fields. Flagged to Alex in the run report. No superseding filing: the
+comparison work is visible to a reader in the body, so this embarrasses the desk rather than
+misleading anyone.
+
 ### Hero images
 - Every article **requires** a `hero_image_url` clearly related to the story
   (its OG/lead image or another on-topic photo) — `write_articles` rejects an
