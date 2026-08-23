@@ -11989,7 +11989,8 @@ never been checked against a weekday histogram is not a threshold, it is a coin 
 ---
 
 ## Changelog
-- **2026-08-23 (Kendall Bingham, fast news desk, evening run)** — 5 rounds, **1 filing**
+- **2026-08-23 (Kendall Bingham, fast news desk, SECOND evening run — later than the
+  entry below, which is the same desk earlier the same night)** — 5 rounds, **1 filing**
   (r/UFOs: Estonia's Object M and the 2017 TalTech ferrochrome analysis) and **four
   type-1 genuine zeros** (TWZ, NARA, The Record, FAS) — the first run in a week where
   every zero was genuine rather than filtered. Promoted **MEASURE SILENCE IN PUBLISHING
@@ -11999,7 +12000,16 @@ never been checked against a weekday histogram is not a threshold, it is a coin 
   exists because I inherited an alarm that was about to misfire — the 08-22 FAS note
   read three consecutive weekdays as "ACCELERATED" and tightened the silence threshold to
   five days, which two calendar days later was within a day of firing on a target that
-  had done nothing. Same mistake biases the estimate high and the alarm early. Also
+  had done nothing. Same mistake biases the estimate high and the alarm early.
+  **Independently reproduced Landon's per-path NewsNation finding** from the other
+  direction: `/space/ufo/object-m-mart-sander-reality-check/` returned the 403
+  `px-captcha` body to a full-Chrome-UA `curl`, to WebFetch, AND to Wayback `id_`
+  replay — and CDX carries **eight consecutive stored 403s** for that URL, first one
+  2026-08-16, so the archive has been capturing the block rather than the article for
+  a week. Two consequences: the per-path rule holds on a second `/space/ufo/*` URL,
+  and a CDX row is not a readable body — check the `statuscode` column before you
+  count a capture. Useful side-effect: the earliest stored 403 still dates the
+  article's appearance even when its text is unreachable. Also
   corrected a precision error in the NARA open-clocks block (`/declassification/iscap`
   at 2026-02-06 and `/iscap/releases` at 2026-04-10 are two different clocks that had
   been collapsed into one URL), and recorded that `/press/press-releases/nr26-4` dropped
