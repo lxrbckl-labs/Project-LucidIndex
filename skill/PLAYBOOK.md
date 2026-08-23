@@ -2291,6 +2291,24 @@ Still no locking protocol — the fix is narrower:
   different emphases* are the cross-beat protocol working, not a failure.
   Triplicating a single wire-style item is the failure.
 
+**Confirmation with a hard number, 2026-08-22 (Brian Hare).** The "re-run
+`search_articles` immediately before `write_articles`" clause is not hygiene advice —
+it fires in practice. On the gCaptain round a bare `search_articles("Black Sea")`
+returned a filing made by the ACLED desk **four minutes earlier** (article
+`935cf6f7`, *"Both Sides Are Now Bombing Food"*, `created_at 2026-08-23T00:39:26Z`,
+against a pull that started at `00:41:39Z`). Had that search run at
+candidate-selection time — roughly six minutes earlier, which is the natural place to
+put it — it would have returned nothing and the desk would have filed blind into a
+live collision.
+
+So state the timing as a rule rather than a preference: **with desks running
+concurrently, a dedup search older than a few minutes is STALE.** Run it last, not
+first. The cost is one call, and what it buys is the only window in which a parallel
+desk is visible at all. (In this case the second filing still went ahead — on a
+genuinely distinct spine, and said so in `agent_opinion` per the
+differentiate-explicitly clause. Knowing you are second is the point; the search does
+not have to produce a decline to have paid for itself.)
+
 ### Summary = the card blurb (1–2 sentences, hard rule)
 The `summary` renders on the magazine tile, so it is **1–2 sentences MAX,
 always** — a punchy hook that makes someone click, never a paragraph. Do NOT
@@ -2648,6 +2666,24 @@ isn't defended, then reconstruct the body from other outlets.**
   whether the archive has anything; escalate to CDX only when you need the full
   capture history (see the `collapse=urlkey` warning under Rung 5 — `available`
   has the same blind spot by construction, since it returns exactly one capture).
+
+- **`kyivpost.com` — the OPPOSITE of `hhs.gov`, and the pairing is the lesson.**
+  *(added 2026-08-22 by Brian Hare, from the gCaptain Black Sea run.)* WebFetch →
+  **403**. Same URL to `curl` with the full Chrome UA → **200, full article body.**
+  Nothing exotic; it is the `unredacted.com` / `*.house.gov` shape.
+
+  It earns a line here only because of what it sits next to. This page now documents
+  two hosts whose *first* symptom is byte-identical — a 403 — and whose correct
+  responses are opposite: on `hhs.gov` you stop escalating the origin and go to the
+  archive; on `kyivpost.com` you send a better UA and you are done. **A WebFetch 403
+  is evidence about WebFetch, not about the host.** Before concluding a source is
+  closed, spend one `curl` with the full Chrome UA — it is one call and it separates
+  the two classes immediately. Cheap discriminator, restated from the entry above:
+  if the *headless browser* is also blocked, it is a WAF; if only WebFetch is, it is
+  a client problem and `curl` will walk straight through.
+
+  Clean to both WebFetch and `curl` on the same run, for the Black Sea beat's
+  Ukrainian-source tier: `kyivindependent.com`, `en.usm.media`, `unn.ua`.
 
   Bonus worth knowing on abolished-agency pages: `available` hands you the *closest*
   snapshot, which on a page whose office was shut down tends to land near the
@@ -5651,6 +5687,65 @@ cheap"* decay into *"skim the headlines and ack zero"* used to trade against a r
 per-item cost. It no longer does. **On any WordPress target, there is now no cost
 argument for declining an item on its headline.** Harvest the list, then pull the
 bodies of every candidate in one `?include=` and decide on text.
+
+### THE LINKED-PRIMARY-SOURCE LIFT — when an advocacy post fails the bar on its own text, read the documents it LINKS
+*(added 2026-08-22 by Brian Hare — on the FAS geoengineering run, which was a decline until it wasn't)*
+
+A think-tank or advocacy post is usually a **pointer, not an article.** Judged on
+its own prose it is an op-ed and most beats' filing bars reject it, correctly. But
+the rendered body carries **15-20 outbound `href`s**, and on a policy post those
+links are overwhelmingly *primary documents* — bill pages, agency dockets, audit
+reports, trackers. The post's own argument is the weakest thing in it.
+
+The extraction is free, because you already have the body:
+
+```python
+re.findall(r'href="([^"]+)"', post['content']['rendered'])   # no extra fetch
+```
+
+**Measured case.** FAS published *"Conspiracy Theories Are Not a Good Reason to Ban
+Geoengineering Research"* (2026-08-20) — first-person advocacy, no release, no FOIA
+event, structurally identical to a coalition-launch post the same desk had declined
+three days earlier. Two of its links carried an actual story. `flsenate.gov` for
+Florida CS/CS/SB 56 (Ch. 2025-157) shows the law is not merely a prohibition: its own
+summary line **repeals** the state's *"licensing requirements ... publication of notice
+of intention to operate requirements ... record and reports of operations
+requirements"* of the weather-modification statute, and substitutes a monthly report
+by "an operator of public infrastructure" to the DOT. A legislature deleting its own
+disclosure regime is a concealment mechanism **new in kind**. FAS never mentions the
+repeal. Neither did any outlet downstream.
+
+**Rule: on any advocacy/op-ed row you are about to decline, spend one pass on its
+link list before you write the decline.** If the post is a pointer, the filing lives
+one hop away and nobody else has walked it — which is exactly what makes it worth
+filing. The corollary is the honest one: a post whose links are all *other posts by
+the same organisation* really is a decline. Judge the destinations, not the count.
+
+### WORDPRESS TARGETS PUBLISH NEAR-DUPLICATE SIBLING POSTS, AND `check_article_exists` CANNOT COLLAPSE THEM
+*(added 2026-08-22 by Brian Hare — observed on TWO unrelated targets in a single run)*
+
+The dedup layer canonicalises **cosmetic** URL differences (tracking params, case,
+`www`, trailing slashes). It cannot canonicalise **two genuinely different URLs that
+describe the same event**, and WordPress news targets mint those routinely:
+
+| target | the pair | gap |
+|---|---|---|
+| Naval News | 90247 *"Babcock and Danske Fladeskibe deepen Anglo-Danish naval partnership"* / 90238 *"Babcock advances Anglo-Danish naval cooperation with new agreements"* | ~9 h |
+| gCaptain | 256200 / 256232 *"Soaring Panama Canal Fees Drive a Nascent LPG Shuttle Trade"* — **identical headline**, different id, different slug | ~15 h |
+| gCaptain | 256181 (Reuters wire, 04:59) / 256188 (own reported version, 08:02) — same UKMTO hijacking, the second a superset of the first | ~3 h |
+
+Three shapes, one hazard: **the wire-then-own-report upgrade, the re-publish, and the
+rewrite.** All three produce distinct canonical URLs, so `check_article_exists`
+returns `exists:false` on both members and `write_articles` accepts both. The corpus
+gets the same event twice with no warning at any layer.
+
+**Rule: when a candidate clears the bar, scan the SAME pull's list for a sibling
+before filing — same entities, same day, different id. File the fuller member.** The
+tell is cheap on a list you already have: headline-token overlap plus a sub-24-hour
+gap. This is the WordPress cousin of the cross-subreddit crosspost hole documented
+below, and it fails the same way — the dedup tool is a URL-identity test and both
+members are honestly distinct URLs.
+
 
 ### Reddit listings: get dates and images from the listing itself
 *(added 2026-07-25 by Kendall Bingham)*
@@ -10744,6 +10839,21 @@ fictional, so DVIDS is a lookup service on this beat, not a watch surface.
 ---
 
 ## Changelog
+- **2026-08-22** — Four entries from a four-round generalist run. **"The
+  linked-primary-source lift"**: an advocacy post that fails a filing bar on its own
+  prose is usually a *pointer* — extract its `href`s from the wp-json body (free) and
+  read the primary documents, which is how a declinable FAS op-ed turned into the
+  Florida statute that repealed its own weather-modification disclosure regime.
+  **"WordPress targets publish near-duplicate sibling posts"**: three shapes (wire-then-own-report,
+  re-publish, rewrite) seen on Naval News and gCaptain in the same run, all producing
+  honestly-distinct URLs that `check_article_exists` cannot collapse — scan the pull's
+  own list for a sibling before filing. A dated **confirmation under "Concurrent pulls
+  need no coordination"** putting a number on the re-search-before-write clause: a bare
+  `search_articles("Black Sea")` surfaced another desk's filing made **four minutes**
+  earlier, so a dedup search older than a few minutes is stale — run it last, not first.
+  And **`kyivpost.com`** added to the WAF gotchas as the deliberate opposite of
+  `hhs.gov`: WebFetch 403, `curl` + full Chrome UA 200 — a WebFetch 403 is evidence
+  about WebFetch, not about the host. (Brian Hare)
 - **2026-08-20 (analysis desk, Landon Volkman)** — 3 rounds: **2 filings and 1 certified
   zero**, plus four promotions. The zero was **TWZ type-2 filtered for the second
   consecutive run** and I upgraded how it was certified rather than just repeating
