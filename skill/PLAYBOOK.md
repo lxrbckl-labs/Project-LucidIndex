@@ -5652,6 +5652,34 @@ looks like a fetch failure and isn't)*
   therefore *expected* mid-cycle and the burst is expected on issue day, which
   is the discriminator between "quiet" and "broken" — check where you are in the
   cycle before you go looking for a WAF.
+  **CEILING-PROBE CORRECTION, 2026-08-23 (Brian Hare) — the `?p=<id>` probe this
+  entry uses to close the ceiling by construction is now WAF-DEAD on jamestown.org,
+  and it fails in the shape that matters: the POSITIVE CONTROL 403s too.** Measured
+  today with a browser UA: `?p=885840/885845/885850/885860/885880/885900` and the
+  negative control `?p=999999` all returned **403** — which on its own reads exactly
+  like the clean "everything above the max id 404s" result the 08-14 entry recorded.
+  It is not. `?p=885836`, the live newest article and the probe's own positive
+  control, **also 403s.** The instrument returns the same value for "no such post"
+  and "you are blocked," so every 403 in that sweep carries zero information and a
+  desk that omits the positive control writes down a ceiling it did not measure.
+
+  This is the WAF-403-is-not-an-error family (see the JSON-parse-failure entry) in
+  its third form: here the block does not corrupt a parse and does not raise, it
+  **impersonates the exact negative result you were hoping for.** General rule, and
+  it costs one extra request: *a probe whose evidence is a failure code is only valid
+  if you also fetch something you know exists and see it succeed.* No positive
+  control, no ceiling.
+
+  What still works, and it is enough: `wp-json` is un-WAF'd on this host, so run the
+  ceiling on the API instead of the front end — `?orderby=id&order=desc&per_page=5`
+  against `?orderby=date&order=desc` against `?after=<ISO>`. Today all three agreed
+  (max id **885836**, newest date **2026-08-20T14:32:25** — exactly ON the mark, and
+  `after` returned 0), which is the three-mechanism agreement the 08-14 entry asks
+  for, obtained without touching the front end at all. Both boundary items
+  (885836, and 885818 one day below) came back `exists: true` on
+  `check_article_exists`, per the standing rule that on-mark items are adjudicated
+  rather than triaged by title. Genuine zero.
+
 - **Both of the above are column-2 targets, and that is the more useful fact.**
   Jamestown publishes constantly and is off-beat *because it is adjacent* (China
   Brief + Eurasia, roughly half Russia on any given day); Focus Taiwan publishes
@@ -11294,6 +11322,24 @@ an item on its headline, and this is the concrete number to quote when someone c
 ---
 
 ## Changelog
+- **2026-08-23 (Brian Hare, morning desk)** — 4 rounds, **2 filings, 3 zeros** (2
+  genuine, 1 filtered). Promoted one correction, filed inside the entry it corrects:
+  **jamestown.org's `?p=<id>` ceiling probe is WAF-dead and fails by impersonating
+  its own success condition** — every id 403s *including the live positive control*,
+  so a sweep run without that control writes down a ceiling it never measured. The
+  wp-json triple (`orderby=id` / `orderby=date` / `?after=`) replaces it and is
+  un-WAF'd. Generalised as: *a probe whose evidence is a failure code is only valid
+  if you also fetch something you know exists and watch it succeed.* Zeros:
+  **Jamestown genuine** — newest item exactly ON the mark, both boundary items
+  `exists: true` per the adjudicate-don't-triage rule. **IEEE Spectrum filtered** —
+  the 88-file sitemap sweep returned an exact 4 URLs past the mark in ~30 s (Landon's
+  08-17 cost correction holding up), none on the quantum beat; the topic feed's
+  newest quantum item was 08-12, well below. **MuckRock genuine** — `/news/feeds/`
+  (Kendall's 08-17 spelling find) served 25 items in one 16 KB fetch, newest
+  `aug/19` sitting on the mark and already filed. Filings both off The Qubit Report's
+  weekly round-up, where the week's only peer-reviewed result (USTC's PLOB crossing)
+  was buried mid-list between a microcomb chip and a PhD programme — a reminder that
+  on aggregator targets the item ordering carries no signal about the item value.
 - **2026-08-23 (Kendall Bingham, news desk)** — 5 rounds, **2 filings, 3 zeros** (2
   certified genuine, 1 filtered). Promoted **two corrections to instruments this file
   already documents**, both filed inside the entries they correct rather than as new
