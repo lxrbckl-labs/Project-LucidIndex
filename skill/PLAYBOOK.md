@@ -11112,9 +11112,116 @@ on this case a release claiming *"strong bipartisan support"* against a 51–47 
 Committee roll calls are a separate matter and are **not** on these pages; if the committee tally
 matters, say plainly that it was not obtained rather than inferring it from the floor vote.
 
+### `europarl.europa.eu/doceo` ANSWERS **HTTP 202 WITH A ZERO-BYTE BODY** — AND WAYBACK `id_` REPLAY OF THE SAME URL RETURNS THE FULL TEXT
+*(added 2026-08-23 by Landon Volkman — while lifting the primary documents under a Euronews UAP "exclusive")*
+
+The European Parliament's document system is a **first-class primary source for any EU beat**:
+every written question and every Commission answer is a stable, citable, dated URL of the shape
+`europarl.europa.eu/doceo/document/E-<term>-<year>-<number>_EN.html`, with the answer at the same
+path plus `-ASW`. It is also shut to both documented rungs:
+
+| surface | result |
+|---|---|
+| `WebFetch` on the doceo URL | renders as **empty page content** — the summarizing model reports "no content provided" |
+| `curl --compressed` + full browser UA | **HTTP 202, `size_download` = 0** |
+
+**202 with zero bytes is the same "envelope passes, content absent" shape this page documents on
+`war.gov`'s `ContentType=4`/`8` and on empty feeds — except here it is a JS challenge, not an
+absent resource.** A desk that reads the status code alone records a 2xx and concludes it fetched
+the document. Assert on **body bytes**, never on `2xx`.
+
+The escape hatch is the one already prescribed for WAF'd hosts, and it works cleanly:
+
+```bash
+curl -s "http://web.archive.org/cdx/search/cdx?url=europarl.europa.eu/doceo/document/E-10-2025-001572*\
+&output=text&limit=20&fl=timestamp,original,statuscode,mimetype"
+curl -sL --compressed -o q.html "http://web.archive.org/web/<timestamp>id_/<original-url>"
+```
+
+Both the question and the `-ASW` answer replayed at 200 / ~4 KB and de-tagged to complete text.
+Note the wildcard earns its keep for a second reason here: doceo serves **`.html`, `.pdf` and
+`.docx` of the same document**, and CDX may hold a 200 for one and nothing for another.
+
+**Companion surface — `asktheeu.org` (Alaveteli) attachments answer HTTP 418 live and also replay
+clean.** EU FOI releases live at
+`asktheeu.org/request/<slug>/response/<id>/attach/<n>/<filename>.pdf`. A live `curl` returns
+**418 with a 10 KB HTML body** that `file` calls "HTML document" — i.e. a teapot wearing a `.pdf`
+name, the same stored-denial shape as the `media.defense.gov` 403s above. Wayback `id_` replay
+returns the real PDF (verified: 400 KB / 8 pages and 59 KB / 1 page). **Two traps in the path:**
+(1) attachment numbers are NOT interchangeable — on one release `attach/4` was a 8-page
+correspondence bundle and `attach/5` was the 1-page institutional reply everyone was quoting;
+fetch the one you actually want and `pdftotext` it before believing you have it. (2) `?cookie_passthrough=1`
+is part of some archived URLs and absent from others — query CDX with a wildcard on the attach path
+rather than guessing.
+
+**Why this is worth a section rather than a footnote: on an EU story, the parliamentary answer is
+usually where the policy actually is, and it is almost never in the coverage.** A Commission letter
+that outlets quote as evidence of intent had, in this case, been superseded by a one-sentence
+written answer from the responsible Commissioner that said the opposite — and no outlet covering
+the letter had it. Same lesson as the linked-primary-source lift above, run in reverse: read the
+document, then read what the institution said **after** it.
+
+### THE PREPRINT-COVERAGE DEDUP HOLE — `check_article_exists` RETURNS FALSE FOR A WRITE-UP OF A PAPER YOU ALREADY FILED FROM `arxiv.org`
+*(added 2026-08-23 by Landon Volkman — caught on the second PURSUE-video-analysis candidate in four days)*
+
+The dedup discipline on this page is written around URLs, and the server canonicalizes them well.
+That is exactly why this hole exists: when a desk files a science story **from the preprint**
+(`source_url` = `arxiv.org/abs/NNNN.NNNNN`, which is the right call — it is the primary document),
+the corpus now holds the *paper*. Two days later the outlet write-up appears with a completely
+different URL and `check_article_exists` correctly returns `exists: false`. Nothing is wrong with
+the tool; the two URLs really are different resources. But filing both puts the same finding on the
+dashboard twice under two targets.
+
+Measured instance: `arxiv.org/abs/2608.12445` (Haqq-Misra & Kopparapu, 112 PURSUE videos, filed
+2026-08-19 under the AARO target) and
+`thedebrief.org/scientists-just-analyzed-more-than-100-uap-videos-…` (2026-08-20, `exists: false`).
+`search_articles("PURSUE UAP videos sensor data analysis Haqq-Misra Kopparapu")` returned the
+existing row at rank 0.89 on the first try.
+
+**Rule: on any candidate that is coverage OF A PAPER, the URL check is necessary and not
+sufficient — run `search_articles` on the AUTHOR SURNAMES plus one distinctive figure from the
+abstract before investing.** Author surnames are the strongest key available: headlines are
+rewritten per outlet, the arXiv ID appears in almost no coverage, and the same two names will be in
+every write-up. Generalises to any primary-document filing — a court ruling, an agency report, an
+IG audit — where the corpus holds the document and the wire holds the story about it.
+
+### A WORDPRESS `(Updated)` TITLE MEANS `/feed`'s `<pubDate>` IS THE **MODIFIED** TIME — MARK ON `date_gmt`
+*(added 2026-08-23 by Landon Volkman — on TWZ, where the two series had matched exactly until they didn't)*
+
+On TWZ the RSS `<pubDate>` and `wp-json`'s `date_gmt` had agreed to the second across prior runs
+(08-19: both `23:43:18Z`), which is what makes the divergence readable rather than noise. Today the
+newest item — titled `AIM-424 "Malice" … (Updated)` — came back as **`04:50:49Z` in `/feed`** and
+**`03:11:35Z` in `date_gmt`**, a 1h39m spread. The feed is republishing the *modified* timestamp in
+the `pubDate` slot.
+
+**Ack the `date_gmt`.** Marking on the modified time silently skips anything published inside the
+gap, and worse, a heavily-edited old post can jump the feed's top edge and drag the mark forward
+past days of unread items. `date_gmt` is monotonic with publication; `pubDate` on an edited post is
+not. Confirm the gap is empty before acking (one `orderby=date` read covers it).
+
+**And the cheap adjudication that makes this affordable, restated with a measurement:** one call —
+`wp-json/wp/v2/posts?per_page=14&orderby=date&order=desc&_fields=id,date_gmt,link,title,content` —
+returned **78,487 bytes carrying the complete rendered body of all 14 newest posts** (439–2,599
+words each), enough to run `\b`-bounded keyword counts over an entire 79-hour window and certify a
+12-item filtered zero on full text. On a WordPress target there is no cost argument for declining
+an item on its headline, and this is the concrete number to quote when someone claims there is.
+
+
 ---
 
 ## Changelog
+- **2026-08-23 (Landon Volkman, deep-analysis desk)** — Three rounds, **2 filings, 1
+  certified zero**. Filed: the EU-side UAP governance story off a Euronews "exclusive" (written
+  as a correction — the underlying document is a Nov-2022 DG DEFIS courtesy letter to two Malaysian
+  hobbyists, FOI-released Sept 2023, footnoted in EP question E-001572/2025 since Apr 2025, and
+  answered flat by Kubilius on 11 Jun 2025: "Unidentified anomalous phenomena are not part of the
+  scope of the ongoing work on the EU Space Act"); and the Russian "space hazard" NOTAM
+  (NZZO B3996/26) that turned back ICE28, the season's first McMurdo flight, with no Russian
+  vessels in the announced splash zone. TWZ: third consecutive type-2 filtered zero, 12 items
+  adjudicated on full body text in one call. Promoted three rules: **doceo 202/zero-byte + Wayback
+  replay** (with the asktheeu 418 companion), **the preprint-coverage dedup hole** (URL check is
+  necessary, not sufficient — search author surnames), and **`(Updated)` titles poison feed
+  `pubDate`** (mark on `date_gmt`).
 - **2026-08-23 (morning, Kendall Bingham)** — Five rounds, **0 filings, 5 certified zeros**
   (all type-1 genuine: American Alchemy, Americans for Safe Aerospace, NASA UAP, Liberation
   Times, ODNI). A pure-instrument run; promoted two rules, both filed as dated additions
