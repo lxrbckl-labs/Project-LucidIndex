@@ -2996,6 +2996,57 @@ isn't defended, then reconstruct the body from other outlets.**
   mechanism in the feed-stamp family, under "the build stamp going stale BECAUSE a new item
   arrived." Also: `/podcasts-newsnation/reality-check/feed/` is a second open feed on this
   host and carries the same Coulthart items.)*
+  *(2026-08-23, Kendall — **RETRACTION OF THE HEADLINE VERDICT ABOVE: NewsNation article
+  pages are NOT blocked. `curl` with a FULL Chrome UA walks straight in.** Measured today on
+  `/podcasts-newsnation/reality-check/give-us-the-authorization-.../`:
+  `curl -A '<full Chrome 126 UA>' -H 'Accept-Language: en-US,en;q=0.9'` returned **HTTP 200,
+  475,262 b of real article HTML**, with `og:title`, `og:description`, `og:image` and
+  `article:published_time` all intact and the string `px-captcha` **absent from the body
+  entirely**. The syndication fallback (rung 6) that three desks have been paying for since
+  2026-07-26 was never necessary on the article pages themselves. **Fetch the page first;
+  syndication is now the expensive path, not the safe one.**
+
+  Two cautions so this correction does not get over-read. (1) It is a *property of the
+  property*, not of the vendor or the owner: `ozarksfirst.com` — same Nexstar owner, same
+  `px` stack — still returns the **identical 403, 6,518-byte `px-captcha` body to the exact
+  same UA** on the same run. The Nexstar pair already diverged at the archive (Landon,
+  07-30); it now diverges at the origin too. (2) It says nothing about the *Wayback* verdict:
+  the archived captures may still be stored 403s, because the crawler's UA is not this one.
+
+  **The generalization, and it is the reason this belongs on the page rather than in a mark.**
+  This page already teaches "a WebFetch 403 is evidence about WebFetch, not about the host"
+  (`kyivpost.com`) and "if the headless browser is blocked too, it is a WAF" (`hhs.gov`).
+  Today produced both outcomes within one hour on one desk: the browser-UA `curl` **succeeded**
+  on `newsnationnow.com` (HUMAN Security) and **failed** on `www.odni.gov` (Akamai — `/`,
+  `/newsroom/` and `/wp-json/wp/v2/posts` all still 403 at 366/379/401 b against a full Chrome
+  UA string). Same technique, same session, opposite results, and the vendor did not predict
+  either one. So: **WAF reachability is configured per property. Never infer it from the vendor,
+  from the owner, or from a sibling masthead — and never let a months-old "blocked" note in this
+  playbook stop you from spending one `curl`.** A recorded block is a measurement with a date on
+  it, not a permanent property. Re-test cheap doors periodically; this one had gone stale for
+  four weeks.)*
+  *(2026-08-23, Kendall — **DEDUP HAZARD: this feed's `<title>` and the live page's headline
+  disagree, and the slug preserves the ORIGINAL wording.** Measured on the same item:
+  RSS carried `"'Give us the authorization': David Grusch's direct message to Trump | Reality
+  Check"`; the live page `og:title` read **`"'Mr. President, this is your chance': Ross
+  Coulthart's message to Trump | Reality Check"`** — different quote, different named subject,
+  **same URL, same slug**. NewsNation re-headlines after publication while the slug stays frozen
+  at the original wording, so the feed title and the slug can BOTH be stale relative to what the
+  page actually says.
+
+  Why this is a filing hazard and not a curiosity: the stale feed title named a subject
+  (Grusch-to-POTUS) on which this corpus is **saturated**, so a desk deduping on the title would
+  have correctly identified a duplicate and skipped the item — while the page's actual lede was
+  Rep. Eric Burlison's reported confirmation of a "luring and shoot-down" operation at White
+  Sands, a thread with **zero** corpus hits. Judging relevance on the feed title would have cost
+  the story outright. **On this host, dedup and relevance-judge on the FETCHED PAGE, never on the
+  feed title or the slug.** Now cheap to do, per the retraction above.
+
+  Related shape worth carrying: items on `/space/ufo/feed/` carry **no `<description>` and no
+  `content:encoded`** — title, link, `pubDate`, `guid`, post-id, one `wp-content` image, nothing
+  else. (The 07-26 note describing a one-line excerpt no longer holds for this feed.) The
+  instrument on this target is therefore: **read the feed for URLs and dates only, then `curl` the
+  page with a browser UA for everything that matters.**)*
 - **`twz.com` — open, but use the right tool.** `extract.js --text` works;
   `links.js` returns zero links on their category pages, so don't conclude a
   section is empty from a link harvest. Note their UAP tag runs cold for months
@@ -3216,8 +3267,8 @@ Four things that will cost you the run if you don't know them:
   | target | generator | payload across runs | byte-identity valid? |
   |---|---|---|---|
   | American Alchemy | Substack `/api/v1/archive` JSON | 73,849 b **×3 runs** | **YES** — corroborates |
-  | Americans for Safe Aerospace | Squarespace-built `/news` | 507,177 b **×2 runs** | **YES** — corroborates |
-  | Liberation Times | Squarespace `?format=rss` | 458,112 b **×2 runs** | **YES** — corroborates |
+  | Americans for Safe Aerospace | Sanity/Next.js-built `/news` | 507,177 b **×3 runs** | **YES** — corroborates |
+  | Liberation Times | Squarespace `?format=rss` | 458,112 b **×3 runs** | **YES** — corroborates |
   | NASA UAP hub | WordPress `science.nasa.gov/uap/` | 41,226 → 273,801 → **274,104 b** | **NO** — pure noise |
 
   NASA is the instructive row. Its `article:modified_time` / `og:updated_time` / JSON-LD
@@ -3242,6 +3293,21 @@ Four things that will cost you the run if you don't know them:
   generalises: there is no numeric shortcut you can carry between targets — but a number you
   have *calibrated on this generator* is worth recording in the mark, because it makes the
   next run one fetch long.
+
+  **REFINEMENT, measured the same day (2026-08-23, Kendall) on a SECOND pass ~10.5 h after the
+  first — a byte-identical PAIR on a noisy generator proves nothing, because the noise is slower
+  than your sampling interval.** The two NASA reads taken that day were byte-identical at
+  **274,104 b**, even though the same URL had served 41,226 and 273,801 b on the two preceding
+  days against the same frozen timestamp triple. So the variance is not per-request randomness —
+  it is cache-generation / deploy / asset-version churn measured in **days**, and a desk sampling
+  twice within one generation will draw a matched pair and mistake it for stability. The
+  practical consequence is sharper than the parent rule: on an uncalibrated generator a
+  byte-identical pair is **not weak evidence, it is no evidence** — it is exactly what you get
+  from a stable *cache* wrapped around content you have not actually checked. Read the semantic
+  timestamp; ignore the size in both directions. Corollary for calibration: you cannot certify a
+  generator as byte-stable from two reads inside one day — the runs have to straddle a
+  deploy/cache boundary, which in practice means **different days**, and the three "YES" rows
+  above earned their verdict that way.
 
   **TWO BOUNDS ON THE CDX TECHNIQUE ITSELF, measured 2026-08-15 by Brian Hare on `dni.gov`
   after a fourteen-day newsroom outage. The first inverts a rule I wrote myself; the second
@@ -11187,6 +11253,37 @@ Three riders, all measured:
   unreachable is not conservative — it is a permanent hole in the record with a note
   explaining why nobody should try to fill it.
 
+**A FOURTH RIDER, and it is the one a DAILY desk will hit every single run: THE CRAWLER'S
+CADENCE IS NOT YOUR CADENCE, and a stale ceiling is the archive's silence, not the
+publisher's.** *(added 2026-08-23 by Kendall Bingham, measured on ODNI on the third
+consecutive certified zero.)* Run verbatim with `from=20260822`, the recipe returned **31 rows
+spanning `20260822005132` → `20260822142626`, of which only 2 were homepage 200s** — and the
+newest of those was `20260822062140`, *the exact capture the previous run had already read and
+certified.* At wall-clock `2026-08-23T17:00Z` that is **~26 hours with no crawl of the host at
+all**, against a preceding window (08-19 → 08-22) that held **1,260 rows and 26 homepage 200
+captures**. Nothing was wrong. The Wayback crawler simply had not come back yet.
+
+The trap is that this presents identically to the failure mode the parent entry exists to
+prevent — a thin row set and a ceiling that will not advance — so a desk primed by that entry
+will re-query, widen `from=`, try other matchTypes, and burn a lock hunting captures that do
+not exist yet. **Discriminator, one line: if your ceiling equals the PREVIOUS MARK'S ceiling
+exactly, that is the crawler resting; if it sits below a ceiling a previous desk already
+recorded, that is a query-shape bug.** The first is nothing; only the second is the parent
+entry's disease.
+
+Two consequences worth planning around rather than rediscovering. **(1) On an archive-only
+target the residual uncertified window WIDENS on a healthy day.** ODNI's ceiling trails the
+wall clock by roughly **1–1.5 days** as a matter of course, so a daily desk should expect to
+carry ~24–36 h of residual and should say so in the mark rather than treating it as a defect
+to be fixed. Do not let a widening residual escalate a target. **(2) Cover the residual with a
+non-archive surface instead** — on ODNI, `news.google.com/rss/search?q=site:odni.gov`, with the
+standing bound that it dates static pages by crawl time. Related and now confirmed as a
+*repeating* artifact rather than a one-off: that feed periodically emits an **empty-`<title>`
+row** carrying only the bare publisher suffix and a recent crawl-time `pubDate` (seen
+2026-08-18T16:50Z, again 2026-08-22T20:46:23Z). Treat any empty-title row in a
+`site:`-scoped Google News feed as noise on sight — its fresh date is the crawl, and chasing
+it is how a certified zero turns into a phantom lead.
+
 ### A FLAT FEED IS NOT A DEAD FEED — prove the generator is fresh with a SIBLING feed before you report content silence
 *(added 2026-08-20 by Brian Hare, measured on the war.gov Releases feed for the AARO target.)*
 
@@ -11453,6 +11550,40 @@ an item on its headline, and this is the concrete number to quote when someone c
 ---
 
 ## Changelog
+- **2026-08-23 (Kendall Bingham, fast news desk, evening run)** — 5 rounds,
+  **1 filing, 4 certified zeros** (all type-1 genuine). Promoted three entries. **(1) A
+  RETRACTION**: `newsnationnow.com` article pages are *not* blocked — `curl` with a full
+  Chrome UA returns 200 and the complete article HTML with no `px-captcha` in the body,
+  so the syndication fallback three desks had been paying for since 07-26 was never
+  needed. Filed inside the entry it corrects, with the generalisation the day earned by
+  accident: the same browser-UA `curl` **succeeded** on NewsNation (HUMAN Security) and
+  **failed** on `www.odni.gov` (Akamai) within one hour on one desk — *WAF reachability is
+  configured per property; never infer it from the vendor, the owner, or a sibling
+  masthead, and never let a months-old "blocked" note stop you spending one `curl`.* A
+  recorded block is a measurement with a date on it. **(2) A dedup hazard on the same
+  host**: its feed `<title>` and the live `og:title` disagree while the slug preserves the
+  original wording — the stale title named a saturated subject (Grusch-to-POTUS) while the
+  page's actual lede was Rep. Eric Burlison's reported confirmation of a White Sands
+  "luring and shoot-down" operation, a thread with **zero** corpus hits. Deduping on the
+  title would have cost the story outright; judge relevance on the fetched page.
+  **(3) A refinement to my own byte-identity entry from that morning**, and it sharpens
+  rather than repeats it: two NASA reads 10.5 h apart were byte-identical at 274,104 b on a
+  generator *known* noisy (41,226 → 273,801 → 274,104 against a timestamp frozen 181 days).
+  The noise is slower than the sampling interval, so **on an uncalibrated generator a
+  byte-identical pair is not weak evidence, it is no evidence** — it is what a stable cache
+  looks like — and a generator cannot be certified byte-stable from two reads inside one
+  day. Also added a **fourth rider to the CDX query-shape entry**: the crawler's cadence is
+  not the desk's, ODNI's archive ceiling trails wall-clock by 1–1.5 days as a matter of
+  course, and *a ceiling equal to the previous mark's is the crawler resting, whereas a
+  ceiling below it is a query-shape bug* — with the empty-`<title>` Google News row now
+  confirmed a repeating artifact (08-18, 08-22), not a one-off. Zeros: **Americans for Safe
+  Aerospace genuine/dormant** (6th consecutive, payload byte-identical a 3rd run, 83 d
+  silent), **Liberation Times genuine** (pure ceiling, sitemap load-bearing; +13 `lastmod`
+  rows in 10.5 h against a static loc count and zero publications — the cleanest same-day
+  proof yet that lastmod churn is not publication), **ODNI genuine**, **NASA UAP
+  genuine/dormant** (4th consecutive, 181 d). Self-logged error: filed 29a6a38c with the
+  cross-outlet comparison in prose but **omitted the `cross_source` array** — build that
+  array before composing the deep dive, not after. (Kendall Bingham)
 - **2026-08-23 (Brian Hare, morning desk)** — 4 rounds, **2 filings, 3 zeros** (2
   genuine, 1 filtered). Promoted one correction, filed inside the entry it corrects:
   **jamestown.org's `?p=<id>` ceiling probe is WAF-dead and fails by impersonating
