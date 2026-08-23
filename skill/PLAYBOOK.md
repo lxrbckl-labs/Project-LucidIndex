@@ -10836,9 +10836,105 @@ as *coverage*.
 Per-item DVIDS URLs resolve fine and are citable. It is the **enumeration** layer that is
 fictional, so DVIDS is a lookup service on this beat, not a watch surface.
 
+### The "new study" is often an old paper on a publicity cycle — check the preprint date
+*(established 2026-08-22 by Landon Volkman on the Universe Today LPT round.)*
+
+The existing embargo rule covers the case where one release lands on four outlets inside a
+few hours. It does **not** cover the inverse and commoner failure: a **press office
+resurfacing a paper that published months ago**, which a science desk then writes up as new.
+
+Measured case. Universe Today ran two long-period-radio-transient pieces a day apart, reading
+as two fresh discoveries. Only one was. *Rose et al.*, the Nature Astronomy observation of
+ASKAP J1745−5051, preprinted **2 June 2026** and was genuinely new. *Zhong & Most*, the Caltech
+kinetic-plasma simulation, preprinted **10 September 2025** (arXiv:2509.09057) and published in
+ApJL in **February 2026**; what actually happened in August was a **Caltech press release on
+13 August**, picked up by Phys.org the same day and Universe Today on the 22nd — an eleven-month
+gap between the science and the coverage, invisible from the article.
+
+**The check is one arXiv API call and it should be reflexive before any paper-based filing:**
+
+```
+http://export.arxiv.org/api/query?search_query=ti:"<exact paper title>"&max_results=5
+```
+
+Read `published` (first posting) and `updated`. If `published` is more than a few weeks before
+the outlet's date, the news is the *press release*, not the result — say so in the deep_dive and
+date the science correctly. Note the arXiv Atom feed is plain XML over HTTP and needs no UA
+games, unlike most of this beat's sources.
+
+### Before filing on a discovery paper, look for the re-analysis that already corrected it
+*(established 2026-08-22 by Landon Volkman, same round.)*
+
+Contested objects attract fast independent re-analyses, and they land on arXiv **months before**
+the discovery paper's journal version reaches the press. A desk that reads only the outlet's
+write-up files the superseded numbers.
+
+Measured case. Rose et al. preprinted ASKAP J1745−5051 on 2 June 2026. **Twenty-five days later**,
+on 27 June, Knigge, Scaringi, Castro Segura, de Martino and Veresvarska posted an independent SED
+re-analysis (arXiv:2606.28993) stating their results differ from the discovery paper for four
+reasons — including that they *"fix an issue with the treatment of reddening/extinction"* and
+*"discard photometric measurements that are irreparably contaminated by an unrelated star located
+just 0.9\" from the target."* Their fit makes the donor **sub-stellar** (~0.05 M☉, ~1800 K — a
+brown dwarf), not the *"red dwarf with about 1/10th of the Sun's mass"* the coverage reported two
+months later. The corrected answer was also the **more interesting** one: a sub-stellar donor makes
+the system a "period bouncer," tying LPTs to a long-hunted missing CV population.
+
+**The query is the object designator, not the title** — a re-analysis will not share the discovery
+paper's phrasing but must name the object:
+
+```
+http://export.arxiv.org/api/query?search_query=all:"<object designator>"&sortBy=submittedDate&sortOrder=ascending
+```
+
+Sort ascending and read the whole short list; the discovery and its critics sit adjacent. If a
+re-analysis exists, the divergence between it and the outlet's account **is the article** — it is
+a better piece than restating the press release, and it is the one thing a magazine can add that
+the wire cannot.
+
+### congress.gov is unreadable to agents — use senate.gov floor activity for any confirmation vote
+*(established 2026-08-22 by Landon Volkman on the NARA Archivist round.)*
+
+`congress.gov` is behind a Cloudflare interstitial: **403 to WebFetch**, and a 5.7 KB
+"Just a moment... Enable JavaScript and cookies to continue" body to `curl` even with a full
+browser UA. A PN (presidential nomination) page will not open. Do not burn calls on it.
+
+The Senate's own floor-activity pages are **plain HTML, unauthenticated, and primary**:
+
+```
+https://www.senate.gov/legislative/LIS/floor_activity/MM_DD_YYYY_Senate_Floor.htm
+```
+
+They carry the PN number, the nominee's full name and office, the disposition, the tally and the
+**Record Vote Number** — e.g. *"PN850 : Bradford Pentony Wilson, of New Jersey, to be Archivist of
+the United States -- Considered by Senate. -- Confirmed by the Senate by Yea-Nay Vote. 51 - 47.
+Record Vote Number: 225."* Check the **prior day's** page too; it carries the unanimous-consent
+agreement that scheduled the vote.
+
+**The Record Vote Number is the load-bearing field.** When many nominees share one number, they were
+confirmed **en bloc** in a single tranche and nobody was voted on individually. That distinction is
+what lets you test an agency's characterisation of its own leader's confirmation against the record —
+on this case a release claiming *"strong bipartisan support"* against a 51–47 en-bloc party-line vote.
+Committee roll calls are a separate matter and are **not** on these pages; if the committee tally
+matters, say plainly that it was not obtained rather than inferring it from the floor vote.
+
 ---
 
 ## Changelog
+- **2026-08-22 (evening, Landon Volkman)** — Three instrument rules from a three-round
+  deep-analysis run. **"The 'new study' is often an old paper on a publicity cycle"**: a
+  Caltech release on 13 Aug carried an ApJL paper that preprinted 10 Sep 2025, and two
+  outlets wrote it as new — one `export.arxiv.org` title query before any paper-based
+  filing dates the science instead of the press office. **"Before filing on a discovery
+  paper, look for the re-analysis that already corrected it"**: an independent SED
+  re-analysis of ASKAP J1745−5051 landed on arXiv 25 days after the discovery preprint,
+  found the discovery photometry contaminated by a star 0.9" away, and moved the donor
+  from red dwarf to sub-stellar — query by OBJECT DESIGNATOR, not title, since a critic
+  will not reuse the discovery paper's phrasing. **"congress.gov is unreadable to
+  agents"**: Cloudflare-gated (403 to WebFetch, JS interstitial to curl); the
+  `senate.gov/legislative/LIS/floor_activity/` pages are plain HTML and primary, and
+  their Record Vote Number is what distinguishes an individual confirmation from an
+  en-bloc tranche — the field that let a NARA claim of "strong bipartisan support" be
+  measured against a 51–47 en-bloc vote.
 - **2026-08-22** — Four entries from a four-round generalist run. **"The
   linked-primary-source lift"**: an advocacy post that fails a filing bar on its own
   prose is usually a *pointer* — extract its `href`s from the wp-json body (free) and
