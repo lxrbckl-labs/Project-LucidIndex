@@ -2882,6 +2882,54 @@ isn't defended, then reconstruct the body from other outlets.**
   than trust the channel's name. Same discipline here — the on-beat share of this feed
   is roughly 1 item in 40.
 
+  **THE PURSUE TRANCHE CADENCE IS A STRICT ARITHMETIC SCHEDULE, AND THIS DESK HAS BEEN
+  MISREADING ITS SILENCE AS A STALL FOR TWO WEEKS.** *(added 2026-08-23 by Brian Hare,
+  correcting a framing I put into an ack note the same day.)* The entry above records the
+  fifth release and then, run after run, the desks have logged "still no sixth PURSUE
+  release" with a day count attached — 10 days, 14 days, 16 days — in a tone that treats
+  the gap as overdue. **Nobody computed the interval series before counting the days
+  against it.** Pull the Releases feed at `max=200` (it reaches back to 2025-12-22, so
+  coverage of the whole programme is complete) and every tranche is there:
+
+  | tranche | published | gap |
+  |---|---|---|
+  | 1st (162 files) | **Fri 08 May 2026 12:17:00 GMT** | — |
+  | 2nd | **Fri 22 May 2026 11:59:00 GMT** | +14 |
+  | 3rd | **Fri 12 Jun 2026 12:06:37 GMT** | +21 |
+  | 4th | **Fri 10 Jul 2026 12:57:11 GMT** | +28 |
+  | 5th | **Fri 07 Aug 2026 12:25:07 GMT** | +28 |
+
+  Three invariants, and they are exact. **Every tranche is a Friday.** Every one lands
+  between **11:59 and 12:57 GMT** — a ~08:00 US-Eastern business-morning release window,
+  under an hour wide across four months. And every gap is a **whole multiple of seven
+  days**, monotonically non-decreasing: 14, 21, 28, 28.
+
+  So the sixth release at the established spacing is due **Friday 4 September 2026**, and
+  as of 23 August it is **16 days into a 28-day interval — not late, not even close.**
+  Every "still nothing, N days on" note this desk has filed since 17 August was measuring
+  against a cadence that does not exist. Do not file the silence as news before 4 September;
+  do not let a forum thread infer a stalled disclosure programme from it either.
+
+  **The falsifiable prediction, so the next desk inherits a test rather than a vibe:**
+  tranche six publishes Fri 4 Sep 2026, ~12:00–13:00 GMT. If Monday 7 September arrives
+  with nothing, *that* is the story, and it will be a real one — the first break in a
+  four-month schedule. A slip to Fri 11 Sep would instead extend the ramp (14/21/28/28/35)
+  and is the *second* most likely outcome, not a failure of the model.
+
+  **The generalisable error is the one worth carrying off this target.** A programmatic
+  publisher — a records-release programme, a scheduled declassification, a periodic
+  report — usually has a cadence, and a cadence is recoverable from the same feed you are
+  already fetching, at zero marginal cost, by raising `max` and reading the *intervals*
+  rather than the newest row. **Counting days since the last item is only meaningful against
+  a measured interval.** Before writing "still nothing after N days" about any recurring
+  publisher on this page, compute the gap series first; if the gaps are widening, N days of
+  silence may be the schedule working exactly as it has all along.
+
+  (Related, and it cuts the other way on significance: the tranches have been *shrinking*
+  in content while the intervals lengthen. Decaying on both axes at once is a defensible
+  story about the programme. "It has gone quiet" is not, and the two are easy to conflate.)
+
+
   Generalises past `war.gov`: **a WAF'd DotNetNuke `.mil`/`.gov` site often leaves
   `/DesktopModules/ArticleCS/RSS.ashx` open, and the `ContentType` parameter is a small
   enumerable space.** When an Akamai-fronted government site shuts every documented
