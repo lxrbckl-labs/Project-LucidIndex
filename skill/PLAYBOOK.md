@@ -4729,6 +4729,44 @@ for the wrong-format trap and a headline-triage near-miss)*
   and `0016` on 08-20, three consecutive 404s each at 62,751 b. Dates still `+08:00` —
   the mark `2026-08-19T13:42:00Z` lands exactly on `0027`'s `21:42:00+08:00`, so the
   boundary-item rule fires on this target's marks routinely, not rarely.)*
+  **BOUND, 2026-08-23 (Kendall Bingham) — the dead-ID size is NOT a fixed number, and
+  three entries above call it one. Use a THRESHOLD, never an equality.** The text above
+  says "404 at a fixed 62,756 b", "the identical 62,751 bytes", "if it 404s at the fixed
+  dead size on both" — three separate places where a desk is told to compare against a
+  literal. Measured today across four days in one sweep: the 404 body came back at
+  **62,858–62,859 b**, i.e. **~107 bytes above** the number re-verified only three days
+  earlier, and it drifted *within* a single run (62,858 on 08-21/08-22, 62,859 on 08-23
+  and on `0028` of 08-21). The error page is templated and carries live "Latest" /
+  section widgets, so its length tracks the current headline set — it will keep moving,
+  daily, forever.
+
+  Nothing about the recipe breaks; only the way you spell the test does. The property
+  that actually holds is a **~23 KB gap with nothing in it**: live articles 86–95 KB,
+  dead 62–63 KB. So branch on `size < 70000 or status != 200` and the ceiling proof, the
+  interior-dead-ID probe, and the fixed-size discriminator all survive untouched. A desk
+  that hard-codes `== 62751` gets the dangerous failure, not the safe one: every dead ID
+  reads as "neither live nor provably dead", which reads as *sweep incomplete*, which is
+  the one condition that talks you out of a zero you had correctly earned. Filed here
+  rather than as a new rule because it is a correction to this entry's own instrument.
+- **`warontherocks.com` — the mid-article "BECOME A MEMBER" block is an interstitial,
+  not a paywall, and `curl` gets the whole piece.** *(2026-08-23, Kendall Bingham.)* The
+  rendered page interrupts the body with a membership call-to-action roughly a third of
+  the way down, in exactly the position a metered wall occupies. It is not one: a plain
+  `curl` + strip-tags returns the complete article, including everything below the block.
+  Measured today on `a-rock-and-chinas-three-sea-problem` — WebFetch returned a competent
+  summary that stopped at the legal argument, while curl returned the full text including
+  the passage the piece actually turns on (Taipei excluded from the Japan–Philippines
+  delimitation talks, "left a vacuum into which Beijing conveniently stepped"). That
+  passage is the filing, and the summarizing read did not contain it.
+
+  Generalisation worth carrying past this host: **a summarizer that returns a plausible,
+  well-formed digest is not evidence it saw the whole document.** It has no way to tell
+  you what it did not receive, and a truncated read of an analysis piece degrades exactly
+  where analysis pieces are decided — the last third, where the author says what it means.
+  On any host whose value is the argument rather than the facts, pull the body yourself
+  before adjudicating against the filing bar; use the summarizer to triage, never to
+  decline. Extraction note: the `entry-content` div selector misses on this theme — strip
+  `<script>`/`<style>`, drop all tags, and slice from the first body sentence.
 - **`asia.nikkei.com` — the feed is RSS 1.0/RDF, and it is not the beat surface.**
   Two separate traps. First, `/rss/feed/nar` returns a healthy 25 KB of valid feed
   in which `grep -c '<item>'` returns **0**, because RSS 1.0 uses
@@ -11256,6 +11294,50 @@ an item on its headline, and this is the concrete number to quote when someone c
 ---
 
 ## Changelog
+- **2026-08-23 (Kendall Bingham, news desk)** — 5 rounds, **2 filings, 3 zeros** (2
+  certified genuine, 1 filtered). Promoted **two corrections to instruments this file
+  already documents**, both filed inside the entries they correct rather than as new
+  rules. (1) **Focus Taiwan's dead-ID byte size drifts and three places in its entry
+  tell desks to compare against a literal** — measured 62,858–62,859 b today against the
+  62,751 b re-verified three days ago, moving *within* one run because the 404 template
+  carries live headline widgets. Rewrote the test as a threshold (`< 70 KB`) against the
+  ~23 KB gap that actually holds (live 86–95 KB), and named the failure direction: a
+  hard-coded equality makes every dead ID read as "not provably dead", which reads as
+  *sweep incomplete*, which is the one thing that talks a desk out of a correctly earned
+  zero. (2) **War on the Rocks' mid-article "BECOME A MEMBER" block is an interstitial,
+  not a paywall** — curl returns the full body; WebFetch returned a competent summary
+  that stopped before the passage the piece turns on. Generalised it: a summarizer cannot
+  tell you what it did not receive, and truncation lands hardest in the last third, where
+  analysis pieces say what they mean — triage with the summarizer, never decline on it.
+  Filings: **WOTR** — Shuxian Luo's three-sea piece, filed on the LEGAL lane rather than
+  the military one (the 19 Jul *Kaifeng*/*Rezkiy* live-fire off Okinotori is the peg, but
+  the signal is the chain from the 28 May Japan–Philippines EEZ delimitation talks over
+  waters east of Taiwan → Beijing's "illegal, null and void" → CCG patrols on Taiwan's
+  Pacific flank from early June, justified via One China as acting *on Taiwan's behalf*,
+  still rotating hulls on 1 Aug). Differentiated explicitly from the 07-28 Nikkei filing
+  (Japan radar gaps) and the 07-25 Stars & Stripes filing of the incident. **TQI** —
+  Crypto4A's FIPS 140-3 Level 3 PQC HSM, where the whole value added was *looking it up*:
+  NIST CMVP **Certificate #5497**, validated 19 Aug 2026 by atsec, Overall Level 3,
+  sunset 2031, plus the earlier **#4250** (2022) that quietly bounds the "world first" to
+  the 140-3-and-full-PQC-suite intersection. Also caught QCR calling SLH-DSA a "stateful
+  hash" scheme when it is the stateless one and LMS beside it is stateful. Declined the
+  same day's Quantum X Labs decoder release (Nasdaq small-cap, no logical error rates, no
+  code distance, synthetic-only training, no preprint) — the stock-pump shape. Zeros:
+  **CSIS China Power genuine** (podcast feed, post-sitemap and both sitemap indexes all
+  identical to the prior run; boundary biotech item already adjudicated), **The Black
+  Vault genuine on four generators** (feed newest = mark, wp-json `after=` → `[]` with
+  positive control returning 5, post-sitemap max lastmod = mark across 1,000 rows,
+  `/casefiles/` still dormant at 2025-10-28; 26 days silent, inside its own Jun 30→Jul 21
+  precedent, so not read as an event), **Focus Taiwan filtered** (four days swept, ceilings
+  proven; everything past the mark was reaction to the 2027 defense budget *already filed*
+  as `0fcc6d08` on 08-20 — Hunzeker's assessment, Lai's 823-anniversary speech — or
+  off-beat, incl. TASA's first home-grown sounding rocket, a real first but a 2034-roadmap
+  civil-space milestone with no China element). Marks omitted on both genuine zeros per
+  the CSIS precedent. Outlet gotchas hit: Japan Times 402, HKFP 403, The Diplomat 403,
+  ipdefenseforum 307, usnews timeout; Taipei Times, maritime-executive, QCR and csrc.nist.gov
+  all clean. TQI's byte-identical-hero trap fired as documented — QCR's lead image is the
+  same Crypto4A graphic as TQI's hero at a different crop, so the body image came from
+  Commons instead.
 - **2026-08-23 (Landon Volkman, deep-analysis desk)** — Three rounds, **2 filings, 1
   certified zero**. Filed: the EU-side UAP governance story off a Euronews "exclusive" (written
   as a correction — the underlying document is a Nov-2022 DG DEFIS courtesy letter to two Malaysian
