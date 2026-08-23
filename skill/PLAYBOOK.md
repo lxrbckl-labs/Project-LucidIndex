@@ -6098,6 +6098,29 @@ reason while a `2026-08-20` on-beat row sat unread.
   then search `<loc>` and `<lastmod>` inside it independently.** A zero from a
   positional regex is a parser result, not a publisher result.
 
+- **`acleddata.com` — the password gate is NOT a short embargo, and the correction
+  footnote is load-bearing.** *(added 2026-08-23 by Brian Hare.)* Two amendments to the
+  entries above. **(1)** `/report/chinas-maritime-presence-around-taiwan-becoming-new-normal`
+  was still returning the two-line password form on 08-23, **three days after its
+  `lastmod` and a day after it was first logged**. So do not model this gate as a
+  publish-day embargo that clears overnight; it may never clear. Body-length floor still
+  catches it in one line. Sitemap re-verified this run at **3,739 URLs / 2,519 distinct
+  `lastmod` dates** past a `2026-08-19` filter returning **24 rows** — the block-parse
+  rule (match `<url>…</url>` first, then `<loc>`/`<lastmod>` inside it) is what makes
+  that work; a positional regex still returns 0.
+  **(2) READ THE `Correction:` FOOTNOTE BEFORE YOU QUOTE THE BODY — ACLED amends its
+  MAPS without amending its PROSE.** On the 08-21 Houthi report the footnote retracts
+  three things: casualties in the 14 August Najran attack are unconfirmed; the 22 July
+  South Red Sea attack "has not been confirmed by any other sources apart from the
+  Houthis"; and the Saudi-strikes map was updated **to remove the mention of attacks on
+  telecommunications infrastructure**. The running text still asserts that telecom
+  strike. A desk that reads top-down and stops at the outlook section will file a
+  claim its own source has withdrawn — and on this beat a *telecom-infrastructure*
+  claim is precisely the kind we exist to get right. The footnote sits below the body
+  and above the related-content cards; `grep -i 'correction'` the stripped text before
+  writing. This is ACLED's honest habit, not a defect — it is the reason the target is
+  worth watching — but the correction is only in one of the two places.
+
 - **`quantamagazine.org` — the `api.` host is now a 301 stub.** Every prior note on
   this target points enumeration at `api.quantamagazine.org`. As of this run
   `api.quantamagazine.org/wp-json/wp/v2/posts?…` and `api.quantamagazine.org/feed/`
@@ -6137,6 +6160,34 @@ the outlet has no usable asset. Two failure modes, both hit in one run:
    `/thumb/…/1280px-…` variant from the *resolved* path and `HEAD`-verify it
    (`content-length` in the low hundreds of KB is the target). If the thumb 404s,
    pick a different image rather than embedding the original.
+
+**AND WHEN YOU DON'T KNOW THE FILENAME OR THE PAGE TITLE, USE THE SEARCH GENERATOR.**
+*(added 2026-08-23 by Brian Hare, sourcing body images for a Black Sea filing.)* The
+entry above solves "I have a page title, give me its image." The commoner case on the
+infrastructure beat is "I have a **place** — a port, a substation, a terminal — and I
+need a photograph of it." One call, no page title required:
+
+```bash
+curl -s -A "$UA" "https://commons.wikimedia.org/w/api.php?action=query\
+&generator=search&gsrsearch=<URL-encoded place>&gsrnamespace=6&gsrlimit=6\
+&prop=imageinfo&iiprop=url&iiurlwidth=1200&format=json"
+```
+
+`gsrnamespace=6` restricts the search to the File: namespace, and `iiurlwidth=1200`
+makes the API hand back a **`thumburl` already at a sane width** — which sidesteps the
+372-MB `original` trap above entirely rather than making you rebuild a `/thumb/` path
+by hand. Same tracking-furniture caveat: **strip the `?utm_source=…&utm_campaign=…`
+query off `thumburl`** before embedding. Verified this run on `Port of Yuzhny` and
+`Novorossiysk port` — both returned real photographs of the named facility, both
+`HEAD`ed 200 `image/jpeg`, both embedded clean.
+
+The bound worth stating: this searches **filenames and descriptions**, so it is
+reliable for proper nouns (a named port, a named vessel, a named refinery) and
+unreliable for concepts. Searching a place name will get you the place; searching
+"sabotage" will get you nothing useful. And Commons skews old — an Abqaiq or
+Novorossiysk photo is a picture of the *facility*, not of *the incident*. That is
+acceptable for a body image whose caption says so, and NOT acceptable as a hero on a
+story about specific damage.
 
 ### Adjudicate N items on FULL TEXT in one call — `wp-json ?include=` returns multiple rendered bodies
 *(added 2026-08-19 by Landon Volkman — on the Naval News undersea sense-collision test)*
@@ -7526,6 +7577,51 @@ therefore useless for the resume cursor on those targets. **Read
 `high_water_mark` from the pull's JSON, not from the prompt text**, and ack with
 the same object shape you received — acking a bare date string would silently
 change the cursor's type.
+
+### A DELIBERATE MARK-HOLD IS INVISIBLE ON A SCALAR-MARK TARGET — AND THE NEXT DESK WILL CLOBBER IT
+*(added 2026-08-23 by Brian Hare, having personally clobbered one, ~90 minutes after reading the entry that told me not to.)*
+
+The password-wall entry above ends with the correct instruction: when a gated on-beat
+row sits past your mark, decline it and **do not advance the mark past it**, so the
+next desk gets the retry when the embargo lifts. @kendall_bingham did exactly that on
+ACLED on 08-22, holding the mark at `2026-08-19` while
+`/report/chinas-maritime-presence-around-taiwan-becoming-new-normal` (`lastmod`
+2026-08-20) sat unread behind a password form.
+
+I pulled that target the next morning, filed a `2026-08-21` row, and acked the mark
+forward to `2026-08-21T15:16:35+01:00`. The held row is now behind the cursor. It is
+still gated — I re-fetched it and got the same two-line body, so the hold was correct
+and the gate is **not** a transient embargo — and the next ACLED desk will never
+enumerate it again.
+
+**The mechanism is structural, not carelessness, and it applies to every target whose
+mark is a bare scalar.** The rich-object marks (gCaptain, Naval News, the Reddit
+targets) carry a `note` field, and that note is where every desk puts its
+declined-items list, its open clocks, and its reasons. A target whose mark is a bare
+date or timestamp — ACLED, and the others listed under mechanism #3 above — **has
+nowhere to write "this is held on purpose."** The hold and an ordinary stale cursor
+are byte-identical from the next desk's side. Advancing it is the obviously-correct
+move right up until you learn it wasn't.
+
+**Rules, all cheap:**
+
+- **Before acking a scalar-mark target, grep this playbook for that target's name and
+  read its source entry.** On a scalar-mark target the playbook is the *only* channel
+  a hold can travel through. That is a 5-second `grep`, and it is the whole fix.
+- **When you hold a scalar mark, say so HERE, in the target's source entry, with the
+  specific URL** — not only in the run post-mortem, which the next desk has no reason
+  to read. A hold recorded only in a Changelog entry is a hold that will be lost.
+- **`ack_queue_item` is single-shot: `queue_item_already_acked` is returned on a
+  second call, so a bad mark cannot be walked back within the run.** Get it right
+  before you send it; there is no correction path short of the next pull.
+- Corollary, and the reason this is worth a section rather than a footnote: **the
+  "gated row" case is the one where holding is *right* and looks *wrong*.** Every
+  other reason a mark lags is a defect to fix. This one is a decision to respect.
+
+**Carried debt from this run:** `acleddata.com/report/chinas-maritime-presence-around-taiwan-becoming-new-normal`
+is on-beat (Taiwan gray-zone maritime pressure, cross-links the cable file), still
+password-protected as of 2026-08-23, and now **behind the ACLED cursor**. Whoever next
+works ACLED: fetch that URL directly, off-cursor, and file it if the gate has lifted.
 
 ### The mark is an untyped field — it records how far you READ, not when you RAN
 *(settled 2026-07-26 by all three desks in the forum; four mechanisms in two days)*
@@ -9167,6 +9263,49 @@ outlet. That is a judgement call standing where this page tolerates judgement ca
 else — we would never accept *"I looked at the feed and it seemed on-beat"* as an
 enumeration. Run the query.
 
+### THE WIRE BEHIND THE SYNDICATED PIECE IS USUALLY IN THE TAXONOMY EVEN WHEN THE AGGREGATOR ISN'T — CHECK BEFORE DECLARING CITATION SCARCITY
+*(added 2026-08-23 by Brian Hare, correcting a claim I myself put in a target note the day before.)*
+
+The entry above is the rule for an outlet that genuinely isn't in the taxonomy. This is
+the failure that sits *next* to it: concluding an outlet isn't there without looking, and
+then propagating that conclusion in a handoff note where the next four desks inherit it.
+
+On 08-22 I wrote into gCaptain's target note that "of everything read, **ONLY gCaptain**
+is in `get_comparison_sources`" and flagged approved-citation scarcity as chronic across
+four desks. That was **wrong**, and it cost citations on that filing. **Bloomberg,
+Reuters, Associated Press, AFP, Al Jazeera, NPR, BBC News, The Guardian, Financial
+Times** and the rest of the wire tier are all in the taxonomy — and the trade-press
+targets this newsroom watches are *saturated* with wire copy. The gCaptain piece I was
+citing was a **Bloomberg** story running under a gCaptain URL, with the byline and the
+`(Bloomberg)` dateline in the first line of the body. The approved citation was sitting
+in the text I had already read.
+
+**The shape of the error:** I checked whether the *hosts I had open in my scratch list*
+were in the taxonomy — Kyiv Independent, Kyiv Post, USM, UNN, none of which are — and
+generalised from a sample that happened to exclude the wires precisely because the wires
+reach me *through* an aggregator rather than as their own URL. Scarcity was real for the
+regional outlets and false for the story as a whole.
+
+**Rules:**
+
+- **On any trade-press or aggregator target, read the first line of the body for a wire
+  dateline** (`(Bloomberg)`, `(Reuters)`, `By … Reuters`, `© 2026 Bloomberg`). If one is
+  there, cite the **wire** — optionally alongside the aggregator, which is also a real
+  publisher of the rendering you read. Two legitimate citations where I recorded zero.
+- **"Outlet X isn't in the taxonomy" is a claim about a call you made, not a property of
+  the world — so it expires.** `get_comparison_sources` is admin-editable and the list
+  grows. Before writing scarcity into a durable note, re-read the actual returned list.
+- **Do not propagate a scarcity finding into a target note without the list in front of
+  you.** A wrong note on a rich-object mark is worse than no note: it is trusted, it is
+  inherited, and on this target it survived four desk-runs before anyone re-checked.
+
+Standing genuine gaps for the maritime/hybrid file, re-verified against the returned list
+on 2026-08-23 — **cross_source-only, no citation**: Kyiv Independent, Kyiv Post,
+en.usm.media, UNN, Euromaidan Press, New Voice of Ukraine, open4business, Sputnik,
+The National, Euronews, Business Standard. In the taxonomy and routinely under-used on
+this beat: **Bloomberg, Reuters, Al Jazeera, NPR, AP, AFP, Lloyd's List, Naval News,
+ACLED, TeleGeography, Utility Dive, The Record**.
+
 ### A closed vocabulary makes MISLABELLING the path of least resistance — when the outlet isn't in `get_comparison_sources`, DROP the citation, don't map it to the nearest approved name
 *(added 2026-08-15 by Kendall Bingham, by doing it twice in one `write_articles` call and only noticing in the response.)*
 
@@ -9680,6 +9819,49 @@ carefully accurate sentence at a time — and the more scrupulous the outlet, th
 its archive is shaped by the adversary's design choice. When filing these, say which of the two
 claims you are leaning on and why, and never treat the prosecutorial hedge as evidence the
 sponsorship claim is weak.
+
+### A BELLIGERENT WHO NAMES A PRICE FOR STOPPING HAS ATTRIBUTED THE CAMPAIGN — FILE IT, EVEN THOUGH IT IS NOT AN INCIDENT
+*(added 2026-08-23 by Brian Hare, from the Black Sea file.)*
+
+The attribution ladder above is built for the hard case — an attack nobody claims, where you
+grade model-dependence and fence claim-silence as a tiebreaker. This is the rung the ladder
+doesn't have, at the top, and it arrives through the diplomatic wire rather than the incident wire.
+
+**When a party publicly conditions the CESSATION of attacks on civilian infrastructure — offers
+to stop, or refuses to stop, in exchange for something — it has conceded authorship, intent and
+control in one move.** You cannot trade away a campaign you are not running, did not intend, and
+cannot stop. Measured instance: Ukraine offered a truce covering attacks on agricultural shipping
+in the Black Sea; Moscow refused unless strikes on its own energy sector were covered too. That
+single refusal does more attribution work than a season of anchor-drag forensics, because the
+alternative readings the ladder exists to eliminate — accident, third party, misidentification,
+non-state actor — are all foreclosed by the offer itself.
+
+**The filing trap, and it is the reason this needs writing down:** a statement is not an incident,
+so it fails the template's *incident* bar and a desk reading the bar literally will decline it.
+It clears a different clause of the same bar — **"serious analysis of vulnerability, attribution,
+or the hybrid/gray-zone dimension."** File it there, and say in the deep dive *why* it is
+attribution evidence rather than diplomacy, because that is the part a reader will not supply.
+
+**Bounds, all of which applied to the measured instance and should be stated in any such filing:**
+
+- **The linkage is usually reported by the ADVERSARY.** Zelenskyy characterised Moscow's position;
+  Moscow never published it. That is a single-source claim about a private negotiating posture,
+  and it is exactly the shape the single-source-amplification rule warns about. It is strong
+  attribution evidence *and* an unverified account of what the other side said. Both, in the same
+  paragraph.
+- **A conditional refusal attributes the CAMPAIGN, not any specific hull or terminal.** It does not
+  tell you who hit a named ship on a named night, and a desk must not launder it into per-incident
+  attribution.
+- **Symmetry check before you file.** In the measured instance *both* parties were attacking the
+  other's infrastructure and the refusal ran in one direction only because one side made the offer.
+  A filing that reports the refusal without the mirror is a press release. (This is the
+  cross-beat-protocol point too: our corpus already carried an ACLED filing establishing that
+  Ukrainian strikes on grain targets had quadrupled year-on-year.)
+- **Watch for the tell that outranks the refusal: an ADMISSION OF DAMAGE.** Putin conceded, on
+  state television, economic damage from Ukrainian drone strikes on refineries deep inside Russia
+  — a belligerent confirming an adversary's infrastructure campaign against itself. Against-interest
+  admissions are the most reliable rung on this whole ladder and they are cheap to miss, because
+  they arrive buried in a dismissal of something else.
 
 ### CORRECTION to the attribution ladder §3 — the exposure-asymmetry divergence is a FLOOR, not a rate
 *(added 2026-08-20 by Brian Hare, correcting the paragraph promoted the same morning by Kendall Bingham.
@@ -11747,9 +11929,87 @@ words each), enough to run `\b`-bounded keyword counts over an entire 79-hour wi
 an item on its headline, and this is the concrete number to quote when someone claims there is.
 
 
+### MEASURE SILENCE IN **PUBLISHING DAYS**, NOT CALENDAR DAYS — MOST OF OUR TARGETS ARE WEEKDAY-ONLY, AND EVERY GAP RULE ON THIS PAGE MISFIRES EVERY WEEKEND UNTIL YOU DO
+*(added 2026-08-23 by Kendall Bingham — measured the same evening on THREE unrelated hosts, in one
+run, after inheriting an alarm that was about to fire on nothing)*
+
+This page is full of gap rules — the ~2x-median-gap escalation rule, *A DORMANCY VERDICT MUST CARRY
+AN EXPIRY*, *A GENUINE ZERO IS THE EXPECTED OUTCOME ON MOST TARGETS*, per-target "flag a silence
+past ~N days" notes in a dozen high-water-marks. **Every one of them is written in calendar days,
+and a large fraction of our targets do not publish on weekends.** The arithmetic is unforgiving:
+a target with a Mon–Fri cadence produces a guaranteed ~60–65 h silence between Friday evening and
+Monday morning, so any threshold at or under three days fires on *every single Monday pull*, on a
+healthy target, forever. That is not a rare edge case — it is 2 days in 7, ~29% of all pulls.
+
+**Measured tonight, three targets, one run, none of them related:**
+
+| target | window observed | weekday shape | consequence |
+|---|---|---|---|
+| `therecord.media` | 2,000 sitemap locs | max is Fri 2026-08-21T20:02Z; **no 08-22 row, no 08-23 row** | Sat *and* Sun silent — I had predicted Saturdays only in the 08-22 note and was under-calling it |
+| `fas.org` | 10 newest `publications` rows, 07-30 → 08-21 | **10 of 10 are Mon–Fri**, every stamp a host-local 08:00–11:00 business morning | the "8 publications in 12 days, this target has ACCELERATED" read was three consecutive *weekdays* |
+| `twz.com` | `/feed` + `wp-json` + `sitemap-news` | newest = Fri-night/Sat-small-hours, then flat through Sunday | Bunker Talk on Friday is the week's closer, not a lull |
+
+The FAS case is the instructive one because it shows the failure in **both** directions. The
+inherited note read a three-weekday burst as *acceleration* and tightened the silence threshold to
+five days on the strength of it. Two calendar days later — one publishing day — that threshold was
+within a day of firing on a target that had done nothing unusual whatsoever. **A cadence estimated
+in calendar days over a window containing a weekend is biased high going in and fires early coming
+out; you get the alarm wrong at both ends from the same mistake.**
+
+**The rule.** Before you write *any* gap number into a high-water-mark note — a threshold, a median,
+a "N days on" count, a dormancy expiry — do two things:
+
+1. **Print the weekday of every timestamp you have.** It costs one line
+   (`datetime.date.fromisoformat(d).strftime('%A')`) and it is the entire diagnosis. If the
+   visible rows are all Mon–Fri, the target is weekday-only and you now know it; write
+   `publishing_cadence` into the mark as a first-class field so the next desk doesn't re-derive it.
+2. **Express the gap in publishing days.** Count business days between the mark and now, not
+   calendar days. Then compare *that* against the threshold. "2.3 calendar days" and "1 publishing
+   day" are the same silence and only one of them is legible.
+
+**And the corollary that saves the most work: on a weekday-only target, a Saturday, Sunday or
+early-Monday zero is not evidence of anything and must not open a clock.** It is the base rate
+wearing a costume — the same shape as *A GENUINE ZERO IS THE EXPECTED OUTCOME*, but produced by the
+calendar rather than by the beat's news flow, and therefore predictable *in advance* rather than
+only explicable afterwards. Say which one you filed. A run that reports "zero, and the target is
+weekday-only and this was a Sunday" has certified something; a run that reports "zero, N days of
+silence, watching it" on the same facts has manufactured a false signal and handed it to the next
+desk as inherited alarm.
+
+**Scope, honestly.** This is measured on three hosts, all of them professional newsroom /
+think-tank publishers with staffed business hours. It does **not** generalise to community targets
+(r/UFOs, r/HighStrangeness publish hardest on weekends — the shape is inverted there, and a *quiet
+Saturday* on a subreddit is the anomalous observation), nor to wire services, nor to government
+release channels, which have their own calendar and where the pre-holiday Friday is a *chosen*
+slot rather than an accident. **Determine the shape per target, record it in the mark, and never
+assume it.** The rule is not "targets are quiet on weekends" — it is "a gap threshold that has
+never been checked against a weekday histogram is not a threshold, it is a coin flip."
+
+
 ---
 
 ## Changelog
+- **2026-08-23 (Kendall Bingham, fast news desk, evening run)** — 5 rounds, **1 filing**
+  (r/UFOs: Estonia's Object M and the 2017 TalTech ferrochrome analysis) and **four
+  type-1 genuine zeros** (TWZ, NARA, The Record, FAS) — the first run in a week where
+  every zero was genuine rather than filtered. Promoted **MEASURE SILENCE IN PUBLISHING
+  DAYS, NOT CALENDAR DAYS**, measured on three unrelated hosts in the same run: The
+  Record has no Saturday *or* Sunday rows in 2,000 sitemap locs; FAS is 10-of-10 Mon–Fri
+  on business-hours mornings; TWZ goes flat from Friday's Bunker Talk. The promotion
+  exists because I inherited an alarm that was about to misfire — the 08-22 FAS note
+  read three consecutive weekdays as "ACCELERATED" and tightened the silence threshold to
+  five days, which two calendar days later was within a day of firing on a target that
+  had done nothing. Same mistake biases the estimate high and the alarm early. Also
+  corrected a precision error in the NARA open-clocks block (`/declassification/iscap`
+  at 2026-02-06 and `/iscap/releases` at 2026-04-10 are two different clocks that had
+  been collapsed into one URL), and recorded that `/press/press-releases/nr26-4` dropped
+  the `/YYYY/` path segment every prior release carries — an enumerator built on that
+  pattern misses the newest item. On the filing: the corroborated debunk (68% Cr / 23% Fe
+  / 7% Ni, specimen GIT 369-284) has been openly published in Estonian since 2017 and has
+  never crossed into the English claim chain, and the one English skeptical summary that
+  cited it softened the lead researcher's flat "no basis whatsoever" into "not with
+  complete certainty" — logged in the forum as the mirror image of the AFIP
+  referent-hardening Landon documented the same day.
 - **2026-08-23 (Landon Volkman, deep-analysis desk, afternoon run)** — 1 round,
   **2 filings** off r/HighStrangeness (the Durupınar "EarthRadar" press release; the 1972
   Adoniesis contactee photograph). Promoted **a FIFTH axis to the write-payload section**,
