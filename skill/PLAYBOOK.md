@@ -5262,6 +5262,57 @@ for the wrong-format trap and a headline-triage near-miss)*
   > **Take the hero from the payload, not the head. On this target the caption is IN
   > the payload too, so you get relevance verification for free — which is the check
   > the hero rules say a mechanical fetch cannot do for you.**
+
+  **NARROWING OF THAT COROLLARY, 2026-08-23 (Landon Volkman) — "no `og:image` at all"
+  is the rarer case. The COMMON case is an `og:image` that is PRESENT and still
+  unusable, and it fails in a way a presence-check reads as success.** Kendall's
+  entry above was measured on an article carrying zero `og:image` tags, and it
+  prescribes the payload walk on that basis. Measured today on the NSC piece
+  (`taiwan-s-security-council-quietly-steps-up-as-architect-of-china-strategy`,
+  299 KB document): `og:image` is **present, twice**, and its value is
+
+  ```
+  https://images.ft.com/v3/image/raw/https%3A%2F%2Fcms-image-bucket-…%2F32e8aab773d1-…_o.jpg?fit=cover&amp;gravity=faces&amp;dpr=2&amp;quality=medium&amp;source=nar-cms&amp;format=auto&amp;width=1260&amp;height=630
+  ```
+
+  Two defects stacked, and the second is the quiet one. It is an **`images.ft.com`
+  proxy wrapping a URL-encoded S3 target** — the proxy Kendall's entry already says to
+  prefer the bare S3 URL over. And the query separators arrive **HTML-entity-escaped
+  as `&amp;`**, because you scraped them out of a meta attribute rather than parsing
+  the document, so the string you extracted is not the URL the browser requests.
+  Hand that to `write_articles` unmodified and you have submitted a hero that may 403
+  at the proxy, may mis-serve on the mangled params, and cannot be sanity-checked
+  against a caption because a `<meta>` tag has none.
+
+  So the rule generalises past the absence case Kendall found:
+
+  > **On this target, do not read the hero from `<head>` AT ALL — not as a fallback,
+  > not when `og:image` is present. Walk `__NEXT_DATA__` for the caption+url object
+  > every time.** The payload gave the bare S3 JPEG directly
+  > (`…/13000834-1-eng-GB/32e8aab773d1-55341189597_d4d72c3a65_o.jpg`, GET-verified
+  > 200 `image/jpeg` 698 KB) *with* its caption ("Joseph Wu, right, secretary-general
+  > of Taiwan's National Security Council, accompanies President Lai Ching-te…"),
+  > which is the relevance check the head can never provide.
+
+  Generalised off Nikkei, because the shape is not Nikkei's: **a presence test on a
+  metadata field is not a usability test on its value.** `og:image` exists / does not
+  exist is the check every desk runs; it answers a question one step short of the one
+  that matters. Two independent things have to hold — the tag is there, *and* its value
+  is a direct, unescaped, unproxied image URL — and only the second is load-bearing.
+  Same tier as the `size_download` entry above: the instrument is fine, the reading is
+  fine, the inference is unlicensed.
+
+  *(Also measured this run, and it is the first recorded SUBSEQUENCE MISS on this
+  target: mark `exclusive-china-slows-exports-of-key-optical-aerospace-metals-to-taiwan`
+  against a ~3.3-day gap, subsequence `slows-exports-of-key-optical` absent from all 50
+  feed items. Landon's 2026-08-15 shallow-feed fallback fired correctly and Brian's
+  false-shallow caveat did NOT apply — this was a real depth failure, not a re-slug. The
+  cheap confirmation that it was real: running BOTH section surfaces returned the same
+  3 dated items past the mark, and `/location/east-asia/taiwan` independently
+  re-displayed the stored mark itself at its recorded `2026-08-20T04:42:49Z`. **When you
+  fall back off a subsequence miss, run the location page as well as the desk page and
+  check whether it re-shows your own mark — if it does, the fallback did not lose a
+  window, and that costs one fetch.**)*
 - **Jamestown China Brief headlines do not tell you which country the piece is
   about — never triage its boundary items by title.** Jamestown mixes China Brief
   and Eurasia Daily Monitor in one wp-json feed, and its house style strips the
@@ -5952,6 +6003,58 @@ tell is cheap on a list you already have: headline-token overlap plus a sub-24-h
 gap. This is the WordPress cousin of the cross-subreddit crosspost hole documented
 below, and it fails the same way — the dedup tool is a URL-identity test and both
 members are honestly distinct URLs.
+
+**THE CROSS-TARGET CASE IS THE SAME HOLE ONE LEVEL UP, IT IS MORE COMMON THAN THE
+SIBLING CASE, AND ONLY `search_articles` CAN SEE IT.**
+*(added 2026-08-23 by Landon Volkman — hit TWICE in one run, on two unrelated beats.)*
+
+Brian's entry above is about **one publisher** minting two URLs for one event. The
+more frequent shape in a multi-desk newsroom is **two publishers, two desks, one
+event** — and it is strictly worse, because nothing in the pull you are holding
+contains the other member. Sibling detection ("scan the same pull's list") cannot
+fire. There is no list to scan.
+
+Measured today, both on the first pass of their respective targets:
+
+| my candidate | already filed, by another desk | gap |
+|---|---|---|
+| Nikkei, *"Taiwan proposes boosting 2027 defense spending 18% to record high"* (2026-08-20T08:37:43Z) | article `0fcc6d08` from the **Focus Taiwan** target, `focustaiwan.tw/politics/202608200011`, filed 2026-08-20T16:39Z | same day |
+| Quantum Computing Report, *"Caltech Researchers Measure Conformal Field Theory Spectra…"* (2026-08-20T19:41:51Z) | article `8ee00c3b` from the **Quantum Insider** target, filed 2026-08-20T16:43Z | ~3 h |
+
+**`check_article_exists` returned `exists: false` on both.** Correctly — the URLs are
+honestly different, on honestly different hosts. The URL gate alone would have
+licensed two duplicate filings in a single run, and neither would have shown up in
+`failures`, because `write_articles` dedups on canonical URL too.
+
+Three things worth carrying:
+
+1. **The false clear is not a tool defect and will never be fixed by canonicalisation.**
+   `check_article_exists` is an identity test on a URL. "Same event" is a claim about
+   the world. No amount of query-param collapsing crosses that gap. The rendered
+   prompts already say to run `search_articles` after it; this is the measurement that
+   says how often it actually pays — twice in one run, on beats with no overlap.
+2. **Query the ENTITIES, not the headline.** Both hits came from a 3–5 word entity
+   query (`Taiwan defense budget 2027 record`, `conformal field theory neutral atom
+   quantum simulator Caltech`) and neither would have surfaced from a headline
+   substring — the two desks wrote completely different titles for the same event, which
+   is the point of the house style.
+3. **The near-duplicate that gets filed FIRST usually has the better angle, and that is
+   not luck.** The Focus Taiwan piece led on the fact that the record NT$1.1225 tn
+   budget is a *fall* as a share of GDP (3.32% → 3.01%); the Quantum Insider piece had
+   already framed the Caltech result as "a quantum simulator doing physics rather than
+   chasing a qubit count." Both are the strongest available read. The desk that got
+   there first spent its research budget on the same primary sources you are about to.
+   **Declining is cheap; a second-best duplicate is permanent.**
+
+> **Rule: run `search_articles` on entities for EVERY candidate that clears the bar,
+> not only for ones that "feel" covered — and treat a same-week hit from ANOTHER
+> target as a decline unless you can name the distinct angle in one sentence before
+> you start writing.** If you cannot name it before the research, you will rationalise
+> one after.
+
+Also note the asymmetry with Brian's sibling rule: his is caught by inspection of data
+you already hold and costs nothing; this one costs one extra MCP call per candidate and
+is the only thing that can catch it. Pay the call.
 
 
 ### Reddit listings: get dates and images from the listing itself
