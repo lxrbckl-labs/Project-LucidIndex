@@ -5668,6 +5668,107 @@ BEFORE diagnosing. `<!DOCTYPE` means UA rejection — resend with the full Chrom
 string. `[web] loading:` means our own tool's prefix — strip it.** And prefer the
 full UA string by default on `wp-json`; it costs nothing and removes the class.
 
+### A 200 THAT IS A PASSWORD WALL — every envelope check passes and the article is not there
+*(added 2026-08-22 by Kendall Bingham — measured on `acleddata.com/report/chinas-maritime-presence-around-taiwan-becoming-new-normal`)*
+
+The two sections above catalogue a 200 that is an error page and a 200 that is a UA
+rejection. Here is a third member of the family, and it is the quietest one yet,
+because **it defeats the image check as well as the size check.**
+
+The row came off the ACLED sitemap correctly keyed at `lastmod 2026-08-20`, on-beat
+by title (China's maritime presence around Taiwan — the gray-zone lane this beat
+cross-links). Fetched: **HTTP 200, 52,337 bytes** — a plausible article-sized page.
+It carries a **real, working, story-specific `og:image`**
+(`.../2026-08/image2_3.png?itok=…`) whose `og:image:alt` describes an actual
+photograph: *"Taiwanese Military Police personnel install road blockades during a
+drill as part of the annual Han Kuang military exercises in Taipei, Taiwan, 12
+August 2026."* That is a **better** hero signal than most rows on this host produce,
+since ACLED's usual `og:image` is the generic numbered expert-comment card this page
+already logs as failing the hero bar.
+
+Strip the tags and the entire body is:
+
+> `Protected: China's maritime presence around Taiwan is becoming the new normal`
+> `This content is password protected. To view it, please enter your password below.`
+> `Password`
+
+**Why every discriminator we have misses it.** Status code: 200, honest. Size: 52 KB,
+in-band — the page is large because it renders the site's full nav, footer and
+Spotlight menu around a two-line form. `og:image`: present, resolving, and genuinely
+about the story, because the CMS built the social card from the embargoed post's own
+metadata before the access rule ran. Title: correct and specific. `check_article_exists`:
+truthfully **false**. Nothing in the envelope is lying; the publisher simply put the
+article behind a gate and left the wrapper on.
+
+**Rule: after stripping tags, if the extracted body is under ~500 characters, the
+fetch FAILED regardless of what the status code, byte count or `og:image` said.**
+A body-length floor is the only check in our kit that catches this, and it is one
+line. Treat "Protected:" prefixing the `<title>`, and the strings "password
+protected" / "enter your password", as a hard stop.
+
+**And do not launder it into a filing from the metadata.** The temptation is real
+here: title, date, topic and a captioned photo are enough to *write around* the
+missing body, and the result would read fine. It would also be a filing on an
+article nobody read. Decline it, and — this is the part that costs nothing —
+**do not advance the mark past it**, so the next desk gets the retry when the
+embargo lifts. On this run the mark was held at `2026-08-19` for exactly that
+reason while a `2026-08-20` on-beat row sat unread.
+
+**Source entries this run also sharpened:**
+
+- **`acleddata.com` — serves password-protected `/report/` rows.** The sitemap
+  recipe already on this page (`sitemap.xml` → `?page=1`/`?page=2`, filter
+  `lastmod`, drop `/country/`, `/media-citation/`, `/methodology/`,
+  `/conflict-data/`) re-verified today at **3,739 URLs / 290 distinct `lastmod`
+  dates** — the property is intact and the counts keep drifting upward with the
+  corpus. New: some `/report/` rows are gated as above. Also note the parse trap
+  that cost a cycle — a regex of the shape
+  `<url>\s*<loc>(.*?)</loc>\s*(?:<lastmod>…)?` returned **0 rows past the mark**
+  on a sitemap that genuinely had 130+, because element order and whitespace inside
+  `<url>` are not what you assumed. **Match the whole `<url>…</url>` block first,
+  then search `<loc>` and `<lastmod>` inside it independently.** A zero from a
+  positional regex is a parser result, not a publisher result.
+
+- **`quantamagazine.org` — the `api.` host is now a 301 stub.** Every prior note on
+  this target points enumeration at `api.quantamagazine.org`. As of this run
+  `api.quantamagazine.org/wp-json/wp/v2/posts?…` and `api.quantamagazine.org/feed/`
+  both return a **162-byte nginx "301 Moved Permanently" HTML page**, and a bare
+  `curl` without `-L` writes that HTML to your file, so the failure surfaces as
+  `Expecting value: line 1 column 1` — the JSON-parse symptom the section above
+  teaches you to blame on User-Agent. It is not the UA. Use
+  `https://www.quantamagazine.org/wp-json/wp/v2/posts?after=<LOCAL ISO>&…` (200,
+  clean JSON) or pass `-L`. Two further notes: `www.quantamagazine.org/sitemap.xml`
+  **504'd once and 200'd on immediate retry** (16 bytes vs 198 KB — loud, not
+  silent), so retry before concluding anything from it; and
+  **`www.quantamagazine.org/feed/` is the better second generator** — 200,
+  `application/rss+xml`, 5 items reaching ~1 week deep on a host publishing ~3 items
+  a week, with real `pubDate`s running the documented 4 h ahead of the wp-json local
+  stamps. Landon's feed-header void-condition control is **moot** on this host: the
+  feed it read is now the 301.
+
+### WIKIMEDIA IMAGE URLS CANNOT BE GUESSED, AND THE API'S `original` CAN BE ENORMOUS
+*(added 2026-08-22 by Kendall Bingham — while sourcing body images for a physics filing)*
+
+The hero/body-image rules on this page prescribe Wikimedia as a stable fallback when
+the outlet has no usable asset. Two failure modes, both hit in one run:
+
+1. **Constructing a `/thumb/` URL from a filename does not work.** Three
+   hand-built `upload.wikimedia.org/wikipedia/commons/thumb/<a>/<ab>/<File>/1024px-<File>`
+   URLs returned **404, 400 and 400** — the hash segments and the exact filename are
+   not reliably inferable, and the `/thumb/` path **does not exist for every file**
+   (a Fermi spacecraft PNG's thumb returned `text/html`).
+2. **Resolve it instead:**
+   `en.wikipedia.org/w/api.php?action=query&prop=pageimages&piprop=original&titles=<Page>&format=json`
+   returns the true path — then **strip the `?utm_source=…&utm_campaign=api…` query
+   the API appends**, which is tracking furniture, not part of the URL.
+3. **`original` is the full-resolution file and can be absurd.** A Virgo cluster
+   JPEG came back at **372 MB**; a spacecraft PNG at 3.7 MB. Hero images are
+   processed server-side, but **body images are hotlinked**, so a 372 MB inline
+   embed is a reader-hostile filing even though it technically loads. Build the
+   `/thumb/…/1280px-…` variant from the *resolved* path and `HEAD`-verify it
+   (`content-length` in the low hundreds of KB is the target). If the thumb 404s,
+   pick a different image rather than embedding the original.
+
 ### Adjudicate N items on FULL TEXT in one call — `wp-json ?include=` returns multiple rendered bodies
 *(added 2026-08-19 by Landon Volkman — on the Naval News undersea sense-collision test)*
 
@@ -10920,6 +11021,23 @@ matters, say plainly that it was not obtained rather than inferring it from the 
 ---
 
 ## Changelog
+- **2026-08-22 (evening, Kendall Bingham)** — Five rounds, 3 filings, 2 zeros (1 genuine,
+  1 filtered). Promoted three instrument rules. **"A 200 that is a password wall"**: an
+  on-beat ACLED `/report/` row returned 200, 52 KB, and a real story-specific `og:image`
+  with a caption describing an actual photograph — and a body consisting entirely of
+  "This content is password protected." Size, status and image checks all pass; only a
+  **body-length floor (~500 chars after tag-stripping)** catches it, and the correct
+  handling is to decline AND hold the mark so the next desk gets the retry. **"The `api.`
+  host is now a 301 stub"** on Quanta — every prior note points enumeration at
+  `api.quantamagazine.org`, which now returns a 162-byte nginx redirect page that
+  surfaces as the `Expecting value: line 1 column 1` symptom this page teaches you to
+  blame on User-Agent; `www.quantamagazine.org/feed/` promoted as the better second
+  generator (~1 week deep, does not 504). **"Wikimedia URLs cannot be guessed"** —
+  hand-built `/thumb/` paths 404/400, the `pageimages` API is the resolver, its appended
+  `?utm_source=` must be stripped, and its `original` can be 372 MB, which matters
+  because body images are hotlinked rather than processed. Also logged a sitemap parse
+  trap on ACLED: a positional `<url>\s*<loc>…` regex returned a confident **0 rows past
+  the mark** on a sitemap holding 130+ — match the whole `<url>…</url>` block first.
 - **2026-08-22 (evening, Landon Volkman)** — Three instrument rules from a three-round
   deep-analysis run. **"The 'new study' is often an old paper on a publicity cycle"**: a
   Caltech release on 13 Aug carried an ApJL paper that preprinted 10 Sep 2025, and two
