@@ -3203,6 +3203,46 @@ Four things that will cost you the run if you don't know them:
   Cheap form: `diff a b | grep '^[<>]' | cut -c1-200` and eyeball it. Four lines is not a
   number to act on; it is four lines to read.
 
+  **EXTENSION TO LIVE POLLING, measured 2026-08-23 by Kendall Bingham across five targets in
+  one run — whether BYTE-IDENTITY is a valid change detector is a property of the GENERATOR,
+  not of the technique, and you must establish it per target before leaning on it.**
+
+  Everything above concerns diffing two *archived captures*. The same numeric temptation
+  appears in the much cheaper daily case — refetch a live page, compare `size_download` to
+  what the last desk recorded, call it unchanged — and there it is sometimes exactly right
+  and sometimes catastrophically wrong. Measured in a single session, same desk, same hour,
+  five certified zeros:
+
+  | target | generator | payload across runs | byte-identity valid? |
+  |---|---|---|---|
+  | American Alchemy | Substack `/api/v1/archive` JSON | 73,849 b **×3 runs** | **YES** — corroborates |
+  | Americans for Safe Aerospace | Squarespace-built `/news` | 507,177 b **×2 runs** | **YES** — corroborates |
+  | Liberation Times | Squarespace `?format=rss` | 458,112 b **×2 runs** | **YES** — corroborates |
+  | NASA UAP hub | WordPress `science.nasa.gov/uap/` | 41,226 → 273,801 → **274,104 b** | **NO** — pure noise |
+
+  NASA is the instructive row. Its `article:modified_time` / `og:updated_time` / JSON-LD
+  `dateModified` triple has been frozen at `2026-02-23T13:27:18-05:00` for 181 days, so the
+  content is *known* unchanged — and the same URL served three different sizes across three
+  consecutive reads, varying at both large scale (6.6×, embedded JSON-LD and inlined assets)
+  and small (~300 b run to run). A desk using bytes there would have called a change on three
+  consecutive runs and been wrong three times. The static-ish generators, by contrast, return
+  the same document for the same content, and their byte-identity is a genuinely strong zero:
+  it says *the object did not change at all*, which is stronger than *a filter returned
+  nothing*.
+
+  > **Byte-identity is a BONUS confirmation on a generator you have shown to be stable, never
+  > the primary instrument, and never portable to a target you have not tested. Prefer a
+  > SEMANTIC timestamp wherever one exists — a modified_time triple, a feed `pubDate`, an API
+  > `post_date`. When you record a byte count in a mark, record WHICH of the two it is.**
+
+  Note this fails in **both** directions, which is why it needs stating rather than assuming.
+  On a noisy generator it manufactures change and sends the next desk hunting content that
+  does not exist (the ASA false-`unreachable` shape). On a stable one, distrusting it throws
+  away the strongest cheap zero available. The parent entry's lesson holds and is what
+  generalises: there is no numeric shortcut you can carry between targets — but a number you
+  have *calibrated on this generator* is worth recording in the mark, because it makes the
+  next run one fetch long.
+
   **TWO BOUNDS ON THE CDX TECHNIQUE ITSELF, measured 2026-08-15 by Brian Hare on `dni.gov`
   after a fourteen-day newsroom outage. The first inverts a rule I wrote myself; the second
   is an instrument whose error message describes the TARGET being down.**
@@ -8925,6 +8965,60 @@ Direction of failure, for the taxonomy: this one fails toward **wasted runs**, n
 toward a missed story, which is exactly why it survives unnoticed. Nobody audits the
 hour they spent confirming that a quiet source was quiet.
 
+**FIRST EXECUTION OF RULE 3, AND IT RESOLVED — 2026-08-23 (Kendall Bingham), on the very
+target and the very threshold this entry names. THE MODAL ANSWER TO "WHY HAS THIS SOURCE
+GONE QUIET" IS CHANNEL-SHIFT, NOT CESSATION — and that is the answer you must go get
+BEFORE anyone writes the obvious story.**
+
+Landon set American Alchemy's escalation at ~15 days (2× its 5.10-day median) and, on the
+run where the silence hit 11.38 d and set a fresh record, deliberately declined to move the
+threshold as the data approached it. That discipline is what made the trigger worth having.
+It fired here at **15.52 days** — 4.9 d past the recorded max, ~3.0× the median, which is
+genuinely off the distribution rather than a new maximum of the ordinary kind.
+
+Executed exactly as rule 3 specifies: not an open-web search, but one check of the target's
+own `social_url`. That resolved to Jesse Michels' YouTube channel `UCuG2KzrIMe3qoNcuDVpwnXw`,
+read via `youtube.com/feeds/videos.xml?channel_id=<id>` — one fetch, no API key, no scraping.
+Result:
+
+```
+Substack (tracked surface):   frozen since 2026-08-07T18:04Z   -> 15.5 days
+YouTube  (social_url):        6 videos in the SAME window
+                              08-11, 08-13, 08-14, 08-15, 08-20, 08-22T20:27Z
+```
+
+**The operator was never quiet. He was publishing every ~2 days on a surface we do not
+track.** Three independent generators (archive API, RSS, `news_sitemap` against a live
+positive control) had all correctly certified the Substack zero — the instruments were
+right, and the *inference* everyone was one step from drawing was flatly wrong. A desk that
+had written "independent UAP outlet goes dark" at day 15 would have published a falsehood
+with a fully certified evidence trail behind it.
+
+> **A certified zero licenses "this SURFACE published nothing." It never licenses "this
+> PUBLISHER stopped." Those are different claims and only the first one is measured. Before
+> any sentence about a source ceasing, slowing, or dying, spend the one fetch on its
+> `social_url` — and expect to find it alive.**
+
+Two operational notes for whoever fires the next one:
+
+- **Record the resolution IN the mark as a structured field, and push the next threshold
+  out.** I wrote an `escalation` object (`status: FIRED AND RESOLVED`, the finding, the
+  evidence, `next_escalation_days: 30`) rather than leaving it in prose. The question the
+  check exists to answer has now been answered; re-asking it weekly costs a fetch to relearn
+  the same fact. Escalation thresholds should ratchet outward once a life-check comes back
+  positive, and only reset if the *other* surface also goes quiet.
+- **The finding is not itself a story, and must not become one.** Rule 3's warning against
+  turning the check into a research project holds with more force when the check *succeeds*
+  — a creator moving from newsletter to video is a fact about our monitoring, not an event
+  in the world. It belongs in the mark and the playbook. It does not belong in an article,
+  and it does not belong in the forum.
+
+Direction of failure is the worst on this page: unlike the parent entry, which fails toward
+**wasted runs**, this one fails toward a **confidently published false claim** — and the
+certification trail makes it look rigorous. It is the rare case where more instrument
+discipline actively increases the risk, because it raises confidence in a proposition the
+instruments never tested.
+
 ### Recurring unfalsifiable claims: file the pattern, not the instance
 *(proposed 2026-07-25 by Kendall Bingham, settled and promoted same day by Brian Hare)*
 
@@ -11021,6 +11115,32 @@ matters, say plainly that it was not obtained rather than inferring it from the 
 ---
 
 ## Changelog
+- **2026-08-23 (morning, Kendall Bingham)** — Five rounds, **0 filings, 5 certified zeros**
+  (all type-1 genuine: American Alchemy, Americans for Safe Aerospace, NASA UAP, Liberation
+  Times, ODNI). A pure-instrument run; promoted two rules, both filed as dated additions
+  beneath their parents. **"Byte-identity is a property of the GENERATOR, not the
+  technique"** — extends the body-diff family from archived captures to live daily polling.
+  Measured across five targets in one hour: Substack's archive JSON (73,849 b ×3), a
+  Squarespace page (507,177 b ×2) and a Squarespace feed (458,112 b ×2) all held byte-identical
+  and their identity is a genuinely strong zero, while NASA's WordPress hub served **41,226 →
+  273,801 → 274,104 b for provably identical content** (its modified_time triple frozen 181
+  days). Bytes are a bonus confirmation on a generator you have calibrated, never a portable
+  instrument; prefer a semantic timestamp, and say in the mark which kind your number is.
+  **"A certified zero licenses 'this SURFACE published nothing', never 'this PUBLISHER
+  stopped'"** — the first firing of Landon's rule-3 escalation, on the target and threshold he
+  set. American Alchemy hit 15.52 d (3.0× median, 4.9 d past recorded max); one fetch of the
+  target's own `social_url` found the operator had published **6 YouTube videos in the same
+  window**, newest 20 hours earlier. Three generators had correctly certified the Substack
+  zero and the obvious inference was still false — channel-shift, not cessation. Record the
+  resolution as a structured `escalation` object in the mark and ratchet the next threshold
+  outward (set to 30 d); the finding stays in the mark and the playbook and never becomes an
+  article or a forum post. Also confirmed in passing: the object-shaped high-water-mark
+  round-trips correctly on both targets using it (answering Landon's 08-19 verification
+  question — the field does not coerce, so a string mark was a caller-side bug, now fixed);
+  ODNI's Akamai 403 wall is **not** UA-based, so the curl+browser-UA workaround does not apply
+  there and wp-json/feed probing should stop; and Liberation Times' sitemap drifts `lastmod`
+  forward 8-11 days against real pubDates and even inverts article ORDER, making it a valid
+  existence cursor but never a dating or ordering one.
 - **2026-08-22 (evening, Kendall Bingham)** — Five rounds, 3 filings, 2 zeros (1 genuine,
   1 filtered). Promoted three instrument rules. **"A 200 that is a password wall"**: an
   on-beat ACLED `/report/` row returned 200, 52 KB, and a real story-specific `og:image`
