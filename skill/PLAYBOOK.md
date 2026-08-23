@@ -2538,6 +2538,72 @@ in the structured fields. Flagged to Alex in the run report. No superseding fili
 comparison work is visible to a reader in the body, so this embarrasses the desk rather than
 misleading anyone.
 
+**A FIFTH AXIS, AND IT DEFEATS THE FOURTH'S REMEDY BY SATISFYING IT PARTWAY: I READ THIS
+SECTION DURING THE RUN, FOR A DIFFERENT QUESTION, AND STOPPED AT THE ANSWER — THEN SHIPPED
+THE SAME TWO KEYS.** *(Landon Volkman, 2026-08-23, on an r/HighStrangeness pull; rows
+`e4907d2f` and `70945690`, both live with hero, body images, badges, opinion and a
+cross-examined deep dive, both with **no `cross_source` and no `citations`**.)*
+
+The 08-20 entry above diagnoses "the rule was never loaded" and prescribes: grep for
+`INSERT-ONLY` and **read from there to `### Hero images`**. I ran that grep. Mid-round I
+wanted to know whether I could split a two-article filing across two `write_articles`
+calls, found this section, read `sed -n '2321,2360p'` — and stopped, because my question
+was answered at line ~2340, forty lines in. The prescribed range is ~220 lines. I read the
+irreversibility rule and never reached the read-back it exists to justify.
+
+So the fourth axis's remedy has a **range**, and a range is only enforced by whatever made
+you open the section. Enter it with a question and you exit at the answer:
+
+| axis | the section was… | what failed |
+|---|---|---|
+| 1–3 | in hand, read in full | execution |
+| 4 | never retrieved | retrieval |
+| **5** | **retrieved and read in part, for an unrelated question** | **termination** |
+
+And the direction is this page's usual bad one, one turn worse than the 07-29 note: a
+*partial* read produces the same "I consulted the write-payload doctrine" confidence as a
+complete one, while carrying none of the checklist. Having opened the file is the thing
+that tells you you are safe.
+
+**The second half is the part that generalises, because it explains why every instance of
+this failure — Nikkei, ZuriQ, Jamestown ×2, and now these two — is THE SAME TWO KEYS.**
+That is five filings across three desks and it has never once been a different field. The
+reason is structural, not habitual:
+
+> `write_articles`'s schema `required` array is
+> `[source_url, title, summary, significance, difficulty, hero_image_url]`.
+> `cross_source` and `citations` are **not in it**. They are mandated by the
+> **`rendered_prompt`**, which is a different document, held in a different place, that the
+> server does not enforce.
+
+A read-back "against the field list" is therefore ambiguous about *which* list — and the
+schema's is the one that is machine-readable, sitting in the tool definition you just used,
+and returns `failures: []` to confirm you were right. The editorial list is prose in the
+pull response you read twenty minutes earlier. **The more schema-literate the desk, the more
+reliably it checks the wrong list**, and the server's green result certifies the omission.
+Every other rule on this page about our own payload counts keys against the schema; this is
+the one place the schema is not the authority.
+
+> **Read the object back against the RENDERED PROMPT, not the schema. Concretely: before the
+> call, re-read the pull's own instruction line — mine said "Submit those sources in
+> `cross_source`" and "add formal `citations`" — and confirm each named field is present in
+> the serialised payload. `accepted: N, failures: []` is the schema's verdict on the schema's
+> list; it is silent on the editorial one, which is where all five known losses live.**
+
+Cheap corollary, since the set is now closed and small: **`cross_source` and `citations` are
+the only two fields that are editorially mandatory and schema-optional, so they are the whole
+of the exposure.** A desk that checks nothing else can check those two by name in a second and
+close the entire documented failure mode. If a beat legitimately has neither — the community
+and aggregator targets do produce genuine empties, per the closed-vocabulary rule below — send
+`citations: []` deliberately rather than by omission, so the absence is a decision on the
+record instead of a silence indistinguishable from this bug.
+
+Recorded honestly per rule 4: on the two rows above the comparison work *was* done and is
+visible to a reader inside the deep dives (The Debrief, the *Jerusalem Post*'s May 2025 round,
+Collins & Fasold 1996, the PHMSA final report; the Bongiovanni archive, *I Nuovi Vespri*, the
+Alien Archivist Substack) — it simply is not in the structured fields. Flagged to Alex in the
+run report. No superseding filing: this embarrasses the desk rather than misleading a reader.
+
 ### Hero images
 - Every article **requires** a `hero_image_url` clearly related to the story
   (its OG/lead image or another on-topic photo) — `write_articles` rejects an
@@ -11598,6 +11664,23 @@ an item on its headline, and this is the concrete number to quote when someone c
 ---
 
 ## Changelog
+- **2026-08-23 (Landon Volkman, deep-analysis desk, afternoon run)** — 1 round,
+  **2 filings** off r/HighStrangeness (the Durupınar "EarthRadar" press release; the 1972
+  Adoniesis contactee photograph). Promoted **a FIFTH axis to the write-payload section**,
+  by shipping the failure: I *did* retrieve the `INSERT-ONLY` section mid-round — for the
+  unrelated question of whether a two-article filing can be split across two calls — read
+  forty of its ~220 lines, got my answer, and stopped short of the read-back. So the 08-20
+  remedy has a **range**, and a range is enforced only by whatever made you open the
+  section; a partial read manufactures the same "I consulted the doctrine" confidence as a
+  complete one. Second half is the part that generalises: all five known instances of this
+  failure across three desks are **the same two keys**, because `cross_source` and
+  `citations` are the only fields that are **editorially mandatory and schema-optional** —
+  the schema's `required` array omits them, so a read-back "against the field list" checks
+  the machine-readable list and the server returns `failures: []` certifying the omission.
+  New rule: **read the object back against the RENDERED PROMPT, not the schema**, and treat
+  those two keys as the whole of the exposure. Affected rows `e4907d2f` / `70945690` are
+  live with full heroes, body images, badges and cross-examined deep dives but no
+  structured cross-sources or citations — flagged to Alex, no superseding filing.
 - **2026-08-23 (Kendall Bingham, fast news desk, evening run)** — 5 rounds,
   **1 filing, 4 certified zeros** (all type-1 genuine). Promoted three entries. **(1) A
   RETRACTION**: `newsnationnow.com` article pages are *not* blocked — `curl` with a full
