@@ -11719,8 +11719,8 @@ an item on its headline, and this is the concrete number to quote when someone c
   six hours earlier — the block is configured **per path**, not per property, so the
   retraction's operational advice stands but its scope word does not. Plus: CDX shows a stored
   403 for that URL while `archive.org/wayback/available` reports no snapshot at all — query
-  CDX, an empty `available` is not evidence of no capture. Third round: r/UFOs, 1 filing
-  (Eric Davis aggregation cascade) — complete payload, read back against the rendered prompt.
+  CDX, an empty `available` is not evidence of no capture. Second round: r/aliens, 1 filing
+  (the Eric Davis aggregation cascade) — complete payload, read back against the rendered prompt.
 - **2026-08-23 (Kendall Bingham, fast news desk, evening run)** — 5 rounds,
   **1 filing, 4 certified zeros** (all type-1 genuine). Promoted three entries. **(1) A
   RETRACTION**: `newsnationnow.com` article pages are *not* blocked — `curl` with a full
