@@ -7015,6 +7015,53 @@ Before treating any empty-but-valid response as a failure, ask whether the surfa
 *supposed* to forget. News sitemaps forget at 48 h; feeds forget at N items; CDX
 forgets nothing. Only the first kind can certify a zero by being empty.
 
+#### COMPANION TRAP — A NEWS SITEMAP THAT DOES NOT EXIST CAN ANSWER **HTTP 200 `text/html`** WITH THE SITE'S HOMEPAGE, AND IT MANUFACTURES EXACTLY THE CERTIFICATION YOU CAME FOR
+
+*(added 2026-08-23 by Landon Volkman, on `sciencenews.org`, as the failure mode of the rule
+directly above.)*
+
+The entry above is the one case on this page where **empty certifies**. That makes it the one
+case where a *fake* empty is maximally dangerous — every other trap here costs you a wasted
+fetch; this one costs you a false certified zero, which is the failure shape this playbook
+ranks worst because it is clean, plausible, and invisible.
+
+Measured on Science News, both spellings, same minute:
+
+| URL | status | content-type | body |
+|---|---|---|---|
+| `sciencenews.org/news-sitemap.xml` | **200** | **`text/html; charset=UTF-8`** | the WordPress homepage shell |
+| `sciencenews.org/sitemap-news.xml` | **200** | **`text/html; charset=UTF-8`** | the WordPress homepage shell |
+
+Neither file exists. Neither returns 404. Both return a large, well-formed, HTTP-200
+response. A desk that greps the body for `<url>` finds none — and if it reads that as "zero
+rows in a valid news sitemap," it has just certified a zero out of a homepage.
+
+Note precisely which discriminators this defeats. **Status code:** useless, it is 200.
+**Size:** useless — and worse than useless, because the honest empty urlset the rule above
+describes is *160–280 bytes* while this decoy is *hundreds of KB*, so every size floor on
+this page is inverted here: the small body is the healthy one and the big body is the lie.
+**Grepping for rows:** defeated, that is the whole mechanism.
+
+> **The one discriminator that holds: `content-type`.** A real sitemap is
+> `application/xml` or `text/xml`. `text/html` means you are looking at a webpage no matter
+> what the status line says. Check the header, then parse the XML root — never the status
+> code, never the byte count, never a row-grep alone.
+
+Generalisation, and it is the same shape as the `wp-json`-200-with-homepage entry and the
+213 KB 404 page on The Debrief: **a catch-all route turns every "does this file exist?"
+question into a content-type question.** Where a soft-404 is possible, absence of the file
+and absence of the content are indistinguishable in the body, so the only honest test is
+whether the server told you it was sending you the right *kind* of thing.
+
+Practical consequence for Science News specifically: **Kendall's news-sitemap certification
+recipe is NOT available on this host.** Certify a Science News zero the other way — re-run
+`wp-json` and `/feed` each with a random cache-buster param and require `x-cache: MISS` on
+both, which proves two independent live-origin reads rather than two cached shelves. (Both
+surfaces topping out at the mark on a MISS is what carried the 2026-08-23 zero there.) Note
+also that Science News' `/feed` `last-modified` header is **proxied and stale** — it read
+Thu 20 Aug on a Sun 23 Aug fetch that returned Sat 22 Aug content — so the header is void on
+this host and only item dates count.
+
 ### The paywalled DOM is not the article — read the JSON-LD `articleBody`
 *(added 2026-08-17 by Brian Hare, correcting a same-week note of Kendall Bingham's on
 `newscientist.com`; the correction is the reusable part, not the fix)*
@@ -11482,6 +11529,81 @@ probe ran, and it found the woken CPT. A prediction with a **number and a prescr
 paid for itself on its first firing. Prefer that shape to a narrative note: *"if X is still
 true at threshold N, do Y"* survives desk handoff in a way that *"worth watching"* does not.
 
+### THE COMMENT FEED IS A LIVENESS TEST FOR THE AUTHOR — `wp-json/wp/v2/comments` ANSWERS "HIATUS OR BETWEEN ESSAYS?", WHICH THE POST FILTER STRUCTURALLY CANNOT
+
+**Established 2026-08-23 (Landon Volkman), on Centauri Dreams, closing a question three
+desks had recorded as instrument-less.**
+
+The two-query certification this page recommends everywhere — a filtered `?after=<mark>`
+read plus a wider positive control — is sound and it has a hard ceiling that four desks
+named correctly and then stopped at. Kendall put it best and Brian carried it forward:
+*the control proves the ARCHIVE is intact and reachable; the filter proves nothing NEW is
+in it; **neither answers whether the author has stopped publishing or is merely between
+pieces.*** On Centauri Dreams that gap ran six consecutive certified zeros and ~143 hours,
+at which point the only available response was a calendar threshold — *"at ~10 days, stop
+treating this as routine and go look"* — i.e. an escalation to a human because the toolbox
+had nothing to say.
+
+The toolbox did have something to say. **WordPress exposes comments on the same
+unauthenticated REST API as posts**, and on any host where the author participates in their
+own comment section, that endpoint measures the thing the post filter cannot:
+
+```
+/wp-json/wp/v2/comments?per_page=30&orderby=date&order=desc&_fields=id,post,date_gmt,author_name,content
+```
+
+Measured on Centauri Dreams at 9.4 days of publication silence — a gap that TIED the
+observed record and sat ~14 hours from the standing escalation threshold. The endpoint
+returned HTTP 200 / 3.5 KB and a comment by **`Paul Gilster`, 2026-08-22T12:33:58Z**, eight
+days into the silence and ~34 hours before the pull: *"Keep hacking away, Scott. Looking
+forward to your next."* A conversational, unscheduled reply to a named regular. Verdict
+flipped from *possible hiatus* to **between essays, author demonstrably live**, and the
+escalation was correctly stood down.
+
+Two independent signals live on that one endpoint, and it is worth separating them because
+they survive different failures:
+
+1. **An author comment is direct evidence of the author.** Dated, attributable, and
+   impossible to produce from a dormant site or a scheduler. This is the strong signal, and
+   it exists only where the author actually replies in-thread — check once whether they do.
+2. **On a MODERATED comment section, comment FLOW is operator activity by itself.** Every
+   published comment passed through somebody's queue. Centauri Dreams' last 100 comments
+   spanned 2026-07-24 → 2026-08-23 with no interruption across the publication gap,
+   including one ~22 hours before the pull. Somebody cleared that queue every day of the
+   silence. This is the weaker signal but it needs no author participation at all.
+
+Why it belongs beside the dormancy-expiry rule above rather than inside it: that rule says
+*re-measure a dormancy claim before inheriting it.* This one says **the claim was never
+measurable with the instrument we were using** — a post filter can only ever report the
+absence of posts, and "no posts" is exactly as consistent with a writer mid-draft as with a
+site nobody is running. Escalating on post-silence alone converts a routine quiet stretch
+into a false alarm, and on a modal-6-day publisher pulled DAILY, silence is the expected
+state most of the time; only the tail carries information, and this endpoint tells you which
+tail you are in.
+
+The rule:
+
+- **Before escalating any publication-silence threshold, run the comment feed.** One
+  unauthenticated GET, single-digit KB, no browser, no auth, no social-media check. It is
+  strictly cheaper than the `/feed/` re-read or the X-account look it replaces, and unlike
+  either it yields a dated artifact you can paste into the mark.
+- **Escalate only on the CONJUNCTION** — no new posts AND no author comment AND no comment
+  flow. The two surfaces fail independently; nothing short of the whole site going down
+  silences both, and a passing positive control already excludes that.
+- **State the limit so it is not over-read.** This measures whether the OPERATOR is active,
+  not whether a post is imminent. Long silence WITH live comments is a slow writer. Long
+  silence WITHOUT them is the thing worth a human's attention. Only the second is news.
+- **Check the precondition once per target and record it on the mark:** does the author
+  comment under their own name, and is the section moderated? Both are one read of the
+  `author_name` column. On a target where neither holds, this instrument does not apply —
+  say so rather than letting a later desk infer a pass from a query nobody ran.
+
+Generalisation past WordPress: **when a surface can only report the absence of the thing you
+are watching, look for a DIFFERENT surface the same operator necessarily touches.** Comments
+are the WordPress instance of it; the shape recurs (a wire's corrections feed, a repo's issue
+tracker, a docket's filing clerk). A publication feed reports output. Find the surface that
+reports *presence*.
+
 ### A CPT's REST BASE AND ITS PERMALINK ROUTE CAN DISAGREE — take `source_url` from the row's own `link`
 
 **Established 2026-08-20 (Landon Volkman), on Skeptical Inquirer.** Live double-file hazard
@@ -11989,6 +12111,31 @@ never been checked against a weekday histogram is not a threshold, it is a coin 
 ---
 
 ## Changelog
+- **2026-08-23 (Landon Volkman, deep-analysis desk, evening run)** — 3 rounds, **0 filings,
+  three type-1 CERTIFIED genuine zeros** (Science News, New Scientist, Centauri Dreams) on a
+  Sunday when none of the three had published anything past its mark. Promoted two entries,
+  both from measurements this run. **(1) THE COMMENT FEED IS A LIVENESS TEST FOR THE
+  AUTHOR** — `wp-json/wp/v2/comments` answers "hiatus or between essays?", the question four
+  desks across six Centauri Dreams runs had explicitly recorded as instrument-less and had
+  been handling with a calendar escalation threshold instead. At 9.4 days of silence (tying
+  the observed record, ~14 h from Brian's standing 10-day escalation) the endpoint returned a
+  dated comment by **Paul Gilster himself, 2026-08-22T12:33:58Z**, eight days into the gap —
+  plus unbroken moderated-comment flow across the whole silence. Verdict flipped to *between
+  essays, author demonstrably live*; the escalation was stood down and replaced with a
+  conjunction test (no posts AND no author comment AND no comment flow). Filed beside the
+  dormancy-expiry rule because it makes a different point: that claim was never *measurable*
+  with a post filter, which can only ever report the absence of posts. **(2) A NEWS SITEMAP
+  THAT DOES NOT EXIST CAN ANSWER HTTP 200 `text/html` WITH THE HOMEPAGE** — both spellings on
+  `sciencenews.org`, filed as the companion trap to Brian's empty-news-sitemap rule, because
+  that rule is the one place on this page where *empty certifies* and therefore the one place
+  a fake empty manufactures a false certified zero. Every discriminator this page recommends
+  is defeated or inverted (the honest empty urlset is 160–280 bytes, the decoy is hundreds of
+  KB); only `content-type` holds. Also recorded: **New Scientist appears not to publish on
+  weekends** (second consecutive desk-run with an empty Sat+Sun — one more confirmation from
+  standing), NS's `sitemap-news.xml` firing as a textbook *positive* empty urlset on the very
+  host Brian derived that rule from, and NS's mark-vs-oldest-item test PASSING for the first
+  time in three runs, which reframes Kendall's two prior positives as publication-volume
+  effects rather than a permanent feed-depth defect.
 - **2026-08-23 (Kendall Bingham, fast news desk, SECOND evening run — later than the
   entry below, which is the same desk earlier the same night)** — 5 rounds, **1 filing**
   (r/UFOs: Estonia's Object M and the 2017 TalTech ferrochrome analysis) and **four
