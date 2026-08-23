@@ -6283,6 +6283,52 @@ path. **Verify a target's stored photo the first time you draw a target, and whe
 in the run report so the operator can clear it in the dashboard** — silently ignoring it leaves a
 coverless author card that no future run will ever fix.
 
+**EXTENDED 2026-08-23 by Brian Hare — it is NOT an r/UFOs quirk and it is NOT one
+mechanism. FOUR of four targets drawn in a single run shipped a dead
+`target_photo_url`, across TWO hosts with TWO different causes, and the live
+replacement for every one of them is recoverable in a single fetch.** The entry
+above reads as a Reddit-rotates-its-icons story, which under-scopes it: the same
+morning, the NewsNation pull shipped a **Wikimedia** URL that 404s, and Wikimedia
+does not rotate filenames. Measured (full Chrome UA, so not the short-UA trap):
+
+| target | stored `target_photo_url` | result | live replacement (verified 200) |
+|---|---|---|---|
+| r/UFOs | `styles.redditmedia.com/t5_2xvxi/…communityIcon_5s296m5p2ky61.png` | 404 / 13 b | `https://b.thumbs.redditmedia.com/7q2BdtXeRy0lHyMAF6fslaZnUdbUQfFOtBqlXcVESXk.jpg` |
+| r/aliens | `styles.redditmedia.com/t5_2qh1o/…communityIcon_yor1mh551pg21.png` | 404 / 13 b | `https://b.thumbs.redditmedia.com/MguLVMj6FNg_wCz6ZVexDjbLdKulK6sI6-gz1576dKE.png` |
+| r/HighStrangeness | `styles.redditmedia.com/t5_32l735/…communityIcon_fqo4nbbfwxb51.png` | 404 / 13 b | `https://b.thumbs.redditmedia.com/Rl0CShmoXgzBpCp6HF56g0hcv5k6N7d61OnEX8w6_Vo.png` |
+| NewsNation UFO | `…/thumb/5/5e/NewsNation_Logo_2024.svg/1280px-NewsNation_Logo_2024.svg.png` | 404 / HTML | `https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/NewsNation_logo.svg/1280px-NewsNation_logo.svg.png` |
+
+Two causes, and telling them apart matters because only one of them will keep
+recurring. The three Reddit rows are **rotation** — the icon genuinely moved, the
+stored value was correct when written. The NewsNation row is a **guessed
+filename**: `NewsNation_Logo_2024.svg` does not exist on Commons and by the look of
+it never did; the real file is `NewsNation_logo.svg`, lowercase `logo`, no year.
+That is the "WIKIMEDIA IMAGE URLS CANNOT BE GUESSED" rule from the hero-image
+section reappearing in the *profile* field, where write-once makes it permanent
+instead of merely wrong for one article. **A guessed Commons filename in a
+write-once field is the worst of both rules composed.**
+
+The recovery, and it is cheap enough that there is no excuse for reporting a dead
+photo without one:
+
+- **Reddit community targets** — `about.json` 403s, but the listing `.rss` you are
+  already fetching carries the answer in its header, before the first `<entry>`:
+  ```bash
+  python3 -c "import re;d=open('sub_new.xml').read();h=d.split('<entry>')[0];print(re.findall(r'<logo>(.*?)</logo>',h))"
+  ```
+  Take `<logo>` (a `b.thumbs.redditmedia.com` URL, the real community icon), **not**
+  `<icon>` — `<icon>` is the generic `redditstatic.com/icon.png/` Reddit wordmark on
+  every subreddit and is useless as an author card.
+- **Publisher targets** — resolve the Commons filename through the API's
+  `generator=search` rather than reconstructing a path (`action=query&
+  generator=search&gsrsearch=<name>+logo&gsrnamespace=6&prop=imageinfo&iiprop=url`).
+
+So the reporting rule tightens: **verify every stored photo the first time you draw
+a target, and when it 404s, report the dead URL AND the verified live replacement**
+— an operator clearing a field wants the value to paste, not a bug report. And do
+not stop at the first one: this run found four in four, so a dead photo is the base
+case on this fleet, not the exception.
+
 
 ### Two more ways a feed lies while returning HTTP 200
 *(added 2026-07-25 by Landon Volkman — proven on Naval News, FAS, TeleGeography)*
