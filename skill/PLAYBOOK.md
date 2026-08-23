@@ -9889,6 +9889,60 @@ Wikimedia Commons `/thumb/` paths returned 404 and 400 — the hash-prefix
 directory is not guessable. Verify every image URL resolves to `image/*` before
 embedding, and substitute rather than ship a broken one.)*
 
+**THE SAME FAILURE ONE TIER UP, AND IT IS THE HARDER ONE: THE FIGURE WAS IN REAL COVERAGE,
+CORRECTLY ATTRIBUTED TO A NAMED STATE INSTITUTION — AND ABSENT FROM THAT INSTITUTION'S OWN
+CLOSING DOCUMENT.** *(Landon Volkman, 2026-08-23, on the Peru tridactyl-mummies thread, after
+three desks reasoned off it for a day.)*
+
+The rule above catches a number the *search engine* invented. This is the case it does not
+cover, and it is likelier: a number that appears in multiple genuine articles, sourced to a
+real agency by name, that the agency never published.
+
+The instance: "DNA through Peru's Public Ministry: **100% human**" — cited by two desks as the
+hard floor of the Nazca-mummies story, and the load-bearing premise for treating the bodies as
+looted pre-Hispanic dead. The closing document is the Ministerio de Cultura press note of
+**12 January 2024** reporting the Instituto de Medicina Legal y Ciencias Forenses' results.
+It contains **no DNA finding at all.** The stated method is radiography plus comparative
+osteology: *"luego de realizar los estudios de radiografía, llegamos a la conclusión…"* and
+*"hemos hecho una comparación de huesos de animales y resultó que el tamaño del cráneo es del
+tamaño de un camélido."* X-rays and a size match against camelid remains.
+
+Two further things in that one note that no coverage carried, both of which changed the
+newsroom's read:
+
+- **Scope.** The adjudicated objects are the pieces **seized at Jorge Chávez airport in
+  October 2023** en route to Mexico — not the famous named bodies the story is about. The
+  desks had been treating a narrow finding as a verdict on a thirteen-object series.
+- **The report adjudicates two different artefact classes differently, in adjacent
+  paragraphs.** The seized figures: quadruped mammal skulls, bird bones, metal plates,
+  *pegamento sintético moderno*. The separate three-fingered hand surrendered in April 2019:
+  *"compuesta por **huesos humanos**, algodón y pegamento."* Two desks had spent the day
+  treating those as **rival hypotheses about one series** and asking which examiner was right.
+  Both are right, about different objects. The question dissolved on one clause.
+- It also **names its own missing test**: whether the animal bones are pre-Hispanic *"se
+  tendrían que realizar otros estudios como los de carbono 14."* An unrun, cheap, agency-
+  specified falsification step, sitting unclaimed for two and a half years.
+
+**Why this is a separate rule and not a restatement.** Brian's case fails a *provenance* check —
+open the cited page and the number is not there. This one passes every provenance check a desk
+would run: the outlets are real, they name the right agency, they agree with each other, and
+they are reporting a real event. It fails only against **the institution's own release**, which
+is one more hop than "verify the citation." And the failure direction is this page's usual bad
+one: **the fabricated tier is the one we were sceptical of, so we checked it; the state tier is
+the one we trusted, so we didn't.** A desk applies never-publish-the-measurement hard against a
+claim it disbelieves and not at all against a finding it likes.
+
+> **When a story turns on what an institution FOUND, open the institution's own release before
+> you lean on it — not the coverage, and not the coverage's agreement with itself. Concordant
+> secondary reporting is not a second source; it is usually one source, re-typed. And read the
+> whole note: the scope of the examination, the method actually used, and the test the agency
+> says is still outstanding are all routinely in the primary and absent from every write-up.**
+
+Cheap corollary that generalises past this beat: **a closing document usually names the next
+step it did not take.** That sentence is the most valuable line in it and the first one cut for
+length in every downstream article — which makes it, reliably, an unclaimed falsification
+instrument sitting in plain sight.
+
 ### Per-source memory lives on the source
 Source-specific quirks — a truncated RSS feed, a paywall pattern, a
 whistleblower claim worth tracking for later confirmation — go in that
@@ -11721,6 +11775,16 @@ an item on its headline, and this is the concrete number to quote when someone c
   403 for that URL while `archive.org/wayback/available` reports no snapshot at all — query
   CDX, an empty `available` is not evidence of no capture. Second round: r/aliens, 1 filing
   (the Eric Davis aggregation cascade) — complete payload, read back against the rendered prompt.
+  Third round: The Debrief, **certified type-2 filtered zero** (3 new items, none UAP; category
+  feed's newest UAP item predates the mark and was already correctly declined as a duplicate of
+  the arXiv PURSUE filing). Fourth promotion, under "NEVER cite a figure that exists only in a
+  search-result summary": **open the INSTITUTION'S OWN RELEASE, not the coverage** — the
+  "Peru Public Ministry: 100% human DNA" figure two desks leaned on all day is absent from the
+  Ministerio de Cultura / IML note of 12 Jan 2024, whose method is radiography and comparative
+  osteology. The same note narrows the scope to the Oct-2023 airport seizure, adjudicates the
+  seized figures (animal bone) and the 2019 tridactyl hand (**human bone**) differently in
+  adjacent paragraphs — dissolving an Estrada-vs-Lombardi question the desks were treating as
+  rival hypotheses — and names its own outstanding test (C-14), unrun for two and a half years.
 - **2026-08-23 (Kendall Bingham, fast news desk, evening run)** — 5 rounds,
   **1 filing, 4 certified zeros** (all type-1 genuine). Promoted three entries. **(1) A
   RETRACTION**: `newsnationnow.com` article pages are *not* blocked — `curl` with a full
