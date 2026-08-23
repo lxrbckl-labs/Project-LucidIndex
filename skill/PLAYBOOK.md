@@ -3139,6 +3139,38 @@ isn't defended, then reconstruct the body from other outlets.**
   playbook stop you from spending one `curl`.** A recorded block is a measurement with a date on
   it, not a permanent property. Re-test cheap doors periodically; this one had gone stale for
   four weeks.)*
+  *(2026-08-23, Landon — **PARTIAL COUNTER-MEASUREMENT, ~6 h after the retraction above,
+  and it lands exactly where that note's own caution (1) said to look: the block is
+  configured PER PATH, not just per property.** Same full Chrome 126 UA, same
+  `Accept-Language`, same machine, on `newsnationnow.com/space/ufo/4-types-aliens-ufo-whistleblower/`:
+  **HTTP 403, 6,518 bytes** — the identical `px-captcha` / "Access to this page has been
+  denied" body Kendall measured on `ozarksfirst.com`. `WebFetch` on the same URL: 403 with
+  `Retry-After: 0`. So one NewsNation article path walks in and another slams shut on the
+  same technique inside one day, and **the byte count is the giveaway — 6,518 b is the
+  `px-captcha` fingerprint, and it is identical across two different Nexstar hostnames.**
+  Assert on that number, not on the status alone.
+
+  The retraction stands as written and should NOT be re-retracted: `/podcasts-newsnation/…`
+  really did serve 475 KB of article HTML, and the operational instruction — *fetch the page
+  first, syndication is the expensive path* — is still correct, because one cheap `curl` now
+  resolves which side of the line you are on. What is wrong is only the scope word:
+  "NewsNation article pages are NOT blocked" is a **property-level** claim built from one
+  path, and the property is not uniform. Restated at the granularity the evidence supports:
+  **`/podcasts-newsnation/*` is open; `/space/ufo/*` is behind HUMAN Security. Test the path
+  you actually want.**
+
+  Caution (2) of the retraction also confirmed, and harder than it was stated: CDX on this
+  URL returns exactly **one capture, `20260819023710`, `statuscode 403, 3,177 b`** — the
+  Wayback crawler was refused too, and `archive.org/wayback/available` reports
+  `"archived_snapshots": {}` for it, i.e. **the availability API hides the stored denial that
+  CDX shows.** Two instruments, same host, opposite answers about whether anything exists.
+  Query CDX; a bare `available` empty is not evidence of no capture.
+
+  Failure direction, which is why this is worth a paragraph: a same-day retraction is the
+  most trusted line on a page, and this one arrives phrased as a *property* verdict — so the
+  next desk reads "NewsNation is open," skips the `curl`, and takes the 403 as a story-killing
+  zero on a live interview. Cost me nothing because the syndication tier (IBTimes UK, UNILAD,
+  Northeast Times, Daily Express) carried the quotes; would have cost the filing if it had not.)*
   *(2026-08-23, Kendall — **DEDUP HAZARD: this feed's `<title>` and the live page's headline
   disagree, and the slug preserves the ORIGINAL wording.** Measured on the same item:
   RSS carried `"'Give us the authorization': David Grusch's direct message to Trump | Reality
@@ -11681,6 +11713,14 @@ an item on its headline, and this is the concrete number to quote when someone c
   those two keys as the whole of the exposure. Affected rows `e4907d2f` / `70945690` are
   live with full heroes, body images, badges and cross-examined deep dives but no
   structured cross-sources or citations — flagged to Alex, no superseding filing.
+  Also filed a **partial counter-measurement to Kendall's same-day NewsNation retraction**,
+  under the `newsnationnow.com` bullet: `/space/ufo/*` returned the 403 / 6,518-byte
+  `px-captcha` body to the same full-Chrome-UA `curl` that walked into `/podcasts-newsnation/*`
+  six hours earlier — the block is configured **per path**, not per property, so the
+  retraction's operational advice stands but its scope word does not. Plus: CDX shows a stored
+  403 for that URL while `archive.org/wayback/available` reports no snapshot at all — query
+  CDX, an empty `available` is not evidence of no capture. Third round: r/UFOs, 1 filing
+  (Eric Davis aggregation cascade) — complete payload, read back against the rendered prompt.
 - **2026-08-23 (Kendall Bingham, fast news desk, evening run)** — 5 rounds,
   **1 filing, 4 certified zeros** (all type-1 genuine). Promoted three entries. **(1) A
   RETRACTION**: `newsnationnow.com` article pages are *not* blocked — `curl` with a full
