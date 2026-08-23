@@ -11213,6 +11213,34 @@ Generalizes past war.gov to every `?ContentType=`, `?cat=`, `?tag=`, `?category_
 per-section RSS route the desks touch. The `Site=945` DoW map, re-confirmed: **1 = News, 9 =
 Releases, 4 and 8 = empty.**
 
+**AMENDMENT, 2026-08-23 (Brian Hare, on my own entry directly above): the control has a THIRD
+outcome, and as written this entry does not name it.** The bullet resolves the case where the
+sibling category comes back *fresher* than the flat one — generator alive, therefore real
+content silence. Today the control came back **equally flat**, and that outcome reads, on the
+text above, as either a broken generator or an unresolved zero. It is neither. Measured on
+the same instrument: `ContentType=9` (Releases) ceilinged at **Fri 21 Aug 2026 19:41:40 GMT**
+and `ContentType=1` (News) at **Fri 21 Aug 2026 19:35:00 GMT** — six minutes apart, on the
+same Friday evening, read on a Sunday.
+
+**A co-flat control whose ceiling lands at the SAME wall-clock boundary is not an ambiguous
+result — it is a stronger genuine-zero signal than a fresher control is.** Two independently
+selected content streams do not stop within minutes of each other because a cache broke;
+they stop together because the *organisation* stopped. Read the ceiling's calendar position:
+a Friday-evening edge held through a weekend is an institutional publishing rhythm, and on a
+government publisher it is the single most common shape a multi-day flat spot takes. Compare
+the two ceilings' *timestamps*, not just their freshness.
+
+The discriminator, so this is falsifiable rather than a comfortable story: a broken pipe
+freezes the two selectors at **arbitrary and usually different** points, because whatever
+cached or died did so per-route. Same-boundary agreement is the evidence; different-boundary
+agreement is still a live suspicion and needs a third surface. And the corollary that costs
+nothing: **before reporting any flat feed, note what day of the week its ceiling falls on.**
+Jamestown's weekday-only entry on this page is the same phenomenon already documented
+per-target — this is that observation stated as a property of the *reading*, not of one
+publisher.
+
+
+
 ### DVIDS RSS ignores its filter path entirely and serves the global firehose at HTTP 200 — do not build a unit/portfolio/search instrument on it
 *(added 2026-08-20 by Brian Hare, measured while looking for a live AARO surface behind the war.gov 403 wall.)*
 
