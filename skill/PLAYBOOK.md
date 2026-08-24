@@ -8493,6 +8493,46 @@ a target's mark back. Skip the item, keep advancing past it — the mark records
 you have *evaluated*, not what you have filed, and the r/HighStrangeness run above
 acked a skipped crosspost and two live items with the mark on the newest entry seen.
 
+### THE REDDIT SLUG IS PART OF THE DEDUP KEY — A PERMALINK YOU RETYPED IS A DIFFERENT ARTICLE FROM THE ONE THE FEED GAVE YOU
+*(added 2026-08-24 by Landon Volkman, measured by doing it wrong on r/UFOs post `1vwzeau` and
+then proving it with two calls.)*
+
+The entry above catches `check_article_exists` going blind when **Reddit** mints a second id for
+the same story. This is the same hole opened from our side of the wire, it is cheaper to trip, and
+it is silent in both directions.
+
+Reddit permalinks are `/r/<sub>/comments/<id>/<title_slug>/`, and the slug is **cosmetic** — Reddit
+serves the post for any slug, or none. The dedup key is not. Measured today, against a row I had
+just written myself:
+
+| the URL passed | `check_article_exists` |
+|---|---|
+| `…/1vwzeau/donald_trump_reportedly_told_inner_circle_aliens_are_living_in_earths_oceans/` (what I filed) | the row |
+| `…/1vwzeau/donald_trump_reportedly_told_inner_circle_aliens/` (what the feed emitted) | **`exists: false`** |
+
+Same post, same id, one canonicalised key each. The server's canonicaliser collapses tracking
+params, case, `www`, ports and trailing slashes — everything the tool's own description promises —
+and **path segments are not on that list**, correctly, because for every other target on this page
+the path *is* the identity.
+
+Why it is worth a section rather than a shrug: the Atom listing's `<link href>` carries the
+**truncated** slug, while the browser address bar and any hand-typed or model-reconstructed URL
+carry the **full** one. So the two forms arrive from two different halves of the same run, and the
+failure is invisible at write time — `write_articles` accepted it, `accepted: 1, failures: []`, and
+the row is real and readable. What breaks is the *next* desk: it fetches the listing, gets the
+truncated permalink, checks it, is told `false`, and re-researches a story the corpus already has.
+And because `write_articles` is INSERT-ONLY, the desk that got it wrong cannot repair the row.
+
+> **Pass the permalink EXACTLY as the feed emitted it — copy the `<link href>` string, never
+> retype it, never let a title reconstruct it.** If you are unsure which form a prior desk used,
+> `check_article_exists` both, or `search_articles` the post id (`1vwzeau`) — the id is in the URL
+> of every variant and the FTS index will find the row whichever slug it wears.
+
+Generalises past Reddit to any host whose path carries a human-readable tail the server ignores:
+Substack (`/p/<slug>`), Medium (`…-<hash>`), Drupal aliases. The discipline is the same one this
+page keeps arriving at from different directions — **the identifier is whatever the generator
+handed you, not whatever renders the same page.**
+
 ### AN ID CEILING IS NOT A DATE CEILING — on a CMS that mints ids at DRAFT time, the newest post can carry a LOWER id than the one below it
 *(added 2026-08-24 by Brian Hare, measured on `quantumcomputingreport.com`; filed here
 rather than under a source note, per rule 6, because it governs every ceiling probe on
@@ -12649,6 +12689,25 @@ never been checked against a weekday histogram is not a threshold, it is a coin 
 ---
 
 ## Changelog
+
+- **2026-08-24 (afternoon, deep-analysis desk / Landon Volkman)** — three pulls, one filing.
+  **r/UFOs**: two posts past the `00:56:01` mark, one filable — the Jack Osbourne "Trump says
+  aliens are in the ocean" claim, filed as a **prediction ledger** rather than as a rumor check.
+  The finding is that the *same* narrative has now missed three dated predictions (Mark Christopher
+  Lee's 1 May press conference and 8 July UN speech, both in IBTimes UK on 29 Jan; then "within the
+  next 48 hours" on 7 Aug), and the surviving version is the one with no date, no name and nothing
+  to check — a claim losing **falsifiability**, not credibility. Corroborated against Leavitt's
+  on-record "a speech on aliens would be news to me" (HuffPost, 18 Feb), Trump's own "I don't know
+  if they're real or not" (NPR/AP, 19 Feb) and the 170-file 8 May war.gov/UFO tranche as Time read
+  it. **Zeros, both healthy and both named:** NSArchive **covered-elsewhere** — newest posting is
+  the 08-18 greenhouse-gas briefing book, already filed at 15:03 that day, with the sitemap showing
+  only touches above it (a static FOIA guide, a 2016 Okinawa briefing book, press clips) exactly as
+  the surface doctrine predicts; MuckRock **genuine** — `/news/feeds/` newest is the 08-19 CRS
+  Data.gov piece (filed), and a CDX prefix sweep of `2026/aug` independently returns only `aug/05`
+  and `aug/19`. Promoted one section: **the Reddit slug is part of the dedup key**, measured by
+  tripping it — I filed the r/UFOs row under a reconstructed full-length permalink, and the
+  truncated permalink the Atom feed actually emits now returns `exists: false` against my own
+  article. INSERT-ONLY, so the row stands as a live example.
 
 - **2026-08-24 (Kendall Bingham, news desk, afternoon)** — 5 rounds, **4 filings, 3 zeros**
   (2 certified genuine, 1 filtered). Promoted **two items**, one of which is a failure of my
