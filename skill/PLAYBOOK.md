@@ -2702,6 +2702,61 @@ reconciled in the text, including an unresolved 60-vs-74 server divergence betwe
 itemisation and the wire aggregate. It is simply not in the structured fields. Flagged to Alex
 in the run report. No superseding filing — `write_articles` is insert-only.
 
+**INSTANCE NINE, AND IT ARGUES THE REPAIR IS IN THE WRONG PLACE — BUILD THE TWO UNENFORCED
+FIELDS FIRST, NOT LAST.**
+*(added 2026-08-24 by Landon Volkman, by committing instance nine on the gCaptain AMZAN filing,
+article `a7c255ea`)*
+
+Same failure, same shape, one more time: ~25 minutes of research (four outlets read in full),
+a tight dedup, three HEAD-verified images, ~1,000 words of cross-examination written *into* the
+deep dive — then an `articles[0]` object with no `cross_source` and no `citations`, and
+`accepted: 1, failures: []`. Instance eight's diagnosis fits mine exactly, including the detail
+that the comparison work is visible to a reader in the body text and absent from the structured
+fields.
+
+What I can add is a **correction to the repair**, because instance eight's fix is the one I was
+running when I failed. The rule as written is *"state the four items by name in the turn
+immediately before every `write_articles`."* I did check, in that turn, and I still shipped it
+broken — because I checked the four things I had most recently been **doing**. My last forty
+minutes had been image verification and prose, so hero-loads / captions-match / summary-length /
+badges-legal all surfaced instantly, and `cross_source` — item **#1**, and the one I had last
+touched half an hour earlier — did not. I ran the ordered check 2-3-4. A recall prompt is
+answered from recency, so a checklist executed from memory at the end of a long run
+**systematically drops whichever item is oldest in working attention**, and on this loop that
+item is reliably #1, because the research phase always ends before the drafting phase.
+
+So the repair should not be *another* checkpoint at the same place the last two failed. Move the
+work instead of the reminder:
+
+> **Write the `cross_source` array the moment you finish reading your last cross-source — before
+> the title, before the summary, before the hero. Write `citations` in the same breath, right
+> after `get_comparison_sources` returns.** Then the four-item check at call time is verifying an
+> array that already exists rather than trying to remember one that does not.
+
+Why these two fields and no others get special handling — the property is precise, and it is
+what makes them the only unrecoverable ones:
+
+| | required by the prompt | in the schema's `required[]` | visible on the published tile |
+|---|---|---|---|
+| `hero_image_url` | yes | **yes** — server rejects | yes (a coverless tile is obvious) |
+| `summary`, `title`, `significance`, `difficulty` | yes | **yes** — server rejects | yes |
+| `topic_badges` | yes | no | yes (badges render) |
+| `agent_deep_dive`, `agent_opinion` | yes | no | yes (the body is the article) |
+| **`cross_source`, `citations`** | **yes** | **no** | **no — an empty array and a missing key look identical** |
+
+Every other field is caught by either the server or a reader. These two are caught by nobody.
+That is the whole reason they are on their ninth instance while nothing else on the payload has
+recurred — it is not that desks care less about sourcing, it is that sourcing is the only part
+of the payload with **no feedback path at all**. Design around the missing feedback, not around
+the desk's willpower.
+
+Corollary for the run report, learned the same way: when you do drop them, **put the recovered
+sources in the ack note's high-water-mark, in full, with URLs and one line each on what each
+outlet uniquely contributed.** The article tile is unfixable, but the corpus does not have to
+lose the research — and the next desk covering the same campaign should not re-dig four outlets
+because the structured fields are empty. Mine are banked in the gCaptain mark under
+`CROSS-SOURCES ACTUALLY READ`.
+
 ### Hero images
 - Every article **requires** a `hero_image_url` clearly related to the story
   (its OG/lead image or another on-topic photo) — `write_articles` rejects an
@@ -10095,6 +10150,45 @@ Two cautions, both cheap:
   sitemap and file it as a certified zero. That is the failure direction that matters:
   it manufactures exactly the certification you were hoping for.
 
+### AN EMPTY `sitemap-news.xml` CERTIFIES "NO **NEWS**", NOT "NOTHING" — A FEATURE IS INVISIBLE TO BOTH THE NEWS SITEMAP AND THE NEWS FEED
+*(added 2026-08-24 by Kendall Bingham, amending the certification rule above on the same host it was derived from)*
+
+The rule above is sound and should keep being used: a Google News sitemap is rolling by
+construction, so a fresh build with no fresh rows is a **positive observation** that the
+publisher's own machinery had nothing to put in it. The gap is in the word "nothing."
+
+`sitemap-news.xml` is **news-genre-scoped** by the Google News spec. A publisher that also
+runs long-form features puts them in neither that file nor its `/section/news/feed/`.
+So the two surfaces a desk naturally reaches for to certify recency can agree perfectly
+with each other and still be blind to the same class of item.
+
+**Measured on New Scientist, 2026-08-24.** `sitemap-news.xml` and `/section/news/feed/`
+both reported exactly four items since the mark — a tidy Monday 10:00→16:30 news day.
+`/subject/physics/feed/` carried a **fifth**, `datePublished 2026-08-24T15:00:00+00:00`
+off JSON-LD, sitting chronologically *between* two of the four and appearing in neither
+news surface. It was a feature. Nothing was broken; both surfaces answered the question
+they are actually scoped to answer.
+
+**The rule.** On any target that publishes features as well as news, the news sitemap and
+the news feed are **jointly one generator, not two**. They agree with each other because
+they share a scope, and agreement inside a shared scope is not independence. Add a
+**genre-independent** surface — a subject/category feed, the full sitemap index, or the
+CMS API — before writing "certified zero," and say in the mark which surfaces you actually
+covered.
+
+Two cheap corollaries from the same measurement:
+
+- **A subject feed can be the only place a story lives, so a "dormant" subject feed may be
+  measuring cadence.** The physics feed on this host had been logged silent for six
+  consecutive runs and a dormancy note was accumulating; the silence ended by itself with
+  a feature. Another instance of *A DORMANCY VERDICT MUST CARRY AN EXPIRY* — a
+  feature-driven surface has a much longer natural gap than a news one, and the expiry has
+  to be set from *that* cadence.
+- **Slug/ID ordering is not publication ordering, and the feature is where that bites.**
+  The feature's id was ~1,000 *lower* than three items published earlier the same day —
+  consistent with an id minted at draft time. Take timestamps from JSON-LD `datePublished`,
+  never from the id and never from a feed field the parser left `null`.
+
 ### A GENUINE ZERO IS THE EXPECTED OUTCOME ON MOST TARGETS — compute the base rate before you read anything into a run of them
 *(added 2026-08-19 by Landon Volkman, after drawing two type-1 zeros in one run and nearly writing up the second as a signal)*
 
@@ -12903,7 +12997,17 @@ never been checked against a weekday histogram is not a threshold, it is a coin 
   chars of full text with zero `\b`-bounded hits on any beat term. Weekend-shape predictions
   written into two marks on 08-23 both **held** — The Record resumed Monday 12:15Z after a
   64h19m silence, FAS posted Monday 10:23 host-local — which is the second independent
-  confirmation of the publishing-days rule promoted yesterday.
+  confirmation of the publishing-days rule promoted yesterday. Late addition from a fifth
+  pull: **New Scientist**, another type-2 filtered zero (5 items past the mark, all out of
+  lane), produced a correction to the empty-news-sitemap certification — `sitemap-news.xml`
+  and `/section/news/feed/` agreed on four items and were both blind to a fifth, a feature
+  that only `/subject/physics/feed/` carried. They share a genre scope, so they are one
+  generator, not two; promoted as **"AN EMPTY `sitemap-news.xml` CERTIFIES 'NO NEWS', NOT
+  'NOTHING'"**. Same run retired the six-run physics-feed dormancy clock (it was measuring
+  feature cadence) and filed the vacuum-birefringence magnetar result off **Universe Today**,
+  where the angle no outlet carried was arXiv:2607.06422 — a finite-field QED paper from four
+  weeks *earlier* naming 1E 1547.0−5408 and putting a factor-2.9 caveat on the weak-field
+  formula the claim leans on.
 
 - **2026-08-24 (afternoon, deep-analysis desk / Landon Volkman)** — three pulls, one filing.
   **r/UFOs**: two posts past the `00:56:01` mark, one filable — the Jack Osbourne "Trump says
