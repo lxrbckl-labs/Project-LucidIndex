@@ -2604,6 +2604,51 @@ Collins & Fasold 1996, the PHMSA final report; the Bongiovanni archive, *I Nuovi
 Alien Archivist Substack) — it simply is not in the structured fields. Flagged to Alex in the
 run report. No superseding filing: this embarrasses the desk rather than misleading a reader.
 
+**INSTANCES SIX AND SEVEN, AND THE CAUSE IS A NEW ONE: NOT FORGETTING, NOT A PARTIAL
+READ — *NEVER RETRIEVED*, BECAUSE THIS DOCTRINE HAS NO TOPICAL KEY AND THE PLAYBOOK IS
+NOW READ BY SEARCH.** *(added 2026-08-24 by Brian Hare, by shipping two r/UFOs articles
+with no `cross_source` and no `citations` — plus a crossed inline caption, the failure
+documented under Hero images — in a run where I had the playbook open the whole time.)*
+The retrieval table above tops out at "retrieved and read in part, for an unrelated
+question." This run is the rung past it, and it is **structural, not a lapse**:
+
+> The house rule is now *consult by targeted search, never front-to-back*. A desk's
+> search terms are its **target and its topic** — I searched `r/UFOs`, and read the
+> Reddit `.rss` ladder, the rate-limit backoff, the community-icon 404 table, and the
+> Burlison provenance chain. All four were the right sections. **None of them is where
+> the write-payload rules live, and no query built from a target name will ever surface
+> them**, because `cross_source`, `citations`, and `caption ↔ URL` are keyed to a
+> **FIELD**, not to a subject. The two doctrines are indexed on different axes, and only
+> one of them matches how the file is now read.
+
+So the mitigation the entry above proposes — "re-read the pull's own instruction line
+before the call" — is correct and was never going to fire, because it lives *inside the
+section you have to already be reading to know to do it*. Circular dependencies do not
+survive contact with a search-based read. The repair has to leave this file:
+
+- **Promoted the check into `SKILL.md` step 7** (2026-08-24), the document every desk
+  reads **in full** before its first pull. Four lines, by field name: `cross_source` and
+  `citations` present-or-deliberately-empty, every inline `caption ↔ URL` pairing said
+  out loud, hero GET-verified, `summary` 1–2 sentences. That is the always-loaded layer;
+  this file stays the *why*.
+- **Corollary for anything else on this page that is not target-keyed.** Ask of any new
+  entry: *what would a desk have to already suspect in order to search for this?* If the
+  answer is "the thing the entry is trying to tell them," it belongs in SKILL.md, not
+  here. Provenance chains, source gotchas, and per-target mechanics search fine — they
+  carry the target's name. Payload-assembly and read-back rules do not.
+
+Recorded honestly per rule 4: on both rows the comparison work *was* done and is visible
+to a reader inside the deep dives (Cybernews, Al Jazeera, PBS NewsHour, NBC News, CNN and
+IBTimes UK on the Coulthart piece; the Washington Post 2007 protest coverage, Science on
+the AFIP staff splinter, and the FY2008 NDAA/Joint Pathology Center succession on the
+AFIP piece) — it is simply not in the structured fields. One further self-inflicted
+detail worth the embarrassment: on the second article I *did* remember `cross_source` and
+passed it at the **top level of the `write_articles` call instead of inside the article
+object**, where it is not in the schema. The server returned `accepted: 1, failures: []`.
+**A misplaced field reports identically to an omitted one** — so "I sent it" is not
+evidence it landed; only its presence *inside* `articles[i]` is. Flagged to Alex in the
+run report. No superseding filing — `write_articles` is insert-only.
+
 ### Hero images
 - Every article **requires** a `hero_image_url` clearly related to the story
   (its OG/lead image or another on-topic photo) — `write_articles` rejects an

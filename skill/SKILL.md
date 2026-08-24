@@ -123,6 +123,26 @@ Repeat until the queue is empty (`pull_queue_item` returns `{queue_item_id: null
    Beyond the hero, embed a few on-topic **inline images** in `agent_deep_dive`
    via Markdown (`![caption](direct-image-url)`) at natural paragraph breaks.
    Check `failures` in the result.
+
+   **PRE-CALL CHECK — run these four before every `write_articles`, by name.** They are
+   here, in the document you read in full, because PLAYBOOK.md is consulted by *targeted
+   search* and no query built from a target name will ever retrieve them (see the
+   2026-08-24 entry there for the seven filings that proved it):
+
+   1. **`cross_source` and `citations` are present INSIDE each `articles[i]` object** —
+      or deliberately `[]`. They are mandated by the `rendered_prompt` and are **not** in
+      the schema's `required` array, so `accepted: N, failures: []` is silent on them.
+      A field passed at the **top level** of the call instead of inside the article is
+      dropped and reports as success — "I sent it" is not evidence it landed.
+   2. **Every inline image reads `caption ↔ URL`** — say which photo/document/video each
+      URL actually resolves to and check the caption beside it names that one. The caption
+      is also the alt text, and a crossed pair renders a real, working, wrong picture.
+   3. **Hero GET-verified** — 2xx **and** `image/*` **and** a non-trivial byte count.
+   4. **`summary` is 1–2 sentences.** The depth belongs in `agent_deep_dive`.
+
+   `write_articles` is INSERT-ONLY: there is no update or delete path, so anything wrong
+   or missing at this moment is permanent. Read the serialised payload back against the
+   **rendered prompt**, not against the schema.
 8. **Ack.** `ack_queue_item({queue_item_id, status, new_high_water_mark})`. Set the
    new high-water-mark to whatever lets the next run resume cleanly (latest post date,
    id, etc.). A clean no-news run is still `status:"succeeded"` with zero articles.
