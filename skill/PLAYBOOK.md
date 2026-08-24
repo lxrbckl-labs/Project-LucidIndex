@@ -2649,6 +2649,59 @@ object**, where it is not in the schema. The server returned `accepted: 1, failu
 evidence it landed; only its presence *inside* `articles[i]` is. Flagged to Alex in the
 run report. No superseding filing — `write_articles` is insert-only.
 
+**INSTANCE EIGHT — THE FIRST ONE *AFTER* THE SKILL.md REPAIR, WHICH MEANS THE REPAIR IS
+NECESSARY AND NOT SUFFICIENT. The cause is not ignorance and not retrieval: it is DECAY.
+The check is loaded ONCE per session and the call happens MANY times.** *(added 2026-08-24
+by Kendall Bingham, by shipping the run's FIRST article with neither `cross_source` nor
+`citations`, having read the four-line pre-call check in SKILL.md in full ~25 minutes
+earlier.)*
+
+The entry above diagnoses instances six and seven as *never retrieved* — the payload rules
+are keyed to a **field** while the file is now read by **target**, so no query surfaces them.
+The repair was to promote the four-line check into `SKILL.md` step 7, the document every desk
+reads in full before its first pull. That repair is correct and I had it. It still failed, and
+the failure mode it does not cover is the interesting one:
+
+```
+13:47  read SKILL.md in full, including the four-line PRE-CALL CHECK
+13:49  pull  -> Focus Taiwan
+13:50  ~25 min of sweeping, dedup, cross-source reading, image verification
+13:56  write_articles  #1   <- no cross_source, no citations.  accepted: 1. permanent.
+13:58  write_articles  #2   <- cross_source + citations, both inside articles[0].  correct.
+14:05  write_articles  #3,#4 (quantum round)  <- both correct.
+```
+
+**Three of four calls in the same run were clean.** So this is not a desk that does not know
+the rule; it is a desk that knew it, spent twenty-five minutes on an unrelated, absorbing task,
+and had it fall out of working attention before the one call that could not be undone. The tell
+is diagnostic and worth writing down: **when the run's FIRST `write_articles` is the one that
+fails and later calls in the same run are clean, the cause is decay, not ignorance** — and no
+amount of front-loading fixes it, because front-loading is what already happened.
+
+> **The check must be co-located with the CALL, not with session start.** State the four
+> items by name in the turn immediately before *every* `write_articles`, including the first,
+> including when you are certain. A rule read once per session and applied N times per session
+> is protected on call N and unprotected on call 1.
+
+Two corollaries that cost nothing:
+
+- **The research phase is the hazard, not the drafting phase.** The gap that killed this filing
+  is the interval between reading the rule and the irreversible act, and on this beat that
+  interval is filled with the most attention-consuming work in the loop (sweeps, dedup, image
+  verification). The longer and better the research, the more likely the payload defect —
+  which is exactly backwards from how a desk feels about its own carefulness.
+- **Do not treat a clean later call as evidence the run was clean.** Instance eight would read
+  as a well-run round from any summary that counts `accepted` and `failures`: 4 accepted, 0
+  failures, three of four payloads complete. The dashboard shows one permanent article with no
+  structured cross-sources, and the run's own success metrics are silent on it.
+
+Recorded honestly per rule 4: on the affected filing (Focus Taiwan, the Nvidia/Supermicro B300
+indictment) the comparison work *was* done and is visible to a reader inside the deep dive —
+Taipei Times, Korea Times, DIGITIMES, Tom's Hardware, Bloomberg and CNBC are all named and
+reconciled in the text, including an unresolved 60-vs-74 server divergence between CNA's
+itemisation and the wire aggregate. It is simply not in the structured fields. Flagged to Alex
+in the run report. No superseding filing — `write_articles` is insert-only.
+
 ### Hero images
 - Every article **requires** a `hero_image_url` clearly related to the story
   (its OG/lead image or another on-topic photo) — `write_articles` rejects an
@@ -10035,6 +10088,64 @@ controls) and with the unbounded-absence warning: **"nobody said/asked/reported
 X" is the highest-risk sentence class we write, and this one has a two-minute
 positive control.**
 
+### THE CUSTODIED-NOUN TEST — an escalating claim only becomes testable when a predicate lands on an entity that has a MANDATORY record-keeper
+*(settled 2026-08-24 in the forum by Kendall Bingham and Landon Volkman, across the
+Coulthart / White Sands shoot-down series; promoted here per the promote-don't-bury rule.)*
+
+The taxonomy below grades a claim by *what kind of thing is being claimed*. This grades it by
+a cheaper property that can be read off a single sentence before any research: **does anything
+in it have a filing requirement?**
+
+The series that produced it escalated four times on the same nouns — *document-or-record*
+(Burlison, on tape, July) → *shoot-down* (anonymous officials, 13 Aug) → *recovered craft*
+(same presenter, 23 Aug) → *inadvertent shoot-downs of civilian aircraft, concealed* (same
+presenter, same sentence). Three of those four predicates attach to objects with **no
+custodian**: craft, anonymous officials, an unnamed program. The fourth attaches to
+**civilian aircraft**, which in the United States generate an NTSB docket by statute and an
+FAA registry cancellation with a reason code — an independent agency outside the presenter's
+chain. That step, and only that step, produced a checkable object.
+
+> **Ask of any claim: which noun in this sentence has a mandatory record-keeper?** If the
+> answer is *none*, the claim is unfalsifiable by construction and belongs in the
+> file-the-pattern-not-the-instance class above. If the answer names one, that is the
+> whole filing — the test, not the claim, is the story.
+
+Three bounds established in the same thread, all of which cost us instruments we had
+already specified and thought were good:
+
+- **A custodied noun is not automatically a clean test — check the background rate first.**
+  The first specification offered was *"a deregistration without an NTSB docket."* It fails:
+  FAA registration certificates expire seven years after issue and the N-number cancels ~90
+  days later, so administrative cancellations are a continuous high-volume stream carrying
+  exactly that signature. Worse, the FAA's 23 January 2023 four-year auto-extension puts a
+  **step and a downstream hole** in that stream, so a cluster test runs against a null that
+  is *lumpy by regulation*. Fix: key on the registry's **cancellation-reason field**, not on
+  the fact of cancellation. General form: *a mandatory record produces a background rate;
+  name it before you treat a hit as signal.*
+- **Custody is jurisdictional, and a claim that names a border escapes it.** The same claim
+  named White Sands **and** "across the border near Juárez." Every index specified against it
+  was a US federal index — NTSB CAROL, the FAA registry. A Mexican-registered airframe carries
+  an XA-/XB-/XC- mark in AFAC's registry and generates a Mexican investigation, not an NTSB
+  docket. The test was specified against the noun that was checkable rather than the noun that
+  was said. **Check that your custodian's jurisdiction covers the claim's stated geography
+  before you pre-register the test.**
+- **Prefer a custodian of the PLACE over a custodian of the OBJECT.** The surviving instrument
+  in that thread was the restricted-airspace fork: White Sands sits under the R-5107 complex,
+  which is charted, published and NOTAM'd, so "inadvertent shoot-downs of civilian aircraft"
+  there forks into *inside* (a charted violation with an FAA enforcement record) or *outside*
+  (over civil airspace, with ATC tapes and radar held by an agency outside the chain). Both
+  branches produce paper, it has **no administrative background rate at all**, and unlike the
+  registry it cannot be dodged by re-flagging the aircraft — airspace status is a property of
+  the airspace, not of what is in it.
+
+**And the reason this generalises past one story:** a presenter who once landed on a custodied
+noun and got tested will not do it again. So the expected direction of the *next* escalation is
+onto ground with no record-keeper. That makes the custodied-noun test a **prediction**, not just
+a filter — and it pairs with the scoreable-retreat rule agreed in the same thread: a presenter
+who drops a claim and holds the level is editing; **a presenter who drops the one checkable
+claim while escalating everything around it is retreating from the register.** Two variables,
+both observable in one transcript.
+
 ### Four-class anomaly taxonomy (editorial guidance for deep dives)
 *(agreed 2026-07-12 by all three desks in the forum; promoted 2026-07-25 by Brian Hare)*
 
@@ -12538,6 +12649,59 @@ never been checked against a weekday histogram is not a threshold, it is a coin 
 ---
 
 ## Changelog
+
+- **2026-08-24 (Kendall Bingham, news desk, afternoon)** — 5 rounds, **4 filings, 3 zeros**
+  (2 certified genuine, 1 filtered). Promoted **two items**, one of which is a failure of my
+  own that lands one rung past the entry that was supposed to have fixed it. **(1) Instance
+  eight of the missing-`cross_source`/`citations` defect, and the first one AFTER the
+  SKILL.md repair — the cause is DECAY, not ignorance and not retrieval.** Three of my four
+  `write_articles` calls this run were clean; the one that failed was the run's *first*, made
+  ~25 minutes after reading the four-line pre-call check in full, with the interval filled by
+  a Focus Taiwan ID sweep, dedup, cross-source reading and image verification. Diagnostic
+  tell written down: **first call fails, later calls clean → decay.** Remedy is co-location —
+  state the four items by name in the turn immediately before *every* call, because a rule
+  read once per session and applied N times is protected on call N and unprotected on call 1.
+  Corollary worth the embarrassment: the run reads as clean from `accepted`/`failures` alone
+  (4 accepted, 0 failures) while one permanent article carries no structured cross-sources.
+  **(2) The custodied-noun test**, settled in the forum with @landon_volkman and filed with the
+  claim-grading family: *an escalating claim only becomes testable when a predicate lands on an
+  entity with a mandatory record-keeper.* Three bounds came with it, each costing an instrument
+  we had already specified — background rate (FAA registrations auto-cancel ~90 days after a
+  7-year expiry, and the 2023 four-year extension makes that null *lumpy by regulation*, so key
+  on the cancellation-reason field); jurisdiction (the claim named Juárez, and every index we
+  specified was US-federal — a Mexican airframe is XA-/XB-/XC- in AFAC's registry with no NTSB
+  docket); and **prefer a custodian of the PLACE over the OBJECT** (R-5107's charted restricted
+  airspace forks both ways into public paper, has no administrative background rate, and cannot
+  be dodged by re-flagging an aircraft).
+  Filings: **Focus Taiwan ×2** — the Keelung indictment of nine over B300-class AI servers
+  routed to China, where the defendants are *Nvidia's and Supermicro's own Taiwan sales staff*
+  plus a customs broker and a data-centre operator, i.e. the whitelist was not defeated but
+  **administered** (unresolved divergence flagged: CNA's three-transaction itemisation totals
+  ~60 delivered against the wire's 74, which is also the fugitive's resale count); and the AT-3's
+  retirement after 42 years, whose buried increment is **Paraguay seeking 10–15 Taiwanese jets
+  from 2027** — retired airframes as diplomatic currency for Taipei's last South American ally,
+  on economics that are openly bad for Asunción (~$5,000/hr for an F-5 vs $1,000–1,200 for the
+  A-29 it is already buying). **The Quantum Insider ×2** — TCG's PTP 1.07 defining "PQC-ready"
+  TPMs (the live detail is which **ML-KEM Endorsement Key certificates** a compliant part must
+  carry, i.e. @brian_hare's certificate-gate thesis reappearing at the volume layer, where you
+  cannot software-update your way to an EK cert you weren't born with); and China's 2026–2030
+  cyber-industry plan, which names quantum a *frontier* field rather than a *core-breakthrough*
+  one and attaches no funding, milestone or computing/communication/sensing prioritisation to it.
+  Zeros: **The Qubit Report genuine** — newest item exactly on the mark, certified two ways
+  (header `last-modified` 2.4 days past the last post per the read-the-header rule, plus wp-json
+  `?after=` as a genuine second generator returning `[]` with a positive control passing at a
+  wider window). **Shtetl-Optimized genuine** — newest item exactly on the mark, header stamp 22 h
+  past it, feed 10 items deep to 29 June against a 2-day gap; wp-json returned **HTTP 429** so the
+  second generator was unavailable and the zero rests on the header alone, stated rather than
+  papered over. **IEEE Spectrum filtered** — @landon_volkman's enumerate-with-the-sitemap /
+  date-with-the-meta-tags recipe ran exactly as written and earned its keep: 88 files in one
+  parallel pass, 4 rows past the mark, and `/inchfab` among them is a **2026-05-06** article
+  wearing a fresh `lastmod`. The three genuinely new items (08-23 Telecommunications, 08-24
+  Careers, 08-24 sponsored Semiconductors) are all off-beat for the quantum template. Also
+  re-verified on Focus Taiwan: the `< 70 KB` dead-ID threshold I promoted yesterday held on both
+  swept days, and the mark landed **exactly** on 08-23's `0010` at 17:37+08:00 — the boundary-item
+  case firing on this target again, as its entry predicts it routinely does.
+
 - **2026-08-24 (Brian Hare, morning generalist desk)** — 4 rounds, **1 filing** (Nikkei
   Asia) and **three zeros**: Jamestown **genuine**, CSIS China Power **genuine** (its 4th
   consecutive), Quantum Computing Report **filtered**. Promoted four items, two of which
