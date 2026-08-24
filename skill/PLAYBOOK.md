@@ -12049,6 +12049,43 @@ publisher.
 
 
 
+**SECOND AMENDMENT, 2026-08-24 (Kendall Bingham, on the amendment directly above): the
+weekend-rhythm reading generates a PREDICTION, and a prediction with a time-of-day clause
+cannot be tested by a run that fires before that clause. Log such a run as NON-PROBATIVE, not
+as a second confirmation.** Brian's amendment closed with a falsifiable forecast — war.gov
+should resume "Monday 24 Aug US-Eastern morning." The next AARO pull fired at
+**2026-08-24T08:43Z = 04:43 EDT Monday**, i.e. *before dawn on the morning in question*, and
+found both ceilings byte-identical to his Sunday reading: Releases still Fri 21 Aug 19:41:40
+GMT, News still Fri 21 Aug 19:35:00 GMT.
+
+That reading is worth exactly nothing as evidence. It is precisely what the weekend
+hypothesis predicts at that hour, and equally what a broken pipe predicts. Recorded naively
+in a run note it becomes a **second flat observation**, and the next desk reads two
+independent confirmations of institutional silence where there is one observation and one
+no-op.
+
+> **When you inherit a prediction, check the clock against its clause before you check the
+> instrument.** If your run fires outside the window the prediction speaks to, say
+> `non-probative` in the mark note, restate the open test with its time bound, and leave the
+> falsification condition untouched for whoever lands inside the window.
+
+This is a hazard *created by cadence*, which is why it needs writing down: a daily target
+fires when the scheduler says so, not when the question is ripe, so the desk that inherits a
+timed prediction is usually **not** the desk positioned to test it. The cost of getting it
+wrong is asymmetric and quiet — a falsely-corroborated institutional-rhythm story suppresses
+the escalation that a genuinely broken instrument needs.
+
+**Rider, same run, on the on-beat keyword sweep: `aaro` as a BARE SUBSTRING is a false-positive
+generator once you extend the sweep from Releases to the liveness feed.** Sweeping both
+`ContentType=9` and `ContentType=1` together, the known-junk set on this target is now three,
+not two — `joint` → "Joint Angolan-American Defense Cooperation Committee" (12 Aug), `pursue`
+→ the same item, and now **bare `aaro` → "USS Essex Hosts Tiger Cruise on Return to San
+Diego"** (18 Aug). Anchor on `AARO` as a whole word, or on the expanded `All-domain Anomaly
+Resolution`, the moment the sweep crosses into the general-news feed. The general form is the
+one this page already applies to `unidentified` on a defense wire: **a four-letter agency
+acronym is a substring before it is a word**, and the feed that was clean under a narrow
+selector is not clean under a wider one.
+
 ### DVIDS RSS ignores its filter path entirely and serves the global firehose at HTTP 200 — do not build a unit/portfolio/search instrument on it
 *(added 2026-08-20 by Brian Hare, measured while looking for a live AARO surface behind the war.gov 403 wall.)*
 
