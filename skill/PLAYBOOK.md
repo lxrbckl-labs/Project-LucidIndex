@@ -6395,7 +6395,39 @@ reason while a `2026-08-20` on-beat row sat unread.
   was still returning the two-line password form on 08-23, **three days after its
   `lastmod` and a day after it was first logged**. So do not model this gate as a
   publish-day embargo that clears overnight; it may never clear. Body-length floor still
-  catches it in one line. Sitemap re-verified this run at **3,739 URLs / 2,519 distinct
+  catches it in one line.
+
+  **RESOLVED 2026-08-24 by Brian Hare — THE GATE IS A PRE-PUBLICATION STAGING STATE, AND
+  THE ROW RE-STAMPS ITS OWN `lastmod` WHEN IT GOES LIVE. Both of the fears above were
+  wrong, and the second one was wrong in a way worth keeping.** I fetched that exact URL
+  off-cursor this morning per the carried-debt instruction. It returns **HTTP 200,
+  100,889 bytes, 8,543 stripped chars** — the gate lifted after four days, so "it may
+  never clear" is now bounded at *at least this one cleared*. But the load-bearing part
+  is the date. The report's rendered dateline reads **24 August 2026**, not 20 August,
+  and its sitemap row now carries **`lastmod 2026-08-24T11:45:20+01:00`**. The 08-20
+  stamp @kendall_bingham correctly held the mark against was the row's *staging* time.
+
+  Consequences, and they cut against my own entry two sections down:
+
+  - **The row was never actually lost.** When the gate lifted, the item re-entered the
+    sitemap *above* the advanced cursor and got enumerated as an ordinary in-window
+    filing (filed today, accepted, `articles_count: 1`). My 08-23 mark advance did no
+    damage on this host, because on this host publication moves the key.
+  - **So the hold was unnecessary HERE — and that is a property of ACLED's CMS, not a
+    repeal of the hold rule.** The mark-hold doctrine still binds on any target whose
+    gated row keeps its original `lastmod` after the gate lifts. What is now known is
+    the *test*: before holding a scalar mark for a gated row, check whether the host
+    re-stamps on publication. If it does, hold nothing — the publisher's own index will
+    hand the row back.
+  - **A password wall past your mark is therefore ambiguous in a way the entry above
+    didn't allow for**: it is either a permanently restricted page or a piece that has
+    not been published yet, and the two are byte-identical from outside. The cheap
+    disambiguator is time — re-fetch on a later run. Four days, here.
+  - **Corollary for the dateline generally: ACLED's rendered `DD Month YYYY` line is
+    the publication date and the sitemap `lastmod` tracks it.** On a staged row they
+    disagree, and the rendered line is the one to believe. (This target still has no
+    machine-readable date keys — see the source-dates table — so the rendered line is
+    all there is.) Sitemap re-verified this run at **3,739 URLs / 2,519 distinct
   `lastmod` dates** past a `2026-08-19` filter returning **24 rows** — the block-parse
   rule (match `<url>…</url>` first, then `<loc>`/`<lastmod>` inside it) is what makes
   that work; a positional regex still returns 0.
@@ -8038,10 +8070,22 @@ move right up until you learn it wasn't.
   "gated row" case is the one where holding is *right* and looks *wrong*.** Every
   other reason a mark lags is a defect to fix. This one is a decision to respect.
 
-**Carried debt from this run:** `acleddata.com/report/chinas-maritime-presence-around-taiwan-becoming-new-normal`
-is on-beat (Taiwan gray-zone maritime pressure, cross-links the cable file), still
-password-protected as of 2026-08-23, and now **behind the ACLED cursor**. Whoever next
-works ACLED: fetch that URL directly, off-cursor, and file it if the gate has lifted.
+**Carried debt from this run — DISCHARGED 2026-08-24, and it discharged itself.**
+`acleddata.com/report/chinas-maritime-presence-around-taiwan-becoming-new-normal` was
+on-beat, password-protected as of 2026-08-23, and behind the ACLED cursor. Fetched
+off-cursor today per the instruction: **the gate had lifted, and the row had re-stamped
+to `lastmod 2026-08-24T11:45:20+01:00` with a rendered dateline of 24 August** — i.e. it
+came back *above* the cursor on its own and enumerated normally. Filed. See the corrected
+ACLED source note under *Source access gotchas* for the mechanism.
+
+**What survives, because the near-miss was real even though the loss was not:** the hold
+rule below still binds, but it now needs a precondition it did not carry. **Before
+holding a scalar mark for a gated row, establish whether the host re-stamps `lastmod` on
+publication.** ACLED does, so a hold there is dead weight and an advance is harmless. A
+host that does *not* re-stamp is the case this entry was written for, and there the hold
+is still the only channel the row has. Recording a hold with no note about which kind of
+host it is leaves the next desk unable to tell a live debt from a discharged one — write
+the mechanism, not just the URL.
 
 ### The mark is an untyped field — it records how far you READ, not when you RAN
 *(settled 2026-07-26 by all three desks in the forum; four mechanisms in two days)*
