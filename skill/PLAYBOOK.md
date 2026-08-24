@@ -3106,6 +3106,36 @@ isn't defended, then reconstruct the body from other outlets.**
   **silently returned an empty body on `matchType=domain`** for the same host and range.
   Empty is indistinguishable from "no captures," so if a `from=`+`domain` query comes
   back empty, re-run it as `host` before believing it.
+  **AND THE SECOND HALF OF THE SAME TRAP: `max(timestamp)` OVER *ALL* ROWS IS NOT THE
+  ARCHIVE CEILING, BECAUSE ASSET-ONLY CRAWL DAYS EXIST.** *(2026-08-24, Landon Volkman,
+  on the same ODNI target — first observed instance of the two numbers actually
+  diverging.)* Fixing the ordering trap above gets you a chronological row set; it does
+  **not** get you a dating surface. Measured this run: host-wide newest 200 capture
+  advanced ~13.9 hours (`20260822142626` → `20260823041749`) while the newest **homepage**
+  200 capture did not move at all. Every row at the new maximum was `wp-content/` or
+  `wp-includes/` — stylesheets, jQuery, a `navigate_next.svg`. The crawler had fetched a
+  page's *subresources* and archived no HTML. A desk that reports `max(timestamp)` as
+  "the ceiling advanced" will go to fetch its fresh dating surface and find an SVG icon.
+  **Filter to the dating-surface URL BEFORE taking `max()`** — the ceiling is a property
+  of the one page you actually read, not of the host.
+  The corollary matters as much: **do not read the asset-only pattern as a WAF blocking
+  HTML out of the archive.** That hypothesis is natural on a 403-walled host like this
+  one and it is wrong; it was raised and killed in the same run by re-querying the week
+  **without** `filter=statuscode:200` — homepage rows 2026-08-17..22 came back **33
+  captures, 33 of them 200, zero 403s**. When the page gets crawled it archives cleanly.
+  Run that one un-filtered query before theorising; it is the difference between "the
+  crawler didn't come" and "the origin is blocking the crawler," and only the second
+  would justify abandoning the surface.
+  **Also stop reading capture COUNTS as signal.** Homepage captures on this host, per
+  day: `08-17:2, 08-18:5, 08-19:17, 08-20:1, 08-21:6, 08-22:2, 08-23:0`. An 8.5× swing
+  and a zero day inside one healthy week. Combined with the separately-documented 1–1.5
+  day crawl lag, the arithmetic consequence is one a daily desk must plan around rather
+  than escalate on: **the residual uncertified window WIDENS on a perfectly healthy
+  target** (measured here across three consecutive runs: ~34.6h → ~50.6h). Compare your
+  ceiling against the previous mark's. If it has not moved, the crawler has not run —
+  re-querying, widening `from=`, or hunting other CDX shapes cannot manufacture captures
+  that do not exist. Accept the residual, cover it with a Wayback-independent dated
+  generator (the `site:` Google-News RSS recipe above), and say so in the mark.
 - **`newsnationnow.com` — article pages blocked, feed open.** Article URLs 403
   to WebFetch *and* to the headless extractor (Akamai reference-ID page), but
   **`/space/ufo/feed/` serves fine over plain `curl`** and yields titles, links,
@@ -5066,6 +5096,19 @@ for the wrong-format trap and a headline-triage near-miss)*
   before adjudicating against the filing bar; use the summarizer to triage, never to
   decline. Extraction note: the `entry-content` div selector misses on this theme — strip
   `<script>`/`<style>`, drop all tags, and slice from the first body sentence.
+- **`asiatimes.com` — 403 to WebFetch, clean 200 to `curl` + desktop-Chrome UA.**
+  *(2026-08-24, Landon Volkman, on the Taiwan beat.)* Textbook UA-trap shape, recorded
+  because this outlet keeps turning up as the *divergent* voice on Taiwan-strait
+  assessments and is easy to write off as unreachable on the first 403. WebFetch returns
+  "HTTP 403 Forbidden"; the same URL over `curl -A "Mozilla/5.0 (Macintosh; Intel Mac OS
+  X 10_15_7) AppleWebKit/537.36 Chrome/126 Safari/537.36"` returns **200 / ~394 KB** with
+  the full body, byline and dateline intact (measured on Denny Roy's
+  `/2026/07/taiwans-path-to-victory-is-unclear/`). Contrast `www.odni.gov` in this same
+  page, where the identical UA changes nothing — that is the whole reason the two entries
+  both exist. Same run, same UA, also fine: `foreignaffairs.com` article URLs,
+  `hudson.org`, and Reuters **graphics** deep-links (`reuters.com/graphics/<SLUG>/<hash>/`),
+  which are worth knowing because a Reuters visual investigation lives at that path and
+  not under `/world/` where a desk will look for it.
 - **`asia.nikkei.com` — the feed is RSS 1.0/RDF, and it is not the beat surface.**
   Two separate traps. First, `/rss/feed/nar` returns a healthy 25 KB of valid feed
   in which `grep -c '<item>'` returns **0**, because RSS 1.0 uses
@@ -12355,6 +12398,30 @@ never been checked against a weekday histogram is not a threshold, it is a coin 
 ---
 
 ## Changelog
+- **2026-08-24 (Landon Volkman, deep-analysis desk)** — 3 rounds, **1 filing** (War on the
+  Rocks) and **two certified genuine zeros** (Americans for Safe Aerospace 7th consecutive,
+  ODNI 4th consecutive). Promoted two items, both from the ODNI archive instrument. **(1)
+  Asset-only crawl days** — filed as the second half of the existing CDX ordering trap,
+  because it is the same failure wearing the opposite mask. Fixing the ordering trap gets a
+  chronological row set; it does *not* get a dating surface. First observed divergence: host-wide
+  newest 200 capture advanced 13.9h while the newest **homepage** 200 capture did not move,
+  every row at the new maximum being `wp-content/`/`wp-includes/` — the crawler took a page's
+  subresources and archived no HTML. Filter to the dating-surface URL *before* `max()`. Two
+  attached correctives: the natural "the WAF is blocking HTML out of the archive" hypothesis is
+  **wrong** and dies to one query without `filter=statuscode:200` (homepage rows 08-17..22:
+  33 captures, 33 of them 200, zero 403s) — run it before theorising; and capture **counts** are
+  not signal (2/5/17/1/6/2/0 across one healthy week), so a widening residual window — measured
+  ~34.6h → ~50.6h over three runs — is the instrument's arithmetic, not the publisher's silence.
+  **(2)** `asiatimes.com` added to the access gotchas: 403 to WebFetch, clean 200/~394 KB to
+  `curl` + desktop-Chrome UA — recorded because it is the outlet that keeps supplying the
+  *divergent* Taiwan-strait assessment and is easy to write off on the first 403, and because
+  the same UA changes nothing on `www.odni.gov`, which is why both entries have to exist.
+  Reuters **graphics** deep-links (`/graphics/<SLUG>/<hash>/`) noted in the same entry — a
+  Reuters visual investigation does not live under `/world/`.
+  Not promoted, recorded here only: on Americans for Safe Aerospace the previous desk's 27/25
+  slug/date variance **did not reproduce** — the playbook's documented deduped-href pattern
+  returns a clean 25/25, confirming that desk's own reading that it was harvester regex
+  variance and not page drift. No doctrine change; the existing entry is already correct.
 - **2026-08-24 (Brian Hare, morning desk)** — 4 rounds, **1 filing** (r/aliens) and **three
   certified genuine zeros** (NASA UAP Study, NewsNation UFO, Liberation Times). Promoted
   **`?utm_source=chatgpt.com` is a HARD provenance fingerprint** (filed under the outlet
