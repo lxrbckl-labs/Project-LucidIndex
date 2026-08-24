@@ -9512,6 +9512,62 @@ Cheap and worth doing because it is the one failure this recipe can produce *whi
 being followed correctly* — the desk does the right thing, gets a loud error, and the
 error means something other than what it says.
 
+### A CMS THAT MINTS `-0`, `-1`, `-2`… SIBLING NODES CAN LEAVE THE **CANONICAL URL HOLDING OLDER CONTENT THAN AN UNLINKED SIBLING** — ENUMERATE THE SUFFIXES BEFORE YOU TRUST A CEILING
+*(added 2026-08-24 by Kendall Bingham — found on `archives.gov`, where it had hidden two quarters of the National Declassification Center's release lists)*
+
+"You may be watching the wrong surface entirely" (above) covers watching the wrong
+*page*. This is the nastier variant: you are watching the **right** page, at the URL the
+site's own navigation links to, and it is **not the freshest copy of itself**.
+
+Drupal-style CMSes de-duplicate path aliases by appending an integer: a second node
+claiming `/a/b/c` becomes `/a/b/c-0`, the third `/a/b/c-1`, and so on. Editors then
+re-point the canonical alias by hand. When that hand-repointing goes wrong — or a
+migration reshuffles which node owns the bare path — the canonical URL silently
+starts serving an **older** node while the newer ones sit at unlinked suffixes.
+
+Measured on `archives.gov/declassification/ndc/release-lists`, the NDC's quarterly
+inventory of record series that finished declassification processing:
+
+| URL | quarter it holds |
+|---|---|
+| `…/release-lists` **(the only one the NDC nav links to)** | FY2025-Q3, "Updated July 10, 2025" |
+| `…-0` | FY2025-Q1 |
+| `…-1`, `…-3` | FY2025-Q2 (byte-identical twins) |
+| `…-4` | FY2025-Q3 |
+| `…-2`, `…-5` | FY2025-Q4 |
+| `…-6` | **FY2026-Q1** — three quarters newer than the canonical page |
+| `…-7` and up | 30,146-byte soft-404 |
+
+Eight live copies, six different quarters, and the **navigation points at the
+oldest-but-one**. A desk that read the canonical page and recorded "newest = FY2025-Q3"
+would have logged a thirteen-month-stale ceiling as the current state of the surface.
+
+**The probe is three lines and terminates on its own** — walk `-0` upward until you hit
+the host's 404 (assert on the *status code*, or on the soft-404's fixed byte count where
+the host serves 200s), and read the content date off each:
+
+```bash
+for n in "" -0 -1 -2 -3 -4 -5 -6 -7; do
+  curl -sL --compressed -A "$FULL_UA" -w "[%{http_code}] " \
+    -o /tmp/n.html "https://host/path$n"
+  grep -oE 'og:updated_time" content="[^"]*"' /tmp/n.html | head -1
+done
+```
+
+**Two things generalise past NARA.**
+
+1. **Run it whenever a page's `og:updated_time` and its own visible "Updated <date>"
+   line disagree.** On the NARA page the meta said `2026-07-28` and the body said
+   "Updated July 10, 2025" — that ten-month spread is the tell that the *node* was
+   swapped rather than *edited*, and it is what should trigger the enumeration.
+2. **Wayback settles which direction the surface moved.** CDX the canonical URL and
+   replay a capture from before the divergence; if the archived canonical holds content
+   that exists nowhere live, the site did not merely go quiet — it **un-published**
+   something. On this case captures from 2026-03-11 and 2026-07-21 held FY2026-Q1 and
+   FY2026-Q2 at the bare path, and FY2026-Q2 is now on no live page at all, though its
+   PDF and XLSX still answer 200 as orphans under `/files/`. That distinction — quiet
+   vs. un-published — is the difference between a ceiling and a story.
+
 ### Video-only sources: transcribe them, don't skip them
 *(added 2026-07-25 by Brian Hare)*
 
@@ -10342,6 +10398,42 @@ settling measurement is unachievable with any built or planned instrument at any
 is **not currently falsifiable either**. It gets *managed* indefinitely rather than resolved. We normally
 deploy "not falsifiable with available instruments" as a criticism; here it is a true description of the
 best paper in the field, and copy should say so rather than borrowing the pejorative sense.
+
+### THE DEGRADATION TEST — a compromise that reaches physical or embedded devices is NOT a cyber-physical incident unless something PHYSICAL was degraded
+*(promoted 2026-08-24 by Kendall Bingham on the third instance, after carrying it as an open thread on The Record's mark since 2026-08-19)*
+
+The cyber-physical beat's filing bar asks for **deliberate degradation of physical
+infrastructure**. The failure mode is not laxity about *deliberateness* — the
+attribution spectrum already handles that — it is letting the **substrate** stand in
+for the **effect**. A breach whose victim is a critical-infrastructure operator, or
+whose malware runs on hardware bolted into a physical object, reads as cyber-physical
+at a glance and is not.
+
+**The rule: ask what stopped working.** If nothing was degraded, disabled, damaged or
+denied in the physical world, it is a cybercrime story and belongs to a different desk,
+no matter what the victim's sector is or what the malware runs on. The discriminator is
+the **effect**, never the substrate.
+
+Three measured instances, escalating in how hard they are to decline:
+
+| item | why it looks cyber-physical | what actually happened | verdict |
+|---|---|---|---|
+| Latvia / CSDD | national vehicle-registry operator, named critical entity | data exposed; registry kept operating | DECLINE |
+| Microolap / "Black Spark" | victim list names critical-infrastructure operators | breach claims; no operator reports an outage | DECLINE |
+| DoFun car head units (2026-08-24) | malware is **inside a moving vehicle** | `JarService`, pushed via the legitimate `TWCore` system app, turns head units into **reverse proxies** for ad fraud and traffic laundering; no safety system touched, cars drive normally | DECLINE |
+
+The third case is the one worth remembering, because it defeats every proxy short of the
+rule itself. The compromised device is embedded in a car; the delivery is a silent
+supply-chain push through a vendor's own signed system app; the actor (MoYu Group, tied
+to the BadBox operation) is a capable one. Every ingredient of a cyber-physical story is
+present **except an effect on the physical world** — the vehicle is a host, not a target.
+Being able to decline that one is the test of whether the rule has actually been internalised.
+
+**Corollary, and the direction the rule is meant to cut in.** This is not a rule for
+declining things; it is a rule for *not diluting* the beat. The counterpart failure is
+real and worse: a genuine substation, cable or pipeline attack that gets skipped because
+it arrived without a cyber component. Degradation is the criterion in **both** directions —
+a rifle, an anchor or a backhoe clears this bar effortlessly and a zero-day may not.
 
 ### Attribution ladder for unclaimed infrastructure attacks — model-dependence FIRST, claim-silence as a fenced tiebreaker
 *(settled 2026-08-19/20 across three forum threads — Terzo pylon 416, Al Mukha / Perim Island,
@@ -12787,6 +12879,31 @@ never been checked against a weekday histogram is not a threshold, it is a coin 
 ---
 
 ## Changelog
+
+- **2026-08-24 (evening, fast desk / Kendall Bingham)** — three pulls, one filing, two
+  playbook promotions. **NARA**: filed off a surface **nobody had ever swept** —
+  `archives.gov/declassification/ndc/release-lists`, the National Declassification Center's
+  quarterly inventory of record series that finished declassification processing. The canonical
+  URL, the only one the NDC's own navigation links to, currently serves **FY2025-Q3 ("Updated
+  July 10, 2025")**, while unlinked sibling nodes hold newer quarters and **FY2026-Q2 is on no
+  live page at all** — Wayback proves it sat at the bare path on 2026-07-21, and its PDF/XLSX
+  still answer 200 as orphans under `/files/`. Read as a CMS accident rather than a scrub (every
+  file was left reachable) and stated against the page's own bigger precedent hole, 2020-Q1
+  straight to 2022-Q3. Promoted the mechanism as **"A CMS THAT MINTS `-0`, `-1`, `-2`… SIBLING
+  NODES…"** — enumerate the suffixes before trusting a ceiling, and treat a disagreement between
+  `og:updated_time` and the body's own "Updated <date>" line as the trigger. **The Record**:
+  **type-2 filtered zero**, two items read in full and both declined, which produced the third
+  instance of the **degradation test** and so promoted it — a compromise reaching physical or
+  embedded devices is not cyber-physical unless something physical was degraded; the DoFun car
+  head-unit botnet is the clean specimen, because the malware is literally inside a vehicle and
+  still nothing stops working. Also **corrected my own instrumentation claim**: The Record's
+  feed-vs-sitemap drift measured 11m10s and 18m20s on the two available rows, both outside the
+  "3–7 min, ninth-plus consecutive observation" band I had written into that mark — re-measure
+  before quoting it. **FAS**: type-2 filtered zero, one row past the mark declined on 25,004
+  chars of full text with zero `\b`-bounded hits on any beat term. Weekend-shape predictions
+  written into two marks on 08-23 both **held** — The Record resumed Monday 12:15Z after a
+  64h19m silence, FAS posted Monday 10:23 host-local — which is the second independent
+  confirmation of the publishing-days rule promoted yesterday.
 
 - **2026-08-24 (afternoon, deep-analysis desk / Landon Volkman)** — three pulls, one filing.
   **r/UFOs**: two posts past the `00:56:01` mark, one filable — the Jack Osbourne "Trump says
