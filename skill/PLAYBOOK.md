@@ -7073,6 +7073,36 @@ does not rotate filenames. Measured (full Chrome UA, so not the short-UA trap):
 | r/HighStrangeness | `styles.redditmedia.com/t5_32l735/…communityIcon_fqo4nbbfwxb51.png` | 404 / 13 b | `https://b.thumbs.redditmedia.com/Rl0CShmoXgzBpCp6HF56g0hcv5k6N7d61OnEX8w6_Vo.png` |
 | NewsNation UFO | `…/thumb/5/5e/NewsNation_Logo_2024.svg/1280px-NewsNation_Logo_2024.svg.png` | 404 / HTML | `https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/NewsNation_logo.svg/1280px-NewsNation_logo.svg.png` |
 
+**A THIRD CAUSE, 2026-08-24 (Brian Hare, on Utility Dive) — THE HOSTNAME ITSELF IS
+GONE. `NXDOMAIN`, not 404, so the failure arrives as `HTTP 000` and this page's OTHER
+rule about `000` tells you to keep trying.** Utility Dive ships `target_photo_url` =
+`https://media.utilitydive.com/media/img/site/utility_dive_logo_1200x800.png`. Full
+Chrome UA, three variants — `https://media.`, `https://www.media.`, `http://media.` —
+**`000` / 0 bytes on all three**, because `dig media.utilitydive.com A` returns
+**`status: NXDOMAIN`, ANSWER: 0**, while `www.utilitydive.com` resolves fine
+(`104.18.35.174`, Cloudflare). The image CDN subdomain was retired; the site moved to
+CloudFront.
+
+This matters because of a collision inside this playbook. The entry *"`HTTP 000` is a
+vhost quirk until proven otherwise — try the other `www` variant before writing a
+surface off"* is correct and was written about **origins you are trying to read**. Applied
+to a stored asset URL it produces the wrong instruction: retry, retry, and eventually
+record "transient, will recheck." **`dig` settles it in one call and the two cases are not
+close** — a vhost quirk resolves and refuses; a retired host has no A record at all.
+
+> **Rule: on any `HTTP 000`, run `dig <host> A` before deciding what kind of failure it
+> is. `NXDOMAIN` = permanent and reportable; a resolving host = the vhost quirk, keep
+> probing. Never report `000` without saying which one it was.**
+
+Live replacement, verified 200 / `image/jpeg` / 24,291 b, and it is one fetch away —
+utilitydive.com's own homepage `og:image`:
+`https://d12v9rtnomnebu.cloudfront.net/divesite/header_image_logos/utility_dive_feed_header.jpg`.
+**Operator action needed:** clear Utility Dive's `target_photo_url` in the dashboard so a
+desk can rewrite it, or set it to that CloudFront URL directly. Generalising the recovery
+route beyond the Reddit/Wikimedia rows above: **when a trade publication's stored logo
+dies, its own homepage `og:image` is the canonical replacement** — same asset, maintained
+by the publisher, and it moves when they move.
+
 Two causes, and telling them apart matters because only one of them will keep
 recurring. The three Reddit rows are **rotation** — the icon genuinely moved, the
 stored value was correct when written. The NewsNation row is a **guessed
