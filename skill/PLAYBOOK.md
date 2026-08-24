@@ -4846,6 +4846,48 @@ deep, and it isn't your source)*
   **keep this target's request count minimal** and to prefer `wp/v2/blog` + the HTML
   archive when either will do. A full certification here is 3–4 requests; that is the
   right budget for a host that asks everyone to stay out.
+- **`skepticalinquirer.org` — `/video/feed/` completes the set, `lastBuildDate` makes
+  these feeds a POSITIVE void-certifier, and the host is UTC−4. Plus: the two entries
+  above have now failed to reach the mark TWICE.** *(added 2026-08-24 by Kendall
+  Bingham.)* Four things, and the last one is the one that matters.
+  **(1) The sibling feed exists: `https://skepticalinquirer.org/video/feed/`** → 200,
+  `application/rss+xml`, 10.1 KB, 10 items, reproducing the `wp/v2/videos` ladder exactly.
+  Brian's 07-27 entry documented `/exclusive/feed/` for `blog` but not the `videos`
+  equivalent, which left the *other* live CPT resting on wp-json alone. It no longer does.
+  **Mind the singular:** the REST base is `/wp/v2/**videos**` but the feed path — like the
+  canonical permalink in the row's `link` field — is `/**video**/feed/`. Same plural/singular
+  trap this page already records for `source_url`; it extends to the feed path. (`/videos/feed/`
+  untested — use the singular, which is confirmed.)
+  **(2) Both feeds carry `lastBuildDate`, and it rebuilds ON PUBLISH.** Measured 08-24:
+  `/exclusive/feed/` `lastBuildDate: Thu, 20 Aug 2026 15:13:08 +0000` against a newest
+  `pubDate` of `15:13:03 +0000` — **five seconds apart**. That upgrades these feeds from a
+  second *content* generator to a **positive assertion of absence**: a `lastBuildDate` still
+  sitting at the mark says the host did not publish, rather than merely that a filter came
+  back empty. Prior doctrine held that the only build-stamped object here was `/feed/`, which
+  indexes the frozen `post` CPT and is therefore useless for certifying `blog`/`videos`. That
+  is now obsolete — each editorial CPT has its own stamped feed, and a void condition on this
+  target costs **one request per CPT**.
+  **(3) SI joins the UTC−4 cluster** — measured on this host for the first time, having only
+  ever been asserted for Quanta / Science News / Naval News. wp-json returns **naked local**;
+  the feeds state UTC. `blog` 391309: `2026-08-20T11:13:03` = `20 Aug 2026 15:13:03 +0000`.
+  `videos` 391281: `2026-08-18T09:53:31` = `18 Aug 2026 13:53:31 +0000`. Exactly 4 h both
+  times. Convert before comparing to a mark; it only bites at a day boundary, and it bites
+  hard there.
+  **(4) THE REAL FINDING, AND IT IS ABOUT US, NOT THE HOST.** Brian closed his 08-17 entry
+  with the lesson *"I probed a source's surfaces before reading the source's own playbook
+  entry, and then promoted the gap I created."* On 08-24 I did the same thing, and so did the
+  desk before me. The live high-water-mark note on this target STILL says, in capitals,
+  `SITEMAP still unusable (wp-sitemap.xml 404; sitemap_index.xml 301 → mangled)` and
+  `Did NOT probe any /*/feed/ path` — **both of which this page corrected on 08-17 and
+  documented on 07-27 respectively.** Brian's correction never reached the mark. I then read
+  the mark, not the page, re-probed the feeds, and wrote them into my ack as a discovery.
+  **The mechanism is that the mark is what a desk actually reads at pull time and the playbook
+  is what it reads only if it remembers to.** A correction promoted here does NOT propagate to
+  a mark; nothing rewrites marks but the next desk. So: **when you correct a per-source fact
+  here, also fix the target's high-water-mark note in the same run** — otherwise the stale
+  claim keeps being re-derived at the cost of a full probe cycle, which is exactly what
+  happened twice on this target in seven days. And per Brian: read the per-source entry
+  BEFORE probing. It is cheaper than the probe and it was, again, already right.
 - **`science.nasa.gov` wp-json: `?search=UAP` is worthless as a beat filter.**
   It returns 200 and a real 13-item list — passing the assert-a-list rule — whose
   top hits are *"Deforestation in Paraguay's Gran Chaco"* and *"Curiosity Blog,
