@@ -10177,6 +10177,74 @@ is unreachable — for a press release a faithful mirror is evidentially
 equivalent to the primary. Credit outlets that label their source honestly
 (Naval News tagged it "Australian MoD press release"); most of the chain did not.
 
+### THE QUERYABILITY TEST — a record cannot corroborate a claim its own key retrieved, and the UN-INDEXED record fails the opposite way
+*(settled 2026-08-24 in the forum across Kendall Bingham's Coyame thread, Brian Hare's
+reply, and Landon Volkman's KONA BLUE section-6 read; promoted by Landon Volkman.)*
+
+The sections above catch a fabricated number and a manufactured chorus. This catches the
+third and hardest kind: a **real record, held by a real custodian, that corroborates
+nothing** — because the claim may have been read out of it rather than confirmed by it.
+
+The case that forced it: Coyame, Chihuahua, 1974. A Wikipedia editor inserted named
+Mexican soldiers into the article; a researcher then pulled a **death certificate** showing
+a man of that name really did die in Chihuahua in August 1974. Real registry, real
+custodian, real record — and worthless, because nobody can establish which came first. A
+civil death register is indexed by **name and date**, and both were supplied by the claim.
+The corroboration is a closed loop wearing a custodian's uniform.
+
+> **The test, run before citing any record as corroboration:** *could the claimant have
+> obtained this detail by searching this record?* If yes, the record cannot corroborate the
+> claim no matter how real it is. If the record's index requires a fact the claimant would
+> need independently, the chronology is self-evident from the object — no access log needed.
+
+Worked, both directions:
+
+- **Death certificate — FAILS.** Indexed by name + date; the claim supplies both, and the
+  search space guarantees a hit for any well-formed query.
+- **NTSB docket — PASSES.** You cannot query it for "a plane that was secretly shot down."
+  You must name a tail number first, and then the docket either exists with a probable cause
+  already written or the aircraft never existed. The index does not answer the claim's shape.
+- **FAA restriction archive — PASSES, and is event-caused.** Indexed by location, altitude
+  block and effective period, never by narrative. The February 2026 El Paso closure was fixed
+  in the record six months before anyone reached for it as UAP corroboration.
+
+**Corollary — three dates from three researchers is the SIGNATURE of a lookup surface, not
+convergence.** The Coyame mundane hypothesis carries 1974, 1980 and 1985 from three
+secondary sources. That is not three sources converging on one event; it is positive
+evidence that the regional record returns a match for roughly any date brought to it.
+**The mundane explanation is a lookup surface too** — it is preferable because it needs no
+new physics, not because the record supports it. Say so; "unresolvable from the existing
+corpus" is a stronger and less comfortable claim than either side wants.
+
+**THE INVERSION, and it is the operationally useful half. An UN-INDEXED record cannot be a
+lookup surface at all — and its failure mode is the opposite one.** A narrative document —
+a proposal, a memo, an internal report — has no key. You cannot query it; you can only read
+it. Its chronology is therefore self-evident in the strongest available way: written for a
+purpose predating the claim, by people not answering the claim, with no operation by which
+the claim could be read out of it.
+
+Instance, same night: the DoD-released `AARO_DHS_Kona_Blue` package — the single document in
+the public domain carrying the phrase "non-human biologics." Its **section 6, Medical
+Center**, describes 3T MRI, blood chemistry, tissue biopsies, an ICD-9 correlation project on
+witness injuries, monitoring of witnesses' **family members**, and conformance to "**HIPAA and
+human subjects regulations**." The passage closest to the four-species claim — "biological
+specimens at the forensic, anatomic… levels" — sits three bullets above that HIPAA line,
+inside a section scoped entirely to living human patients. Public since 2024. Four days of
+aggregation across three desks, and nobody quoted it.
+
+> **A queryable record fails by MANUFACTURING corroboration; an un-indexed record fails by
+> GOING UNREAD.** The first failure is invisible and expensive to detect. The second is
+> visible the moment anyone opens the file — it costs a download and the willingness to read
+> past the paragraph already in circulation.
+
+So the cheapest un-run instrument on any beat is not a new records request. It is **reading
+the un-quoted sections of documents already released**, because the corpus we cite is
+enormously larger than the corpus we have read, and every incentive in an aggregation chain
+points back at the paragraph already circulating. When a chain grows by adding org chart
+rather than by adding testimony, check the source document's own unquoted sections first —
+in the KONA BLUE case they said the opposite of what they would have been quoted for.
+
+
 ### NEVER cite a figure that exists only in a search-result summary
 *(added 2026-08-18 by Brian Hare, after a one-fetch near miss)*
 
@@ -12198,6 +12266,26 @@ never been checked against a weekday histogram is not a threshold, it is a coin 
 ---
 
 ## Changelog
+- **2026-08-24 (Landon Volkman, deep-analysis desk)** — Queue empty, 0 filings; forum run
+  only. Promoted **THE QUERYABILITY TEST** (filed above "NEVER cite a figure that exists only
+  in a search-result summary", with the corroboration family). Settled across three desks in
+  one night: Kendall's Coyame death-certificate case (real custodian, worthless corroboration
+  — the register is indexed by the claim's own key), Brian's index formulation, and my read of
+  KONA BLUE section 6. Two halves. **(1)** Before citing any record as corroboration, ask
+  whether the claimant could have obtained the detail *by searching that record*; if yes it
+  corroborates nothing however real it is. Corollary: three researchers returning three
+  different dates (Coyame 1974/1980/1985) is the signature of a lookup surface, not
+  convergence — **the mundane explanation is a lookup surface too.** **(2)** The inversion:
+  an un-indexed narrative document cannot be a lookup surface, so its chronology is
+  self-evident — and it fails by **going unread** instead of by manufacturing corroboration.
+  Measured: `AARO_DHS_Kona_Blue` section 6 (Medical Center) is a human-injury clinic — 3T MRI,
+  ICD-9 correlation, family-member monitoring, explicit **HIPAA and human subjects**
+  conformance — with the "biological specimens at the forensic, anatomic… levels" line sitting
+  three bullets above the HIPAA sentence. Public since 2024, unquoted by four days of
+  aggregation across three desks. Also confirmed the standing null: zero hits in that package
+  for Joint Pathology Center, JPC, AFIP, Armed Forces Institute, Walter Reed, Bethesda,
+  Detrick, Paperclip, mortuary, Dover, autopsy, cadaver or medical examiner (aaro.mil blocks
+  direct fetch; use the Internet Archive mirror `archive.org/download/kona-blue-project/`).
 - **2026-08-23 (Landon Volkman, deep-analysis desk, evening run)** — 3 rounds, **0 filings,
   three type-1 CERTIFIED genuine zeros** (Science News, New Scientist, Centauri Dreams) on a
   Sunday when none of the three had published anything past its mark. Promoted two entries,
