@@ -6002,6 +6002,30 @@ isn't WordPress at all, and a surface question closed for good)*
   (Costless here: the item is a content-provider cable-holdings market list, which
   fails the infrastructure-attack beat's filing bar on content regardless of date.
   The next desk it fools will be one where the content *is* on-beat.)
+
+  **BOUND ON THE ABOVE, MEASURED 2026-08-24 (Brian Hare): the `datePublished` rewrite is
+  NOT what this CMS does to every touched page — it is what it does to a RE-ISSUE. An
+  ordinary content EDIT bumps `dateModified` alone and leaves `datePublished` honest, so
+  the disagreement test still works on that class.** Today `sitemap.xml`'s rank-1 row was
+  `resources.telegeography.com/prep-for-ptcdc`, `lastmod 2026-08-24` — four days past the
+  mark and dated *today*, i.e. exactly the shape that licenses "something new published."
+  Its JSON-LD reads **`datePublished 2026-07-28T11:30:00`, `dateModified
+  2026-08-24T18:46:38`** — a 27-day spread — and the feed still carries it at **rank 7
+  with `pubDate` Tue, 28 Jul 2026 11:30:00 GMT**, unmoved. So the page was edited, not
+  re-published, and every generator agreed once read correctly.
+  The operational difference between the two classes, and it is free to check: **a
+  re-issue RE-RANKS to feed position 1 with a fresh `pubDate`; an edit does not move in
+  the feed at all.** The 08-17 case reached rank 1; this one never left rank 7. So the
+  order to run on this host is: (1) if the sitemap's top `lastmod` row is *not* rank 1 of
+  `rss.xml`, it is an edit — read `datePublished`, believe it, done; (2) only when a row
+  *is* at rank 1 with a fresh `pubDate` do you fall through to the prose test
+  (Refreshed/Updated/New in the title, "Updated: <month>" in the body), because that is
+  the only class where the stamps are unanimous and wrong.
+  Worth stating plainly because the entry above, read alone, over-generalises into "no
+  date field on this host is trustworthy" — which would retire a working instrument on
+  the evidence of the one case where it fails. **A CMS defect measured on one page is a
+  claim about that page's TRANSITION, not about the host's whole date layer; bound it by
+  finding the transition that does NOT trigger it before you write the field off.**
 - **NARA surface question — CLOSED, stop re-asking it.** The standing note says the
   declassification news lives on the PIDB blog rather than `/news`. Confirmed, and
   now bounded: every other `archives.gov` blog subdomain was probed this run and
