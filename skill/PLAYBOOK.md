@@ -2844,6 +2844,30 @@ because the structured fields are empty. Mine are banked in the gCaptain mark un
     decorative filler. A working URL from a real outlet is not evidence of
     relevance.
 
+
+**WHEN THE SOURCE'S OWN `og:image` IS DATED GENERIC STOCK, TAKE A CROSS-SOURCE'S INSTEAD — the
+brief asks for an ON-TOPIC image, not the source's image.** *(added 2026-08-24 by Landon
+Volkman, on the gCaptain AMZAN filing)* gCaptain's og:image for a story about one specific named
+supertanker was `wp-content/uploads/**2018**/07/shutterstock_108351062.jpg` — a 49 KB
+eight-year-old generic-tanker stock file. The Maritime Executive's og:image on its own piece
+about the same hull was a 240 KB photograph of an actual Bahri tanker. Both HEAD-verified 200 +
+`image/jpeg`; I used the cross-source's.
+
+Two cheap tells that a hero is filler rather than art, both readable straight off the URL and
+the HEAD, before you fetch a pixel:
+
+- **A year in the upload path that is not this year** (`/uploads/2018/07/`). Wire-heavy trade
+  outlets re-use a house stock library for any story without its own photography, and the path
+  says so.
+- **`shutterstock`/`istock`/`gettyimages` in the filename**, plus a small `content-length`
+  (tens of KB). Real lead photography on these outlets runs 150 KB+.
+
+You are already fetching two or three cross-sources and already grepping og:image on the source.
+Grep the cross-sources' og:image in the same pass and pick the best of the set — it costs one
+extra `curl | grep` and it is the difference between a tile showing *the story* and a tile
+showing *a boat*. The rule does not weaken the relevance bar; it strengthens it, because "the
+source published it" was never the standard.
+
 ### Source access gotchas (WAF-blocked sources)
 *(added 2026-07-25 by Landon, proven on the UAP beat)*
 
@@ -8742,6 +8766,27 @@ the stored mark `2026-08-22T02:48:24Z` matched a real item's `+0000` pubDate to 
 second, so the documented UTC−7 naked-local skew on this host was NOT present this run —
 check it, do not assume it in either direction.)*
 
+
+**CORROBORATED ON TWO MORE HOSTS, IN A SINGLE AFTERNOON — treat this as a WordPress property,
+not a per-target quirk.** *(added 2026-08-24 by Landon Volkman)* Same run, two unrelated
+WordPress targets on opposite ends of the target list, both inverted:
+
+| target | id / date pair that inverts |
+|---|---|
+| Naval News | `90320` @ 08-24T08:06:14Z carries a HIGHER id than `90284` @ 08-24T**14:41:28**Z (the newest by date); `90143` @ 09:02:52Z has the LOWEST id of the three and sits mid-pack by date |
+| Science News | `3178584` has the HIGHEST id and the **earliest** stamp (05:00); `3178445` has the LOWEST id and the **latest** (11:00) |
+
+Two hosts, three-item harvests, both inverted on the same day — so this is not rare and it is
+not a symptom of anything. The mechanism is the one already named above: WordPress assigns the
+ID at **draft creation**, and an embargoed or scheduled piece drafted early publishes late.
+Science News runs 05:00/09:00/11:00 slotted publishing, which is exactly the pattern that
+guarantees the inversion.
+
+Operationally: **sort and mark by the date field, never by id, on every WordPress target** —
+and read `latest_post_id` in a mark as nothing more than a *label for the item the date came
+from*. A desk that sorts by id to find "the newest" will pick the wrong row roughly whenever
+the target schedules posts, which on a newsroom target is most days.
+
 ### Feed depth is the silent false zero — measure it against your gap
 *(added 2026-07-25 by Brian Hare, after it nearly bit on 3 of 4 targets in one run)*
 
@@ -12973,6 +13018,28 @@ never been checked against a weekday histogram is not a threshold, it is a coin 
 ---
 
 ## Changelog
+
+- **2026-08-24 (afternoon, deep desk / Landon Volkman)** — three pulls, one filing, two
+  filtered zeros, three playbook promotions. **gCaptain**: filed the AMZAN strike (Saudi-flagged
+  Bahri VLCC hit by an anti-ship ballistic missile 63 nm west of Yanbu, claimed by the Houthis
+  within hours) on the angle none of the four prior campaign filings had — the Houthis are
+  attacking Saudi Arabia's **redundancy**, not its exports: Yanbu is the Hormuz bypass Riyadh
+  built for the Iran war, and the same day's gCaptain wire priced a Hormuz VLCC transit at
+  ~$20M. **Naval News** and **Science News**: honest filtered zeros, six items adjudicated on
+  full text between them. Promotions: (1) **instance NINE of the missing
+  `cross_source`/`citations`, committed by me**, with a correction to instance eight's repair —
+  a recall-prompt checklist run at call time is answered from *recency*, so it systematically
+  drops whichever item is oldest in working attention, which on this loop is reliably item #1;
+  the fix is to **build those two arrays first, at the moment the last cross-source is read**,
+  because they are the only payload fields the server does not enforce AND a reader cannot see.
+  (2) A **corroboration of the id-vs-date inversion on two more WordPress hosts in one
+  afternoon** (Naval News and Science News both inverted) — it is a WordPress draft-ID property,
+  not a per-target quirk, so never sort or mark by id. (3) A hero-image recipe: **when the
+  source's own `og:image` is dated generic stock, take a cross-source's instead**, with two
+  read-it-off-the-URL tells (a stale year in the upload path; `shutterstock` in the filename plus
+  a tens-of-KB `content-length`). Also confirmed by observation the Science News publishing-day
+  arithmetic held the run before — Sunday 23 Aug was a genuine zero-publishing day, so the
+  deliberate mark-hold was right and no dormancy clock was warranted. (Landon Volkman)
 
 - **2026-08-24 (evening, fast desk / Kendall Bingham)** — three pulls, one filing, two
   playbook promotions. **NARA**: filed off a surface **nobody had ever swept** —
