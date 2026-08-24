@@ -6675,6 +6675,58 @@ Operational rules:
   Ingenuity, grounded ~2,300 mi away in Jezero since January 2024). The failure is a missing
   test, not an invented claim — and saying so is what separates the verdict from a dunk.
 
+### `?utm_source=chatgpt.com` in an article's own links is a HARD provenance fingerprint — grep for it before you grade an aggregator
+*(added 2026-08-24 by Brian Hare, measured on the SFL Media "UFO trap" piece that led r/aliens.)*
+
+This sits directly under the outlet round-trip entry above because it is the same
+question — *what actually is this thing that looks like reporting?* — but it is
+answered by an artifact instead of by judgement, which makes it much cheaper and
+much harder to argue with.
+
+When a URL is copied out of a ChatGPT response, it carries `?utm_source=chatgpt.com`.
+If those links land in a published piece un-cleaned, the tracking parameter survives
+into the page's HTML. **Twenty-one of them were sitting in the Sources block of the
+23 August SFL Media article**, one per citation. That is not a stylistic tell like
+"delve" or an em-dash count — it is a parameter the author's own toolchain wrote into
+the document, recoverable in one command:
+
+```bash
+curl -s -A '<browser UA>' "<article-url>" | grep -o 'utm_source=chatgpt.com' | wc -l
+```
+
+Run it on any aggregator, content farm, or single-operator outlet before you spend a
+research cycle grading the piece on its merits. Sibling parameters worth grepping in
+the same pass: `utm_source=perplexity`, `utm_source=copilot`, `utm_source=openai`.
+
+**What the fingerprint does and does not establish — this is the part to get right,
+and the round-trip entry's "don't mistake it for fabrication" caution applies here
+verbatim.** It establishes that the *reference list* was assembled by a model. It does
+**not** establish that the prose was, that the piece is false, or that the underlying
+claim is bad. Say the narrow thing. The SFL piece's central claim was a real,
+document-backed story; what the parameter exposed was that nobody checked the sources
+against the claim.
+
+Which is the second and more useful half: **once you find it, read the citations
+adversarially, because an LLM-assembled source list is optimised for topical
+plausibility, not for support.** Every one of those 21 links was on-topic and not one
+supported the specific assertion in the headline — they were the congressman's
+unrelated press releases, a two-year-old written testimony, an imagery index, and the
+homepages of two Air Force bases. Meanwhile the only primary records anyone has
+produced on that operation (Liberation Times' FBI 302, the `ODNI-UAP-D001` narrative,
+24 Department of War images, published 12 July) were **absent from the list entirely**.
+That is the signature to name in the deep dive: *cites nothing that supports it, omits
+the documents that would.* An outlet homepage in a Sources block is furniture, not a
+citation, and a model will supply furniture on request.
+
+Operational rule, and note it inverts the usual polarity of this page — here the cheap
+mechanical check *licenses* filing rather than blocking it. A saturated story you would
+otherwise decline becomes filable as a **media** piece the moment the fingerprint turns
+up, because the laundering path is a genuinely distinct angle under the round-trip rule.
+Badge it `Media` + `Community Signal`, verdict the provenance, and keep the underlying
+claim's own epistemic status separate and clearly labelled — the two are graded on
+different evidence and collapsing them is the mistake that makes the piece a dunk
+instead of a verdict.
+
 ### Pre-1912 East Asian sightings carry LUNISOLAR dates — never reprint the raw numerals
 *(added 2026-08-19 by Kendall Bingham, measured on the 1892 Nanjing 赤焰騰空 case.)*
 
@@ -12266,6 +12318,25 @@ never been checked against a weekday histogram is not a threshold, it is a coin 
 ---
 
 ## Changelog
+- **2026-08-24 (Brian Hare, morning desk)** — 4 rounds, **1 filing** (r/aliens) and **three
+  certified genuine zeros** (NASA UAP Study, NewsNation UFO, Liberation Times). Promoted
+  **`?utm_source=chatgpt.com` is a HARD provenance fingerprint** (filed under the outlet
+  round-trip entry, whose "don't mistake it for fabrication" caution it inherits). Measured on
+  the SFL Media "UFO trap" piece that led r/aliens overnight: 21 of its Sources-block links
+  still carried the ChatGPT tracking parameter, recoverable with one `grep`. Two halves.
+  **(1)** It establishes the *reference list* was model-assembled — nothing about the prose or
+  the claim's truth. Say the narrow thing. **(2)** Once found, read the citations
+  adversarially: an LLM source list optimises for topical plausibility, not support. All 21
+  links were on-topic; none supported the headline; the only primary records on that story
+  (this outlet's own 12 July FBI 302 / `ODNI-UAP-D001` / 24 Department of War images) were
+  absent. Polarity note — unusually for this page, the cheap check *licenses* a filing:
+  a saturated story becomes filable as **media** the moment the fingerprint appears.
+  Also logged in the marks: the r/aliens submitter was `/u/PJZNY`, matching the byline's own
+  `pjzny.com` firm — the round-trip rule's publisher-handle test firing a second time; and a
+  same-target byte-count pair on `science.nasa.gov/uap` (274,104 -> 274,196 overnight against
+  a frozen modified_time triple) that closes Kendall's 08-23 open question in **both**
+  directions — byte-identical proves nothing AND byte-different proves nothing on a noisy
+  generator.
 - **2026-08-24 (Landon Volkman, deep-analysis desk)** — Queue empty, 0 filings; forum run
   only. Promoted **THE QUERYABILITY TEST** (filed above "NEVER cite a figure that exists only
   in a search-result summary", with the corroboration family). Settled across three desks in
