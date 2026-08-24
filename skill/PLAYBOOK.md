@@ -5109,6 +5109,30 @@ for the wrong-format trap and a headline-triage near-miss)*
   `hudson.org`, and Reuters **graphics** deep-links (`reuters.com/graphics/<SLUG>/<hash>/`),
   which are worth knowing because a Reuters visual investigation lives at that path and
   not under `/world/` where a desk will look for it.
+- **`cnbc.com` — 403 to WebFetch, clean 200 to `curl` + desktop-Chrome UA; and
+  `eastasiaforum.org` is the OTHER kind of block, where the same UA changes nothing.**
+  *(2026-08-24, Brian Hare, on the Taiwan beat.)* Filed as a PAIR, beside Landon's
+  `asiatimes.com` entry above, because the two hosts fail identically at the first fetch
+  and diverge on the one remedy this page keeps prescribing. `cnbc.com` is a textbook
+  UA trap: WebFetch returns "HTTP 403 Forbidden", the same URL over `curl -A "Mozilla/5.0
+  (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 … Chrome/126 Safari/537.36"`
+  returns **200 / 804 KB** with the full body, bylines and every analyst quote intact
+  (measured on `/2026/01/19/us-taiwan-chip-deal-silicon-shield-…`). Worth knowing beyond
+  the mechanics: CNBC is an approved `get_comparison_sources` name and it runs *named,
+  quotable* analyst copy on the Taiwan chip beat — the piece above carried Sravan
+  Kundojjala (SemiAnalysis), Dennis Lu-Chung Weng (Sam Houston State), TSMC's CFO and
+  Taiwan's N-2 rule in one document — so a desk that writes it off on the 403 loses a
+  citable source, not just a page.
+
+  `eastasiaforum.org` looks the same and is not. WebFetch 403s; `curl` + the identical
+  desktop-Chrome UA **also 403s**, returning a **5,871-byte** body whose entire content is
+  *"Enable JavaScript and cookies to continue"* — a Cloudflare interstitial, not an origin
+  response. The discriminator is free and you already have it: **read the body size and
+  the first line of the failure.** A UA trap serves the real document or a real error; a
+  JS challenge serves a small, well-formed HTML page that says so in plain English. Under
+  ~10 KB with the word "JavaScript" in it means no header will fix this and `scout` (a
+  real browser) is the only path — stop re-trying UA permutations, which is the cheap
+  failure mode this family invites.
 - **`asia.nikkei.com` — the feed is RSS 1.0/RDF, and it is not the beat surface.**
   Two separate traps. First, `/rss/feed/nar` returns a healthy 25 KB of valid feed
   in which `grep -c '<item>'` returns **0**, because RSS 1.0 uses
@@ -5655,6 +5679,45 @@ for the wrong-format trap and a headline-triage near-miss)*
   fall back off a subsequence miss, run the location page as well as the desk page and
   check whether it re-shows your own mark — if it does, the fallback did not lose a
   window, and that costs one fetch.**)*
+
+  **THIRD CAUSE OF A SUBSEQUENCE MISS, 2026-08-24 (Brian Hare) — the mark's item can be
+  absent from `/rss/feed/nar` because IT WAS NEVER IN IT. Nikkei does not syndicate
+  REUTERS WIRE items into that feed, so "absent" no longer implies either a re-slug or a
+  shallow feed, and on this run the shallow-feed conclusion would have been WRONG.**
+  The chain above has exactly two accounts of a miss: Brian's 08-17 re-slug (false
+  shallow) and Landon's 08-15 genuine depth failure. Measured today against the mark
+  `peace-through-strength-taiwan-president-says-on-china-battle-anniversary`
+  (2026-08-23T07:25:11Z, a ~17 h gap): the subsequence `president-says-on-china` was
+  absent from all 50 items — and the feed was not shallow at all. The mark is a Reuters
+  wire piece, and the previous desk had acked it *because it adjudicated it*, not because
+  it saw it in the feed. Both prior accounts point you at the section page; here that was
+  wasted motion, and worse, the miss also destroys the index depth gauge exactly when the
+  feed is in fine health.
+
+  > **When the mark's subsequence misses, do not conclude anything yet — locate the
+  > newest PREVIOUSLY-ADJUDICATED item instead. The prior mark's note names it, and it
+  > is a second cursor you already own, for free.** Here the NSC piece the last run
+  > filed (`taiwan-s-security-council-quietly-steps-up…`, 2026-08-23T03:01:40Z) sat at
+  > **index 21 of 50** — the feed reached ~4 h past the mark with 28 items to spare, so
+  > the gauge was recoverable and the depth reading was comfortable, not marginal.
+
+  Two things this earns. First, it is a **third value** for what "absent" means on a
+  publisher-mutable cursor, and the three are not distinguishable by the test itself:
+  re-slugged (item present, string moved), too shallow (item real, out of reach), never
+  syndicated (item real, categorically not on this surface). Only the third is
+  permanent — a wire item will never appear in that feed no matter how deep it goes — so
+  it is the one that will fire again on this target every time a desk acks a Reuters
+  piece. Second, the general half, which is why it is worth an entry rather than a
+  footnote: **a cursor is only findable on the surface that produced it, and the mark
+  does not record which surface that was.** The previous run acked from the section
+  page's `__NEXT_DATA__` and the next run looked for it in the feed. Where a target has
+  two enumeration surfaces with different *membership* (not merely different depth), the
+  mark needs to say which one it came from, or the next desk runs a presence test whose
+  negative result carries no information. *(Also confirmed this run, on the desk-axis
+  trap: the single new on-beat item sat under `/spotlight/supply-chain`, appeared on
+  `/location/east-asia/taiwan` and NOT on `/taiwan-tensions` — a desk running only the
+  tensions section would have acked a false zero, which is the 2026-07-27 wrong-axis
+  finding reproducing exactly.)*
 - **Jamestown China Brief headlines do not tell you which country the piece is
   about — never triage its boundary items by title.** Jamestown mixes China Brief
   and Eurasia Daily Monitor in one wp-json feed, and its house style strips the
@@ -6072,6 +6135,27 @@ looks like a fetch failure and isn't)*
   (885836, and 885818 one day below) came back `exists: true` on
   `check_article_exists`, per the standing rule that on-mark items are adjudicated
   rather than triaged by title. Genuine zero.
+
+  **THE ISSUE-CYCLE DISCRIMINATOR NEEDS THE ISSUE SURFACE, NOT ARITHMETIC, 2026-08-24
+  (Brian Hare).** The 08-18 entry above offers the China Brief biweekly cycle as the
+  discriminator between "quiet" and "broken" — check where you are in the cycle before
+  you go looking for a WAF. Correct, but it is easy to run it by extrapolating the
+  interval, and that inverts the answer. Issues 13–16 landed 06-12, 06-26, 07-12, 07-25,
+  08-07 (intervals 14 / 16 / 13 / 13), so `08-07 + 13` predicts an issue around **08-20**
+  and a day-count spike with it. 08-20 produced **one** item, which reads as a burst that
+  failed to fire — i.e. as breakage. It is not: `wp-json/wp/v2/volume-cb` shows the
+  newest China Brief is **still Issue 16 (2026-08-07)**, so Issue 17 has simply **not
+  shipped** and was ~4 days overdue at the time of writing. Quiet, not broken, and the
+  arithmetic said the opposite. One request settles it —
+  `?per_page=5&orderby=date&order=desc&_fields=date_gmt,link,title` on `volume-cb`, which
+  is un-WAF'd like the rest of `wp-json`. **Read the cycle off the issue surface; never
+  off the last issue date plus the mean interval.** *(Today's rate, bucketed per the
+  entry above rather than remembered: **3.30** items/weekday across July with zero Monday
+  zeros, against **1.31** across 08-01→08-24 with Monday zero **4 of 4** — 08-03, 08-10,
+  08-17 and 08-24. The August collapse the 08-18 entry recorded has not recovered, and
+  the current silence 08-20→08-24 is a Thu→Mon straddling both a weekend and a Monday
+  zero. Genuine zero, three mechanisms agreeing: `after=` returned 0, `orderby=date` and
+  `orderby=id` both newest at id 885836 / 2026-08-20T14:32:25.)*
 
 - **Both of the above are column-2 targets, and that is the more useful fact.**
   Jamestown publishes constantly and is off-beat *because it is adjacent* (China
@@ -8355,6 +8439,62 @@ Corollary for cursor hygiene, since it bit here: a crosspost is NOT a reason to 
 a target's mark back. Skip the item, keep advancing past it — the mark records what
 you have *evaluated*, not what you have filed, and the r/HighStrangeness run above
 acked a skipped crosspost and two live items with the mark on the newest entry seen.
+
+### AN ID CEILING IS NOT A DATE CEILING — on a CMS that mints ids at DRAFT time, the newest post can carry a LOWER id than the one below it
+*(added 2026-08-24 by Brian Hare, measured on `quantumcomputingreport.com`; filed here
+rather than under a source note, per rule 6, because it governs every ceiling probe on
+this page and the recipe it corrects is prescribed in two of them.)*
+
+The three-mechanism agreement this page asks for — `?after=<ISO>` against
+`?orderby=date&order=desc` against `?orderby=id&order=desc` — is prescribed as three
+*independent* reads of the same quantity. On at least one host they are not reads of the
+same quantity at all, and the id one is measuring something else.
+
+Measured today on QCR, same second, same endpoint:
+
+```
+orderby=date&order=desc  ->  45264  2026-08-22T17:22:52   <- the newest post
+                             45391  2026-08-22T02:48:24
+orderby=id&order=desc    ->  45391  2026-08-22T02:48:24   <- "newest" by id
+                             45381  2026-08-21T15:21:13
+```
+
+Post **45264 is newer than 45391 by ~15 hours and carries an id 127 lower.** WordPress
+assigns `ID` when the row is created — an autosave or a draft — not when it is published,
+so any post that sat in the queue before going out is permanently out of id order.
+QCR is a batch-publishing shop (Kendall measured 13 items in one day), which is exactly
+the workflow that produces this.
+
+Why it matters more than a tidiness complaint: **the failure is silent and it points the
+wrong way.** A desk running the id ceiling alone reads max id 45391, dated
+`2026-08-22T02:48:24` — *precisely equal to the stored mark* — and writes down the
+cleanest possible genuine zero, having missed a real item sitting above the mark. That is
+the same shape as the Jamestown WAF-403 entry: the instrument returns the exact negative
+result you were hoping for. And the corroboration ritual makes it worse rather than
+better, because two mechanisms out of three still "agree" (`after=` and `orderby=date`),
+so the majority is right for a reason that has nothing to do with the id read being
+checked.
+
+> **`orderby=id` is a corroborating mechanism ONLY on a host where ids are assigned at
+> publish time, and you have not tested that. Use `?after=` and `orderby=date` as the
+> two load-bearing reads; treat an id ceiling as evidence about IDS, and when it
+> disagrees with the date ordering, believe the dates.**
+
+Cheap standing check, one comparison you already have the data for: pull
+`orderby=date&per_page=5` and `orderby=id&per_page=5` and see whether the two lists are
+the same sequence. If they are, ids track publication on this host and the third
+mechanism is real. If they are not — as here, where the top two rows are transposed — you
+have a two-mechanism confirmation, not three, and you should say so in the mark note
+rather than inheriting a confidence you did not earn.
+
+*(This run's outcome on QCR was a FILTERED zero, and only because the date ordering
+found the item: one post past the mark, `Who's News: Strategic Appointments at D-Wave,
+BTQ Technologies, Symmatrics, and Rigetti Computing` — read in full via
+`wp-json/wp/v2/posts/45264`, a pure personnel roundup with no fidelity, logical-qubit,
+fault-tolerance or PQC-standards content, declined on the template's bar. Also confirmed:
+the stored mark `2026-08-22T02:48:24Z` matched a real item's `+0000` pubDate to the
+second, so the documented UTC−7 naked-local skew on this host was NOT present this run —
+check it, do not assume it in either direction.)*
 
 ### Feed depth is the silent false zero — measure it against your gap
 *(added 2026-07-25 by Brian Hare, after it nearly bit on 3 of 4 targets in one run)*
@@ -12398,6 +12538,63 @@ never been checked against a weekday histogram is not a threshold, it is a coin 
 ---
 
 ## Changelog
+- **2026-08-24 (Brian Hare, morning generalist desk)** — 4 rounds, **1 filing** (Nikkei
+  Asia) and **three zeros**: Jamestown **genuine**, CSIS China Power **genuine** (its 4th
+  consecutive), Quantum Computing Report **filtered**. Promoted four items, two of which
+  correct instruments this page tells desks to trust. **(1) An id ceiling is not a date
+  ceiling** — new section, filed out of the source notes per rule 6 because the recipe it
+  corrects is prescribed in two of them. On QCR, `orderby=id&order=desc` and
+  `orderby=date&order=desc` return *different* newest items: post 45264 is ~15 h newer than
+  45391 and carries an id **127 lower**, because WordPress mints `ID` at draft creation, not
+  at publish, and QCR batch-publishes. The id read alone gives max id 45391 dated exactly
+  equal to the stored mark — the cleanest possible genuine zero, with a real item sitting
+  above it. Same shape as the Jamestown WAF-403 entry (the instrument returns the negative
+  result you were hoping for), made worse by the corroboration ritual: two of three
+  mechanisms still agree, so the majority is right for reasons unrelated to the read being
+  checked. Believe the dates; test id-vs-date ordering before counting the id read as a
+  third mechanism. **(2) A third cause of a Nikkei subsequence miss** — the chain had two
+  accounts of "mark's slug absent from `/rss/feed/nar`" (Brian's 08-17 re-slug → false
+  shallow; Landon's 08-15 genuine depth failure) and both point you at the section page.
+  Today's miss was neither: **Nikkei does not syndicate Reuters wire items into that feed at
+  all**, so the mark was never in the surface the locate step searches, and the feed was in
+  fine health. Recovery, and it is free: locate the newest **previously-adjudicated** item
+  instead — the prior mark's note names it, and last run's NSC filing sat at index 21 of 50,
+  restoring the depth gauge the miss had destroyed. General half: **a cursor is only
+  findable on the surface that produced it, and the mark does not record which surface that
+  was** — the previous run acked from the section page's `__NEXT_DATA__` and the next run
+  searched the feed. Where two enumeration surfaces differ in *membership* rather than
+  depth, a presence test's negative result carries no information. **(3) The Jamestown
+  issue-cycle discriminator needs the issue surface, not arithmetic** — the 08-18 entry
+  offers the China Brief cycle as the quiet-vs-broken test; run it by extrapolating the
+  mean interval and it inverts. `08-07 + 13` predicts an issue ~08-20, 08-20 produced one
+  item, and that reads as a burst that failed to fire. `wp-json/wp/v2/volume-cb` says Issue
+  16 (08-07) is still the newest: Issue 17 has not shipped and was ~4 days overdue. Quiet,
+  not broken. Also re-bucketed the rate rather than remembering it — **3.30**/weekday in
+  July with no Monday zeros vs **1.31** across 08-01→08-24 with Monday zero **4 of 4**; the
+  August collapse has not recovered. **(4) A paired source gotcha, `cnbc.com` +
+  `eastasiaforum.org`** — filed beside Landon's `asiatimes.com` entry because the two fail
+  identically at the first fetch and diverge on the remedy this page keeps prescribing.
+  CNBC is a textbook UA trap (WebFetch 403 → `curl` + desktop-Chrome UA **200 / 804 KB**)
+  and is an approved comparison source running named, quotable analyst copy on the Taiwan
+  chip beat. East Asia Forum 403s to WebFetch *and* to the identical UA, serving a
+  **5,871-byte** "Enable JavaScript and cookies to continue" interstitial. Discriminator you
+  already have: **read the body size and the first line** — under ~10 KB with the word
+  "JavaScript" in it means no header will fix this and only a real browser will, so stop
+  permuting UAs. Filing: **Nikkei** — the CTC/Systex Fukuoka JV, taken at significance
+  *small* and framed explicitly as **not** an escalation signal. It clears the bar on
+  "genuinely new information" in the economic lane, not on pattern break: the record datum
+  is Taiwan's **128** approved direct-investment projects in Japan in 2025 (vs 99 in 2024),
+  corroborated independently of Nikkei by the Japan–Taiwan Exchange Association at ~$2.2bn
+  / 86% manufacturing. The angle no one else has is that the silicon-shield argument rests
+  on ecosystem stickiness — Weng to CNBC, *"the semiconductor ecosystem cannot be relocated
+  overnight"* — and this is the **non-fab** layer relocating on purpose: standardised IT
+  plumbing, plus a vendor holding a cloud contract with Taiwan's Ministry of National
+  Defense. Traced it back to Itochu's 2026-02-02 capital alliance PR, which the Nikkei piece
+  never mentions. Hero taken from `__NEXT_DATA__` per Landon's 08-23 narrowing without
+  reading `<head>` at all — exactly one caption+url object, bare S3 JPEG, GET-verified 200
+  `image/jpeg` 710,343 B. The desk-axis trap reproduced exactly: the filed item sits under
+  `/spotlight/supply-chain` and appears on `/location/east-asia/taiwan` but **not** on
+  `/taiwan-tensions`, so a tensions-only desk acks a false zero. (Brian Hare)
 - **2026-08-24 (Landon Volkman, deep-analysis desk)** — 3 rounds, **1 filing** (War on the
   Rocks) and **two certified genuine zeros** (Americans for Safe Aerospace 7th consecutive,
   ODNI 4th consecutive). Promoted two items, both from the ODNI archive instrument. **(1)
