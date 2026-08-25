@@ -3349,6 +3349,53 @@ isn't defended, then reconstruct the body from other outlets.**
   tell them apart is that one lives in the CDX `length` column and the other in your
   terminal.
 
+  **SHARPENING, 2026-08-25 (Landon Volkman) — the gzip trap's REAL failure mode is not
+  "reads as corrupt." It is a CLEAN CERTIFIED ZERO, and I nearly filed one.** Every
+  note above describes the mojibake as self-announcing: you see garbage, you know the
+  read failed. That is only true when you LOOK at the body. The actual working motion
+  on a dating surface is *strip tags → grep beat terms → count* — and on the ODNI
+  homepage capture that pipeline returned **`uap 0 / unidentified 0 / anomalous 0 /
+  disclosure 0` over ~14.5 KB of extracted "text"**, with `http=200`, no error, no
+  exception, and a byte count (33,226) that looks entirely reasonable for a government
+  landing page. Nothing in that output says "corrupt." It is pixel-identical to the
+  certified zero you were hoping for, which makes this a **false-zero generator, not a
+  decoding annoyance** — and it fires hardest on exactly the targets where the archive
+  is the ONLY instrument, because there is no origin to sanity-check against.
+  **Two-line remedy, mandatory on every `…id_/` replay: (1) fetch with `--compressed`
+  (or sniff `raw[:2] == b'\x1f\x8b'` and `gzip.decompress`); (2) ASSERT THE `<title>`
+  PARSES before you trust any grep.** The title is the discriminator that costs nothing
+  and cannot be faked: a correct ODNI read carries
+  `<title>Office of the Director of National Intelligence</title>`, the gzip read
+  carries **no parseable title at all**. Size is a good secondary tell — 186,528 b
+  decompressed vs 33,226 b compressed, ~5.6×. Generalise the assertion, not the
+  numbers: **a grep that returns zero over a body whose title you never confirmed is
+  not evidence of anything.**
+
+  **`grep -i AARO` IS PERMANENTLY POISONED ON ODNI — the PDDNI is named AARON.**
+  Measured 2026-08-25: the homepage returns **2 hits for `AARO`**, both substring
+  matches inside **"Aaron Lukas"**, whose DoDIIS-remarks row is the newest item in the
+  latest-news block and has been for two weeks. There is no AARO content on the page.
+  This is the presence-test family's short-term-defect failing in the direction that
+  *manufactures interest* rather than the usual one that ratifies a wrong feed — the
+  same shape as `grep -i UFO` hitting `BeaUFOrt` on TWZ's feed, but worse here because
+  the false hit lands on the beat's single most load-bearing acronym. **Use
+  case-sensitive `\bAARO\b`.** A case-insensitive `AARO` grep on this target floors
+  at 2 and carries no information.
+
+  **CDX PER-DAY CAPTURE COUNTS BACKFILL — a "thin day" or "zero day" is an artifact of
+  reading too early, and it already produced one wrong conclusion.** The 08-24 run
+  measured the homepage capture rate per day and recorded **08-22: 2, 08-23: 0**, then
+  reasoned from the 08-23 zero to a new trap it called an "asset-only crawl day" (the
+  crawler fetching only `wp-content/` subresources and archiving no HTML). Re-running
+  the identical recipe ~26 h later, **the same two days now read 08-22: 5 and
+  08-23: 1.** The archive simply had not finished writing them. There was no
+  asset-only day; that entry is retired. The durable rule: **the Wayback index is
+  eventually-consistent on a horizon of at least a day, so treat any capture count
+  younger than ~48 h as provisional and never conclude from its lowness.** Ceiling
+  arithmetic is unaffected — a capture you can SEE is real, and max() over a partial
+  index is still a valid floor on the ceiling. What breaks is every inference of the
+  form "few/no captures on day D, therefore something about the crawl or the target."
+
   **CORRECTION, 2026-08-19 (Kendall Bingham) — `aaro.mil` NO LONGER 403s. IT DOES
   NOT RESOLVE AT ALL, AND THE TWO FAILURES ARE NOT THE SAME FINDING.** Every note
   above this line describes a WAF: a 403 with an "Access Denied" body, which proves
@@ -4544,6 +4591,26 @@ Wayback does not rescue it either — the crawler gets challenged too.
   direction is the usual bad one: a desk reading the old note treats a certifiable
   zero as merely hopeful and either burns a round hunting a third surface or files an
   unreachable zero on a source that is simply quiet.)*
+  *(**EXTENSION, 2026-08-25, Landon Volkman — the partition rule applies to the
+  DELTA, not just the count, and a desk acting on the total would have been wrong
+  today.** The 08-24 mark nominated the **total** `<loc>` count as "the number that
+  would actually mean something" on this target, after `lastmod` rows churned +13 in
+  10.5 h with zero publication. That total moved on the very next run: **399 → 401
+  locs, 268 → 270 `lastmod`** — and neither was publication. I resolved the delta
+  instead of escalating on it: both new rows are **outside the article namespace** —
+  `/team` and `/christopher-sharp`, both stamped `lastmod 2026-08-25`, both fetching
+  200 with `og:title` "Team" / "Team 1", i.e. Squarespace masthead pages. Meanwhile
+  the number that actually matters held **exactly**: `/home/` = **386**, unchanged
+  across four consecutive runs. **Record the three-number tuple `(total, /home/,
+  lastmod)` every run and cursor ONLY on the middle one.** The total is permanently
+  contaminated by masthead, store and policy pages that a CMS can mint or re-render
+  at any time; on this host 15 of the 401 locs are non-editorial and 4 of those are
+  a 2022 merch store. This is the same partition error the 07-30 correction above
+  caught in the *static* form — a count of a field is not a count of that field on
+  the rows you care about — reappearing in its *differential* form, which is harder
+  to see because the delta is small, plausible, and arrives on a day you were
+  already expecting news. Cheap discriminator: when the total moves, diff the loc
+  LIST and read the new URLs before you read anything into the number.)*
   *(**THREE OPERATIONAL ADDITIONS, 2026-08-20, Landon Volkman — measured on the same
   target, and the first one is a zero-manufacturing trap with a number on it.**
   **(1) `/articles?format=rss` is a DECOY and it is bigger than the real feed.** It
@@ -13651,6 +13718,44 @@ never been checked against a weekday histogram is not a threshold, it is a coin 
 ---
 
 ## Changelog
+
+- **2026-08-25 (11:02–11:20Z, deep desk / Landon Volkman)** — three pulls, **zero filings,
+  three certified zeros, four playbook promotions.** All three targets were quiet and all
+  three zeros were certified on their own documented instrument rather than inferred; the
+  value of the run is entirely in the instrument findings, three of which are false-zero
+  generators. **Americans for Safe Aerospace**: EIGHTH consecutive certified zero, `/news`
+  **byte-identical at 507,177 b for the FIFTH straight run**, semantic zip clean at 25/25
+  strictly descending, newest item still `2026-06-01` (85 d dormant). Third desk to fail to
+  reproduce the historical 27/25 harvester variance — treat it as settled regex noise.
+  **Liberation Times**: FOURTH consecutive certified zero, feed a pure ceiling (newest ==
+  mark to the second, 458,112 b for the fifth run) so the sitemap did the certifying.
+  Promoted an **extension to the 07-30 partition correction**: the 08-24 mark had nominated
+  the *total* `<loc>` count as the meaningful cursor, and it moved the very next run
+  (399→401, `lastmod` 268→270) with **zero publication behind it** — both new rows are
+  `/team` and `/christopher-sharp`, masthead pages stamped today, while `/home/` held at
+  exactly 386. Cursor on the `/home/`-scoped count, record `(total, /home/, lastmod)`, and
+  diff the loc LIST before reading anything into the number. The static partition error
+  reappearing in differential form. **ODNI**: FIFTH consecutive certified zero; CDX recipe
+  ran clean (514 rows, 12 homepage 200s) and the ceiling **advanced** 08-22T06:21 →
+  08-23T06:53, so the capture was fetched and actually read — newest latest-news row still
+  the 12 Aug Lukas DoDIIS remarks, i.e. the mark; Google News second surface covered the
+  ~52 h residual with a whole-body grep returning **zero hits on all four beat terms**
+  across 52 items. Three promotions off it. **(1) The `…id_/` gzip trap's real failure mode
+  is a CLEAN CERTIFIED ZERO, not visible corruption** — the existing entries all describe
+  self-announcing mojibake, but the actual working motion (strip tags → grep → count) never
+  looks at the body, and on the gzip bytes it returned `uap 0 / unidentified 0 / anomalous 0
+  / disclosure 0` at `http=200` with a plausible 33 KB size. Indistinguishable from the zero
+  you wanted. Remedy is now two lines and mandatory: fetch `--compressed` (or sniff
+  `\x1f\x8b`), then **assert the `<title>` parses before trusting any grep** — 186,528 b
+  decompressed vs 33,226 b is a ~5.6× secondary tell. **(2) `grep -i AARO` is permanently
+  poisoned on ODNI because the PDDNI is named AARON** — floors at 2 hits inside "Aaron
+  Lukas" forever; use case-sensitive `\bAARO\b`. Same family as `grep -i UFO` hitting
+  `BeaUFOrt`, but failing toward manufactured interest on the beat's most load-bearing
+  acronym. **(3) CDX per-day capture counts BACKFILL** — 08-24's read of "08-22: 2,
+  08-23: 0" now reads "08-22: 5, 08-23: 1" ~26 h later, which **retires that run's
+  'asset-only crawl day' trap entirely** (the HTML capture had simply not landed yet).
+  Treat any capture count younger than ~48 h as provisional; ceiling arithmetic is
+  unaffected, but every inference of the form "few captures on day D, therefore X" is void.
 
 - **2026-08-25 (05:48–06:00Z, deep desk / Landon Volkman)** — one pull, **one filing, one
   playbook promotion.** **r/UFOs**: `new/.rss?limit=100` returned 200 / 373,718 b / exactly 100
