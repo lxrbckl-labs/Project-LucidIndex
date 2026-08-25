@@ -7475,6 +7475,81 @@ never crossed into English) rather than repeating it:
   before its anniversary. When a generated claim arrives near a legend's date, say so — it is the
   cheapest available statement about *why now*, and it is checkable.
 
+### THE CONCEDED-PREMISE ESCALATION — when a post's SOURCING verifies perfectly, grade the INFERENCE separately, because the strongest documents on the beat arrive attached to the least falsifiable claims
+*(added 2026-08-25 by Landon Volkman, measured on r/UFOs post `1vxl5ay`, "Memory Wars, Part One.")*
+
+The section above splits a debunk into imagery and attribution. This is the same split on a
+different seam, and it catches the case that gets *through* the usual filters: a post where every
+citation is real, correctly quoted, correctly dated, and load-bearing — and the conclusion drawn
+from them cannot be wrong.
+
+The specimen. Joseph Burkes MD (retired Southern California Permanente internist; CSETI Working
+Group Coordinator 1992–97) posted the APA's own case against hypnotic memory recovery — Brendan
+L. Smith, *Hypnosis today*, *Monitor on Psychology*, January 2011, Vol. 42 No. 1. Fetched: the
+Green ("on thin ice") and Yapko quotations are verbatim and in context, and the *R. v. Trochym*,
+2007 SCC 6 summary is accurate (the holding is in fact slightly *stronger* than the APA's
+shorthand — a presumption against post-hypnosis testimony reaching even pre-hypnosis
+recollections canvassed during the session). Provenance: clean, four for four.
+
+**Then the escalation.** Burkes accepts the skeptical premise in full — regression manufactures
+memories — and relocates the *author* of the falsity from the hypnotist to the non-human
+intelligence: recovered abduction memories as implanted "Virtual Experiences of the Third Kind."
+The phenomenon survives; the evidence is surrendered; and an implanted memory becomes
+indistinguishable from a confabulated one **by construction**, since both fail the identical
+tests for the identical reasons.
+
+> **Grade provenance and inference as two labels. A post can be CORROBORATED on sourcing and
+> UNCONFIRMED-and-unfalsifiable on its claim in the same filing, and that pairing is the
+> article.** The verdict readers need is not "are the documents real" — it is "does anything the
+> documents say bear on the conclusion."
+
+Why this shape is worth its own entry rather than a note under the unfalsifiable-claims rule
+above: the recurring-claim rule catches assertions that regenerate at zero cost because nothing
+ever tests them. This one is the opposite failure — the claim has *absorbed* its own test. The
+skeptical literature is not ignored, it is enlisted, which buys the post a diligence bonus (the
+same bonus the debunk entry above documents) while removing the last handle the original claim
+had. **A concession that costs the claimant nothing is a tell, not a virtue.** Ask what the
+concession would have to be worth: if conceding the debunk leaves the conclusion exactly as
+strong, the conclusion was never resting on the thing conceded.
+
+Three operational moves, all cheap:
+
+- **Name the missing discriminator, and quote the author naming it.** Burkes writes "the
+  challenge for researchers and experiencers alike is to distinguish between physical and psychic
+  components." He states the problem and Part One proposes no test. That sentence, quoted, does
+  more work than any external skeptic, because it is the claimant conceding the gap in his own
+  voice. On a "Part One" this is also a **falsifiability clock** (see *Open falsifiability
+  clocks*): the promised sequel either supplies a discriminator or it doesn't.
+- **Bring the physiology, not just the epistemology.** McNally / Clancy / Orr, February 2003 —
+  ten self-identified abductees, own-account scripts played back in a neutral voice, heart rate
+  and skin conductance matching or exceeding combat veterans. It is the strongest evidence that
+  experiencers are sincere, it is entirely compatible with the memories being false, and it
+  forecloses the "they'd know" rebuttal before anyone makes it. Clancy's *Abducted* (Harvard UP,
+  2005) supplies the generator: sleep paralysis + a culturally available script + fantasy
+  proneness, with hypnosis as the hardening step.
+- **Deploy the convergence rule, which generalises off this beat entirely.** Per David Ludden's
+  March 2007 *Skeptical Inquirer* review: narrative convergence across abduction accounts is
+  evidence of shared media exposure, not of independent corroboration. This is the community-
+  target instance of "corroboration counts inversely to what the sources share" — **convergence
+  is corroboration only when the accounts had no common upstream source**, and on a
+  culturally-saturated claim they always do.
+
+Sources that answered cleanly and are worth reusing on any hypnosis / recovered-memory / abduction
+item: `apa.org/monitor/2011/01/hypnosis` (200, full text, no wall — note the `.aspx` suffix in
+circulating links is legacy and redirects); `news.harvard.edu/gazette` for the 2003 physiology
+study; `skepticalinquirer.org` (in `get_comparison_sources`, so it is a legal `citations` name)
+for both the Mooney and Ludden reviews. **`scc-csc.lexum.com` 403s to WebFetch — use the CanLII
+mirror (`canlii.org/en/ca/scc/doc/2007/2007scc6/2007scc6.html`) for the *Trochym* text.** Harvard
+Gazette, CanLII and the APA are NOT in the comparison-source taxonomy, so they belong in
+`cross_source` and must be DROPPED from `citations` rather than mapped to a nearer approved name.
+
+Hero images for this topic class, all verified 200 `image/jpeg` today via the Commons API (never
+guess these URLs): Brouillet's *Une leçon clinique à la Salpêtrière* (Charcot demonstrating
+hypnosis, 1887) for hypnosis/suggestion; Fuseli's *The Nightmare* (1781) for sleep paralysis —
+the canonical illustration in that literature; `Supreme_Court_of_Canada,_Ottawa.jpg` for the
+*Trochym* leg. Note the APA's own OG image is a generic `social-share.png` placeholder, not a
+lead image — it passes an envelope check and is off-topic, so it fails the hero bar.
+
 ### A DEAD `target_photo_url` CANNOT BE REPAIRED BY AN AGENT — write-once means it is an admin fix, so REPORT it
 *(added 2026-08-20 by Landon Volkman, measured on r/UFOs.)* The r/UFOs pull ships
 `target_photo_url` = `https://styles.redditmedia.com/t5_2xvxi/styles/communityIcon_5s296m5p2ky61.png`,
@@ -13576,6 +13651,29 @@ never been checked against a weekday histogram is not a threshold, it is a coin 
 ---
 
 ## Changelog
+
+- **2026-08-25 (05:48–06:00Z, deep desk / Landon Volkman)** — one pull, **one filing, one
+  playbook promotion.** **r/UFOs**: `new/.rss?limit=100` returned 200 / 373,718 b / exactly 100
+  `<entry>` elements, oldest `2026-08-16T23:25:16Z` against a mark of `2026-08-24T23:55:02Z` —
+  eight days of cover for a six-hour gap, so the `top/.rss?t=week|month` merge was unnecessary
+  and the filtered result is a true count, not a false zero. Only **two** posts past the mark
+  (~11 posts/day on this subreddit at present, which is a useful base rate to hold: r/UFOs is
+  heavily moderated and does NOT produce the firehose its reputation implies). One skipped as
+  unfalsifiable discussion per the template's explicit exclusion; one filed. Per-post `.rss` on
+  the filed item returned a single `<entry>` — i.e. **zero comments five hours after posting**,
+  which is a legitimate engagement datum on a listing feed that refuses to give you `score` or
+  `num_comments`, and worth quoting when the ranked-argument-vs-unranked-evidence asymmetry is
+  the story. Promotion: **THE CONCEDED-PREMISE ESCALATION**, filed beside the community-debunk
+  entry it shares a seam with — how to grade a post whose sourcing verifies four-for-four
+  (APA *Monitor* Jan 2011, Green and Yapko verbatim, *R. v. Trochym* 2007 SCC 6 accurate and in
+  fact stronger than the APA's shorthand) while its conclusion has absorbed its own test. Two
+  labels, not one: CORROBORATED on provenance, UNCONFIRMED-and-unfalsifiable on the claim. Carries
+  the reusable source ladder for the hypnosis / recovered-memory / abduction class, the
+  `scc-csc.lexum.com` 403 → CanLII-mirror workaround, the taxonomy warning that Harvard Gazette /
+  CanLII / APA are `cross_source`-only and must be DROPPED from `citations` rather than mapped,
+  three Commons-API-verified heroes for the topic, and the note that **apa.org's OG image is a
+  generic `social-share.png` placeholder** — it passes every envelope check and is off-topic, so
+  it fails the hero bar.
 
 - **2026-08-25 (00:32–00:50Z, fast desk / Kendall Bingham)** — one pull, **one certified zero,
   zero filings, two playbook promotions, one published correction.** **American Alchemy**: pure
