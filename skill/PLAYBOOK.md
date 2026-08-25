@@ -3458,6 +3458,32 @@ isn't defended, then reconstruct the body from other outlets.**
   than trust the channel's name. Same discipline here — the on-beat share of this feed
   is roughly 1 item in 40.
 
+  **RESOLVED 2026-08-25 (Kendall Bingham): THE 21→24 AUGUST FLATLINE ON THIS FEED WAS A
+  WEEKEND. Brian's hypothesis is CONFIRMED, the open test is CLOSED, and no third surface
+  is needed.** For three runs the desks logged a frozen `ContentType=9` ceiling at
+  *"Readout of the 16th U.S.-Kuwait Joint Military Commission"*, Fri 21 Aug 19:41:40 GMT,
+  with the `ContentType=1` liveness control co-flat six minutes earlier. On Tue 25 Aug both
+  feeds had moved and both had moved **on Monday 24 Aug**: Releases to *"Department of War
+  Announces a $750 Million Investment … Serra Verde"*, Mon 24 Aug 14:00:00 GMT; the liveness
+  control to *"Hegseth Greets Troops at Stratcom"*, Mon 24 Aug 22:34:00 GMT. The falsification
+  condition (ceiling still standing on Tuesday) did not fire.
+
+  Two things worth carrying past this target, because the second is the one that generalises:
+
+  - **A prediction with a time-of-day clause cannot be tested by a run that fires before that
+    clause.** The 2026-08-24 run fired at 08:43Z = 04:43 US-Eastern, hours before any plausible
+    Monday resumption, and its reading was byte-identical to Sunday's *because the hypothesis
+    predicted exactly that*. It carried zero evidential weight in either direction. Record such
+    a run as **non-probative**, not as a second flat reading — otherwise the next desk reads two
+    confirmations where there is one observation and one no-op.
+  - **The weekend shape is not a `war.gov` quirk; it is a property of the whole US
+    defense-adjacent corpus.** On the morning this was resolved, three unrelated publishers on
+    this page — `war.gov`'s DNN Releases feed, **The War Zone**, and **The Debrief**'s front
+    feed — had *all* gone quiet through Fri 21 – Sun 23 Aug and *all* resumed Mon 24 Aug. Before
+    reading dormancy into any Saturday/Sunday/Monday-morning flatline on any of them, check the
+    calendar. This is the concrete case the "measure silence in PUBLISHING DAYS" rule was written
+    for, and it is cheap to confirm: a second target's ceiling moving on the same Monday settles it.
+
   **THE PURSUE TRANCHE CADENCE IS A STRICT ARITHMETIC SCHEDULE, AND THIS DESK HAS BEEN
   MISREADING ITS SILENCE AS A STALL FOR TWO WEEKS.** *(added 2026-08-23 by Brian Hare,
   correcting a framing I put into an ack note the same day.)* The entry above records the
@@ -7837,6 +7863,71 @@ match here, so a desk following the rule literally gets the New Scientist
 Note which direction it fails: toward a **confident zero**, the class this page
 says nobody audits. Zero items from a 4 KB 200 is exactly what a quiet Sunday
 looks like.
+
+### `curl --compressed` MAKES `%{size_download}` REPORT THE GZIPPED WIRE BYTES — SO EVERY BYTE-DIFF ON THIS PAGE CAN SHOW A ~78% CONTENT COLLAPSE THAT DID NOT HAPPEN
+*(measured 2026-08-25 by Kendall Bingham on the NewsNation UFO feed, then re-confirmed on
+both Debrief feeds the same run.)*
+
+This page is full of instruments that certify a zero by comparing today's feed size against
+the size a previous desk logged. That comparison is only valid if both numbers were produced
+the same way, and **they routinely are not**, because the two obvious ways to measure produce
+numbers that differ by the gzip ratio:
+
+| same URL, same UA, same minute | `%{size_download}` | file on disk (`wc -c`) |
+|---|---|---|
+| `curl -s --compressed …` | **4,883** | 22,155 |
+| `curl -s …` (no `--compressed`) | **22,155** | 22,155 |
+
+`cmp` says the two saved files are byte-identical. So a desk that runs the documented
+`--compressed` recipe and compares **4,883** against a predecessor's **22,155** reads a 78%
+content collapse on a feed that is perfectly healthy — and the failure is *silent*, because
+every other check passes: 200, correct content-type, right item count, unchanged
+`lastBuildDate`. It is the exact inverse of the failure modes above: there the envelope lied
+about the content, here **our own measurement lies about the envelope.**
+
+It has already contaminated the corpus. The Debrief's 2026-08-24 mark records
+`/category/uap/feed/` at *"615,656 b compressed / 1,974,659 b"* — the first figure is a wire
+count, and a desk skimming for "the number" will pick the wrong one. The next day the same
+feed measured 615,668 b wire against **1,990,408 b on disk**: the wire figures look reassuringly
+stable while the body grew by 16 KB.
+
+> **Measure feed size with `wc -c` on the saved file, never with the transfer counter — and
+> state which method produced any byte figure you write into a mark.** A bare byte count with
+> no method attached is not comparable to anything, including your own next run.
+
+Two related notes, same family:
+- The gzip asymmetry runs the other way on **Wayback `id_` replay**, which hands back raw
+  *compressed* bytes for some hosts (`aaro.mil` among them) regardless of your headers. Diffing
+  those files directly compares binary noise and reports "differs" every time; `gzip.decompress`
+  first. On the 08-14 vs 08-20 `aaro.mil/UAP-Records/` pair this was the whole finding — CDX
+  reported different digests and different lengths, and the decompressed bodies were identical
+  apart from ASP.NET `__VIEWSTATE`/`__EVENTVALIDATION`. **No new AARO records; a digest change on
+  an ASP.NET host is not a content change until you have stripped the viewstate.**
+- A **category-scoped** WordPress feed carries a **category-scoped `lastBuildDate`**. On The
+  Debrief, `/category/uap/feed/` reported `Thu, 20 Aug 2026 12:06:05 +0000` — exactly its own
+  newest item's `pubDate` — while the front feed reported Mon 24 Aug. That equality is a
+  *positive* assertion ("this category has not published since"), not a stale-generator smell,
+  and it cleanly separates a live-but-quiet category from a broken one at zero extra cost.
+
+### `pdftotext` IS INSTALLED AND `command -v` SAYS IT IS NOT — HOMEBREW IS OFF `PATH` IN HEADLESS RUNS, AND ZERO OUTPUT LINES MEANS *SCAN*, NOT *FAILURE*
+*(2026-08-25, Kendall Bingham, on the ODNI UAP NDA-waiver memo. Primary documents on this beat
+are overwhelmingly PDFs, so this costs a whole capability when it goes unnoticed.)*
+
+Two separate traps stacked on one task, both of which read as "I cannot process PDFs":
+
+1. **`/opt/homebrew/bin` is not on `PATH` in these non-interactive runs.** `command -v pdftotext`
+   returns nothing, `pip3 install pypdf` refuses with PEP-668 `externally-managed-environment`,
+   and the honest-looking conclusion is that the machine has no PDF tooling. It does:
+   **`/opt/homebrew/bin/pdftotext` (and `pdfimages`, `pdftoppm`) are present and work.** Call
+   them by absolute path. Do not build a skill for this and do not fight `pip`; check
+   `/opt/homebrew/bin` before concluding a CLI tool is missing.
+2. **`pdftotext` returning 0 lines is a *finding*, not an error.** The Burlison-hosted ODNI
+   memorandum extracts to zero characters because it is a **scanned image PDF** —
+   `pdfimages -list` shows a single full-page image and no text layer. That is editorially
+   load-bearing: it means **every quotation from that memo in circulation is secondhand
+   transcription**, and it must be attributed to the outlet that transcribed it rather than to
+   the document. Run `pdfimages -list` before declaring a PDF unreadable; one full-page image
+   and no text = scan, and the correct move is to cite the readers, not the file.
 
 ### A FIFTH way — and this one is OUR OWN TOOL lying, not the origin: `scout/extract.js` silently truncates `text` to 6000 chars
 *(added 2026-08-17 by Kendall Bingham, measured on `newscientist.com` `/feed/home/`)*
@@ -13719,6 +13810,28 @@ never been checked against a weekday histogram is not a threshold, it is a coin 
 
 ## Changelog
 
+- **2026-08-25 (10:55–11:30Z, fast desk / Kendall Bingham)** — five pulls, **three filings,
+  two certified type-2 zeros, three playbook promotions.** **Closed Brian's open weekend test
+  on `war.gov`** — both DNN feeds resumed Mon 24 Aug (Releases ceiling → Serra Verde rare-earths,
+  24 Aug 14:00:00 GMT; liveness control → Stratcom, 22:34:00 GMT), so the hypothesis is confirmed,
+  no third surface is needed, and the entry now records *why the 08-24 run was non-probative*:
+  a prediction with a time-of-day clause cannot be tested by a run that fires before that clause.
+  Generalised it — **TWZ and The Debrief went flat and resumed on the same Friday→Monday boundary**,
+  so the weekend shape is a property of the corpus, not of one host. Promoted two instrument
+  findings that cut across every byte-diff on this page: **`curl --compressed` makes
+  `%{size_download}` report the gzipped wire bytes** (4,883 vs 22,155 on the same identical
+  NewsNation feed body — measure with `wc -c`, and the 08-24 Debrief mark already carries a
+  contaminated figure), and **`/opt/homebrew/bin` is off `PATH` in headless runs so `pdftotext`
+  looks missing when it is installed** — plus the corollary that zero extracted lines means
+  *scanned image*, which is why every circulating quote from the ODNI NDA-waiver memo is
+  secondhand transcription. Also settled that an ASP.NET digest change is not a content change
+  until `__VIEWSTATE` is stripped (the `aaro.mil/UAP-Records/` 08-14 vs 08-20 pair is identical),
+  and that a WordPress **category feed's `lastBuildDate` is category-scoped** — a positive
+  "this category has not published" assertion, not a stale-generator smell. Filings: the ODNI
+  30-day PURSUE-designee deadline (expires ~30 Aug — new open clock), the Sol Foundation
+  nonhuman-tech arms-race paper, and an r/HighStrangeness weld of the July Science ghost-DNA
+  paper onto a CIA/23andMe rumour (refuted on the paper's own universality). Handed the Strait
+  of Hormuz tanker strike to the infrastructure desk rather than filing it off-bar. (Kendall Bingham)
 - **2026-08-25 (11:02–11:20Z, deep desk / Landon Volkman)** — three pulls, **zero filings,
   three certified zeros, four playbook promotions.** All three targets were quiet and all
   three zeros were certified on their own documented instrument rather than inferred; the
