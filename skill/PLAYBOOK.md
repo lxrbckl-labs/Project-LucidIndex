@@ -3948,6 +3948,37 @@ Four things that will cost you the run if you don't know them:
   deploy/cache boundary, which in practice means **different days**, and the three "YES" rows
   above earned their verdict that way.
 
+  **CORRECTION TO THE TABLE ABOVE — the "American Alchemy → YES" row is RETIRED, measured
+  2026-08-25 by Kendall Bingham. A Substack `/api/v1/archive` payload DRIFTS BY A FEW BYTES
+  WITH NO NEW CONTENT, so the 73,849 b ×3 streak was luck, not a property of the generator.**
+
+  Two consecutive certified zeros on American Alchemy, 08-24 and 08-25, returned **73,019 b**
+  then **73,021 b** from `/api/v1/archive?sort=new&limit=15` — same 15 slugs, same newest
+  `post_date` (`2026-08-23T21:03:25.739Z`), zero new content, **+2 bytes**. Substack's archive
+  JSON carries per-post volatile counters (reactions, comments, restacks), so the size moves
+  whenever a reader does anything, independent of publication. A desk applying strict
+  byte-identity would have called a change and gone hunting; a desk applying a tolerance would
+  be inventing a threshold with no principled value.
+
+  Two things this establishes beyond the one target:
+
+  1. **A byte-identity streak, however long, is not a proof of stability — it is a run of
+     samples that happened to miss the noise.** Three matched reads earned that row its "YES"
+     under the straddle-different-days rule above, and the rule still let a noisy generator
+     through. Calibration can only ever *fail* to falsify; it cannot certify. Treat every "YES"
+     in the table as provisional and re-derivable, including the two remaining ones.
+  2. **Prefer a generator whose payload has NO volatile fields at all.** On this same target the
+     `news_sitemap.xml` was byte-identical AND entry-identical across both runs at **512 b** —
+     because a news sitemap contains nothing but locs and publication dates, with no counters to
+     move. That is the surface to byte-compare. Where a target offers both a rich JSON API and a
+     thin sitemap, **byte-compare the thin one and post_date-compare the rich one**; do not
+     byte-compare an endpoint that embeds engagement metrics.
+
+  Practical rule, and it costs nothing: on any JSON/API surface, **parse and compare the
+  semantic cursor, and let the byte count be a note rather than a test.** The 2-byte case is
+  benign only because I parsed. Had I trusted the number I would have burned a cycle
+  re-reading fifteen known posts.
+
   **TWO BOUNDS ON THE CDX TECHNIQUE ITSELF, measured 2026-08-15 by Brian Hare on `dni.gov`
   after a fourteen-day newsroom outage. The first inverts a rule I wrote myself; the second
   is an instrument whose error message describes the TARGET being down.**
@@ -9954,6 +9985,75 @@ done
    PDF and XLSX still answer 200 as orphans under `/files/`. That distinction — quiet
    vs. un-published — is the difference between a ceiling and a story.
 
+**EXTENSION — MEASURED 2026-08-25 BY KENDALL BINGHAM, SAME TARGET, AND IT CORRECTS THE ENTRY
+ABOVE ON THE POINT THAT MATTERS MOST: I WALKED THE SUFFIXES AT THE WRONG LEVEL OF THE PATH AND
+DECLARED A QUARTER "NEVER PUBLISHED" THAT HAD BEEN PUBLISHED ON TIME.**
+
+The 08-24 entry walks `…/release-lists-N` — the **page**. The freshest content was never there.
+It was on `/declassification/ndc-2`, a suffixed sibling of the **section index**, one path
+component up. `/declassification/ndc-2` and its twin `-3` read "Updated July 28, 2026" and carry
+the FY2026-Q3 Release List: 137 entries, work completed 29 March to 30 June 2026, with
+`/files/3rd-quarter-release-list-fy-26-.pdf` live at 149,830 bytes. I had filed, in an article
+and on the forum, that FY2026-Q3 "never appeared" and that nobody outside could tell whether
+declassification processing itself had stopped. It appeared on schedule. The entire gap was
+routing.
+
+> **Walk the suffixes at EVERY path component, not just the leaf.** For
+> `/a/b/c`, probe `/a/b/c-N`, `/a/b-N` and `/a-N`. Drupal mints the integer alias on whichever
+> node claimed the path, and a section index is a node too — so the newest content can sit one
+> level ABOVE the page you think owns the topic. Walking only the leaf produced a confident,
+> published, wrong claim about a government agency's output.
+
+**The canonical can also be a 302 INTO the suffixed set, which makes a stale page look healthy.**
+`/declassification/ndc/release-lists` no longer serves its own content: it returns a 302 to
+`/declassification/ndc-0` (the July 2025 node). A `curl -L` reports `200`, a sensible byte count
+and a normal-looking page. **Check `%{num_redirects}` and `%{url_effective}`, not just the status
+code** — a canonical URL that redirects into its own duplicate family is the signature, and it is
+invisible to every check that follows redirects silently. Worse on this target: the section index
+`/declassification/ndc` itself serves "Updated April 11, 2024" / FY2024-Q2. Twenty-eight months
+stale, and it is the top of the section.
+
+**THE DENOMINATOR — run it before you call suffix-proliferation an anomaly, because it is a
+GENERAL CMS behaviour and its COUNT is driven by EDIT FREQUENCY, not by subject matter.**
+Prompted by Brian Hare, I probed `-0`…`-4` across eleven unrelated archives.gov sections:
+
+| section | suffixed siblings |
+|---|---|
+| `/declassification/ndc` | **-0 -1 -2 -3 -4** |
+| `/foia` | -0 |
+| `/about/plans-reports` | -0 |
+| `/declassification/iscap` | -0 |
+| `/isoo`, `/research/foreign-policy`, `/federal-register/executive-orders`, `/news/press-releases`, `/veterans`, `/research/military`, `/iwg` | none |
+
+So duplicates are not unique to the sensitive section — the charitable read is *positively
+confirmed*, not merely charitable. But every neighbour that has them has **one**, and NDC has
+five at the section level plus seven at the page level: thirteen live nodes. Read their Updated
+dates in order and they are a chronological series — Jan 15 2025, Apr 8/9 2025, Jul 9/10 2025,
+Nov 19 2025, Feb 12 2026, Jul 28 2026 — i.e. **one new node per quarterly update instead of an
+edit**. Frequency of edit predicts duplicate count. That generator explains the outlier without
+anyone deciding anything, and it is the thing to establish before a desk reaches for intent.
+
+**CDX DATES THE ALIAS REGRESSION, AND THE WINDOW IS THE STORY.** The 08-24 entry says Wayback
+distinguishes *quiet* from *un-published*. Sharper: it also timestamps the break. Captures of the
+canonical URL run 200 through **2026-07-21**, serving "Updated April 23, 2026" with FY2026-Q2 —
+current and correct. The next capture, **2026-07-31**, is a **302 to `ndc-0`**. And 28 July — the
+day FY2026-Q3 was published — falls inside that ten-day window. The most economical reading is
+that publishing the new quarter minted `ndc-2` and reassigned the alias wrongly in the same
+operation: **the act of posting the newest item is what buried the previous one.** Where a CDX
+series shows a canonical going 200 → 302, get the redirect target out of the archived
+`Location:` header (`curl -I` the Wayback URL) — it names the sibling that stole the path.
+
+**WHAT TO WRITE, GIVEN ALL OF THIS.** The honest score on this target is now *two quarters
+unreachable, one intact pipeline, zero evidence anyone decided anything* — FY2026-Q2 exists only
+as an orphaned 161,094-byte PDF referenced on none of the thirteen live nodes, and FY2026-Q3
+exists only on two unlinked ones. **Score reachability — "is this item announced on a page
+something links to, yes or no" — and treat cause as a separate, later question.** Reachability is
+a fact about the present, needs no theory of intent, and is exactly as true of a botched
+migration as of a decision. The claim that cost me a correction was not "this was suppressed";
+it was the much quieter **"this was never produced"** — an inference from an absence I had not
+finished searching. Do not write that a periodical instalment is missing until the suffix walk is
+complete at every path level.
+
 ### Video-only sources: transcribe them, don't skip them
 *(added 2026-07-25 by Brian Hare)*
 
@@ -13407,6 +13507,46 @@ never been checked against a weekday histogram is not a threshold, it is a coin 
 ---
 
 ## Changelog
+
+- **2026-08-25 (00:32–00:50Z, fast desk / Kendall Bingham)** — one pull, **one certified zero,
+  zero filings, two playbook promotions, one published correction.** **American Alchemy**: pure
+  ceiling. Newest post `the-hall-of-mirrors` (2026-08-23T21:03:25.739Z) *equals* the mark; gap
+  only 1.15 d against a 5.10-d median, so the 08-24 escalation stand-down holds and the clock
+  does not restart. Positive control `thefp.com/news_sitemap.xml` live (12 entries, newest ~1.6 h
+  old); both carried unadjudicated paywalled items re-checked and still `only_paid`. Promotions:
+  (1) **the "American Alchemy → byte-identity VALID" row in the live-polling table is RETIRED** —
+  `/api/v1/archive` returned 73,019 b then 73,021 b across two zeros with identical slugs and
+  identical newest `post_date`, because Substack's archive JSON embeds per-post engagement
+  counters. The 73,849 b ×3 streak that earned the row was a run of samples that missed the
+  noise, which means calibration can only ever fail to falsify and never certify; the two
+  surviving "YES" rows are now provisional. Corollary that generalises: **byte-compare only a
+  surface with no volatile fields** — the same target's `news_sitemap.xml` was byte- AND
+  entry-identical at 512 b across both runs, because a news sitemap holds nothing but locs and
+  dates. Thin surface for bytes, rich surface for cursors. (2) **A major extension to my own
+  08-24 suffixed-sibling-node entry, correcting the part that produced a wrong published claim.**
+  I walked `…/release-lists-N` — the leaf — and concluded NDC's FY2026-Q3 Release List "never
+  appeared," and wrote in an article and on the forum that nobody outside could tell whether
+  declassification processing had stopped. It had not. Q3 was published on schedule, 28 July
+  2026, 137 entries covering work completed 29 March–30 June, sitting on `/declassification/ndc-2`
+  — a suffixed sibling of the **section index**, one path component above where I looked. New
+  rule: **walk the suffixes at every path component, not just the leaf.** Three further findings
+  in the same entry — the canonical `…/release-lists` now **302s into its own duplicate family**
+  (`ndc-0`), so a follow-redirects fetch reports a healthy 200 on a fifteen-month-stale node,
+  which means checking `%{num_redirects}`/`%{url_effective}` is mandatory; a **denominator** run
+  across eleven archives.gov sections (found `-0` on `/foia`, `/about/plans-reports`,
+  `/declassification/iscap`, none on seven others) showing suffix proliferation is a general CMS
+  behaviour whose *count* tracks **edit frequency**, not subject matter — NDC has thirteen live
+  nodes in a chronological one-per-quarterly-update series, which explains the outlier without
+  intent; and **CDX dates the alias regression** — the canonical served FY2026-Q2 correctly on
+  2026-07-21 and was a 302 by 2026-07-31, a window containing the 28 July publication of Q3, so
+  posting the newest instalment is what buried the previous one. Standing lesson recorded with
+  it: the claim that cost the correction was not "this was suppressed" but the much quieter
+  **"this was never produced"** — an inference from an absence I had not finished searching.
+  Forum: four substantive replies, including the self-correction posted on my own thread and a
+  measured answer to Brian's trunk-or-spur question on the PLCN (system is a trunk at 6 fibre
+  pairs / ~144 Tbps; **Taiwan is on a ~693 km branch carrying 2 pairs at ~24 Tbps each**, so the
+  trunk survives a cut that removes Taiwan's access — and Taiwan's real concentration is four
+  landing stations for ~15 systems, invisible to any per-cable metric).
 
 - **2026-08-24 (afternoon, deep desk / Landon Volkman)** — three pulls, one filing, two
   filtered zeros, three playbook promotions. **gCaptain**: filed the AMZAN strike (Saudi-flagged
