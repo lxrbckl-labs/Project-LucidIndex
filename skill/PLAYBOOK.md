@@ -10955,6 +10955,77 @@ its archive is shaped by the adversary's design choice. When filing these, say w
 claims you are leaning on and why, and never treat the prosecutorial hedge as evidence the
 sponsorship claim is weak.
 
+### SUBMARINE CABLES — Gate A has a published number. Use it, and state the route's own fault history.
+*(added 2026-08-25 by Landon Volkman, from the Shiyan 1 / PLCN and Taiwan-Matsu files.)*
+
+The attribution ladder's Gate A warns that infrastructure damage has "an enormous accident
+base rate." For submarine cables that base rate is **published**, so there is no excuse for
+leaving it implicit:
+
+- **~199 subsea cable faults per year, global average 2010–2024** (Andy Palmer-Felgate's global
+  cable repair data analysis, presented at SubOptic 2024 and 2025). Roughly **70–80% are
+  accidental human activity** — fishing gear and ships' anchors — with **dragged anchors alone
+  around 30%** (~60 faults/year). Abrasion and component failure take a further real slice.
+- Therefore: **a cut cable is weak evidence of anything by itself.** Absent a route-level
+  history, it is a blank cheque that whichever prior is running will cash.
+
+**The sentence that belongs in every cable-cut piece:** *this route has had N faults in the last
+five years, of which M had an identified vessel.* It exonerates nobody; it prices the inference,
+which otherwise costs zero.
+
+**Taiwan–Matsu is the cautionary file, and it cuts against the sabotage prior.** MODA attributes
+the 16 Feb 2025 complete disconnection of Taiwan–Matsu No. 2 to **core-wire aging** (prior
+fractures 3 Oct 2023, 22 Jan 2024), and the 29 Apr 2026 TM3 break ~2.64 km off Dongyin to poor
+sea conditions displacing **old wreckage of stranded boats**. Taiwanese officials also supplied
+a usable forensic discriminator when ruling out a vessel: as cables deteriorate, core wires snap
+*in progression along the length*, "which does not happen if they are hit by an anchor" — an
+anchor makes one wound, fatigue makes a series.
+
+**Enforcement denominator for Taiwan (as of Aug 2026):** five cable faults in 2025; coast-guard
+watchlist of close to a hundred suspect hulls; **one prosecution, one conviction** — Wang
+Yuliang, master of the Togo-flagged *Hong Tai 58*, Tainan District Court, 12 Jun 2025, three
+years plus NT$18.22m damages to Chunghwa Telecom, for dragging a 160 m anchor chain in a zigzag
+across the Taiwan–Penghu No. 3 cable in a marked no-anchor zone off Beimen on 22 Feb 2025.
+First conviction of its kind anywhere. Treat the sentence as **first-instance** — reporting on
+a second trial is behind a 403 wall and the appellate outcome is unconfirmed.
+
+**Fallback-ratio caveat (Matsu, against Brian Hare's 2023 figures).** The Matsu microwave hedge
+was 2.2 Gbps in Feb 2023 and 3.8 by 6 Mar 2023; by Jan 2025 it was **12.6 Gbps against a 9.5
+Gbps weekday peak** (MODA), i.e. ratio 1.33, and it carried the islands with no reported user
+degradation on 23 Jan 2025 until a splice restored the cable at 11:40 the same morning. So the
+ratio is improvable on a ~2-year procurement time constant. **But it is a size test, not a
+resilience score** — it clears 1.0 only where the load is small enough to hedge (13k people at
+9.5 Gbps). There is no microwave or LEO answer at trunk scale; MODA's non-geostationary
+emergency network is ~700 hotspots / ~70 backhaul stations sized for government command traffic,
+not a national internet. Any case that would actually hurt reads well below 1.0 by construction.
+
+**FACTUAL CORRECTION — PLCN is not consortium-owned, and it is not a trunk.** All three desks
+were running the wrong premise off trade coverage. Per **FCC Public Notice DA 22-141 (11 Feb
+2022), granting SCL-LIC-20200827-00038** (section *Cable Design and Capacity*):
+
+- Main Trunk 11,806 km, six fiber pairs, **only two operational** (FP1, FP2). FP3–6 belong to
+  PLDC and were never authorised. The Branching Unit 2 → Hong Kong segment "has been
+  disconnected from the PLCN cable system."
+- Taiwan Branch: Toucheng to **Fiber Pair 2 at Branching Unit 1**, ~693 km, two fiber pairs at
+  ~24 Tbps design each. Decisive sentence: **"GU Holdings has configured Branching Unit 1 to
+  route all traffic on Fiber Pair 2 to Taiwan."** There is no through-path — Taiwan is the
+  *terminus* of FP2 as a licence condition. Meta's FP1 runs to Baler and stops. PLCN is
+  therefore **two point-to-point private cables sharing a wet plant**, not an 8,000-mile trunk
+  with spurs; the mesh property was never licensed in.
+- Ownership: the Taiwan Branch "is wholly owned and controlled by affiliates of GU Holdings" —
+  Google Cable Bermuda (international waters), Google Taiwan Limited (Taiwan waters), with
+  "100% of the voting interest." **Chunghwa Telecom is not an owner**; GTL leases landing-station
+  space at Toucheng and CHT acts as landing party. Google operates under a National Security
+  Agreement with DOJ, DHS and DOD.
+
+**What follows doctrinally:** ownership consolidation is not a proxy for response capacity.
+PLCN's Taiwan branch is the *maximal* ownership answer — one company, one jurisdiction, 100%
+voting control, three US departments party to the operating agreement — and *Shiyan 1* still
+loitered over it for five days with a coast-guard cutter and a camera as the entire response.
+**Ownership determines who is liable; it does not determine who is present.** Do not merge
+"response capacity" (who may lawfully interdict) with "fallback ratio" (the target's tolerance
+for loss) — PLCN maxes the first and says nothing about the second.
+
 ### A BELLIGERENT WHO NAMES A PRICE FOR STOPPING HAS ATTRIBUTED THE CAMPAIGN — FILE IT, EVEN THOUGH IT IS NOT AN INCIDENT
 *(added 2026-08-23 by Brian Hare, from the Black Sea file.)*
 
