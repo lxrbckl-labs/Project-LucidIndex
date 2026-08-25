@@ -11126,6 +11126,75 @@ loitered over it for five days with a coast-guard cutter and a camera as the ent
 "response capacity" (who may lawfully interdict) with "fallback ratio" (the target's tolerance
 for loss) — PLCN maxes the first and says nothing about the second.
 
+**AMENDMENT — NORMALISE THE FAULT RATE PER ROUTE-KM BEFORE YOU COMPARE IT. Raw counts invert
+the verdict.** *(added 2026-08-25 by Kendall Bingham, correcting my own "25–50× the global
+average" figure, which compared counts and was the wrong operation.)*
+
+The 199/year global figure and a route's own N/year are **not commensurable** — one is a
+planet, the other is a few hundred kilometres. Divide both by route mileage before either
+number is allowed near a prior:
+
+- **Global:** 199 faults/yr have held *flat* while global route mileage grew from **1.5 million
+  km (2013) to ~2.7 million km (today)** — the per-km rate has been roughly halving. That is
+  about **0.07 faults per 1,000 route-km per year.**
+- **Taiwan–Matsu:** ~**5.1 damage incidents/yr**. Taiwan–Matsu No. 4 (replacement, mid-2026) is
+  **303 km**, Dongyin to Bali; the cables it joins are the same order. Grant a deliberately
+  length-generous ~600 km of Matsu-serving route and you get ≈ **8.5 faults per 1,000
+  route-km-yr** — **roughly 100× the global rate**, on an estimate built to be unflattering to
+  the anomaly reading.
+
+**Doctrinal consequence, and it reverses the section above for this route.** The accident base
+rate is exculpatory *applied globally* and localising *applied per-route*. Matsu is not drawn
+from the global population; it is an outlier by two orders of magnitude, and whatever produces
+that is not the world's fishing fleet. **A base rate that varies ~100× between routes is not a
+prior — it is a map.** So keep MODA's fatigue and shipwreck findings as the correct *proximate*
+causes and stop filing them as evidence against the anomaly: metal fatigue at 100× baseline is
+a downstream symptom of a route being worked, not an alternative to it. Progressive core-wire
+fracture remains a valid discriminator for the individual break; it says nothing about why that
+particular 300 km accumulates fractures.
+
+**Reporting rule:** never write "N× the global average" from raw counts. Write the per-1,000-km
+figure for both sides, or write neither. **Known gap:** nobody publishes per-route fault rates
+as a series — only the global aggregate and per-incident anecdote. The data exists (faults are
+logged, repaired by a small fleet, and billed) inside cable-ship operators and ICPC members and
+is not a public artifact. Treat any per-route rate you construct as an estimate and show the
+mileage assumption.
+
+**COROLLARY — RESPONSE CAPACITY MEASURED AT INCIDENT TIMESCALE READS ZERO BY CONSTRUCTION. The
+real defensive act is procurement, and it is years early.** *(added 2026-08-25 by Kendall
+Bingham.)*
+
+PLCN's owner did respond to the exposure — it just did so four years before the loiter. Google
+built **TPU**: Eureka, California to **Dawu**, a newly constructed Chunghwa landing station on
+Taiwan's *opposite coast*, plus Claveria (Philippines) and a fourth leg to **Tanguisson, Guam**.
+Operational 2025. Same three countries, different beach, extra path. That is a fallback ratio
+being computed and bought by a private owner, and it took a new cable and a new building to move
+the number. A submarine cable cannot be procured inside an outage — so the only defence that
+works is definitionally absent at the moment of the event, and invisible to any metric sampled
+then.
+
+Same logic explains the vulnerability itself: the Taiwan Branch is two fiber pairs into one
+station because that is what consortium economics **priced in 2018**. Ownership did not fail to
+defend the asset; ownership *specified* it, with a date. So "this is an ownership problem" is
+true and nearly useless as stated — the decision that mattered was a capex line item years
+before anyone watched a survey ship, and neither response capacity nor fallback ratio taken
+today can see it. **The third axis is a procurement metric, and it is backward-looking by
+construction.**
+
+**And the concentration is at the beach, not in the water** — Taiwan's ~15 international systems
+(>300 Tbps design, 2023) come ashore at **four** landing stations: Tanshui, Bali, Toucheng,
+Fangshan. A per-cable fallback ratio is computed per system while the exposure is per station,
+so it will report a healthy island right up until one building is the event. Nationally, losing
+the PLCN Taiwan Branch whole is ~16% of design capacity and a routing decision, not a cable
+ship — Matsu does **not** scale up to the island.
+
+**SOURCING RULE THIS FILE PROVED:** for infrastructure specs, a **regulatory filing beats trade
+coverage, every time.** Three desks ran "8,000-mile consortium trunk, six fiber pairs, ~144
+Tbps" off trade press; DA 22-141 says two operational pairs, no through-path, single owner. The
+trade figure described a *design*; the licence described what is authorised to carry traffic.
+Quoting design capacity as an asset is the same error as taking the maximal available
+description of a vessel track and treating it as the fact.
+
 ### A BELLIGERENT WHO NAMES A PRICE FOR STOPPING HAS ATTRIBUTED THE CAMPAIGN — FILE IT, EVEN THOUGH IT IS NOT AN INCIDENT
 *(added 2026-08-23 by Brian Hare, from the Black Sea file.)*
 
