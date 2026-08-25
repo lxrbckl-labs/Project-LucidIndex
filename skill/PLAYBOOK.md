@@ -2757,6 +2757,292 @@ lose the research — and the next desk covering the same campaign should not re
 because the structured fields are empty. Mine are banked in the gCaptain mark under
 `CROSS-SOURCES ACTUALLY READ`.
 
+**INSTANCE TEN, 2026-08-25 (Brian Hare) — the first one committed by a desk that had ALREADY
+READ the instance-nine repair in the same session. The doctrine is right; what is missing is a
+gate.**
+
+r/UFOs filing `81c86867`: three cross-sources read in full (Liberation Times, Cybernews via the
+`scout` extractor after a Cloudflare 403, NewsNation), a deliberate `citations: []` with a stated
+reason (no comparison-tier outlet has touched the story), both facts written into the deep dive —
+and `articles[0]` shipped with neither key. `accepted: 1, failures: []`.
+
+Nothing new to add to the *diagnosis*: @landon_volkman's instance-nine repair — write
+`cross_source` the moment you finish the last cross-source, `citations` the moment
+`get_comparison_sources` returns, both before the title — would have prevented this exactly. I
+had read it. I did not run it.
+
+The one fact worth recording, because it changes what the next promotion should be: **five
+instances have now been answered with a better-worded reminder, and the sixth desk read the
+reminder and failed anyway.** Restating the rule a seventh time is not the intervention. The
+gap is that every countermeasure so far lives in prose a desk must *choose* to execute, at the
+one moment in the loop when it is most loaded. What this defect needs next is something
+mechanical — a payload-shaped scratch file the desk fills as it researches and submits verbatim,
+or a local validator that refuses a payload whose `articles[i]` lacks the two keys. Until one
+exists, treat instance-nine's ordering rule as the standing instruction and expect roughly this
+failure rate. **Do not promote another restatement of it.**
+
+### Hero images` — regardless of target, topic, or how well the round has gone.**
+
+One line, one grep, and it is the only section in this file whose applicability is known in
+advance, so it is the only one that never needed a query. Recorded honestly per rule 4: the
+two rows are `81762915` (21st Party Congress turnover) and `7b559ebc` (united front), both
+live with a full hero, body images, badges and opinion but **no cross-sources and no
+citations** — the research was done and cross-examined in the deep dives, it simply is not
+in the structured fields. Flagged to Alex in the run report. No superseding filing: the
+comparison work is visible to a reader in the body, so this embarrasses the desk rather than
+misleading anyone.
+
+**A FIFTH AXIS, AND IT DEFEATS THE FOURTH'S REMEDY BY SATISFYING IT PARTWAY: I READ THIS
+SECTION DURING THE RUN, FOR A DIFFERENT QUESTION, AND STOPPED AT THE ANSWER — THEN SHIPPED
+THE SAME TWO KEYS.** *(Landon Volkman, 2026-08-23, on an r/HighStrangeness pull; rows
+`e4907d2f` and `70945690`, both live with hero, body images, badges, opinion and a
+cross-examined deep dive, both with **no `cross_source` and no `citations`**.)*
+
+The 08-20 entry above diagnoses "the rule was never loaded" and prescribes: grep for
+`INSERT-ONLY` and **read from there to `### Hero images`**. I ran that grep. Mid-round I
+wanted to know whether I could split a two-article filing across two `write_articles`
+calls, found this section, read `sed -n '2321,2360p'` — and stopped, because my question
+was answered at line ~2340, forty lines in. The prescribed range is ~220 lines. I read the
+irreversibility rule and never reached the read-back it exists to justify.
+
+So the fourth axis's remedy has a **range**, and a range is only enforced by whatever made
+you open the section. Enter it with a question and you exit at the answer:
+
+| axis | the section was… | what failed |
+|---|---|---|
+| 1–3 | in hand, read in full | execution |
+| 4 | never retrieved | retrieval |
+| **5** | **retrieved and read in part, for an unrelated question** | **termination** |
+
+And the direction is this page's usual bad one, one turn worse than the 07-29 note: a
+*partial* read produces the same "I consulted the write-payload doctrine" confidence as a
+complete one, while carrying none of the checklist. Having opened the file is the thing
+that tells you you are safe.
+
+**The second half is the part that generalises, because it explains why every instance of
+this failure — Nikkei, ZuriQ, Jamestown ×2, and now these two — is THE SAME TWO KEYS.**
+That is five filings across three desks and it has never once been a different field. The
+reason is structural, not habitual:
+
+> `write_articles`'s schema `required` array is
+> `[source_url, title, summary, significance, difficulty, hero_image_url]`.
+> `cross_source` and `citations` are **not in it**. They are mandated by the
+> **`rendered_prompt`**, which is a different document, held in a different place, that the
+> server does not enforce.
+
+A read-back "against the field list" is therefore ambiguous about *which* list — and the
+schema's is the one that is machine-readable, sitting in the tool definition you just used,
+and returns `failures: []` to confirm you were right. The editorial list is prose in the
+pull response you read twenty minutes earlier. **The more schema-literate the desk, the more
+reliably it checks the wrong list**, and the server's green result certifies the omission.
+Every other rule on this page about our own payload counts keys against the schema; this is
+the one place the schema is not the authority.
+
+> **Read the object back against the RENDERED PROMPT, not the schema. Concretely: before the
+> call, re-read the pull's own instruction line — mine said "Submit those sources in
+> `cross_source`" and "add formal `citations`" — and confirm each named field is present in
+> the serialised payload. `accepted: N, failures: []` is the schema's verdict on the schema's
+> list; it is silent on the editorial one, which is where all five known losses live.**
+
+Cheap corollary, since the set is now closed and small: **`cross_source` and `citations` are
+the only two fields that are editorially mandatory and schema-optional, so they are the whole
+of the exposure.** A desk that checks nothing else can check those two by name in a second and
+close the entire documented failure mode. If a beat legitimately has neither — the community
+and aggregator targets do produce genuine empties, per the closed-vocabulary rule below — send
+`citations: []` deliberately rather than by omission, so the absence is a decision on the
+record instead of a silence indistinguishable from this bug.
+
+Recorded honestly per rule 4: on the two rows above the comparison work *was* done and is
+visible to a reader inside the deep dives (The Debrief, the *Jerusalem Post*'s May 2025 round,
+Collins & Fasold 1996, the PHMSA final report; the Bongiovanni archive, *I Nuovi Vespri*, the
+Alien Archivist Substack) — it simply is not in the structured fields. Flagged to Alex in the
+run report. No superseding filing: this embarrasses the desk rather than misleading a reader.
+
+**INSTANCES SIX AND SEVEN, AND THE CAUSE IS A NEW ONE: NOT FORGETTING, NOT A PARTIAL
+READ — *NEVER RETRIEVED*, BECAUSE THIS DOCTRINE HAS NO TOPICAL KEY AND THE PLAYBOOK IS
+NOW READ BY SEARCH.** *(added 2026-08-24 by Brian Hare, by shipping two r/UFOs articles
+with no `cross_source` and no `citations` — plus a crossed inline caption, the failure
+documented under Hero images — in a run where I had the playbook open the whole time.)*
+The retrieval table above tops out at "retrieved and read in part, for an unrelated
+question." This run is the rung past it, and it is **structural, not a lapse**:
+
+> The house rule is now *consult by targeted search, never front-to-back*. A desk's
+> search terms are its **target and its topic** — I searched `r/UFOs`, and read the
+> Reddit `.rss` ladder, the rate-limit backoff, the community-icon 404 table, and the
+> Burlison provenance chain. All four were the right sections. **None of them is where
+> the write-payload rules live, and no query built from a target name will ever surface
+> them**, because `cross_source`, `citations`, and `caption ↔ URL` are keyed to a
+> **FIELD**, not to a subject. The two doctrines are indexed on different axes, and only
+> one of them matches how the file is now read.
+
+So the mitigation the entry above proposes — "re-read the pull's own instruction line
+before the call" — is correct and was never going to fire, because it lives *inside the
+section you have to already be reading to know to do it*. Circular dependencies do not
+survive contact with a search-based read. The repair has to leave this file:
+
+- **Promoted the check into `SKILL.md` step 7** (2026-08-24), the document every desk
+  reads **in full** before its first pull. Four lines, by field name: `cross_source` and
+  `citations` present-or-deliberately-empty, every inline `caption ↔ URL` pairing said
+  out loud, hero GET-verified, `summary` 1–2 sentences. That is the always-loaded layer;
+  this file stays the *why*.
+- **Corollary for anything else on this page that is not target-keyed.** Ask of any new
+  entry: *what would a desk have to already suspect in order to search for this?* If the
+  answer is "the thing the entry is trying to tell them," it belongs in SKILL.md, not
+  here. Provenance chains, source gotchas, and per-target mechanics search fine — they
+  carry the target's name. Payload-assembly and read-back rules do not.
+
+Recorded honestly per rule 4: on both rows the comparison work *was* done and is visible
+to a reader inside the deep dives (Cybernews, Al Jazeera, PBS NewsHour, NBC News, CNN and
+IBTimes UK on the Coulthart piece; the Washington Post 2007 protest coverage, Science on
+the AFIP staff splinter, and the FY2008 NDAA/Joint Pathology Center succession on the
+AFIP piece) — it is simply not in the structured fields. One further self-inflicted
+detail worth the embarrassment: on the second article I *did* remember `cross_source` and
+passed it at the **top level of the `write_articles` call instead of inside the article
+object**, where it is not in the schema. The server returned `accepted: 1, failures: []`.
+**A misplaced field reports identically to an omitted one** — so "I sent it" is not
+evidence it landed; only its presence *inside* `articles[i]` is. Flagged to Alex in the
+run report. No superseding filing — `write_articles` is insert-only.
+
+**INSTANCE EIGHT — THE FIRST ONE *AFTER* THE SKILL.md REPAIR, WHICH MEANS THE REPAIR IS
+NECESSARY AND NOT SUFFICIENT. The cause is not ignorance and not retrieval: it is DECAY.
+The check is loaded ONCE per session and the call happens MANY times.** *(added 2026-08-24
+by Kendall Bingham, by shipping the run's FIRST article with neither `cross_source` nor
+`citations`, having read the four-line pre-call check in SKILL.md in full ~25 minutes
+earlier.)*
+
+The entry above diagnoses instances six and seven as *never retrieved* — the payload rules
+are keyed to a **field** while the file is now read by **target**, so no query surfaces them.
+The repair was to promote the four-line check into `SKILL.md` step 7, the document every desk
+reads in full before its first pull. That repair is correct and I had it. It still failed, and
+the failure mode it does not cover is the interesting one:
+
+```
+13:47  read SKILL.md in full, including the four-line PRE-CALL CHECK
+13:49  pull  -> Focus Taiwan
+13:50  ~25 min of sweeping, dedup, cross-source reading, image verification
+13:56  write_articles  #1   <- no cross_source, no citations.  accepted: 1. permanent.
+13:58  write_articles  #2   <- cross_source + citations, both inside articles[0].  correct.
+14:05  write_articles  #3,#4 (quantum round)  <- both correct.
+```
+
+**Three of four calls in the same run were clean.** So this is not a desk that does not know
+the rule; it is a desk that knew it, spent twenty-five minutes on an unrelated, absorbing task,
+and had it fall out of working attention before the one call that could not be undone. The tell
+is diagnostic and worth writing down: **when the run's FIRST `write_articles` is the one that
+fails and later calls in the same run are clean, the cause is decay, not ignorance** — and no
+amount of front-loading fixes it, because front-loading is what already happened.
+
+> **The check must be co-located with the CALL, not with session start.** State the four
+> items by name in the turn immediately before *every* `write_articles`, including the first,
+> including when you are certain. A rule read once per session and applied N times per session
+> is protected on call N and unprotected on call 1.
+
+Two corollaries that cost nothing:
+
+- **The research phase is the hazard, not the drafting phase.** The gap that killed this filing
+  is the interval between reading the rule and the irreversible act, and on this beat that
+  interval is filled with the most attention-consuming work in the loop (sweeps, dedup, image
+  verification). The longer and better the research, the more likely the payload defect —
+  which is exactly backwards from how a desk feels about its own carefulness.
+- **Do not treat a clean later call as evidence the run was clean.** Instance eight would read
+  as a well-run round from any summary that counts `accepted` and `failures`: 4 accepted, 0
+  failures, three of four payloads complete. The dashboard shows one permanent article with no
+  structured cross-sources, and the run's own success metrics are silent on it.
+
+Recorded honestly per rule 4: on the affected filing (Focus Taiwan, the Nvidia/Supermicro B300
+indictment) the comparison work *was* done and is visible to a reader inside the deep dive —
+Taipei Times, Korea Times, DIGITIMES, Tom's Hardware, Bloomberg and CNBC are all named and
+reconciled in the text, including an unresolved 60-vs-74 server divergence between CNA's
+itemisation and the wire aggregate. It is simply not in the structured fields. Flagged to Alex
+in the run report. No superseding filing — `write_articles` is insert-only.
+
+**INSTANCE NINE, AND IT ARGUES THE REPAIR IS IN THE WRONG PLACE — BUILD THE TWO UNENFORCED
+FIELDS FIRST, NOT LAST.**
+*(added 2026-08-24 by Landon Volkman, by committing instance nine on the gCaptain AMZAN filing,
+article `a7c255ea`)*
+
+Same failure, same shape, one more time: ~25 minutes of research (four outlets read in full),
+a tight dedup, three HEAD-verified images, ~1,000 words of cross-examination written *into* the
+deep dive — then an `articles[0]` object with no `cross_source` and no `citations`, and
+`accepted: 1, failures: []`. Instance eight's diagnosis fits mine exactly, including the detail
+that the comparison work is visible to a reader in the body text and absent from the structured
+fields.
+
+What I can add is a **correction to the repair**, because instance eight's fix is the one I was
+running when I failed. The rule as written is *"state the four items by name in the turn
+immediately before every `write_articles`."* I did check, in that turn, and I still shipped it
+broken — because I checked the four things I had most recently been **doing**. My last forty
+minutes had been image verification and prose, so hero-loads / captions-match / summary-length /
+badges-legal all surfaced instantly, and `cross_source` — item **#1**, and the one I had last
+touched half an hour earlier — did not. I ran the ordered check 2-3-4. A recall prompt is
+answered from recency, so a checklist executed from memory at the end of a long run
+**systematically drops whichever item is oldest in working attention**, and on this loop that
+item is reliably #1, because the research phase always ends before the drafting phase.
+
+So the repair should not be *another* checkpoint at the same place the last two failed. Move the
+work instead of the reminder:
+
+> **Write the `cross_source` array the moment you finish reading your last cross-source — before
+> the title, before the summary, before the hero. Write `citations` in the same breath, right
+> after `get_comparison_sources` returns.** Then the four-item check at call time is verifying an
+> array that already exists rather than trying to remember one that does not.
+
+Why these two fields and no others get special handling — the property is precise, and it is
+what makes them the only unrecoverable ones:
+
+| | required by the prompt | in the schema's `required[]` | visible on the published tile |
+|---|---|---|---|
+| `hero_image_url` | yes | **yes** — server rejects | yes (a coverless tile is obvious) |
+| `summary`, `title`, `significance`, `difficulty` | yes | **yes** — server rejects | yes |
+| `topic_badges` | yes | no | yes (badges render) |
+| `agent_deep_dive`, `agent_opinion` | yes | no | yes (the body is the article) |
+| **`cross_source`, `citations`** | **yes** | **no** | **no — an empty array and a missing key look identical** |
+
+Every other field is caught by either the server or a reader. These two are caught by nobody.
+That is the whole reason they are on their ninth instance while nothing else on the payload has
+recurred — it is not that desks care less about sourcing, it is that sourcing is the only part
+of the payload with **no feedback path at all**. Design around the missing feedback, not around
+the desk's willpower.
+
+Corollary for the run report, learned the same way: when you do drop them, **put the recovered
+sources in the ack note's high-water-mark, in full, with URLs and one line each on what each
+outlet uniquely contributed.** The article tile is unfixable, but the corpus does not have to
+lose the research — and the next desk covering the same campaign should not re-dig four outlets
+because the structured fields are empty. Mine are banked in the gCaptain mark under
+`CROSS-SOURCES ACTUALLY READ`.
+
+**INSTANCE NINE, 2026-08-25 (Brian Hare) — a SECOND mechanism, and it is not decay. Fix the
+COMPOSITION ORDER, not the memory.**
+
+Kendall's instance-eight diagnosis (*first call fails, later calls clean → decay; remedy is
+co-location*) is correct and it does not cover this one. My run made exactly ONE
+`write_articles` call, so there is no first-vs-later signal, and the fields were not forgotten
+in the sense of never being considered: I had explicitly decided, minutes earlier and in
+writing, to submit three `cross_source` rows and a deliberate `citations: []` with the reason.
+They were lost **between the decision and the keystrokes**, because the article object was
+composed prose-first — title, summary, then a 600-word `agent_deep_dive` with two verified
+inline images — and by the closing brace the metadata decision had been buried under the
+writing. The prose is the part that feels like the work; the two fields with no feedback path
+are the part that gets appended last, or not at all.
+
+So the remedy is ordering, and it is mechanical:
+
+- **Type `cross_source` and `citations` into the article object FIRST — before `title`, before
+  a word of prose — populated or explicitly `[]`.** A key that exists cannot be forgotten. This
+  costs nothing and it removes the failure mode rather than defending against it.
+- **Suspect this variant whenever the deep dive is long or image-heavy.** The correlation to
+  watch is not call-index but composition weight: the more prose between the decision and the
+  submit, the more reliably these two evaporate. A 600-word body with verified inline images is
+  precisely the payload that eats them.
+- **A prose-only cross-examination is the tell.** If the deep dive names three outlets and
+  compares them — the template's actual requirement — and `cross_source` is absent, the research
+  happened and only the serialisation failed. Grep your own draft: any outlet you named in prose
+  belongs in the array.
+
+Both mechanisms share one root, already stated above: **these are the only fields with no
+feedback path.** Decay attacks them across time; composition order attacks them within a single
+call. Co-location handles the first; writing the keys first handles the second. Do both.
+
 ### Hero images
 - Every article **requires** a `hero_image_url` clearly related to the story
   (its OG/lead image or another on-topic photo) — `write_articles` rejects an
@@ -12473,6 +12759,38 @@ are watching, look for a DIFFERENT surface the same operator necessarily touches
 are the WordPress instance of it; the shape recurs (a wire's corrections feed, a repo's issue
 tracker, a docket's filing clerk). A publication feed reports output. Find the surface that
 reports *presence*.
+
+**AMENDMENT 2026-08-25 (Brian Hare) — "several days" was undefined, and the first time the
+conjunction half-engaged that ambiguity was the whole problem. Pin the threshold to the
+surface's OWN measured rate, not to a round number.**
+
+The rule above says escalate only on the conjunction — no new posts AND no author comment AND
+no comment flow "for several days." Measured on Centauri Dreams at 10.47 days of publication
+silence (a gap that **broke** the observed record; history was 3,4,6,6,6,6,7,8,8,9), the comment
+feed had itself stopped: newest comment frozen at 2026-08-23T00:14:46Z for ~48 h, last Gilster
+comment ~60 h old, `?after=<newest>` returning a 2-byte `[]` — while the positive control still
+returned its unchanged 555 bytes and the homepage served 334 KB. Two of three arms held, and
+"several days" gave no way to say whether that was the tail or a weekend.
+
+The fix is to derive the number from the section's own throughput rather than pick one. That
+comment section ran **40 comments in the 12 days to 08-23 ≈ 3.3/day**, so a 96-hour drought is
+~13 expected comments missing — far outside anything a quiet weekend produces. **96 h was
+therefore pinned as this target's comment-flow escalation trigger**, and the same construction
+is the portable part: take the measured events/day on the presence surface, and set the trigger
+where the expected-but-absent count stops being explicable as noise. A threshold computed this
+way survives handoff because the next desk can check the arithmetic; "several days" cannot.
+
+Two guards learned in the same measurement:
+
+- **State the resume condition as loudly as the escalation condition.** ANY new row after the
+  frozen timestamp breaks the conjunction and ends the watch — write that down, or the next
+  desk inherits an alarm with no off switch.
+- **The strong reading cuts both ways, so say so.** A moderated queue going quiet is *also*
+  exactly what a writer heads-down on a long piece looks like — the same person who is not
+  publishing is the person not clearing comments. The two arms of this conjunction are less
+  independent than they look when the operator is a single individual. On a one-person site,
+  treat the comment arm as *corroborating* evidence, not as a second independent instrument;
+  reserve the full-independence reading for staffed publications.
 
 ### A CPT's REST BASE AND ITS PERMALINK ROUTE CAN DISAGREE — take `source_url` from the row's own `link`
 
